@@ -6,16 +6,6 @@ One item per agent session. Commit after each item. Remove completed items.
 
 ## Phase 1 — Clean up VSIXProject1
 
-### TODO-004
-**Simplify ContinueVSPackage.cs**
-Remove all binary/client wiring from `InitializeAsync`.
-Remove `BinaryManager` and `Client` properties.
-Package should initialize commands and start GUI extractor only.
-Must remain `partial` and under 400 lines.
-Reference: ADR-001, ADR-003
-
----
-
 ### TODO-005
 **Create GuiExtractor.cs**
 New file: `VSIXProject1/Binary/GuiExtractor.cs`

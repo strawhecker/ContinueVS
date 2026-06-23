@@ -1,6 +1,4 @@
 ﻿using ContinueVS.Commands;
-using ContinueVS.Editor;
-using ContinueVS.IPC;
 using ContinueVS.Settings;
 using ContinueVS.UI;
 using Microsoft.VisualStudio.Shell;
@@ -22,7 +20,7 @@ namespace ContinueVS
         Style = VsDockStyle.Tabbed,
         Window = EnvDTE.Constants.vsWindowKindSolutionExplorer)]
     [ProvideOptionPage(typeof(ContinueOptionsPage), "Continue", "General", 0, 0, true)]
-    public sealed class ContinueVSPackage : AsyncPackage
+    public sealed partial class ContinueVSPackage : AsyncPackage
     {
         /// <summary>Singleton reference set during InitializeAsync, cleared on Dispose.</summary>
         public static ContinueVSPackage? Instance { get; private set; }
