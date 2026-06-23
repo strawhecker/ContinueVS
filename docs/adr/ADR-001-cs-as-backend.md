@@ -24,6 +24,5 @@ C# code inside VSIXProject1 is the **complete replacement** for the VS Code Exte
 - No subprocess is spawned. No IPC pipe is needed.
 
 ## Consequences
-- The entire `Binary/` and `IPC/` layer in VSIXProject1 must be deleted.
 - A C# `MessageDispatcher` and per-message-type handlers must be written.
 - The Continue message protocol must be understood and implemented in C#.
