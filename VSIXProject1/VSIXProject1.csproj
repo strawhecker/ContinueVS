@@ -21,6 +21,12 @@
     </VSCTCompile>
   </ItemGroup>
   <ItemGroup>
+    <!-- LICENSE.txt must be present for the VSIX manifest <License> element -->
+    <Content Include="LICENSE.txt">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.40034" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4022.49" />
@@ -28,5 +34,6 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.ComponentModel.Composition" />
   </ItemGroup>
 </Project>

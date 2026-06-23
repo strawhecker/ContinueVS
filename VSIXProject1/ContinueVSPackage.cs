@@ -1,6 +1,8 @@
 ﻿using ContinueVS.Binary;
 using ContinueVS.Commands;
+using ContinueVS.Editor;
 using ContinueVS.IPC;
+using ContinueVS.Settings;
 using ContinueVS.UI;
 using Microsoft.VisualStudio.Shell;
 using System;
@@ -20,6 +22,7 @@ namespace ContinueVS
     [ProvideToolWindow(typeof(ContinueToolWindowPane),
         Style = VsDockStyle.Tabbed,
         Window = EnvDTE.Constants.vsWindowKindSolutionExplorer)]
+    [ProvideOptionPage(typeof(ContinueOptionsPage), "Continue", "General", 0, 0, true)]
     public sealed class ContinueVSPackage : AsyncPackage
     {
         /// <summary>Singleton reference set during InitializeAsync, cleared on Dispose.</summary>
@@ -39,6 +42,10 @@ namespace ContinueVS
             Instance = this;
 
             await ShowContinuePanelCommand.InitializeAsync(this);
+            await AskContinueCommand.InitializeAsync(this);
+            await ExplainCodeCommand.InitializeAsync(this);
+            await FixCodeCommand.InitializeAsync(this);
+            await AddCommentCommand.InitializeAsync(this);
 
             BinaryManager = new ContinueBinaryManager();
             Client        = new ContinueClient();
@@ -49,8 +56,18 @@ namespace ContinueVS
                 try
                 {
                     await Client.ConnectAsync(port, cancellationToken);
-                    var handler = new IdeCallbackHandler(Client, this);
-                    handler.Register();
+
+                    new IdeCallbackHandler(Client, this).Register();
+                    new WorkspaceContextProvider(this, Client).Register();
+                    new DiffApplier(this, Client).Register();
+                    new StatusBarManager(Client, this).Register();
+
+                    var editorCtx = new EditorContextProvider(this, Client);
+                    await editorCtx.RegisterAsync();
+
+                    await this.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    var configWatcher = new WorkspaceConfigWatcher(this, Client);
+                    configWatcher.Start();
                 }
                 catch { /* will retry on next crash/restart cycle */ }
             };

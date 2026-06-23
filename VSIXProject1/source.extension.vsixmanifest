@@ -3,11 +3,30 @@
   <Metadata>
     <Identity Id="ContinueVS.a4507790-4510-4158-b192-87339e7b1a34" Version="1.0" Language="en-US" Publisher="ContinueVS" />
     <DisplayName>Continue for Visual Studio</DisplayName>
-    <Description>The open-source AI coding assistant — Continue — for Visual Studio. Chat, inline completions, code actions, and more.</Description>
-    <Tags>AI, copilot, autocomplete, chat, continue</Tags>
+    <Description xml:space="preserve">The open-source AI coding assistant — Continue — for Visual Studio.
+
+Features:
+• AI chat panel (View → Continue Chat, Ctrl+Shift+J)
+• Inline ghost-text completions as you type (Tab to accept)
+• Explain, Fix, and Comment code actions (Edit → Continue or right-click)
+• Ask Continue with selected code (Ctrl+Shift+M)
+• Full support for OpenAI, Anthropic, Ollama, and any Continue-compatible provider
+• Config driven by ~/.continue/config.json
+
+Requires an internet connection on first run to download the Continue AI engine (~60 MB).</Description>
+    <MoreInfo>https://github.com/continuedev/continue</MoreInfo>
+    <License>LICENSE.txt</License>
+    <Tags>AI, copilot, autocomplete, chat, continue, llm, openai, ollama</Tags>
   </Metadata>
   <Installation>
-    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.14, )">
+    <!-- Visual Studio 2022 and 2026 — all editions -->
+    <InstallationTarget Id="Microsoft.VisualStudio.Community"    Version="[17.14, )">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Professional" Version="[17.14, )">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise"   Version="[17.14, )">
       <ProductArchitecture>amd64</ProductArchitecture>
     </InstallationTarget>
   </Installation>
@@ -18,6 +37,13 @@
     <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.14, )" DisplayName="Visual Studio core editor" />
   </Prerequisites>
   <Assets>
-    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+    <!-- Package registration -->
+    <Asset Type="Microsoft.VisualStudio.VsPackage"
+           d:Source="Project" d:ProjectName="%CurrentProject%"
+           Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+    <!-- MEF components (ghost-text adornment factory, etc.) -->
+    <Asset Type="Microsoft.VisualStudio.MefComponent"
+           d:Source="Project" d:ProjectName="%CurrentProject%"
+           Path="|%CurrentProject%|" />
   </Assets>
 </PackageManifest>
