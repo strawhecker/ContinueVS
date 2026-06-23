@@ -6,17 +6,6 @@ One item per agent session. Commit after each item. Remove completed items.
 
 ## Phase 1 — Clean up VSIXProject1
 
-### TODO-003
-**Delete binary-dependent UI helpers**
-Remove files:
-- `VSIXProject1/UI/StatusBarManager.cs`
-- `VSIXProject1/Editor/DiffApplier.cs`
-
-Build must succeed after deletion.
-Reference: ADR-001
-
----
-
 ### TODO-004
 **Simplify ContinueVSPackage.cs**
 Remove all binary/client wiring from `InitializeAsync`.
