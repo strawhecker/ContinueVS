@@ -142,10 +142,10 @@ Write-Host ''
 Write-Host "Done. $extracted files extracted to:" -ForegroundColor Green
 Write-Host "  $GuiDest" -ForegroundColor Green
 
-if ($version) {
-	Write-Host ''
-	Write-Host "Next steps:" -ForegroundColor Yellow
-	Write-Host "  1. git add VSIXProject1/gui"
-	Write-Host "  2. Update docs/adr/ADR-006-gui-assets-vendored.md — pinned version: $version"
-	Write-Host "  3. Commit: git commit -m 'chore: vendor Continue GUI $version'"
-}
+#if ($version) {
+#	Write-Host ''
+#	Write-Host "Next steps:" -ForegroundColor Yellow
+#	Write-Host "  1. git add VSIXProject1/gui"
+#	Write-Host "  2. Update docs/adr/ADR-006-gui-assets-vendored.md — pinned version: $version"
+#	Write-Host "  3. Commit: git commit -m 'chore: vendor Continue GUI $version'"
+#}
