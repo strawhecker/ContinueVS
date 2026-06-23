@@ -5,7 +5,6 @@ using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -38,7 +37,7 @@ namespace ContinueVS.UI
             {
                 await GuiExtractor.EnsureExtractedAsync();
                 await NavigateAsync();
-            }).FileAndForget("vs/continuevs/load");
+            }).FileAndForget("vs/continuevs/loaded");
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
@@ -71,16 +70,10 @@ namespace ContinueVS.UI
             => ThreadHelper.JoinableTaskFactory.RunAsync(() => OnWebMessageReceivedAsync(sender, e))
                            .FileAndForget("vs/continuevs/webmessage");  // VSSDK007
 
-        private async System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        private System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
-            var json = e.TryGetWebMessageAsString();
-            if (string.IsNullOrEmpty(json)) return;
-
-            try
-            {
-                var msg = JsonConvert.DeserializeObject<Message>(json);
-            }
-            catch { /* malformed message — ignore */ }
+            // Reserved for future IPC routing.
+            return System.Threading.Tasks.Task.CompletedTask;
         }
 
         // -----------------------------------------------------------------
