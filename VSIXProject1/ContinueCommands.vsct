@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <Extern href="stdidcmd.h"/>
+  <Extern href="vsshlids.h"/>
+
+  <Commands package="guidContinueVSPackage">
+
+    <Groups>
+      <!-- "Continue Chat" entry at the bottom of the View menu -->
+      <Group guid="guidContinueVSCmdSet" id="ViewMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_VIEW"/>
+      </Group>
+
+      <!-- "Continue" submenu anchor inside Edit -->
+      <Group guid="guidContinueVSCmdSet" id="EditMenuGroup" priority="0x0700">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_EDIT"/>
+      </Group>
+
+      <!-- Items inside the Continue submenu (Edit → Continue) -->
+      <Group guid="guidContinueVSCmdSet" id="ContinueMenuGroup" priority="0x0100">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueSubMenu"/>
+      </Group>
+
+      <!-- "Continue" flyout anchor in the code-editor right-click context menu -->
+      <Group guid="guidContinueVSCmdSet" id="CodeWinContextGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN"/>
+      </Group>
+
+      <!-- Items inside the Continue context-menu flyout -->
+      <Group guid="guidContinueVSCmdSet" id="ContinueContextMenuGroup" priority="0x0100">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueContextSubMenu"/>
+      </Group>
+    </Groups>
+
+    <Menus>
+      <!-- Edit → Continue submenu -->
+      <Menu guid="guidContinueVSCmdSet" id="ContinueSubMenu" priority="0x0700" type="Menu">
+        <Parent guid="guidContinueVSCmdSet" id="EditMenuGroup"/>
+        <Strings>
+          <ButtonText>Continue</ButtonText>
+          <CommandName>Continue</CommandName>
+        </Strings>
+      </Menu>
+
+      <!-- Right-click → Continue flyout -->
+      <Menu guid="guidContinueVSCmdSet" id="ContinueContextSubMenu" priority="0x0600" type="Menu">
+        <Parent guid="guidContinueVSCmdSet" id="CodeWinContextGroup"/>
+        <Strings>
+          <ButtonText>Continue</ButtonText>
+          <CommandName>ContinueContext</CommandName>
+        </Strings>
+      </Menu>
+    </Menus>
+
+    <Buttons>
+
+      <!-- View → Continue Chat -->
+      <Button guid="guidContinueVSCmdSet" id="ShowContinuePanelCmdId" priority="0x0100" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ViewMenuGroup"/>
+        <Strings>
+          <ButtonText>Continue Chat</ButtonText>
+          <CommandName>ShowContinuePanel</CommandName>
+          <ToolTipText>Open the Continue AI chat panel (Ctrl+Shift+J)</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Edit → Continue → Ask Continue... -->
+      <Button guid="guidContinueVSCmdSet" id="AskContinueCmdId" priority="0x0100" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueMenuGroup"/>
+        <Strings>
+          <ButtonText>Ask Continue...</ButtonText>
+          <CommandName>AskContinue</CommandName>
+          <ToolTipText>Open Continue chat with current selection (Ctrl+Shift+M)</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Edit → Continue → Explain Code -->
+      <Button guid="guidContinueVSCmdSet" id="ExplainCodeCmdId" priority="0x0101" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueMenuGroup"/>
+        <Strings>
+          <ButtonText>Explain Code</ButtonText>
+          <CommandName>ExplainCode</CommandName>
+          <ToolTipText>Ask Continue to explain the selected code</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Edit → Continue → Fix Code -->
+      <Button guid="guidContinueVSCmdSet" id="FixCodeCmdId" priority="0x0102" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueMenuGroup"/>
+        <Strings>
+          <ButtonText>Fix Code</ButtonText>
+          <CommandName>FixCode</CommandName>
+          <ToolTipText>Ask Continue to fix issues in the selected code</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Edit → Continue → Add Comment -->
+      <Button guid="guidContinueVSCmdSet" id="AddCommentCmdId" priority="0x0103" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueMenuGroup"/>
+        <Strings>
+          <ButtonText>Add Comment</ButtonText>
+          <CommandName>AddComment</CommandName>
+          <ToolTipText>Ask Continue to generate a documentation comment for the selected code</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Right-click → Continue → Ask Continue... -->
+      <Button guid="guidContinueVSCmdSet" id="ContextAskContinueCmdId" priority="0x0100" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueContextMenuGroup"/>
+        <Strings>
+          <ButtonText>Ask Continue...</ButtonText>
+          <CommandName>ContextAskContinue</CommandName>
+          <ToolTipText>Open Continue chat with current selection</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Right-click → Continue → Explain Code -->
+      <Button guid="guidContinueVSCmdSet" id="ContextExplainCodeCmdId" priority="0x0101" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueContextMenuGroup"/>
+        <Strings>
+          <ButtonText>Explain Code</ButtonText>
+          <CommandName>ContextExplainCode</CommandName>
+          <ToolTipText>Ask Continue to explain the selected code</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Right-click → Continue → Fix Code -->
+      <Button guid="guidContinueVSCmdSet" id="ContextFixCodeCmdId" priority="0x0102" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueContextMenuGroup"/>
+        <Strings>
+          <ButtonText>Fix Code</ButtonText>
+          <CommandName>ContextFixCode</CommandName>
+          <ToolTipText>Ask Continue to fix issues in the selected code</ToolTipText>
+        </Strings>
+      </Button>
+
+      <!-- Right-click → Continue → Add Comment -->
+      <Button guid="guidContinueVSCmdSet" id="ContextAddCommentCmdId" priority="0x0103" type="Button">
+        <Parent guid="guidContinueVSCmdSet" id="ContinueContextMenuGroup"/>
+        <Strings>
+          <ButtonText>Add Comment</ButtonText>
+          <CommandName>ContextAddComment</CommandName>
+          <ToolTipText>Ask Continue to generate a documentation comment for the selected code</ToolTipText>
+        </Strings>
+      </Button>
+
+    </Buttons>
+
+  </Commands>
+
+  <KeyBindings>
+    <KeyBinding guid="guidContinueVSCmdSet" id="ShowContinuePanelCmdId"
+                editor="guidVSStd97"
+                key1="J" mod1="Control Shift"/>
+    <KeyBinding guid="guidContinueVSCmdSet" id="AskContinueCmdId"
+                editor="guidVSStd97"
+                key1="M" mod1="Control Shift"/>
+  </KeyBindings>
+
+  <Symbols>
+    <GuidSymbol name="guidContinueVSPackage" value="{a4507790-4510-4158-b192-87339e7b1a34}"/>
+
+    <GuidSymbol name="guidContinueVSCmdSet" value="{6b8f0a3c-2d4e-4f1a-9e5b-3c7d8a1f2b0e}">
+      <!-- Groups -->
+      <IDSymbol name="ViewMenuGroup"            value="0x1000"/>
+      <IDSymbol name="EditMenuGroup"            value="0x1001"/>
+      <IDSymbol name="ContinueMenuGroup"        value="0x1002"/>
+      <IDSymbol name="CodeWinContextGroup"      value="0x1003"/>
+      <IDSymbol name="ContinueContextMenuGroup" value="0x1004"/>
+      <!-- Menus -->
+      <IDSymbol name="ContinueSubMenu"          value="0x2000"/>
+      <IDSymbol name="ContinueContextSubMenu"   value="0x2001"/>
+      <!-- Commands -->
+      <IDSymbol name="ShowContinuePanelCmdId"   value="0x0100"/>
+      <IDSymbol name="AskContinueCmdId"         value="0x0101"/>
+      <IDSymbol name="ExplainCodeCmdId"         value="0x0102"/>
+      <IDSymbol name="FixCodeCmdId"             value="0x0103"/>
+      <IDSymbol name="AddCommentCmdId"          value="0x0104"/>
+      <IDSymbol name="ContextAskContinueCmdId"  value="0x0105"/>
+      <IDSymbol name="ContextExplainCodeCmdId"  value="0x0106"/>
+      <IDSymbol name="ContextFixCodeCmdId"      value="0x0107"/>
+      <IDSymbol name="ContextAddCommentCmdId"   value="0x0108"/>
+    </GuidSymbol>
+  </Symbols>
+
+</CommandTable>
