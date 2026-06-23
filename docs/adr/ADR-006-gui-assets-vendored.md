@@ -54,3 +54,7 @@ The folder name `VSIXProject1/gui/` never changes. Only its contents are replace
 - `GuiExtractor.cs` becomes simpler: copy logic replaces download logic.
 - ADR-005 remains valid for the extraction path mapping and AppData target location.
   This ADR supersedes only the VSIX-source decision within ADR-005.
+
+## Pinned version
+
+`continue 2.0.0`

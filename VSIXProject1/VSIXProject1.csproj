@@ -25,6 +25,10 @@
     <Content Include="LICENSE.txt">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
+    <!-- Continue GUI assets vendored by tools/Vendor-GuiAssets.ps1 -->
+    <Content Include="gui\**">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
@@ -33,7 +37,6 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="System.Net.Http" />
     <Reference Include="System.ComponentModel.Composition" />
   </ItemGroup>
 </Project>

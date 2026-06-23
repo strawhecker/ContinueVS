@@ -6,34 +6,6 @@ One item per agent session. Commit after each item. Remove completed items.
 
 ## Phase 1 — Clean up VSIXProject1
 
-### TODO-005
-**Vendor Continue GUI assets and simplify GuiExtractor.cs**
-
-Step 1 — Vendor the assets (script, done once per Continue release):
-- Download the desired Continue VSIX from the Marketplace or GitHub releases page.
-- Run: `.\tools\Vendor-GuiAssets.ps1 -VsixPath <path-to-continue.vsix>`
-  The script wipes `VSIXProject1/gui/`, extracts `extension/gui/**` from the VSIX,
-  and prints the pinned version and next-step instructions.
-- In `VSIXProject1.csproj`, add a glob `<Content>` item for all files under `gui/`
-  with `<IncludeInVSIX>true</IncludeInVSIX>`.
-- Record the pinned Continue version tag in `docs/adr/ADR-006-gui-assets-vendored.md`
-  under a new **Pinned version** section.
-
-Step 2 — Simplify GuiExtractor.cs (code change):
-- Delete `MarketplaceUrl` constant.
-- Delete `DownloadVsixAsync` method.
-- Replace the VSIX-source resolution logic with a direct reference to the bundled
-  `gui/` folder: resolve it as
-  `Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "gui")`.
-- `EnsureExtractedAsync` copies from that folder to `%APPDATA%\ContinueVS\gui\`
-  (skip if `IndexHtmlPath` already exists — sentinel check unchanged).
-- Remove the `localVsixPath` parameter entirely (no longer needed).
-- File must remain `partial`, under 400 lines.
-
-Reference: ADR-005, ADR-006
-
----
-
 ### TODO-006
 **Simplify ContinueToolWindowControl.xaml.cs**
 Remove: binary wait (`OnBinaryReady`, `BinaryManager.Ready` subscription)
