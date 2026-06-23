@@ -6,29 +6,6 @@ One item per agent session. Commit after each item. Remove completed items.
 
 ## Phase 1 — Clean up VSIXProject1
 
-### TODO-001
-**Delete the binary layer**
-Remove files:
-- `VSIXProject1/Binary/ContinueBinaryManager.cs`
-- `VSIXProject1/Binary/BinaryDownloader.cs`
-
-Build must succeed after deletion (fix any resulting compile errors).
-Reference: ADR-001, ADR-005
-
----
-
-### TODO-002
-**Delete the IPC layer**
-Remove files:
-- `VSIXProject1/IPC/ContinueClient.cs`
-- `VSIXProject1/IPC/IdeCallbackHandler.cs`
-
-Keep: `VSIXProject1/IPC/ContinueProtocol.cs` (Message DTO is still needed)
-Build must succeed after deletion.
-Reference: ADR-001
-
----
-
 ### TODO-003
 **Delete binary-dependent UI helpers**
 Remove files:
