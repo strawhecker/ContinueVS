@@ -9,12 +9,11 @@ One item per agent session. Commit after each item. Remove completed items.
 ### TODO-005
 **Vendor Continue GUI assets and simplify GuiExtractor.cs**
 
-Step 1 — Vendor the assets (manual, done once by developer):
-- Identify the pinned Continue release to target (start with the latest stable tag on
-  https://github.com/continuedev/continue/releases).
-- Download that release's VSIX from the Marketplace or GitHub releases page.
-- Extract the `extension/gui/` subtree from the VSIX (it is a ZIP) into
-  `VSIXProject1/gui/`, preserving relative paths.
+Step 1 — Vendor the assets (script, done once per Continue release):
+- Download the desired Continue VSIX from the Marketplace or GitHub releases page.
+- Run: `.\tools\Vendor-GuiAssets.ps1 -VsixPath <path-to-continue.vsix>`
+  The script wipes `VSIXProject1/gui/`, extracts `extension/gui/**` from the VSIX,
+  and prints the pinned version and next-step instructions.
 - In `VSIXProject1.csproj`, add a glob `<Content>` item for all files under `gui/`
   with `<IncludeInVSIX>true</IncludeInVSIX>`.
 - Record the pinned Continue version tag in `docs/adr/ADR-006-gui-assets-vendored.md`
