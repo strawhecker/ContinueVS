@@ -50,12 +50,12 @@ namespace ContinueVS
             BinaryManager = new ContinueBinaryManager();
             Client        = new ContinueClient();
 
-            // When the binary is ready, connect the WebSocket client.
-            BinaryManager.Ready += async (_, port) =>
+            // When the binary process is running, wire up the stdio IPC client.
+            BinaryManager.Ready += (_, process) =>
             {
                 try
                 {
-                    await Client.ConnectAsync(port, cancellationToken);
+                    Client.Connect(process, cancellationToken);
 
                     new IdeCallbackHandler(Client, this).Register();
                     new WorkspaceContextProvider(this, Client).Register();
@@ -63,23 +63,27 @@ namespace ContinueVS
                     new StatusBarManager(Client, this).Register();
 
                     var editorCtx = new EditorContextProvider(this, Client);
-                    await editorCtx.RegisterAsync();
+                    _ = editorCtx.RegisterAsync();
 
-                    await this.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    var configWatcher = new WorkspaceConfigWatcher(this, Client);
-                    configWatcher.Start();
+                    _ = JoinableTaskFactory.RunAsync(async () =>
+                    {
+                        await JoinableTaskFactory.SwitchToMainThreadAsync();
+                        var configWatcher = new WorkspaceConfigWatcher(this, Client);
+                        configWatcher.Start();
+                    });
                 }
                 catch { /* will retry on next crash/restart cycle */ }
             };
 
-            // Reconnect after crashes.
-            BinaryManager.Crashed += async (_, __) =>
+            // On crash, tear down the old client and create a fresh one.
+            BinaryManager.Crashed += (_, __) =>
             {
                 Client.Dispose();
                 Client = new ContinueClient();
             };
 
             _ = Task.Run(() => BinaryManager.StartAsync(cancellationToken), cancellationToken);
+
         }
 
         protected override void Dispose(bool disposing)
