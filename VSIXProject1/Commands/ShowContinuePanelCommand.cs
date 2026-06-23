@@ -43,11 +43,9 @@ namespace ContinueVS.Commands
                     create:         true,
                     cancellationToken: System.Threading.CancellationToken.None);
 
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 if (window?.Frame is IVsWindowFrame frame)
-                {
-                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                     frame.Show();
-                }
             });
         }
     }

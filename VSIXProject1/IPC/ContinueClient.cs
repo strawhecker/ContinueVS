@@ -110,7 +110,7 @@ namespace ContinueVS.IPC
             using (var timeoutCts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(30)))
                 timeoutCts.Token.Register(() => req.Tcs.TrySetCanceled());
 
-            try     { return await req.Tcs.Task; }
+            try     { return await req.Tcs.Task.ConfigureAwait(false); }
             finally { _pending.TryRemove(id, out _); }
         }
 
@@ -129,7 +129,7 @@ namespace ContinueVS.IPC
             try
             {
                 await _process.StandardInput.WriteAsync(json);
-                await _process.StandardInput.FlushAsync();
+                await Task.Run(() => _process.StandardInput.Flush());
             }
             finally
             {

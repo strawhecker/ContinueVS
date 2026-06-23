@@ -32,6 +32,7 @@ namespace ContinueVS.Commands
         // Disable when no text is selected (except for ShowPanel which always shows).
         private void OnBeforeQueryStatus(object sender, EventArgs e)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (sender is OleMenuCommand cmd)
                 cmd.Enabled = HasActiveSelection();
         }

@@ -45,7 +45,7 @@ namespace ContinueVS.UI
             if (pkg.Client?.IsConnected == true)
             {
                 // Binary already running — wire up WebView immediately.
-                _ = ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync());
+                ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync()).FileAndForget();
             }
             else
             {
@@ -55,7 +55,7 @@ namespace ContinueVS.UI
 
         private void OnBinaryReady(object sender, System.Diagnostics.Process process)
         {
-            _ = ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync());
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync()).FileAndForget();
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
@@ -96,7 +96,11 @@ namespace ContinueVS.UI
         /// Messages posted by the React GUI (window.chrome.webview.postMessage) are
         /// forwarded to the Continue binary via the IPC client.
         /// </summary>
-        private async void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        private void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+            => ThreadHelper.JoinableTaskFactory.RunAsync(() => OnWebMessageReceivedAsync(sender, e))
+                           .FileAndForget();
+
+        private async System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
             var json = e.TryGetWebMessageAsString();
             if (string.IsNullOrEmpty(json)) return;
@@ -119,7 +123,7 @@ namespace ContinueVS.UI
         /// </summary>
         private void OnClientMessageReceived(object sender, Message msg)
         {
-            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
@@ -128,7 +132,7 @@ namespace ContinueVS.UI
                 var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-            });
+            }).FileAndForget();
         }
 
         // -----------------------------------------------------------------
@@ -152,12 +156,12 @@ namespace ContinueVS.UI
             var json    = JsonConvert.SerializeObject(msg);
             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
 
-            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-            });
+            }).FileAndForget();
         }
 
         private void SetStatus(string text)

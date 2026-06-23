@@ -434,7 +434,7 @@ namespace ContinueVS.IPC
                 var args = includeUnstaged ? "diff" : "diff --cached";
                 var output = RunGit(root, args);
                 if (!string.IsNullOrEmpty(output))
-                    diffs.Add(output);
+                    diffs.Add(output!);
             }
             catch { }
             await ReplyAsync(msg, diffs.ToArray());
@@ -453,7 +453,7 @@ namespace ContinueVS.IPC
             var remote = RunGit(dir, "remote get-url origin")?.Trim();
             if (!string.IsNullOrEmpty(remote))
             {
-                var name = remote.TrimEnd('/').Split('/').LastOrDefault()?.Replace(".git", "");
+                var name = remote!.TrimEnd('/').Split('/').LastOrDefault()?.Replace(".git", "");
                 await ReplyAsync(msg, name);
             }
             else
@@ -582,11 +582,15 @@ namespace ContinueVS.IPC
         {
             try
             {
-                ThreadHelper.JoinableTaskFactory.Run(async () =>
-                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync());
-                var sln = Dte()?.Solution;
-                if (sln != null && !string.IsNullOrEmpty(sln.FullName))
-                    return Path.GetDirectoryName(sln.FullName)!;
+                return ThreadHelper.JoinableTaskFactory.Run(async () =>
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    var dte = _sp.GetService(typeof(DTE)) as DTE2;
+                    var sln = dte?.Solution;
+                    if (sln != null && !string.IsNullOrEmpty(sln.FullName))
+                        return Path.GetDirectoryName(sln.FullName)!;
+                    return Environment.CurrentDirectory;
+                });
             }
             catch { }
             return Environment.CurrentDirectory;

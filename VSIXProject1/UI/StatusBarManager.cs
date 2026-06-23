@@ -36,12 +36,12 @@ namespace ContinueVS.UI
 
             if (string.IsNullOrWhiteSpace(modelText)) return;
 
-            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 if (_services.GetService(typeof(SVsStatusbar)) is IVsStatusbar bar)
                     bar.SetText($"Continue: {modelText}");
-            });
+            }).FileAndForget();
         }
 
         private static string? TryExtractModel(JToken? data)

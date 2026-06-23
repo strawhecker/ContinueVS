@@ -21,7 +21,7 @@ namespace ContinueVS.Commands
             {
                 Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
                 var dte = ((IServiceProvider)Package).GetService(typeof(EnvDTE.DTE)) as DTE2;
-                if (dte?.ToolWindows?.ErrorList?.ErrorItems != null)
+                if (dte != null && dte.ToolWindows?.ErrorList?.ErrorItems != null)
                 {
                     for (int i = 1; i <= System.Math.Min(dte.ToolWindows.ErrorList.ErrorItems.Count, 5); i++)
                     {

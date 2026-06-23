@@ -16,10 +16,12 @@ namespace ContinueVS.Editor
     [TextViewRole(PredefinedTextViewRoles.Editable)]
     internal sealed class GhostTextControllerFactory : IWpfTextViewCreationListener
     {
+        #pragma warning disable CS0649   // field assigned by MEF, never by code
         [Export(typeof(AdornmentLayerDefinition))]
         [Name("ContinueGhostText")]
         [Order(After = PredefinedAdornmentLayers.Text)]
         public AdornmentLayerDefinition? AdornmentLayer;
+#pragma warning restore CS0649
 
         public void TextViewCreated(IWpfTextView view)
         {
@@ -51,18 +53,6 @@ namespace ContinueVS.Editor
         private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
         {
             if (e.EditTag is GhostTextAcceptTag) return;
-            if (_pendingId != null)
-            {
-                // Tell the binary to cancel the in-flight request so it stops streaming.
-                var cancelId = _pendingId;
-                _ = System.Threading.Tasks.Task.Run(() =>
-                {
-                    var pkg = ContinueVSPackage.Instance;
-                    if (pkg?.Client?.IsConnected == true)
-                        _ = pkg.Client.SendAsync("autocomplete/cancel",
-                            new { completionId = cancelId }, CancellationToken.None);
-                });
-            }
             Dismiss();
             _debounceCts?.Cancel();
             _debounceCts = new CancellationTokenSource();
@@ -97,8 +87,8 @@ namespace ContinueVS.Editor
             var input = new AutocompleteInput
             {
                 CompletionId   = completionId,
-                Filepath       = filePath,
                 IsUntitledFile = string.IsNullOrEmpty(filePath),
+                Filepath       = filePath,
                 Pos            = new Position { Line = lineNum, Character = colNum },
             };
 
@@ -214,12 +204,24 @@ namespace ContinueVS.Editor
 
         private void NotifyOutcome(bool accepted, string? id = null)
         {
-            if (!accepted) return; // binary has no reject message; cancel is sent on dismiss
             var pkg = ContinueVSPackage.Instance;
             if (pkg?.Client == null || !pkg.Client.IsConnected) return;
-            _ = pkg.Client.SendAsync("autocomplete/accept",
-                new { completionId = id ?? _pendingId ?? "" },
-                CancellationToken.None);
+
+            var resolvedId = id ?? _pendingId ?? "";
+            if (accepted)
+            {
+                // Binary expects: "autocomplete/accept" with { completionId }
+                _ = pkg.Client.SendAsync("autocomplete/accept",
+                    new { completionId = resolvedId },
+                    CancellationToken.None);
+            }
+            else
+            {
+                // Binary expects: "autocomplete/cancel" with no required payload
+                _ = pkg.Client.SendAsync("autocomplete/cancel",
+                    new { completionId = resolvedId },
+                    CancellationToken.None);
+            }
         }
 
         private void OnViewClosed(object sender, EventArgs e)

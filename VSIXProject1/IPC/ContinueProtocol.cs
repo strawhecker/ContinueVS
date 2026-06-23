@@ -83,14 +83,15 @@ namespace ContinueVS.IPC
 
     internal sealed class AutocompleteInput
     {
-        [JsonProperty("isUntitledFile")]        public bool              IsUntitledFile       { get; set; }
-        [JsonProperty("completionId")]          public string            CompletionId         { get; set; } = "";
-        [JsonProperty("filepath")]              public string            Filepath             { get; set; } = "";
-        [JsonProperty("pos")]                   public Position          Pos                  { get; set; } = new Position();
-        [JsonProperty("recentlyVisitedRanges")] public List<object>      RecentlyVisitedRanges{ get; set; } = new List<object>();
-        [JsonProperty("recentlyEditedRanges")]  public List<object>      RecentlyEditedRanges { get; set; } = new List<object>();
-        [JsonProperty("manuallyPassFileContents")] public string?        ManuallyPassFileContents { get; set; }
-        [JsonProperty("manuallyPassPrefix")]    public string?           ManuallyPassPrefix   { get; set; }
+        // Required by upstream AutocompleteInput interface (core/autocomplete/util/types.ts)
+        [JsonProperty("completionId")]        public string           CompletionId        { get; set; } = "";
+        [JsonProperty("isUntitledFile")]      public bool             IsUntitledFile      { get; set; }
+        [JsonProperty("filepath")]            public string           Filepath            { get; set; } = "";
+        [JsonProperty("pos")]                 public Position         Pos                 { get; set; } = new Position();
+        [JsonProperty("recentlyEditedRanges")] public List<RangeInFile> RecentlyEditedRanges { get; set; } = new List<RangeInFile>();
+        [JsonProperty("recentlyVisitedRanges")] public List<object>   RecentlyVisitedRanges { get; set; } = new List<object>();
+        [JsonProperty("manuallyPassFileContents")] public string?     ManuallyPassFileContents { get; set; }
+        [JsonProperty("manuallyPassPrefix")]  public string?          ManuallyPassPrefix  { get; set; }
     }
 
     internal sealed class AutocompleteOutcome
