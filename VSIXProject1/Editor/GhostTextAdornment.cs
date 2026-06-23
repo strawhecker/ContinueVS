@@ -51,6 +51,18 @@ namespace ContinueVS.Editor
         private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
         {
             if (e.EditTag is GhostTextAcceptTag) return;
+            if (_pendingId != null)
+            {
+                // Tell the binary to cancel the in-flight request so it stops streaming.
+                var cancelId = _pendingId;
+                _ = System.Threading.Tasks.Task.Run(() =>
+                {
+                    var pkg = ContinueVSPackage.Instance;
+                    if (pkg?.Client?.IsConnected == true)
+                        _ = pkg.Client.SendAsync("autocomplete/cancel",
+                            new { completionId = cancelId }, CancellationToken.None);
+                });
+            }
             Dismiss();
             _debounceCts?.Cancel();
             _debounceCts = new CancellationTokenSource();
@@ -84,9 +96,10 @@ namespace ContinueVS.Editor
             var completionId = Guid.NewGuid().ToString();
             var input = new AutocompleteInput
             {
-                CompletionId = completionId,
-                Filepath     = filePath,
-                Pos          = new Position { Line = lineNum, Character = colNum },
+                CompletionId   = completionId,
+                Filepath       = filePath,
+                IsUntitledFile = string.IsNullOrEmpty(filePath),
+                Pos            = new Position { Line = lineNum, Character = colNum },
             };
 
             try
@@ -201,10 +214,11 @@ namespace ContinueVS.Editor
 
         private void NotifyOutcome(bool accepted, string? id = null)
         {
+            if (!accepted) return; // binary has no reject message; cancel is sent on dismiss
             var pkg = ContinueVSPackage.Instance;
             if (pkg?.Client == null || !pkg.Client.IsConnected) return;
             _ = pkg.Client.SendAsync("autocomplete/accept",
-                new { completionId = id ?? _pendingId ?? "", accepted },
+                new { completionId = id ?? _pendingId ?? "" },
                 CancellationToken.None);
         }
 
