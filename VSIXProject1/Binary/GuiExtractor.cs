@@ -25,7 +25,7 @@ namespace ContinueVS.Binary
         /// Absolute path to the GUI assets bundled inside the VSIX.
         /// </summary>
         private static string BundledGuiPath =>
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "gui");
+            Path.Combine(Path.GetDirectoryName(typeof(GuiExtractor).Assembly.Location)!, "gui");
 
         /// <summary>
         /// Ensures the Continue GUI assets are present on disk. No-op when
