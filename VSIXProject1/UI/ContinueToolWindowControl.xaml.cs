@@ -1,10 +1,10 @@
-﻿using ContinueVS.IPC;
+﻿using ContinueVS.Binary;
+using ContinueVS.IPC;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.IO;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -34,7 +34,11 @@ namespace ContinueVS.UI
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            var pkg = ContinueVSPackage.Instance;
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await GuiExtractor.EnsureExtractedAsync();
+                await NavigateAsync();
+            }).FileAndForget("vs/continuevs/load");
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
@@ -46,20 +50,9 @@ namespace ContinueVS.UI
                 await WebView.EnsureCoreWebView2Async();
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
                 _webViewInitialized = true;
-
-                // Wire incoming IPC messages from the binary → the WebView.
-                var pkg = ContinueVSPackage.Instance;
             }
 
-            // Navigate to the bundled GUI HTML extracted from the Continue VSIX,
-            // or fall back to the marketplace page if it isn't extracted yet.
-            var guiHtml = Path.Combine(
-                Path.GetDirectoryName(typeof(ContinueToolWindowControl).Assembly.Location)!,
-                "gui", "index.html");
-
-            WebView.Source = File.Exists(guiHtml)
-                ? new Uri(guiHtml)
-                : new Uri("https://marketplace.visualstudio.com/items?itemName=Continue.continue");
+            WebView.Source = new Uri(GuiExtractor.IndexHtmlPath);
 
             LoadingPanel.Visibility = Visibility.Collapsed;
             WebView.Visibility      = Visibility.Visible;
@@ -83,31 +76,11 @@ namespace ContinueVS.UI
             var json = e.TryGetWebMessageAsString();
             if (string.IsNullOrEmpty(json)) return;
 
-            var pkg = ContinueVSPackage.Instance;
-
             try
             {
                 var msg = JsonConvert.DeserializeObject<Message>(json);
             }
             catch { /* malformed message — ignore */ }
-        }
-
-        /// <summary>
-        /// Messages arriving from the binary that are intended for the GUI are forwarded
-        /// to the React app via <c>window.continueVS.onMessage(json)</c>.
-        /// </summary>
-        private void OnClientMessageReceived(object sender, Message msg)
-        {
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-            {
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
-
-                var json    = JsonConvert.SerializeObject(msg);
-                var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
-                await WebView.CoreWebView2.ExecuteScriptAsync(
-                    $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-            }).FileAndForget("vs/continuevs/clientmessage");            // VSSDK007
         }
 
         // -----------------------------------------------------------------
@@ -139,11 +112,6 @@ namespace ContinueVS.UI
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
         }
 
-        private void SetStatus(string text)
-        {
-            StatusText.Text = text;
-        }
-
         // -----------------------------------------------------------------
         // IDisposable
         // -----------------------------------------------------------------
@@ -152,8 +120,6 @@ namespace ContinueVS.UI
         {
             if (_disposed) return;
             _disposed = true;
-
-            var pkg = ContinueVSPackage.Instance;
 
             WebView.Dispose();
         }

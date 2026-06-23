@@ -6,18 +6,6 @@ One item per agent session. Commit after each item. Remove completed items.
 
 ## Phase 1 — Clean up VSIXProject1
 
-### TODO-006
-**Simplify ContinueToolWindowControl.xaml.cs**
-Remove: binary wait (`OnBinaryReady`, `BinaryManager.Ready` subscription)
-Remove: `ContinueClient` message bridge wiring
-Add: call `GuiExtractor.EnsureExtractedAsync()` on load, then navigate to
-`GuiExtractor.IndexHtmlPath`
-Keep: `NavigateAsync`, `LoadingPanel`, `WebView`
-Must be `partial`, under 400 lines.
-Reference: ADR-001, ADR-005, ADR-006
-
----
-
 ### TODO-007
 **Build and smoke test**
 Run in debugger. Experimental VS instance opens.
