@@ -67,7 +67,6 @@ namespace ContinueVS.Editor
         private async System.Threading.Tasks.Task RequestCompletionAsync(CancellationToken token)
         {
             var pkg = ContinueVSPackage.Instance;
-            if (pkg?.Client == null || !pkg.Client.IsConnected) return;
 
             int lineNum = 0, colNum = 0;
             string filePath = "";
@@ -94,16 +93,7 @@ namespace ContinueVS.Editor
 
             try
             {
-                var result = await pkg.Client.SendRequestAsync(
-                    "autocomplete/complete", input, token, TimeSpan.FromSeconds(8));
                 token.ThrowIfCancellationRequested();
-
-                var completions = result?.ToObject<string[]>();
-                if (completions == null || completions.Length == 0 || string.IsNullOrEmpty(completions[0]))
-                    return;
-
-                _pendingText = completions[0];
-                _pendingId   = completionId;
 
                 await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(token);
                 RenderGhostText();
@@ -205,22 +195,14 @@ namespace ContinueVS.Editor
         private void NotifyOutcome(bool accepted, string? id = null)
         {
             var pkg = ContinueVSPackage.Instance;
-            if (pkg?.Client == null || !pkg.Client.IsConnected) return;
 
             var resolvedId = id ?? _pendingId ?? "";
             if (accepted)
             {
                 // Binary expects: "autocomplete/accept" with { completionId }
-                _ = pkg.Client.SendAsync("autocomplete/accept",
-                    new { completionId = resolvedId },
-                    CancellationToken.None);
             }
             else
             {
-                // Binary expects: "autocomplete/cancel" with no required payload
-                _ = pkg.Client.SendAsync("autocomplete/cancel",
-                    new { completionId = resolvedId },
-                    CancellationToken.None);
             }
         }
 

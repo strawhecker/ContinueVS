@@ -1,5 +1,4 @@
-﻿using ContinueVS.Binary;
-using ContinueVS.Commands;
+﻿using ContinueVS.Commands;
 using ContinueVS.Editor;
 using ContinueVS.IPC;
 using ContinueVS.Settings;
@@ -28,11 +27,6 @@ namespace ContinueVS
         /// <summary>Singleton reference set during InitializeAsync, cleared on Dispose.</summary>
         public static ContinueVSPackage? Instance { get; private set; }
 
-        /// <summary>The binary process manager; available after InitializeAsync completes.</summary>
-        internal ContinueBinaryManager? BinaryManager { get; private set; }
-
-        /// <summary>The stdio IPC client connected to the binary process.</summary>
-        internal ContinueClient? Client { get; private set; }
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
@@ -45,53 +39,12 @@ namespace ContinueVS
             await ExplainCodeCommand.InitializeAsync(this);
             await FixCodeCommand.InitializeAsync(this);
             await AddCommentCommand.InitializeAsync(this);
-
-            BinaryManager = new ContinueBinaryManager();
-            Client        = new ContinueClient();
-
-            // When the binary process is running, wire up the stdio IPC client.
-            BinaryManager.Ready += (_, process) =>
-            {
-                try
-                {
-                    Client.Connect(process, cancellationToken);
-
-                    new IdeCallbackHandler(Client, this).Register();
-                    new DiffApplier(this, Client).Register();
-                    new StatusBarManager(Client, this).Register();
-
-                    var editorCtx = new EditorContextProvider(this, Client);
-                    _ = editorCtx.RegisterAsync();
-
-                    _ = JoinableTaskFactory.RunAsync(async () =>
-                    {
-                        await JoinableTaskFactory.SwitchToMainThreadAsync();
-                        var configWatcher = new WorkspaceConfigWatcher(this, Client);
-                        configWatcher.Start();
-                    });
-                }
-                catch { /* will retry on next crash/restart cycle */ }
-            };
-
-            // On crash, tear down the old client and create a fresh one.
-            BinaryManager.Crashed += (_, __) =>
-            {
-                Client.Dispose();
-                Client = new ContinueClient();
-            };
-
-            _ = Task.Run(() => BinaryManager.StartAsync(cancellationToken), cancellationToken);
-
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                Client?.Dispose();
-                Client = null;
-                BinaryManager?.Dispose();
-                BinaryManager = null;
                 Instance = null;
             }
 
@@ -99,13 +52,5 @@ namespace ContinueVS
         }
     }
 
-    /// <summary>
-    /// Thin accessor used by <see cref="ContinueBinaryManager"/> (in the Binary namespace)
-    /// to read the options page without creating a circular project reference.
-    /// </summary>
-    internal static class ContinueVSPackageAccessor
-    {
-        internal static ContinueVSPackage? Instance => ContinueVSPackage.Instance;
     }
-}
 

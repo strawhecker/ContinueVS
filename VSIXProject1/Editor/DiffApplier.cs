@@ -25,23 +25,19 @@ namespace ContinueVS.Editor
     internal sealed class DiffApplier : IDisposable
     {
         private readonly IServiceProvider _services;
-        private readonly ContinueClient   _client;
         private bool _disposed;
 
-        public DiffApplier(IServiceProvider services, ContinueClient client)
+        public DiffApplier(IServiceProvider services)
         {
             _services = services;
-            _client   = client;
         }
 
         public void Register()
         {
-            _client.MessageReceived += OnMessage;
         }
 
         public void Unregister()
         {
-            _client.MessageReceived -= OnMessage;
         }
 
         // -----------------------------------------------------------------
@@ -82,7 +78,6 @@ namespace ContinueVS.Editor
             {
                 // Fallback: just overwrite the file directly and open it.
                 await ApplyDirectlyAsync(filepath, proposedText);
-                await ReplyAsync(originalMsg);
                 return;
             }
 
@@ -95,9 +90,6 @@ namespace ContinueVS.Editor
                 "", leftLabel, rightLabel, "", "",
                 (uint)(__VSDIFFSERVICEOPTIONS.VSDIFFOPT_LeftFileIsTemporary |
                        __VSDIFFSERVICEOPTIONS.VSDIFFOPT_RightFileIsTemporary));
-
-            // Reply to binary immediately — the user action (accept/reject) happens outside this flow.
-            await ReplyAsync(originalMsg);
         }
 
         // -----------------------------------------------------------------
@@ -138,16 +130,6 @@ namespace ContinueVS.Editor
                     rdt.NotifyDocumentChanged(cookie, (uint)__VSRDTATTRIB.RDTA_DocDataReloaded);
                 }
             }
-        }
-
-        private async Task ReplyAsync(Message request)
-        {
-            await _client.SendRawMessageAsync(new Message
-            {
-                MessageType = request.MessageType,
-                MessageId   = request.MessageId,
-                Data        = JValue.CreateNull(),
-            }, CancellationToken.None);
         }
 
         // -----------------------------------------------------------------

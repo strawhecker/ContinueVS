@@ -17,14 +17,12 @@ namespace ContinueVS.Settings
     internal sealed class WorkspaceConfigWatcher : IDisposable
     {
         private readonly IServiceProvider _services;
-        private readonly ContinueClient   _client;
         private FileSystemWatcher?        _watcher;
         private bool _disposed;
 
-        public WorkspaceConfigWatcher(IServiceProvider services, ContinueClient client)
+        public WorkspaceConfigWatcher(IServiceProvider services)
         {
             _services = services;
-            _client   = client;
         }
 
         /// <summary>Locates the solution root and starts watching; must be called on UI thread.</summary>
@@ -61,17 +59,11 @@ namespace ContinueVS.Settings
 
         private void OnConfigChanged(object sender, FileSystemEventArgs e)
         {
-            if (!_client.IsConnected) return;
-
             // Debounce: the OS often fires two events in quick succession.
             System.Threading.Thread.Sleep(200);
 
             string content = "";
             try { content = File.ReadAllText(e.FullPath); } catch { }
-
-            _ = _client.SendAsync("configUpdate",
-                new { config = content },
-                CancellationToken.None);
         }
 
         public void Dispose()

@@ -12,18 +12,13 @@ namespace ContinueVS.UI
     /// </summary>
     internal sealed class StatusBarManager : IDisposable
     {
-        private readonly ContinueClient   _client;
         private readonly IServiceProvider _services;
         private bool _disposed;
 
-        public StatusBarManager(ContinueClient client, IServiceProvider services)
+        public StatusBarManager(IServiceProvider services)
         {
-            _client   = client;
             _services = services;
         }
-
-        public void Register()   => _client.MessageReceived += OnMessage;
-        public void Unregister() => _client.MessageReceived -= OnMessage;
 
         private void OnMessage(object sender, Message msg)
         {
@@ -58,7 +53,6 @@ namespace ContinueVS.UI
         {
             if (_disposed) return;
             _disposed = true;
-            Unregister();
         }
     }
 }

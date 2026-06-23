@@ -27,7 +27,6 @@ namespace ContinueVS.Editor
         private static readonly TimeSpan DebounceInterval = TimeSpan.FromMilliseconds(300);
 
         private readonly IServiceProvider _services;
-        private readonly ContinueClient   _client;
 
         private IVsRunningDocumentTable? _rdt;
         private uint                      _rdtCookie;
@@ -38,10 +37,9 @@ namespace ContinueVS.Editor
         private CancellationTokenSource? _debounceCts;
         private bool _disposed;
 
-        public EditorContextProvider(IServiceProvider services, ContinueClient client)
+        public EditorContextProvider(IServiceProvider services)
         {
             _services = services;
-            _client   = client;
         }
 
         /// <summary>
@@ -112,8 +110,6 @@ namespace ContinueVS.Editor
 
         private async Task PushCurrentFileContextAsync()
         {
-            if (!_client.IsConnected) return;
-
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
             var doc = _dte?.ActiveDocument;
@@ -137,8 +133,6 @@ namespace ContinueVS.Editor
                 contents,
                 cursorPosition = new { line, character = col },
             };
-
-            await _client.SendAsync("currentFileUpdate", data, CancellationToken.None);
         }
 
         // -----------------------------------------------------------------
@@ -154,16 +148,9 @@ namespace ContinueVS.Editor
 
         private async System.Threading.Tasks.Task PushActiveEditorChangedAsync()
         {
-            if (!_client.IsConnected) return;
-
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             var path = _dte?.ActiveDocument?.FullName ?? "";
             if (string.IsNullOrEmpty(path)) return;
-
-            await _client.SendAsync(
-                "didChangeActiveTextEditor",
-                new DidChangeActiveTextEditor { Filepath = path },
-                CancellationToken.None);
         }
 
         // -----------------------------------------------------------------

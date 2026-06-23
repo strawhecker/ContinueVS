@@ -4,7 +4,6 @@ using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -36,28 +35,6 @@ namespace ContinueVS.UI
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             var pkg = ContinueVSPackage.Instance;
-            if (pkg?.BinaryManager == null)
-            {
-                SetStatus("Continue is not available.");
-                return;
-            }
-
-            if (pkg.Client?.IsConnected == true)
-            {
-                // Binary already running — wire up WebView immediately.
-                ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync())
-                    .FileAndForget("vs/continuevs/navigate");           // VSSDK007
-            }
-            else
-            {
-                pkg.BinaryManager.Ready += OnBinaryReady;
-            }
-        }
-
-        private void OnBinaryReady(object sender, System.Diagnostics.Process process)
-        {
-            ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync())
-                .FileAndForget("vs/continuevs/navigate");               // VSSDK007
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
@@ -72,8 +49,6 @@ namespace ContinueVS.UI
 
                 // Wire incoming IPC messages from the binary → the WebView.
                 var pkg = ContinueVSPackage.Instance;
-                if (pkg?.Client != null)
-                    pkg.Client.MessageReceived += OnClientMessageReceived;
             }
 
             // Navigate to the bundled GUI HTML extracted from the Continue VSIX,
@@ -109,13 +84,10 @@ namespace ContinueVS.UI
             if (string.IsNullOrEmpty(json)) return;
 
             var pkg = ContinueVSPackage.Instance;
-            if (pkg?.Client == null || !pkg.Client.IsConnected) return;
 
             try
             {
                 var msg = JsonConvert.DeserializeObject<Message>(json);
-                if (msg != null)
-                    await pkg.Client.SendRawMessageAsync(msg, CancellationToken.None);
             }
             catch { /* malformed message — ignore */ }
         }
@@ -182,10 +154,6 @@ namespace ContinueVS.UI
             _disposed = true;
 
             var pkg = ContinueVSPackage.Instance;
-            if (pkg?.BinaryManager != null)
-                pkg.BinaryManager.Ready -= OnBinaryReady;
-            if (pkg?.Client != null)
-                pkg.Client.MessageReceived -= OnClientMessageReceived;
 
             WebView.Dispose();
         }
