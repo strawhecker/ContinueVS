@@ -31,7 +31,7 @@ namespace ContinueVS
         /// <summary>The binary process manager; available after InitializeAsync completes.</summary>
         internal ContinueBinaryManager? BinaryManager { get; private set; }
 
-        /// <summary>The WebSocket client connected to the binary's IDE endpoint.</summary>
+        /// <summary>The stdio IPC client connected to the binary process.</summary>
         internal ContinueClient? Client { get; private set; }
 
         protected override async Task InitializeAsync(

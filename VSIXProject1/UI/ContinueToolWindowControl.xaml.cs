@@ -4,6 +4,8 @@ using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,12 +15,8 @@ namespace ContinueVS.UI
     /// <summary>
     /// WPF UserControl hosting a WebView2 that renders the Continue React GUI.
     ///
-    /// While the binary is initialising, a loading spinner is shown.  Once the binary
-    /// fires its <c>Ready</c> event the control navigates WebView2 to
-    /// <c>http://localhost:{port}/</c> and hides the spinner.
-    ///
-    /// Messages from the React app that are addressed to the VS IDE are forwarded
-    /// to <see cref="ContinueClient"/> and vice-versa.
+    /// The GUI HTML is extracted alongside the binary from the Continue VSIX package.
+    /// It communicates with the continue-binary via the stdio IPC client.
     /// </summary>
     public partial class ContinueToolWindowControl : UserControl, IDisposable
     {
@@ -44,11 +42,10 @@ namespace ContinueVS.UI
                 return;
             }
 
-            if (pkg.BinaryManager.Port > 0)
+            if (pkg.Client?.IsConnected == true)
             {
-                // Binary already running — navigate immediately.
-                _ = ThreadHelper.JoinableTaskFactory.RunAsync(
-                    () => NavigateAsync(pkg.BinaryManager.Port));
+                // Binary already running — wire up WebView immediately.
+                _ = ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync());
             }
             else
             {
@@ -56,12 +53,12 @@ namespace ContinueVS.UI
             }
         }
 
-        private void OnBinaryReady(object sender, int port)
+        private void OnBinaryReady(object sender, System.Diagnostics.Process process)
         {
-            _ = ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync(port));
+            _ = ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync());
         }
 
-        private async System.Threading.Tasks.Task NavigateAsync(int port)
+        private async System.Threading.Tasks.Task NavigateAsync()
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
@@ -77,13 +74,22 @@ namespace ContinueVS.UI
                     pkg.Client.MessageReceived += OnClientMessageReceived;
             }
 
-            WebView.Source = new Uri($"http://localhost:{port}/");
+            // Navigate to the bundled GUI HTML extracted from the Continue VSIX,
+            // or fall back to the marketplace page if it isn't extracted yet.
+            var guiHtml = Path.Combine(
+                Path.GetDirectoryName(typeof(ContinueToolWindowControl).Assembly.Location)!,
+                "gui", "index.html");
+
+            WebView.Source = File.Exists(guiHtml)
+                ? new Uri(guiHtml)
+                : new Uri("https://marketplace.visualstudio.com/items?itemName=Continue.continue");
+
             LoadingPanel.Visibility = Visibility.Collapsed;
             WebView.Visibility      = Visibility.Visible;
         }
 
         // -----------------------------------------------------------------
-        // WebView2 → Continue binary bridge
+        // WebView2 ↔ Continue binary bridge
         // -----------------------------------------------------------------
 
         /// <summary>
@@ -118,7 +124,7 @@ namespace ContinueVS.UI
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
 
-                var json = JsonConvert.SerializeObject(msg);
+                var json    = JsonConvert.SerializeObject(msg);
                 var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
