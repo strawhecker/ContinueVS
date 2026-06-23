@@ -41,7 +41,7 @@ namespace ContinueVS.UI
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 if (_services.GetService(typeof(SVsStatusbar)) is IVsStatusbar bar)
                     bar.SetText($"Continue: {modelText}");
-            }).FileAndForget();
+            }).FileAndForget("vs/continuevs/statusbar");                // VSSDK007
         }
 
         private static string? TryExtractModel(JToken? data)

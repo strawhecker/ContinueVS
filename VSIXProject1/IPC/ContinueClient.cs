@@ -110,7 +110,12 @@ namespace ContinueVS.IPC
             using (var timeoutCts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(30)))
                 timeoutCts.Token.Register(() => req.Tcs.TrySetCanceled());
 
+            // VSTHRD003: Intentionally awaiting a TaskCompletionSource task; it is
+            // completed by the receive-loop on a background thread and the result is
+            // needed here.  ConfigureAwait(false) opts out of the sync-context capture.
+#pragma warning disable VSTHRD003
             try     { return await req.Tcs.Task.ConfigureAwait(false); }
+#pragma warning restore VSTHRD003
             finally { _pending.TryRemove(id, out _); }
         }
 
@@ -129,7 +134,7 @@ namespace ContinueVS.IPC
             try
             {
                 await _process.StandardInput.WriteAsync(json);
-                await Task.Run(() => _process.StandardInput.Flush());
+                await Task.Run(() => _process.StandardInput.Flush()); // VSTHRD003: avoid FlushAsync on foreign StreamWriter
             }
             finally
             {

@@ -45,7 +45,8 @@ namespace ContinueVS.UI
             if (pkg.Client?.IsConnected == true)
             {
                 // Binary already running — wire up WebView immediately.
-                ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync()).FileAndForget();
+                ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync())
+                    .FileAndForget("vs/continuevs/navigate");           // VSSDK007
             }
             else
             {
@@ -55,7 +56,8 @@ namespace ContinueVS.UI
 
         private void OnBinaryReady(object sender, System.Diagnostics.Process process)
         {
-            ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync()).FileAndForget();
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => NavigateAsync())
+                .FileAndForget("vs/continuevs/navigate");               // VSSDK007
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
@@ -96,9 +98,10 @@ namespace ContinueVS.UI
         /// Messages posted by the React GUI (window.chrome.webview.postMessage) are
         /// forwarded to the Continue binary via the IPC client.
         /// </summary>
+        // VSTHRD100: replaced async void with sync wrapper + OnWebMessageReceivedAsync
         private void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
             => ThreadHelper.JoinableTaskFactory.RunAsync(() => OnWebMessageReceivedAsync(sender, e))
-                           .FileAndForget();
+                           .FileAndForget("vs/continuevs/webmessage");  // VSSDK007
 
         private async System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
@@ -132,7 +135,7 @@ namespace ContinueVS.UI
                 var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-            }).FileAndForget();
+            }).FileAndForget("vs/continuevs/clientmessage");            // VSSDK007
         }
 
         // -----------------------------------------------------------------
@@ -161,7 +164,7 @@ namespace ContinueVS.UI
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-            }).FileAndForget();
+            }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
         }
 
         private void SetStatus(string text)
