@@ -1,11 +1,14 @@
 ﻿using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using ContinueVS.Settings;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
+// Forward reference: ContinueVSPackageAccessor is declared in ContinueVSPackage.cs
+// (same assembly, different namespace — no project reference needed).
 namespace ContinueVS.Binary
 {
     /// <summary>
@@ -62,9 +65,27 @@ namespace ContinueVS.Binary
                 if (_process != null && !_process.HasExited)
                     return;
 
+                // Allow the user to point at a custom binary via Tools → Options → Continue.
+                var resolvedPath = BinaryPath;
+                try
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+                    var pkgInstance = ContinueVSPackageAccessor.Instance;
+                    if (pkgInstance != null)
+                    {
+                        var opts = pkgInstance.GetDialogPage(typeof(ContinueOptionsPage))
+                                       as ContinueOptionsPage;
+                        if (opts != null
+                            && !string.IsNullOrWhiteSpace(opts.BinaryPathOverride)
+                            && File.Exists(opts.BinaryPathOverride))
+                            resolvedPath = opts.BinaryPathOverride;
+                    }
+                }
+                catch { /* options not yet available — use default */ }
+
                 var statusBar = await TryGetStatusBarAsync();
-                await BinaryDownloader.EnsureAsync(BinaryPath, statusBar, cancellationToken);
-                await LaunchAsync(cancellationToken);
+                await BinaryDownloader.EnsureAsync(resolvedPath, statusBar, cancellationToken);
+                await LaunchAsync(resolvedPath, cancellationToken);
             }
             finally
             {
@@ -83,11 +104,11 @@ namespace ContinueVS.Binary
         // Internal helpers
         // -----------------------------------------------------------------
 
-        private async Task LaunchAsync(CancellationToken cancellationToken)
+        private async Task LaunchAsync(string binaryPath, CancellationToken cancellationToken)
         {
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            var psi = new ProcessStartInfo(BinaryPath)
+            var psi = new ProcessStartInfo(binaryPath)
             {
                 UseShellExecute        = false,
                 RedirectStandardInput  = true,

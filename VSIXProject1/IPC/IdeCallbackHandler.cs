@@ -137,10 +137,34 @@ namespace ContinueVS.IPC
         private Task GetIdeSettingsAsync(Message msg) =>
             ReplyAsync(msg, new IdeSettings());
 
-        private async Task GetUniqueIdAsync(Message msg)
+        private Task GetUniqueIdAsync(Message msg)
         {
-            // Use the VS installation id as a stable unique id.
-            await ReplyAsync(msg, Guid.NewGuid().ToString());
+            // Use a stable ID persisted to disk so Continue recognises the IDE across restarts.
+            var idPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "ContinueVS", "uniqueid.txt");
+
+            string id;
+            try
+            {
+                if (File.Exists(idPath))
+                {
+                    id = File.ReadAllText(idPath).Trim();
+                    if (string.IsNullOrEmpty(id)) throw new InvalidOperationException("empty");
+                }
+                else
+                {
+                    id = Guid.NewGuid().ToString();
+                    Directory.CreateDirectory(Path.GetDirectoryName(idPath)!);
+                    File.WriteAllText(idPath, id);
+                }
+            }
+            catch
+            {
+                id = Guid.NewGuid().ToString();
+            }
+
+            return ReplyAsync(msg, id);
         }
 
         // ---- Workspace ----

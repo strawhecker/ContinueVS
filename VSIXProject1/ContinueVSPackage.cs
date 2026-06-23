@@ -33,7 +33,6 @@ namespace ContinueVS
 
         /// <summary>The stdio IPC client connected to the binary process.</summary>
         internal ContinueClient? Client { get; private set; }
-
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
@@ -58,7 +57,6 @@ namespace ContinueVS
                     Client.Connect(process, cancellationToken);
 
                     new IdeCallbackHandler(Client, this).Register();
-                    new WorkspaceContextProvider(this, Client).Register();
                     new DiffApplier(this, Client).Register();
                     new StatusBarManager(Client, this).Register();
 
@@ -99,6 +97,15 @@ namespace ContinueVS
 
             base.Dispose(disposing);
         }
+    }
+
+    /// <summary>
+    /// Thin accessor used by <see cref="ContinueBinaryManager"/> (in the Binary namespace)
+    /// to read the options page without creating a circular project reference.
+    /// </summary>
+    internal static class ContinueVSPackageAccessor
+    {
+        internal static ContinueVSPackage? Instance => ContinueVSPackage.Instance;
     }
 }
 

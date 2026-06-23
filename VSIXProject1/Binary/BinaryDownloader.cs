@@ -11,10 +11,11 @@ namespace ContinueVS.Binary
 {
     /// <summary>
     /// Downloads the Continue VS Code VSIX from the VS Marketplace and extracts
-    /// the win32-x64 binary from inside it.
+    /// the win32-x64 binary and GUI files from inside it.
     ///
-    /// The VSIX is a ZIP archive.  The binary is always at the path:
-    ///   <c>extension/core/win32-x64/continue-binary.exe</c>
+    /// The VSIX is a ZIP archive.  Relevant paths inside:
+    ///   Binary: <c>extension/core/win32-x64/continue-binary.exe</c>
+    ///   GUI:    <c>extension/gui/**</c>  (entire directory tree)
     /// </summary>
     internal static class BinaryDownloader
     {
@@ -24,19 +25,25 @@ namespace ContinueVS.Binary
             "/vsextensions/continue/2.0.0/vspackage?targetPlatform=win32-x64";
 
         // Path of the binary inside the VSIX ZIP.
-        private const string BinaryEntryPath =
-            "extension/core/win32-x64/continue-binary.exe";
+        private const string BinaryEntryPath = "extension/core/win32-x64/continue-binary.exe";
+
+        // Prefix for GUI files inside the VSIX ZIP.
+        private const string GuiEntryPrefix = "extension/gui/";
 
         /// <summary>
-        /// Ensures <paramref name="binaryDestination"/> exists, downloading and
-        /// extracting it from the VS Marketplace VSIX if necessary.
+        /// Ensures the binary and GUI files exist in <paramref name="cacheDir"/>,
+        /// downloading and extracting them from the VS Marketplace VSIX if necessary.
         /// </summary>
         internal static async Task EnsureAsync(
             string binaryDestination,
             IVsStatusbar? statusBar,
             CancellationToken cancellationToken)
         {
-            if (File.Exists(binaryDestination))
+            var guiIndexPath = Path.Combine(
+                Path.GetDirectoryName(binaryDestination)!, "gui", "index.html");
+
+            // Skip entirely if both binary and GUI are already present.
+            if (File.Exists(binaryDestination) && File.Exists(guiIndexPath))
                 return;
 
             Directory.CreateDirectory(Path.GetDirectoryName(binaryDestination)!);
@@ -45,9 +52,16 @@ namespace ContinueVS.Binary
             try
             {
                 await DownloadVsixAsync(vsixPath, statusBar, cancellationToken);
+
                 await SetStatusAsync(statusBar, "Continue: extracting AI engine…");
-                ExtractBinaryFromVsix(vsixPath, binaryDestination);
-                await SetStatusAsync(statusBar, "Continue: AI engine ready.");
+                if (!File.Exists(binaryDestination))
+                    ExtractBinaryFromVsix(vsixPath, binaryDestination);
+
+                await SetStatusAsync(statusBar, "Continue: extracting UI…");
+                if (!File.Exists(guiIndexPath))
+                    ExtractGuiFromVsix(vsixPath, Path.GetDirectoryName(binaryDestination)!);
+
+                await SetStatusAsync(statusBar, "Continue: ready.");
             }
             finally
             {
@@ -131,6 +145,37 @@ namespace ContinueVS.Binary
                                                 FileAccess.Write, FileShare.None))
                 {
                     src.CopyTo(dst);
+                }
+            }
+        }
+
+        private static void ExtractGuiFromVsix(string vsixPath, string cacheDir)
+        {
+            using (var zip = ZipFile.OpenRead(vsixPath))
+            {
+                foreach (var entry in zip.Entries)
+                {
+                    // Only process files that live under extension/gui/
+                    if (!entry.FullName.StartsWith(GuiEntryPrefix, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    // Skip directory entries (they end with /)
+                    if (entry.FullName.EndsWith("/"))
+                        continue;
+
+                    // Map "extension/gui/foo/bar.js" → "<cacheDir>\gui\foo\bar.js"
+                    var relativePath = entry.FullName.Substring(GuiEntryPrefix.Length)
+                                           .Replace('/', Path.DirectorySeparatorChar);
+                    var destPath = Path.Combine(cacheDir, "gui", relativePath);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+
+                    using (var src = entry.Open())
+                    using (var dst = new FileStream(destPath, FileMode.Create,
+                                                    FileAccess.Write, FileShare.None))
+                    {
+                        src.CopyTo(dst);
+                    }
                 }
             }
         }

@@ -4,7 +4,6 @@ using EnvDTE80;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Threading;
@@ -84,6 +83,16 @@ namespace ContinueVS.Editor
             return VSConstants.S_OK;
         }
 
+        public int OnBeforeDocumentWindowShow(uint cookie, int fFirstShow, IVsWindowFrame pFrame)
+        {
+            if (fFirstShow != 0)
+            {
+                ScheduleContextUpdate();
+                _ = PushActiveEditorChangedAsync();
+            }
+            return VSConstants.S_OK;
+        }
+
         // -----------------------------------------------------------------
         // Debounced push
         // -----------------------------------------------------------------
@@ -122,12 +131,12 @@ namespace ContinueVS.Editor
                 col  = sel.ActivePoint.LineCharOffset - 1;
             }
 
-            var data = JToken.FromObject(new
+            var data = new
             {
-                filepath  = path,
+                filepath       = path,
                 contents,
                 cursorPosition = new { line, character = col },
-            });
+            };
 
             await _client.SendAsync("currentFileUpdate", data, CancellationToken.None);
         }
@@ -141,12 +150,21 @@ namespace ContinueVS.Editor
         public int OnAfterSave(uint cookie) => VSConstants.S_OK;
         public int OnBeforeSave(uint cookie) => VSConstants.S_OK;
         public int OnAfterAttributeChange(uint cookie, uint grfAttribs) => VSConstants.S_OK;
-        public int OnBeforeDocumentWindowShow(uint cookie, int fFirstShow, IVsWindowFrame pFrame)
-        {
-            if (fFirstShow != 0) ScheduleContextUpdate();
-            return VSConstants.S_OK;
-        }
         public int OnAfterDocumentWindowHide(uint cookie, IVsWindowFrame pFrame) => VSConstants.S_OK;
+
+        private async System.Threading.Tasks.Task PushActiveEditorChangedAsync()
+        {
+            if (!_client.IsConnected) return;
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            var path = _dte?.ActiveDocument?.FullName ?? "";
+            if (string.IsNullOrEmpty(path)) return;
+
+            await _client.SendAsync(
+                "didChangeActiveTextEditor",
+                new DidChangeActiveTextEditor { Filepath = path },
+                CancellationToken.None);
+        }
 
         // -----------------------------------------------------------------
         // IDisposable
