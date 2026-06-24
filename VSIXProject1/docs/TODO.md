@@ -1,17 +1,6 @@
 # TODO — Ordered Action List
 
-One item per agent session. Commit after each item. Remove completed items.
-
----
-
-## Phase 2 — Create ContinueTranslator solution
-
-### TODO-008
-**Create ContinueTranslator solution**
-Location: `E:\DevStudio\ContinueTranslator\`
-Projects: `ContinueTranslator.Cli` (.NET 10), `ContinueTranslator.Core` (.NET 10),
-`ContinueTranslator.Tests` (xUnit .NET 10)
-Reference: `docs/translator-design.md`
+One item per agent session. Commit after each item. Remove completed items. tools and docs moved to VSIXProject1.
 
 ---
 
