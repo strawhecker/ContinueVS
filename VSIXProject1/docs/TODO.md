@@ -26,15 +26,6 @@ Cookie syntax:
 
 ---
 
-### TODO-017
-**Wire CLI entry point**
-`Program.cs` — parse args, call pipeline, report results.
-- `--repo`  path to local clone of forked continue repo (required)
-- `--tag`   git tag or branch to check out before scanning (required)
-- `--out`   output directory (required)
-
----
-
 ### TODO-018
 **Test run: Continue v2.0.0 core/protocol/**
 Prerequisite: personal fork of continuedev/continue cloned locally with tag `v2.0.0` present.
