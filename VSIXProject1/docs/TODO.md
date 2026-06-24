@@ -26,13 +26,6 @@ Cookie syntax:
 
 ---
 
-### TODO-015
-**Create CsEmitter.cs**
-Roslyn SyntaxFactory. Walks mapped IR. Emits `partial` classes under 400 lines.
-Splits long classes by method into `ClassName.MethodGroup.cs` files.
-
----
-
 ### TODO-016
 **Create ProjectEmitter.cs**
 Generates `ContinueCore.csproj` with NuGet references discovered during mapping.
