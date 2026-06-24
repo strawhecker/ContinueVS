@@ -26,12 +26,6 @@ Cookie syntax:
 
 ---
 
-### TODO-016
-**Create ProjectEmitter.cs**
-Generates `ContinueCore.csproj` with NuGet references discovered during mapping.
-
----
-
 ### TODO-017
 **Wire CLI entry point**
 `Program.cs` — parse args, call pipeline, report results.
