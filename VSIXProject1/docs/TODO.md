@@ -26,15 +26,6 @@ Cookie syntax:
 
 ---
 
-### TODO-014
-**Create MappingEngine + map readers**
-`Mapping/NodeApiMap.cs`, `Mapping/NpmPackageMap.cs`, `Mapping/TypeMap.cs`
-`Mapping/MappingEngine.cs` — orchestrates all three over the IR.
-`@ct:` cookies take precedence over mapping tables.
-All `partial`, under 400 lines each.
-
----
-
 ### TODO-015
 **Create CsEmitter.cs**
 Roslyn SyntaxFactory. Walks mapped IR. Emits `partial` classes under 400 lines.
