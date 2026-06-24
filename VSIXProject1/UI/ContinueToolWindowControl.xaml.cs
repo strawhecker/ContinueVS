@@ -7,6 +7,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.IO;
 
 namespace ContinueVS.UI
 {
@@ -46,12 +47,28 @@ namespace ContinueVS.UI
 
             if (!_webViewInitialized)
             {
-                await WebView.EnsureCoreWebView2Async();
+                var userDataFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "ContinueVS", "WebView2");
+
+                var env = await CoreWebView2Environment.CreateAsync(
+                    browserExecutableFolder: null,
+                    userDataFolder:          userDataFolder);
+
+                await WebView.EnsureCoreWebView2Async(env);
+
+                // Map https://continue.local/ → %APPDATA%\ContinueVS\gui\
+                // This lets the React bundle resolve absolute paths like /assets/index.js
+                WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    hostName:          "continue.local",
+                    folderPath:        GuiExtractor.GuiRoot,
+                    accessKind:        CoreWebView2HostResourceAccessKind.Allow);
+
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
                 _webViewInitialized = true;
             }
 
-            WebView.Source = new Uri(GuiExtractor.IndexHtmlPath);
+            WebView.Source = new Uri("https://continue.local/index.html");
 
             LoadingPanel.Visibility = Visibility.Collapsed;
             WebView.Visibility      = Visibility.Visible;

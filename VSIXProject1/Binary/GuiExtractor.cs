@@ -11,7 +11,8 @@ namespace ContinueVS.Binary
     /// </summary>
     internal static partial class GuiExtractor
     {
-        private static readonly string GuiRoot =
+        /// <summary>The folder where GUI assets are extracted on disk.</summary>
+        public static string GuiRoot =>
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "ContinueVS", "gui");
