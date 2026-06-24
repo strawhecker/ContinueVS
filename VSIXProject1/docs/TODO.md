@@ -4,17 +4,6 @@ One item per agent session. Commit after each item. Remove completed items.
 
 ---
 
-## Phase 1 — Clean up VSIXProject1
-
-### TODO-007
-**Build and smoke test**
-Run in debugger. Experimental VS instance opens.
-Press Ctrl+Shift+J. Tool window opens.
-Loading panel shows briefly, then WebView shows Continue GUI.
-No exceptions in Output window.
-
----
-
 ## Phase 2 — Create ContinueTranslator solution
 
 ### TODO-008
