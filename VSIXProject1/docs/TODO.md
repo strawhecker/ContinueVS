@@ -9,8 +9,8 @@ One item per agent session. Commit after each item. Remove completed items.
 ### TODO-008
 **Create ContinueTranslator solution**
 Location: `E:\DevStudio\ContinueTranslator\`
-Projects: `ContinueTranslator.Cli` (.NET 8), `ContinueTranslator.Core` (.NET 8),
-`ContinueTranslator.Tests` (xUnit .NET 8)
+Projects: `ContinueTranslator.Cli` (.NET 10), `ContinueTranslator.Core` (.NET 10),
+`ContinueTranslator.Tests` (xUnit .NET 10)
 Reference: `docs/translator-design.md`
 
 ---

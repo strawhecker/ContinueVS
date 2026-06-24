@@ -17,10 +17,10 @@ ContinueTranslator/
 ├── ContinueTranslator.slnx
 │
 ├── src/
-│   ├── ContinueTranslator.Cli/          .NET 8 console — entry point
+│   ├── ContinueTranslator.Cli/          .NET 10 console — entry point
 │   │   └── Program.cs
 │   │
-│   ├── ContinueTranslator.Core/         .NET 8 class library
+│   ├── ContinueTranslator.Core/         .NET 10 class library
 │   │   ├── Acquisition/
 │   │   │   └── SourceFetcher.cs         downloads + extracts GitHub tag ZIP
 │   │   ├── Parsing/

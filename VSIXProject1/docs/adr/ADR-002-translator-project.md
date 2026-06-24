@@ -15,7 +15,7 @@ The TypeScript Compiler API (via ts-morph) provides full typed AST with cross-fi
 Roslyn SyntaxFactory can emit valid, formatted C# source.
 
 ## Decision
-Build a **separate .NET 8 console tool** (`ContinueTranslator`) that:
+Build a **separate .NET 10 console tool** (`ContinueTranslator`) that:
 1. Downloads Continue source from GitHub at a specific release tag.
 2. Parses TypeScript using ts-morph (via Node.js subprocess).
 3. Builds an intermediate representation (IR).

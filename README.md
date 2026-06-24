@@ -26,7 +26,7 @@ assistant. This project brings it to **Visual Studio 2022 and 2026** as a native
 ### Prerequisites
 
 - Visual Studio 2022 17.9+ or Visual Studio 2026 (Community / Professional / Enterprise)
-- .NET SDK 8+ (for the SDK-style project tooling)
+- .NET SDK 10+ (for the SDK-style project tooling)
 - **Visual Studio SDK** workload installed (`Visual Studio extension development`)
 
 ### Steps
