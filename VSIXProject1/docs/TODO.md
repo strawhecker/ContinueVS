@@ -26,14 +26,6 @@ Cookie syntax:
 
 ---
 
-### TODO-012
-**Create TsParser.cs**
-Extracts `parse.mjs` to temp, runs `node parse.mjs <files>`, reads stdout JSON.
-Deserializes to IR types including the `Cookies` field.
-Must be `partial`, under 400 lines.
-
----
-
 ### TODO-014
 **Create MappingEngine + map readers**
 `Mapping/NodeApiMap.cs`, `Mapping/NpmPackageMap.cs`, `Mapping/TypeMap.cs`
