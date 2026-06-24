@@ -26,16 +26,6 @@ Cookie syntax:
 
 ---
 
-### TODO-018
-**Test run: Continue v2.0.0 core/protocol/**
-Prerequisite: personal fork of continuedev/continue cloned locally with tag `v2.0.0` present.
-Run: `dotnet run -- --repo <fork-clone-path> --tag v2.0.0 --out output/`
-Scope: `core/protocol/**` only.
-Review generated C# protocol types.
-Fix any parser or emitter gaps found.
-
----
-
 ## Phase 3 — Implement message handlers in VSIXProject1
 
 ### TODO-019
