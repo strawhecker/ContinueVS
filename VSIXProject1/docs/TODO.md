@@ -26,30 +26,6 @@ Cookie syntax:
 
 ---
 
-## Phase 2 — Create ContinueTranslator solution
-
-### TODO-010
-**Create SourceFetcher.cs**
-Accepts a local fork clone path and a git tag or branch name.
-Runs `git checkout <tag-or-branch>` in the clone before scanning.
-Returns list of `.ts` file paths after filtering out `*.test.ts`, `extensions/vscode/**`, `gui/**`.
-Must be `partial`, under 400 lines.
-
----
-
-### TODO-011
-**Create IR records and parse.mjs**
-First: replace stubs in `ContinueTranslator.Core/IR/` with `sealed record` types.
-All records include a `string[] Cookies` property for `@ct:` annotations.
-Property shapes derived from what ts-morph exposes for each TypeScript construct.
-
-Then: implement `parse.mjs` as the embedded resource in `ContinueTranslator.Core/Parsing/`.
-Uses ts-morph to walk each `.ts` file and emit a JSON array of IR-compatible objects.
-Covers: interfaces, classes, enums, functions, type aliases.
-For each node, scan leading comments for `@ct:` prefix and emit them in the `cookies` array.
-
----
-
 ### TODO-012
 **Create TsParser.cs**
 Extracts `parse.mjs` to temp, runs `node parse.mjs <files>`, reads stdout JSON.
