@@ -2,6 +2,7 @@
 using ContinueVS.Handlers;
 using ContinueVS.Handlers.File;
 using ContinueVS.Handlers.Ide;
+using ContinueVS.Handlers.Push;
 using ContinueVS.IPC;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.VisualStudio.Shell;
@@ -25,10 +26,12 @@ namespace ContinueVS.UI
         private bool _webViewInitialized;
         private bool _disposed;
         private readonly MessageDispatcher _dispatcher = new MessageDispatcher();
+        private readonly WebviewPusher _pusher;
 
         public ContinueToolWindowControl()
         {
             InitializeComponent();
+            _pusher = new WebviewPusher(this);
             _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
             _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
             _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
@@ -84,12 +87,15 @@ namespace ContinueVS.UI
 
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
                 _webViewInitialized = true;
+                _pusher.Subscribe();
             }
 
             WebView.Source = new Uri("https://continue.local/index.html");
 
             LoadingPanel.Visibility = Visibility.Collapsed;
             WebView.Visibility      = Visibility.Visible;
+            _pusher.PushConfigUpdate();
+            _pusher.PushIndexProgress();
         }
 
         // -----------------------------------------------------------------
@@ -173,6 +179,12 @@ namespace ContinueVS.UI
         {
             if (_disposed) return;
             _disposed = true;
+
+            ThreadHelper.JoinableTaskFactory.Run(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                _pusher.Dispose();
+            });
 
             WebView.Dispose();
         }
