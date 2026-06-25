@@ -24,3 +24,26 @@ Cookie syntax:
 // @ct:nuget=System.Net.Http
 ```
 
+---
+
+TODO-026 — Wire EditorContextProvider into ContinueToolWindowControl.
+Complete PushCurrentFileContextAsync to call SendToGui("currentFile", data).
+Complete PushActiveEditorChangedAsync to call SendToGui.
+Instantiate in ContinueToolWindowControl,
+call RegisterAsync in NavigateAsync inside the if (!_webViewInitialized) block,
+Dispose it in ContinueToolWindowControl.Dispose.
+
+---
+
+TODO-027 — Wire WorkspaceConfigWatcher and add getCurrentFile handler.
+Complete OnConfigChanged to call _pusher.PushConfigUpdate().
+Call Start() from ContinueToolWindowControl.NavigateAsync.
+Create Handlers\Ide\GetCurrentFileHandler.cs that uses EditorContextProvider data (DTE active document) to reply with filepath, contents, and cursor position.
+
+---
+
+TODO-028 — Implement applyToFile, acceptDiff, rejectDiff handlers using VS editor APIs (IVsTextManager / DTE).
+
+---
+
+TODO-029 — Update AGENTS.md current state table and architecture.md to reflect what is actually built and what remains.
