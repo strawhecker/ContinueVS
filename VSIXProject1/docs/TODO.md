@@ -24,11 +24,3 @@ Cookie syntax:
 // @ct:nuget=System.Net.Http
 ```
 
----
-
-TODO-025
-Remaining handlers from protocol.md
-Remaining Types section Prerequisite: fix translator emitter gaps identified in output\review-018.md so payload shapes are fully resolved.
-After fixing, implement the handlers listed under Remaining Types in docs/protocol.md.
-Prioritise the context/, config/, and llm/ groups first as these are needed for core Continue functionality.
-
