@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-042 [Trans] — Add @ct:ignore cookies to the 27 test/vendor TypeScript files in the fork (all files under Vendor/, and all *.vitest.ts / *.test.ts files that were not already excluded by RepoScanner). Re-run the translator to confirm those 27 files and their 114 stubs are eliminated from output/.
-
----
-
 TODO-043 [Trans] — Replace throw new NotImplementedException() fallback in BuildFunctionStub (CsEmitter.Functions.cs) and BuildClassMethods (CsEmitter.Classes.cs) with a single-line comment stub: // TODO: <tsFilePath> :: <ClassName>.<MethodName>. This keeps every output file compilable and provides an exact source address for human implementers.
 
 ---

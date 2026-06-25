@@ -72,6 +72,8 @@ internal sealed class RepoScanner
         // Exclude test files by file name pattern.
         if (path.Contains(".test.ts", StringComparison.OrdinalIgnoreCase))
             return false;
+        if (path.Contains(".vitest.ts", StringComparison.OrdinalIgnoreCase))
+            return false;
 
         // Examine individual path segments for excluded directories.
         string[] segments = path.Split(
@@ -83,6 +85,8 @@ internal sealed class RepoScanner
             if (segment.Equals("extensions", StringComparison.OrdinalIgnoreCase))
                 return false;
             if (segment.Equals("gui", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (segment.Equals("vendor", StringComparison.OrdinalIgnoreCase))
                 return false;
         }
 
