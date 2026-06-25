@@ -66,10 +66,6 @@ TODO items for both projects are listed below in dependency order. Each session:
 
 ---
 
-TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method: the base.Dispose(disposing); line and the three closing braces that follow it are all indented at 20 spaces instead of the correct 8/4/0. Reformat to correct indentation so the file is structurally valid.
-
----
-
 TODO-035 [VSIX] — Honor ContinueOptionsPage in GhostTextController. At the start of RequestCompletionAsync, read the options page via ContinueVSPackage.Instance?.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage and return early if EnableInlineCompletions is false. Replace the hard-coded 150 in OnBufferChanged with options?.DebounceDelayMs ?? 150.
 
 ---
