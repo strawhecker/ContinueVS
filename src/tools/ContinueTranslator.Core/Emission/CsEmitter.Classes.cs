@@ -31,12 +31,13 @@ internal sealed partial class CsEmitter
                     ? renamed
                     : tsClass.Name;
 
-                EmitClassFiles(tsClass, className, ns, relDir, results);
+                EmitClassFiles(file.FilePath, tsClass, className, ns, relDir, results);
             }
         }
     }
 
     private static void EmitClassFiles(
+        string filePath,
         TsClass tsClass,
         string className,
         string ns,
@@ -47,7 +48,7 @@ internal sealed partial class CsEmitter
         List<MemberDeclarationSyntax> properties = BuildClassProperties(tsClass.Properties);
 
         // Build all method stubs.
-        List<MemberDeclarationSyntax> methods = BuildClassMethods(tsClass.Methods);
+        List<MemberDeclarationSyntax> methods = BuildClassMethods(tsClass.Methods, filePath, className);
 
         // Measure the full class to decide whether splitting is needed.
         List<MemberDeclarationSyntax> allMembers = [.. properties, .. methods];
@@ -179,7 +180,7 @@ internal sealed partial class CsEmitter
         return list;
     }
 
-    private static List<MemberDeclarationSyntax> BuildClassMethods(TsMethod[] methods)
+    private static List<MemberDeclarationSyntax> BuildClassMethods(TsMethod[] methods, string filePath, string className)
     {
         var list = new List<MemberDeclarationSyntax>();
 
@@ -187,9 +188,11 @@ internal sealed partial class CsEmitter
         {
             ParameterListSyntax paramList = BuildParameterList(method.Parameters);
 
+            string stubComment = $"// TODO: {filePath} :: {className}.{method.Name}";
             StatementSyntax body = ThrowStatement(
                 ObjectCreationExpression(IdentifierName("NotImplementedException"))
-                    .WithArgumentList(ArgumentList()));
+                    .WithArgumentList(ArgumentList()))
+                .WithLeadingTrivia(Comment(stubComment), ElasticCarriageReturnLineFeed);
 
             MethodDeclarationSyntax methodDecl = MethodDeclaration(
                     ParseTypeSyntax(method.ReturnType.Text),

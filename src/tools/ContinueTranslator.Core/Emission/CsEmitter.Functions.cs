@@ -76,7 +76,7 @@ internal sealed partial class CsEmitter
                     ? renamed
                     : func.Name;
 
-                MethodDeclarationSyntax methodDecl = BuildFunctionStub(func, methodName);
+                MethodDeclarationSyntax methodDecl = BuildFunctionStub(func, methodName, file.FilePath, className);
                 methodMembers.Add(methodDecl);
             }
 
@@ -98,14 +98,15 @@ internal sealed partial class CsEmitter
         }
     }
 
-    private static MethodDeclarationSyntax BuildFunctionStub(TsFunction func, string methodName)
+    private static MethodDeclarationSyntax BuildFunctionStub(TsFunction func, string methodName, string filePath, string className)
     {
         ParameterListSyntax paramList = BuildParameterList(func.Parameters);
 
-        // Stub body: throw new NotImplementedException();
+        string stubComment = $"// TODO: {filePath} :: {className}.{methodName}";
         StatementSyntax body = ThrowStatement(
             ObjectCreationExpression(IdentifierName("NotImplementedException"))
-                .WithArgumentList(ArgumentList()));
+                .WithArgumentList(ArgumentList()))
+            .WithLeadingTrivia(Comment(stubComment), ElasticCarriageReturnLineFeed);
 
         MethodDeclarationSyntax methodDecl = MethodDeclaration(
                 ParseTypeSyntax(func.ReturnType.Text),
