@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-051 [Trans] — Sync (core): Add SyncResult record and GeneratedFolderSync.cs in a new ContinueTranslator.Core/Sync/ folder. GeneratedFolderSync.Sync() takes the emitted file list and the Generated/ directory path. It loads .translator-manifest.json (SHA-256 keyed by relative path), skips files whose Generated/ copy differs from the translator's last-written hash (hand-edited), skips files whose content still contains // TODO stubs or raw TS type leaks, writes the rest, updates the manifest, and returns a SyncResult with counts for promoted, skipped-manual-edit, and skipped-has-stubs.
-
----
-
 TODO-052 [Trans] — Sync (CLI): Add --generated <path> optional argument to Program.cs. Pass it through TranslationOptions. In PipelineRunner.Run(), add step 7: if GeneratedDirectory is set, call GeneratedFolderSync.Sync() and print the SyncResult counts to stdout. Document the argument in the usage message.
 
 ---
