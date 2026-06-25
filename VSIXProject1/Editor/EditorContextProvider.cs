@@ -1,4 +1,5 @@
 ﻿using ContinueVS.IPC;
+using ContinueVS.UI;
 using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio;
@@ -26,7 +27,7 @@ namespace ContinueVS.Editor
         // Debounce: skip sending updates faster than 300 ms.
         private static readonly TimeSpan DebounceInterval = TimeSpan.FromMilliseconds(300);
 
-        private readonly IServiceProvider _services;
+        private readonly ContinueToolWindowControl _control;
 
         private IVsRunningDocumentTable? _rdt;
         private uint                      _rdtCookie;
@@ -37,9 +38,9 @@ namespace ContinueVS.Editor
         private CancellationTokenSource? _debounceCts;
         private bool _disposed;
 
-        public EditorContextProvider(IServiceProvider services)
+        public EditorContextProvider(ContinueToolWindowControl control)
         {
-            _services = services;
+            _control = control;
         }
 
         /// <summary>
@@ -49,10 +50,10 @@ namespace ContinueVS.Editor
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            _rdt = _services.GetService(typeof(SVsRunningDocumentTable)) as IVsRunningDocumentTable;
+            _rdt = Package.GetGlobalService(typeof(SVsRunningDocumentTable)) as IVsRunningDocumentTable;
             _rdt?.AdviseRunningDocTableEvents(this, out _rdtCookie);
 
-            _dte = _services.GetService(typeof(DTE)) as DTE2;
+            _dte = Package.GetGlobalService(typeof(DTE)) as DTE2;
             if (_dte != null)
             {
                 _events          = _dte.Events as Events2;
@@ -133,6 +134,7 @@ namespace ContinueVS.Editor
                 contents,
                 cursorPosition = new { line, character = col },
             };
+            _control.SendToGui("currentFile", data);
         }
 
         // -----------------------------------------------------------------
@@ -151,6 +153,7 @@ namespace ContinueVS.Editor
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             var path = _dte?.ActiveDocument?.FullName ?? "";
             if (string.IsNullOrEmpty(path)) return;
+            _control.SendToGui("didChangeActiveTextEditor", new DidChangeActiveTextEditor { Filepath = path });
         }
 
         // -----------------------------------------------------------------

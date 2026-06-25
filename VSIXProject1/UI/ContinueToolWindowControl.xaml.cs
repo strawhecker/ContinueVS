@@ -1,4 +1,5 @@
 ﻿using ContinueVS.Binary;
+using ContinueVS.Editor;
 using ContinueVS.Handlers;
 using ContinueVS.Handlers.Config;
 using ContinueVS.Handlers.Context;
@@ -30,11 +31,13 @@ namespace ContinueVS.UI
         private bool _disposed;
         private readonly MessageDispatcher _dispatcher = new MessageDispatcher();
         private readonly WebviewPusher _pusher;
+        private EditorContextProvider _editorContextProvider;
 
         public ContinueToolWindowControl()
         {
             InitializeComponent();
             _pusher = new WebviewPusher(this);
+            _editorContextProvider = new EditorContextProvider(this);
             _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
             _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
             _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
@@ -115,6 +118,7 @@ namespace ContinueVS.UI
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
                 _webViewInitialized = true;
                 _pusher.Subscribe();
+                await _editorContextProvider.RegisterAsync();
             }
 
             WebView.Source = new Uri("https://continue.local/index.html");
@@ -213,6 +217,7 @@ namespace ContinueVS.UI
                 _pusher.Dispose();
             });
 
+            _editorContextProvider?.Dispose();
             WebView.Dispose();
         }
     }

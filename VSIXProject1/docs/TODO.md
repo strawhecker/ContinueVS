@@ -26,15 +26,6 @@ Cookie syntax:
 
 ---
 
-TODO-026 — Wire EditorContextProvider into ContinueToolWindowControl.
-Complete PushCurrentFileContextAsync to call SendToGui("currentFile", data).
-Complete PushActiveEditorChangedAsync to call SendToGui.
-Instantiate in ContinueToolWindowControl,
-call RegisterAsync in NavigateAsync inside the if (!_webViewInitialized) block,
-Dispose it in ContinueToolWindowControl.Dispose.
-
----
-
 TODO-027 — Wire WorkspaceConfigWatcher and add getCurrentFile handler.
 Complete OnConfigChanged to call _pusher.PushConfigUpdate().
 Call Start() from ContinueToolWindowControl.NavigateAsync.
