@@ -139,6 +139,85 @@ function walkProperty(prop) {
 }
 
 /**
+ * @param {import("ts-morph").Statement} stmt
+ * @returns {object}
+ */
+function walkStatement(stmt) {
+  try {
+    switch (stmt.getKindName()) {
+      case "ReturnStatement":
+        return { kind: "Return", expression: stmt.getExpression?.()?.getText() ?? null };
+      case "IfStatement":
+        return {
+          kind: "If",
+          condition: stmt.getExpression?.()?.getText() ?? "",
+          thenStatements: stmt.getThenStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          elseStatements: stmt.getElseStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+        };
+      case "ForStatement":
+        return {
+          kind: "For",
+          initializer: stmt.getInitializer?.()?.getText() ?? null,
+          condition: stmt.getCondition?.()?.getText() ?? null,
+          incrementor: stmt.getIncrementor?.()?.getText() ?? null,
+          statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+        };
+      case "ForOfStatement":
+        return {
+          kind: "ForOf",
+          variable: stmt.getInitializer?.()?.getText() ?? null,
+          expression: stmt.getExpression?.()?.getText() ?? null,
+          statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+        };
+      case "WhileStatement":
+        return {
+          kind: "While",
+          condition: stmt.getExpression?.()?.getText() ?? null,
+          statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+        };
+      case "TryStatement":
+        return {
+          kind: "Try",
+          tryStatements: stmt.getTryBlock?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          catchStatements: stmt.getCatchClause?.()?.getBlock?.()?.getStatements?.()?.map(walkStatement) ?? [],
+        };
+      case "VariableStatement": {
+        const decls = stmt.getDeclarations?.() ?? [];
+        return {
+          kind: "Var",
+          name: decls[0]?.getName?.() ?? "",
+          initializer: decls[0]?.getInitializer?.()?.getText() ?? null,
+        };
+      }
+      case "ExpressionStatement":
+        return { kind: "ExpressionStatement", expression: stmt.getExpression?.()?.getText() ?? "" };
+      case "ThrowStatement":
+        return { kind: "Throw", expression: stmt.getExpression?.()?.getText() ?? "" };
+      default:
+        return { kind: "Unknown", text: stmt.getText() };
+    }
+  } catch {
+    return { kind: "Unknown", text: "" };
+  }
+}
+
+/**
+ * @param {object} node
+ * @returns {object[]}
+ */
+function walkBody(node) {
+  try {
+    const body = node.getBody?.();
+    if (!body) return [];
+    const stmts = body.getStatements?.();
+    if (!stmts) return [];
+    return stmts.map(walkStatement);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * @param {import("ts-morph").MethodDeclaration | import("ts-morph").MethodSignature} method
  * @returns {object}
  */
@@ -159,6 +238,7 @@ function walkMethod(method) {
     isOptional: method.hasQuestionToken?.() ?? false,
     isAbstract: method.isAbstract?.() ?? false,
     accessibility: method.getScope?.() ?? "public",
+    body: (method.isAbstract?.() ?? false) ? [] : walkBody(method),
     cookies: extractCookies(method),
   };
 }
@@ -247,6 +327,7 @@ function walkFunction(fn) {
     typeParameters: fn.getTypeParameters().map(tp => tp.getName()),
     isAsync: fn.isAsync(),
     isExported: fn.isExported(),
+    body: walkBody(fn),
     cookies: extractCookies(fn),
   };
 }

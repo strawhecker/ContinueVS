@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-045 [Trans] — Gap 1 (parse.mjs — statements): Extend walkMethod() and walkFunction() in parse.mjs to emit a body array of statement nodes. Each node carries: kind (one of Return, If, For, ForOf, While, Try, Var, ExpressionStatement, Throw) plus kind-specific fields (e.g., Return.expression, If.condition/thenStatements/elseStatements, Var.name/initializer, Try.tryStatements/catchStatements). Emit empty array when the body is absent or the method is abstract.
-
----
-
 TODO-046 [Trans] — Gap 1 (parse.mjs — expressions): Extend parse.mjs to walk expression nodes referenced by the statement body. Each expression node carries: kind (one of Call, Member, Await, Binary, Literal, Identifier, ObjectLiteral, Conditional, Arrow) plus kind-specific fields (e.g., Call.callee/args, Member.object/property, Await.expression, Binary.op/left/right, ObjectLiteral.properties as name/value pairs). This completes the Gap 1 JSON IR that the C# emitter will consume.
 
 ---
