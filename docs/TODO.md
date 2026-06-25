@@ -66,15 +66,7 @@ TODO items for both projects are listed below in dependency order. Each session:
 
 ---
 
-TODO-035 [VSIX] — Honor ContinueOptionsPage in GhostTextController. At the start of RequestCompletionAsync, read the options page via ContinueVSPackage.Instance?.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage and return early if EnableInlineCompletions is false. Replace the hard-coded 150 in OnBufferChanged with options?.DebounceDelayMs ?? 150.
-
----
-
-TODO-036 [VSIX] — Surface LLM errors to the user. In LlmCompleteHandler and LlmStreamChatHandler, catch HttpRequestException specifically and call _control.SendToGui("showToast", new { message = "Continue: LLM request failed — " + ex.Message, type = "error" }) before returning the empty reply, so the user sees actionable feedback in the GUI.
-
----
-
-TODO-037 [VSIX] — Make AutocompleteCompleteHandler produce real completions. Extract the AutocompleteInput from message.Data, build a prompt string from filepath and pos, call ContinueConfigReader.FindModel("") then LlmHttpClient.CompleteAsync, and reply with a string[] containing the single result. This closes the ghost text round-trip. Depends on TODO-036.
+TODO-037 [VSIX]
 
 ---
 
