@@ -23,8 +23,3 @@ Cookie syntax:
 // @ct:rename=GetFileContents
 // @ct:nuget=System.Net.Http
 ```
-
----
-
-TODO-033 — Implement llm/streamChat using the same HttpClient pattern as TODO-032 but streaming chunked responses back to the GUI incrementally via SendToGui.
-
