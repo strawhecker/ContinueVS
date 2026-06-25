@@ -146,11 +146,11 @@ function walkStatement(stmt) {
   try {
     switch (stmt.getKindName()) {
       case "ReturnStatement":
-        return { kind: "Return", expression: stmt.getExpression?.()?.getText() ?? null };
+        return { kind: "Return", expression: walkExprSafe(stmt.getExpression?.()) };
       case "IfStatement":
         return {
           kind: "If",
-          condition: stmt.getExpression?.()?.getText() ?? "",
+          condition: walkExprSafe(stmt.getExpression?.()),
           thenStatements: stmt.getThenStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
           elseStatements: stmt.getElseStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
         };
@@ -158,21 +158,21 @@ function walkStatement(stmt) {
         return {
           kind: "For",
           initializer: stmt.getInitializer?.()?.getText() ?? null,
-          condition: stmt.getCondition?.()?.getText() ?? null,
-          incrementor: stmt.getIncrementor?.()?.getText() ?? null,
+          condition: walkExprSafe(stmt.getCondition?.()),
+          incrementor: walkExprSafe(stmt.getIncrementor?.()),
           statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
         };
       case "ForOfStatement":
         return {
           kind: "ForOf",
           variable: stmt.getInitializer?.()?.getText() ?? null,
-          expression: stmt.getExpression?.()?.getText() ?? null,
+          expression: walkExprSafe(stmt.getExpression?.()),
           statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
         };
       case "WhileStatement":
         return {
           kind: "While",
-          condition: stmt.getExpression?.()?.getText() ?? null,
+          condition: walkExprSafe(stmt.getExpression?.()),
           statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
         };
       case "TryStatement":
@@ -186,13 +186,13 @@ function walkStatement(stmt) {
         return {
           kind: "Var",
           name: decls[0]?.getName?.() ?? "",
-          initializer: decls[0]?.getInitializer?.()?.getText() ?? null,
+          initializer: walkExprSafe(decls[0]?.getInitializer?.()),
         };
       }
       case "ExpressionStatement":
-        return { kind: "ExpressionStatement", expression: stmt.getExpression?.()?.getText() ?? "" };
+        return { kind: "ExpressionStatement", expression: walkExprSafe(stmt.getExpression?.()) };
       case "ThrowStatement":
-        return { kind: "Throw", expression: stmt.getExpression?.()?.getText() ?? "" };
+        return { kind: "Throw", expression: walkExprSafe(stmt.getExpression?.()) };
       default:
         return { kind: "Unknown", text: stmt.getText() };
     }
@@ -215,6 +215,80 @@ function walkBody(node) {
   } catch {
     return [];
   }
+}
+
+/**
+ * @param {import("ts-morph").Expression} expr
+ * @returns {object}
+ */
+function walkExpression(expr) {
+  try {
+    const kind = expr.getKindName();
+    switch (kind) {
+      case "CallExpression":
+        return {
+          kind: "Call",
+          callee: walkExpression(expr.getExpression()),
+          args: expr.getArguments().map(walkExpression),
+        };
+      case "PropertyAccessExpression":
+        return {
+          kind: "Member",
+          object: walkExpression(expr.getExpression()),
+          property: expr.getName(),
+        };
+      case "AwaitExpression":
+        return {
+          kind: "Await",
+          expression: walkExpression(expr.getExpression()),
+        };
+      case "BinaryExpression":
+        return {
+          kind: "Binary",
+          op: expr.getOperatorToken().getText(),
+          left: walkExpression(expr.getLeft()),
+          right: walkExpression(expr.getRight()),
+        };
+      case "StringLiteral":
+      case "NumericLiteral":
+      case "TrueKeyword":
+      case "FalseKeyword":
+      case "NullKeyword":
+      case "NoSubstitutionTemplateLiteral":
+        return { kind: "Literal", value: expr.getText() };
+      case "Identifier":
+        return { kind: "Identifier", name: expr.getText() };
+      case "ObjectLiteralExpression":
+        return {
+          kind: "ObjectLiteral",
+          properties: expr.getProperties().map(p => ({
+            name: p.getName?.() ?? p.getText(),
+            value: p.getInitializer ? walkExprSafe(p.getInitializer()) : null,
+          })),
+        };
+      case "ConditionalExpression":
+        return {
+          kind: "Conditional",
+          condition: walkExpression(expr.getCondition()),
+          whenTrue: walkExpression(expr.getWhenTrue()),
+          whenFalse: walkExpression(expr.getWhenFalse()),
+        };
+      case "ArrowFunction":
+        return {
+          kind: "Arrow",
+          parameters: expr.getParameters().map(walkParameter),
+          body: walkBody(expr),
+        };
+      default:
+        return { kind: "Unknown", text: expr.getText() };
+    }
+  } catch {
+    return { kind: "Unknown", text: "" };
+  }
+}
+
+function walkExprSafe(e) {
+  return e ? walkExpression(e) : null;
 }
 
 /**

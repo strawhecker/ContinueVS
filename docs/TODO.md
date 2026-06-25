@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-046 [Trans] — Gap 1 (parse.mjs — expressions): Extend parse.mjs to walk expression nodes referenced by the statement body. Each expression node carries: kind (one of Call, Member, Await, Binary, Literal, Identifier, ObjectLiteral, Conditional, Arrow) plus kind-specific fields (e.g., Call.callee/args, Member.object/property, Await.expression, Binary.op/left/right, ObjectLiteral.properties as name/value pairs). This completes the Gap 1 JSON IR that the C# emitter will consume.
-
----
-
 TODO-047 [Trans] — Gap 2 (C# IR): Add TsStatement.cs and TsExpression.cs sealed record hierarchies in ContinueTranslator.Core/IR/ whose shapes match the JSON produced by the updated parse.mjs. Add a Body field (TsStatement[]) to TsMethod and TsFunction records. Update TsParser.cs deserialization (JsonSerializerOptions / source-gen attributes as needed) to populate Body from the new JSON fields. Give CsEmitter a constructor that accepts CallSiteMap so the expression emitter (TODO-048) can consult it — CsEmitter is currently stateless; this is the only instance field it needs. Update PipelineRunner to pass the loaded CallSiteMap when constructing CsEmitter.
 
 ---
