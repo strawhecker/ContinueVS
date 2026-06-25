@@ -1,4 +1,5 @@
 ﻿using ContinueVS.IPC;
+using ContinueVS.Settings;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
@@ -59,7 +60,8 @@ namespace ContinueVS.Editor
             _debounceCts?.Cancel();
             _debounceCts = new CancellationTokenSource();
             var token = _debounceCts.Token;
-            _ = System.Threading.Tasks.Task.Delay(150, token)
+            var options = ContinueVSPackage.Instance?.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage;
+            _ = System.Threading.Tasks.Task.Delay(options?.DebounceDelayMs ?? 150, token)
                 .ContinueWith(_ => RequestCompletionAsync(token),
                     token,
                     System.Threading.Tasks.TaskContinuationOptions.OnlyOnRanToCompletion,
@@ -74,6 +76,8 @@ namespace ContinueVS.Editor
             string filePath = "";
 
             await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+            var options = ContinueVSPackage.Instance?.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage;
+            if (options?.EnableInlineCompletions == false) return;
             var snapshot = _view.TextBuffer.CurrentSnapshot;
             var caretPos = _view.Caret.Position.BufferPosition.Position;
             var snLine   = snapshot.GetLineFromPosition(caretPos);
