@@ -375,18 +375,9 @@ FodyWeavers.xsd
 *.bak
 *.cso
 /colorMapAllOptions.patch
-/CardiMapper/1_CardiMapper.App/Properties/Settings.Designer.cs
-/CardiMapper/1_CardiMapper.App/Properties/Settings.settings
-/CardiMapper/.idea/.idea.CardiMapper.Solution/.idea/dataSources.xml
-/0306.txt
-/0310.txt
-/0312.txt
-/0314.txt
-/0314_HD_ONLY.txt
-/0402.txt
-/0827.txt
-/text.txt
 
 # Translator-generated C# source — must be committed, not excluded
 !src/VSIXProject1/Generated/
 !src/VSIXProject1/Generated/**
+
+src/output/
