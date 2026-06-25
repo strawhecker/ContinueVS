@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-048 [Trans] — Gap 2 (expression emitter): Implement CsEmitter.Expressions.cs as a new partial of CsEmitter. Translate each TsExpression IR node to a Roslyn ExpressionSyntax. For TsCallExpression nodes, consult the injected CallSiteMap first; if a .NET replacement is found emit it verbatim, otherwise emit the original identifier chain. For untranslatable expression kinds, emit a string literal comment placeholder that keeps the file compilable.
-
----
-
 TODO-049 [Trans] — Gap 2 (statement emitter): Implement CsEmitter.Statements.cs as a new partial of CsEmitter. Translate each TsStatement IR node to a Roslyn StatementSyntax using CsEmitter.Expressions.cs for sub-expressions. Handle Return, If (with optional else), For, ForOf (foreach), While, Try/catch, Var (local variable declaration), ExpressionStatement, and Throw. For untranslatable statement kinds, emit a // TODO: untranslatable — <tsFilePath> comment statement.
 
 ---
