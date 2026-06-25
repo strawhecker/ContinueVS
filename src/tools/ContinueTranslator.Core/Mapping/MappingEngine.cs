@@ -165,6 +165,18 @@ internal sealed partial class MappingEngine
     /// </summary>
     private (TsTypeRef Ref, bool WasResolved) ResolveTypeRef(TsTypeRef typeRef)
     {
+        // Handle TypeScript union-with-null (e.g. "string | null") → nullable C# type (e.g. "string?").
+        if (typeRef.Text.EndsWith(" | null", StringComparison.Ordinal))
+        {
+            var strippedRef = new TsTypeRef(
+                Text: typeRef.Text[..^" | null".Length].Trim(),
+                Name: typeRef.Name[..^" | null".Length].Trim(),
+                TypeArgs: typeRef.TypeArgs,
+                IsArray: typeRef.IsArray);
+            var (inner, wasResolved) = ResolveTypeRef(strippedRef);
+            return (inner with { Text = inner.Text + "?" }, wasResolved);
+        }
+
         // Recursively resolve type arguments first.
         bool allArgsResolved = true;
         TsTypeRef[] resolvedArgs = typeRef.TypeArgs.Length == 0

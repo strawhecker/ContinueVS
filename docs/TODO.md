@@ -62,8 +62,6 @@ ContinueVS/
 
 **Why bin/ and obj/ are excluded from the repo:** build outputs are reproducible and machine-specific (obj/ embeds absolute paths). The `.vsix` is a release artifact published to the Marketplace. Exception: translator-generated `.cs` files are source — commit them under `src/VSIXProject1/Generated/`.
 
-TODO items for both projects are listed below in dependency order. Each session: one item, commit, remove.
-
 ---
 
 TODO-039 [Trans] — Fix translator emitter: map TypeScript union return types (T | null) → nullable C# reference types (T?) in method signatures. Handle in MappingEngine.ResolveTypeRef by detecting " | null" suffix and rewriting to "T?".
