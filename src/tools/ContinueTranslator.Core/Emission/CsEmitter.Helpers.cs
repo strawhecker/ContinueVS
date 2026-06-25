@@ -167,6 +167,8 @@ internal sealed partial class CsEmitter
         if (string.IsNullOrWhiteSpace(text))
             return PredefinedType(Token(SyntaxKind.ObjectKeyword));
 
+        if (text == "Task<void>") text = "Task";
+
         try
         {
             return (TypeSyntax)SyntaxFactory.ParseTypeName(text);
