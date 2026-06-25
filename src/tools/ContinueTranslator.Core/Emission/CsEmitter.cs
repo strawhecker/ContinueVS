@@ -1,4 +1,5 @@
 ﻿using ContinueTranslator.Core.IR;
+using ContinueTranslator.Core.Mapping;
 
 namespace ContinueTranslator.Core.Emission;
 
@@ -8,6 +9,14 @@ namespace ContinueTranslator.Core.Emission;
 /// </summary>
 internal sealed partial class CsEmitter
 {
+    private readonly CallSiteMap _callSiteMap;
+
+    internal CsEmitter(CallSiteMap callSiteMap)
+    {
+        ArgumentNullException.ThrowIfNull(callSiteMap);
+        _callSiteMap = callSiteMap;
+    }
+
     // -------------------------------------------------------------------------
     // Public entry point
     // -------------------------------------------------------------------------

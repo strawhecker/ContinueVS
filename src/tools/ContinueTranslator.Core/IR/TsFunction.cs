@@ -8,5 +8,9 @@ internal sealed record TsFunction(
     string[] TypeParameters,
     bool IsAsync,
     bool IsExported,
-    string[] Cookies);
+    string[] Cookies)
+{
+    /// <summary>Function body statements. Empty when body not yet parsed.</summary>
+    public TsStatement[] Body { get; init; } = [];
+}
 

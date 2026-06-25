@@ -18,6 +18,7 @@ internal sealed partial class TsParser
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
+        AllowOutOfOrderMetadataProperties = true,
     };
 
     /// <summary>

@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-047 [Trans] — Gap 2 (C# IR): Add TsStatement.cs and TsExpression.cs sealed record hierarchies in ContinueTranslator.Core/IR/ whose shapes match the JSON produced by the updated parse.mjs. Add a Body field (TsStatement[]) to TsMethod and TsFunction records. Update TsParser.cs deserialization (JsonSerializerOptions / source-gen attributes as needed) to populate Body from the new JSON fields. Give CsEmitter a constructor that accepts CallSiteMap so the expression emitter (TODO-048) can consult it — CsEmitter is currently stateless; this is the only instance field it needs. Update PipelineRunner to pass the loaded CallSiteMap when constructing CsEmitter.
-
----
-
 TODO-048 [Trans] — Gap 2 (expression emitter): Implement CsEmitter.Expressions.cs as a new partial of CsEmitter. Translate each TsExpression IR node to a Roslyn ExpressionSyntax. For TsCallExpression nodes, consult the injected CallSiteMap first; if a .NET replacement is found emit it verbatim, otherwise emit the original identifier chain. For untranslatable expression kinds, emit a string literal comment placeholder that keeps the file compilable.
 
 ---

@@ -42,7 +42,7 @@ internal sealed class PipelineRunner
         _mappingEngine = new MappingEngine(nodeApiMap, npmPackageMap, typeMap, callSiteMap);
         _nugetResolver = new NuGetPackageResolver(npmPackageMap);
         _tsParser = new TsParser();
-        _csEmitter = new CsEmitter();
+        _csEmitter = new CsEmitter(callSiteMap);
         _projectEmitter = new ProjectEmitter(_nugetResolver);
     }
 
