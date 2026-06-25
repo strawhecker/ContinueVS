@@ -26,15 +26,6 @@ Cookie syntax:
 
 ---
 
-## Phase 3 — Implement message handlers in VSIXProject1
-
-### TODO-019
-**Study protocol output**
-After TODO-018: read the generated C# to understand all MessageType values.
-Document each in a new `docs/protocol.md` file (message name, payload shape, expected response).
-
----
-
 ### TODO-020
 **Create IMessageHandler interface and MessageDispatcher**
 `VSIXProject1/Handlers/IMessageHandler.cs`
@@ -44,5 +35,59 @@ Wire into `ContinueToolWindowControl.OnWebMessageReceived`.
 
 ---
 
-*Further handler TODO items will be added after TODO-019 is complete
-and the full protocol is known.*
+TODO-021
+Implement IDE info handlers
+`VSIXProject1/Handlers/Ide/GetWorkspaceDirsHandler.cs`
+`VSIXProject1/Handlers/Ide/GetIdeInfoHandler.cs`
+`VSIXProject1/Handlers/Ide/GetIdeSettingsHandler.cs`
+`VSIXProject1/Handlers/Ide/GetUniqueIdHandler.cs`
+`VSIXProject1/Handlers/Ide/IsTelemetryEnabledHandler.cs`
+`VSIXProject1/Handlers/Ide/IsWorkspaceRemoteHandler.cs`
+All are simple getters against VS DTE or Shell APIs.
+No side effects.
+Register all in ContinueToolWindowControl constructor.
+
+---
+
+TODO-022
+Implement file read handlers
+`VSIXProject1/Handlers/File/ReadFileHandler.cs`
+`VSIXProject1/Handlers/File/FileExistsHandler.cs`
+`VSIXProject1/Handlers/File/GetOpenFilesHandler.cs`
+Uses System.IO for readFile and fileExists.
+Uses VS DTE RunningDocumentTable for getOpenFiles.
+Register all in ContinueToolWindowControl constructor.
+
+---
+
+TODO-023
+Implement file write and navigation handlers
+`VSIXProject1/Handlers/File/WriteFileHandler.cs`
+`VSIXProject1/Handlers/File/SaveFileHandler.cs`
+`VSIXProject1/Handlers/File/OpenFileHandler.cs`
+`VSIXProject1/Handlers/Ide/OpenUrlHandler.cs`
+`VSIXProject1/Handlers/Ide/GetBranchHandler.cs`
+writeFile and saveFile use System.IO and VS DTE save.
+openFile uses DTE.ItemOperations.OpenFile.
+openUrl uses Process.Start.
+getBranch runs git rev-parse --abbrev-ref HEAD as a subprocess.
+Register all in ContinueToolWindowControl constructor.
+
+---
+
+TODO-024
+Implement push-event senders to webview
+`VSIXProject1/Handlers/Push/WebviewPusher.cs
+Add a WebviewPusher helper that wraps SendToGui on ContinueToolWindowControl.
+Wire configUpdate to fire on tool window load with a minimal IdeSettings payload.
+Wire indexProgress as a stub that sends a 100% complete payload immediately.
+Wire didChangeActiveTextEditor to the VS RunningDocumentTable IVsRunningDocTableEvents3.OnAfterActiveDocChange event.
+
+---
+
+TODO-025
+Remaining handlers from protocol.md
+Remaining Types section Prerequisite: fix translator emitter gaps identified in output\review-018.md so payload shapes are fully resolved.
+After fixing, implement the handlers listed under Remaining Types in docs/protocol.md.
+Prioritise the context/, config/, and llm/ groups first as these are needed for core Continue functionality.
+
