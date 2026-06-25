@@ -24,8 +24,6 @@ Cookie syntax:
 // @ct:nuget=System.Net.Http
 ```
 
-TODO-028 — Implement applyToFile, acceptDiff, rejectDiff handlers using VS editor APIs (IVsTextManager / DTE).
-
 ---
 
 TODO-029 — Update AGENTS.md current state table and architecture.md to reflect what is actually built and what remains.
