@@ -206,6 +206,134 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 **Expected Response:** `bool`
 **Gaps:** None
 
+### `config/addModel`
+| Name | C# Type | Notes |
+|---|---|---|
+| model | object | `SerializedContinueConfig["models"][number]` â€” inline model config |
+| role | string? | optional `keyof ExperimentalModelRoles` |
+**Expected Response:** void
+**Gaps:** `SerializedContinueConfig["models"][number]` is an indexed-access type â€” emitted as `object`.|
+
+### `config/addLocalWorkspaceBlock`
+| Name | C# Type | Notes |
+|---|---|---|
+| blockType | string | `BlockType` enum value |
+| baseFilename | string? | optional filename |
+**Expected Response:** void
+**Gaps:** `BlockType` not yet emitted to ContinueProtocol.cs.
+
+### `config/addGlobalRule`
+| Name | C# Type | Notes |
+|---|---|---|
+| baseFilename | string? | optional |
+**Expected Response:** void
+**Gaps:** Payload is `undefined \| { baseFilename?: string }` â€” treated as optional object.
+
+### `config/deleteRule`
+| Name | C# Type | Notes |
+|---|---|---|
+| filepath | string | path to the rule file |
+**Expected Response:** void
+**Gaps:** None
+
+### `config/newPromptFile`
+**Payload:** none
+**Expected Response:** void
+**Gaps:** None
+
+### `config/newAssistantFile`
+**Payload:** none
+**Expected Response:** void
+**Gaps:** None
+
+### `config/refreshProfiles`
+| Name | C# Type | Notes |
+|---|---|---|
+| reason | string? | optional refresh reason |
+| selectProfileId | string? | optional profile to select |
+**Expected Response:** void
+**Gaps:** Payload is `undefined \| { reason?: string; selectProfileId?: string }` â€” optional object.
+
+### `config/openProfile`
+| Name | C# Type | Notes |
+|---|---|---|
+| profileId | string? | ID of profile to open (nullable) |
+**Expected Response:** void
+**Gaps:** None
+
+### `config/updateSharedConfig`
+**Payload:** `SharedConfigSchema`
+**Expected Response:** `SharedConfigSchema`
+**Gaps:** `SharedConfigSchema` not yet emitted to ContinueProtocol.cs.
+
+### `config/updateSelectedModel`
+| Name | C# Type | Notes |
+|---|---|---|
+| profileId | string | â€” |
+| role | string | `ModelRole` enum value |
+| title | string? | model title (nullable) |
+**Expected Response:** `GlobalContextModelSelections`
+**Gaps:** `ModelRole` and `GlobalContextModelSelections` not yet emitted to ContinueProtocol.cs.
+
+### `context/getContextItems`
+| Name | C# Type | Notes |
+|---|---|---|
+| name | string | context provider name |
+| query | string | query string |
+| fullInput | string | full user input |
+| selectedCode | RangeInFile[] | selected code ranges |
+| isInAgentMode | bool | â€” |
+**Expected Response:** `ContextItemWithId[]`
+**Gaps:** None
+
+### `context/getSymbolsForFiles`
+| Name | C# Type | Notes |
+|---|---|---|
+| uris | string[] | file URIs to get symbols for |
+**Expected Response:** `FileSymbolMap`
+**Gaps:** `FileSymbolMap` not yet emitted to ContinueProtocol.cs.
+
+### `context/loadSubmenuItems`
+| Name | C# Type | Notes |
+|---|---|---|
+| title | string | context provider title |
+**Expected Response:** `ContextSubmenuItem[]`
+**Gaps:** `ContextSubmenuItem` not yet emitted to ContinueProtocol.cs.
+
+### `context/addDocs`
+**Payload:** `SiteIndexingConfig`
+**Expected Response:** void
+**Gaps:** `SiteIndexingConfig` not yet emitted to ContinueProtocol.cs.
+
+### `context/removeDocs`
+| Name | C# Type | Notes |
+|---|---|---|
+| startUrl | string | `Pick<SiteIndexingConfig, "startUrl">` |
+**Expected Response:** void
+**Gaps:** None
+
+### `context/indexDocs`
+| Name | C# Type | Notes |
+|---|---|---|
+| reIndex | bool | whether to force a full re-index |
+**Expected Response:** void
+**Gaps:** None
+
+### `llm/listModels`
+| Name | C# Type | Notes |
+|---|---|---|
+| title | string | model title |
+**Expected Response:** `string[]?` (`string[] \| undefined`)
+**Gaps:** None
+
+### `llm/compileChat`
+| Name | C# Type | Notes |
+|---|---|---|
+| messages | ChatMessage[] | chat history |
+| options | LLMFullCompletionOptions | â€” |
+**Expected Response:** `CompiledMessagesResult`
+**Gaps:** `CompiledMessagesResult` not yet emitted to ContinueProtocol.cs.
+
 ---
 
 ## Messages: IDE â† Webview / Core (`ToIdeFromWebviewOrCoreProtocol`)
@@ -345,20 +473,17 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 ## Remaining Types
 
 The following message names were identified but not fully documented.
-Payload shapes are in TS alias comment bodies; emitter gaps must be fixed first.
+Payload shapes are available in the block-comment bodies of the TypeAlias output files.
+Emitter gaps have been fixed (TODO-025). context/, config/, and llm/ groups are now fully documented above.
 
 ### Core â† IDE/Webview (additional)
-`devdata/log`, `history/share`, `config/addModel`, `config/addLocalWorkspaceBlock`,
-`config/addGlobalRule`, `config/deleteRule`, `config/newPromptFile`, `config/newAssistantFile`,
-`config/refreshProfiles`, `config/openProfile`, `config/updateSharedConfig`,
-`config/updateSelectedModel`, `context/getContextItems`, `mcp/reloadServer`,
+`devdata/log`, `history/share`, `mcp/reloadServer`,
 `mcp/setServerEnabled`, `mcp/getPrompt`, `mcp/startAuthentication`, `mcp/removeAuthentication`,
-`context/getSymbolsForFiles`, `context/loadSubmenuItems`, `context/addDocs`,
-`context/removeDocs`, `context/indexDocs`, `nextEdit/predict`, `nextEdit/reject`,
+`nextEdit/predict`, `nextEdit/reject`,
 `nextEdit/accept`, `nextEdit/startChain`, `nextEdit/deleteChain`, `nextEdit/isChainAlive`,
 `nextEdit/queue/getProcessedCount`, `nextEdit/queue/dequeueProcessed`,
 `nextEdit/queue/processOne`, `nextEdit/queue/clear`, `nextEdit/queue/abort`,
-`llm/listModels`, `llm/compileChat`, `chatDescriber/describe`, `conversation/compact`,
+`chatDescriber/describe`, `conversation/compact`,
 `stats/getTokensPerDay`, `stats/getTokensPerModel`, `streamDiffLines`, `getDiffLines`,
 `index/setPaused`, `index/forceReIndex`, `index/indexingProgressBarInitialized`,
 `files/changed`, `files/opened`, `files/created`, `files/deleted`, `files/closed`,
@@ -367,7 +492,6 @@ Payload shapes are in TS alias comment bodies; emitter gaps must be fixed first.
 `addAutocompleteModel`, `tools/call`, `tools/evaluatePolicy`, `tools/preprocessArgs`,
 `clipboardCache/add`, `process/markAsBackgrounded`, `process/isBackgrounded`,
 `process/killTerminalProcess`, `models/fetch`
-
 ### IDE â† Webview/Core (additional)
 `runCommand`, `getSearchResults`, `getFileResults`, `subprocess`, `getProblems`,
 `getCurrentFile`, `getPinnedFiles`, `showLines`, `removeFile`, `showVirtualFile`,

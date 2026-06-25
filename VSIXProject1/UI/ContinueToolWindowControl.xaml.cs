@@ -1,7 +1,10 @@
 ﻿using ContinueVS.Binary;
 using ContinueVS.Handlers;
+using ContinueVS.Handlers.Config;
+using ContinueVS.Handlers.Context;
 using ContinueVS.Handlers.File;
 using ContinueVS.Handlers.Ide;
+using ContinueVS.Handlers.Llm;
 using ContinueVS.Handlers.Push;
 using ContinueVS.IPC;
 using Microsoft.Web.WebView2.Core;
@@ -46,6 +49,30 @@ namespace ContinueVS.UI
             _dispatcher.Register("openFile",          new OpenFileHandler(this));
             _dispatcher.Register("openUrl",           new OpenUrlHandler(this));
             _dispatcher.Register("getBranch",         new GetBranchHandler(this));
+            _dispatcher.Register("context/getContextItems",     new ContextGetContextItemsHandler(this));
+            _dispatcher.Register("context/getSymbolsForFiles",  new ContextGetSymbolsForFilesHandler(this));
+            _dispatcher.Register("context/loadSubmenuItems",    new ContextLoadSubmenuItemsHandler(this));
+            _dispatcher.Register("context/addDocs",             new ContextAddDocsHandler(this));
+            _dispatcher.Register("context/removeDocs",          new ContextRemoveDocsHandler(this));
+            _dispatcher.Register("context/indexDocs",           new ContextIndexDocsHandler(this));
+            _dispatcher.Register("config/addOpenAiKey",         new ConfigAddOpenAiKeyHandler(this));
+            _dispatcher.Register("config/ideSettingsUpdate",    new ConfigIdeSettingsUpdateHandler(this));
+            _dispatcher.Register("config/deleteModel",          new ConfigDeleteModelHandler(this));
+            _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this));
+            _dispatcher.Register("config/addModel",             new ConfigAddModelHandler(this));
+            _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
+            _dispatcher.Register("config/addGlobalRule",        new ConfigAddGlobalRuleHandler(this));
+            _dispatcher.Register("config/deleteRule",           new ConfigDeleteRuleHandler(this));
+            _dispatcher.Register("config/newPromptFile",        new ConfigNewPromptFileHandler(this));
+            _dispatcher.Register("config/newAssistantFile",     new ConfigNewAssistantFileHandler(this));
+            _dispatcher.Register("config/refreshProfiles",      new ConfigRefreshProfilesHandler(this));
+            _dispatcher.Register("config/openProfile",          new ConfigOpenProfileHandler(this));
+            _dispatcher.Register("config/updateSharedConfig",   new ConfigUpdateSharedConfigHandler(this));
+            _dispatcher.Register("config/updateSelectedModel",  new ConfigUpdateSelectedModelHandler(this));
+            _dispatcher.Register("llm/complete",                new LlmCompleteHandler(this));
+            _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
+            _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
+            _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
             Loaded += OnLoaded;
         }
 
