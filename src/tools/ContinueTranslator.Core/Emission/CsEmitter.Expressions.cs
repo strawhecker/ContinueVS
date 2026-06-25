@@ -122,8 +122,38 @@ internal sealed partial class CsEmitter
             [">>"]  = SyntaxKind.RightShiftExpression,
         };
 
+    // ts-morph folds AssignmentExpression into BinaryExpression; Roslyn uses a separate factory.
+    private static readonly Dictionary<string, SyntaxKind> s_assignmentOpMap =
+        new(StringComparer.Ordinal)
+        {
+            ["="]   = SyntaxKind.SimpleAssignmentExpression,
+            ["+="]  = SyntaxKind.AddAssignmentExpression,
+            ["-="]  = SyntaxKind.SubtractAssignmentExpression,
+            ["*="]  = SyntaxKind.MultiplyAssignmentExpression,
+            ["/="]  = SyntaxKind.DivideAssignmentExpression,
+            ["%="]  = SyntaxKind.ModuloAssignmentExpression,
+            ["&="]  = SyntaxKind.AndAssignmentExpression,
+            ["|="]  = SyntaxKind.OrAssignmentExpression,
+            ["^="]  = SyntaxKind.ExclusiveOrAssignmentExpression,
+            ["<<="] = SyntaxKind.LeftShiftAssignmentExpression,
+            [">>="] = SyntaxKind.RightShiftAssignmentExpression,
+            ["??="] = SyntaxKind.CoalesceAssignmentExpression,
+        };
+
     private ExpressionSyntax EmitBinaryExpression(TsBinaryExpression bin)
     {
+        if (s_assignmentOpMap.TryGetValue(bin.Op, out SyntaxKind assignKind))
+            return AssignmentExpression(assignKind, EmitExpression(bin.Left), EmitExpression(bin.Right));
+
+        // TS `instanceof` → C# `is T` pattern
+        if (bin.Op == "instanceof")
+        {
+            string typeName = bin.Right is TsIdentifierExpression id ? id.Name : "object";
+            return IsPatternExpression(
+                EmitExpression(bin.Left),
+                TypePattern(ParseTypeSyntax(typeName)));
+        }
+
         if (!s_binaryOpMap.TryGetValue(bin.Op, out SyntaxKind opKind))
             return Placeholder("/* untranslatable binary op */");
 

@@ -200,6 +200,9 @@ internal sealed partial class CsEmitter
                 .WithParameterList(paramList)
                 .WithBody(methodBody);
 
+            if (method.IsAsync)
+                methodDecl = methodDecl.AddModifiers(Token(SyntaxKind.AsyncKeyword));
+
             if (method.TypeParameters.Length > 0)
                 methodDecl = methodDecl.WithTypeParameterList(BuildTypeParameterList(method.TypeParameters));
 
