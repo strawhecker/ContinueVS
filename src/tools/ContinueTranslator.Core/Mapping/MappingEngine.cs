@@ -3,9 +3,9 @@
 namespace ContinueTranslator.Core.Mapping;
 
 /// <summary>
-/// Orchestrates <see cref="NodeApiMap"/>, <see cref="NpmPackageMap"/>, and
-/// <see cref="TypeMap"/> over a <see cref="TsFile"/> array, producing a new array
-/// with all resolvable type references replaced with their C# equivalents.
+/// Orchestrates <see cref="NodeApiMap"/>, <see cref="NpmPackageMap"/>,
+/// <see cref="TypeMap"/>, and <see cref="CallSiteMap"/> over a <see cref="TsFile"/> array,
+/// producing a new array with all resolvable type references replaced with their C# equivalents.
 /// Unresolvable type references are tagged with an <c>@ct:todo=unresolved</c> cookie.
 /// </summary>
 internal sealed partial class MappingEngine
@@ -16,16 +16,19 @@ internal sealed partial class MappingEngine
     private readonly NodeApiMap _nodeApi;
     private readonly NpmPackageMap _npmPackage;
     private readonly TypeMap _typeMap;
+    private readonly CallSiteMap _callSiteMap;
 
-    public MappingEngine(NodeApiMap nodeApi, NpmPackageMap npmPackage, TypeMap typeMap)
+    public MappingEngine(NodeApiMap nodeApi, NpmPackageMap npmPackage, TypeMap typeMap, CallSiteMap callSiteMap)
     {
         ArgumentNullException.ThrowIfNull(nodeApi);
         ArgumentNullException.ThrowIfNull(npmPackage);
         ArgumentNullException.ThrowIfNull(typeMap);
+        ArgumentNullException.ThrowIfNull(callSiteMap);
 
         _nodeApi = nodeApi;
         _npmPackage = npmPackage;
         _typeMap = typeMap;
+        _callSiteMap = callSiteMap;
     }
 
     /// <summary>
@@ -239,6 +242,13 @@ internal sealed partial class MappingEngine
         {
             resolved = true;
             return npmResult;
+        }
+
+        // CallSiteMap (e.g. "fs.readFileSync").
+        if (_callSiteMap.TryResolve(name, out string callSiteResult))
+        {
+            resolved = true;
+            return callSiteResult;
         }
 
         // Unresolved — return the original name, caller decides whether to tag.

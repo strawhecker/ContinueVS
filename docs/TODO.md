@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-044 [Trans] — Gap 3: Create mappings/callsites.json mapping Node.js call expressions to .NET equivalents (e.g., fs.readFileSync → File.ReadAllText, path.join → Path.Combine, crypto.randomUUID → Guid.NewGuid().ToString, os.homedir → Environment.GetFolderPath). Add CallSiteMap.cs in ContinueTranslator.Core/Mapping/ to load this file and expose TryResolve(callee, out string dotNetCall). Wire into MappingEngine so call-site names are resolved at the same pass as type names. Also add a <Content CopyToOutputDirectory="PreserveNewest"> entry for callsites.json in ContinueTranslator.Cli.csproj alongside the existing entries for node-api.json, npm-packages.json, and types.json — without this the CLI crashes at runtime.
-
----
-
 TODO-045 [Trans] — Gap 1 (parse.mjs — statements): Extend walkMethod() and walkFunction() in parse.mjs to emit a body array of statement nodes. Each node carries: kind (one of Return, If, For, ForOf, While, Try, Var, ExpressionStatement, Throw) plus kind-specific fields (e.g., Return.expression, If.condition/thenStatements/elseStatements, Var.name/initializer, Try.tryStatements/catchStatements). Emit empty array when the body is absent or the method is abstract.
 
 ---

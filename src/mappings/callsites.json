@@ -1,0 +1,18 @@
+{
+  "fs.readFileSync":   "System.IO.File.ReadAllText",
+  "fs.writeFileSync":  "System.IO.File.WriteAllText",
+  "fs.existsSync":     "System.IO.File.Exists",
+  "fs.mkdirSync":      "System.IO.Directory.CreateDirectory",
+  "fs.readdirSync":    "System.IO.Directory.GetFiles",
+  "path.join":         "System.IO.Path.Combine",
+  "path.dirname":      "System.IO.Path.GetDirectoryName",
+  "path.basename":     "System.IO.Path.GetFileName",
+  "path.extname":      "System.IO.Path.GetExtension",
+  "path.resolve":      "System.IO.Path.GetFullPath",
+  "crypto.randomUUID": "System.Guid.NewGuid().ToString()",
+  "os.homedir":        "System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile)",
+  "os.tmpdir":         "System.IO.Path.GetTempPath()",
+  "os.platform":       "System.Runtime.InteropServices.RuntimeInformation.OSDescription",
+  "JSON.stringify":    "System.Text.Json.JsonSerializer.Serialize",
+  "JSON.parse":        "System.Text.Json.JsonSerializer.Deserialize"
+}
