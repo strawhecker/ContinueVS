@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-041 [Trans] — Fix translator emitter: convert TypeScript arrow-function property declarations into proper C# Func<> or event members. In CsEmitter.Classes.cs BuildClassProperties, detect when a property type text contains "=>" and rewrite to the matching Func<> or Action<> delegate type.
-
----
-
 TODO-042 [Trans] — Add @ct:ignore cookies to the 27 test/vendor TypeScript files in the fork (all files under Vendor/, and all *.vitest.ts / *.test.ts files that were not already excluded by RepoScanner). Re-run the translator to confirm those 27 files and their 114 stubs are eliminated from output/.
 
 ---

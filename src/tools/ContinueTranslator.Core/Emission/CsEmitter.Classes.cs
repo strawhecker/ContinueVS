@@ -156,6 +156,7 @@ internal sealed partial class CsEmitter
             string typeText = prop.IsOptional && !prop.Type.Text.EndsWith('?')
                 ? prop.Type.Text + "?"
                 : prop.Type.Text;
+            if (typeText.Contains("=>")) typeText = ConvertArrowToDelegate(typeText);
 
             PropertyDeclarationSyntax propDecl = PropertyDeclaration(
                     ParseTypeSyntax(typeText),
@@ -251,4 +252,25 @@ internal sealed partial class CsEmitter
 
     private static int CountLines(string text) =>
         text.Split('\n').Length;
+
+    private static string ConvertArrowToDelegate(string arrowType)
+    {
+        int arrowIdx = arrowType.IndexOf("=>");
+        string paramsPart = arrowType[..arrowIdx].Trim().Trim('(', ')');
+        string returnPart = arrowType[(arrowIdx + 2)..].Trim();
+
+        var paramTypes = new List<string>();
+        foreach (string segment in paramsPart.Split(','))
+        {
+            string seg = segment.Trim();
+            if (string.IsNullOrEmpty(seg)) continue;
+            paramTypes.Add(seg.Contains(':') ? seg[(seg.IndexOf(':') + 1)..].Trim() : seg);
+        }
+
+        if (returnPart.Equals("void", StringComparison.OrdinalIgnoreCase))
+            return paramTypes.Count == 0 ? "Action" : "Action<" + string.Join(", ", paramTypes) + ">";
+
+        paramTypes.Add(returnPart);
+        return "Func<" + string.Join(", ", paramTypes) + ">";
+    }
 }
