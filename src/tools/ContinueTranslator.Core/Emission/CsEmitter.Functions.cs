@@ -98,15 +98,14 @@ internal sealed partial class CsEmitter
         }
     }
 
-    private static MethodDeclarationSyntax BuildFunctionStub(TsFunction func, string methodName, string filePath, string className)
+    private MethodDeclarationSyntax BuildFunctionStub(TsFunction func, string methodName, string filePath, string className)
     {
         ParameterListSyntax paramList = BuildParameterList(func.Parameters);
 
         string stubComment = $"// TODO: {filePath} :: {className}.{methodName}";
-        StatementSyntax body = ThrowStatement(
-            ObjectCreationExpression(IdentifierName("NotImplementedException"))
-                .WithArgumentList(ArgumentList()))
-            .WithLeadingTrivia(Comment(stubComment), ElasticCarriageReturnLineFeed);
+        BlockSyntax methodBody = IsBodyEmpty(func.Body)
+            ? Block(ParseStatement($"{stubComment}\n"))
+            : Block(List(func.Body.Select(s => EmitStatement(s, filePath))));
 
         MethodDeclarationSyntax methodDecl = MethodDeclaration(
                 ParseTypeSyntax(func.ReturnType.Text),
@@ -115,7 +114,7 @@ internal sealed partial class CsEmitter
                 Token(SyntaxKind.PublicKeyword),
                 Token(SyntaxKind.StaticKeyword))
             .WithParameterList(paramList)
-            .WithBody(Block(body));
+            .WithBody(methodBody);
 
         if (func.TypeParameters.Length > 0)
             methodDecl = methodDecl.WithTypeParameterList(BuildTypeParameterList(func.TypeParameters));

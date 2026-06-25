@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-050 [Trans] — Gap 2 (wiring): Update BuildClassMethods (CsEmitter.Classes.cs) and BuildFunctionStub (CsEmitter.Functions.cs) to call the statement emitter when Body is non-empty. When the body is empty or contains only untranslatable nodes, fall back to the // TODO: <tsFilePath> :: <Type>.<Method> comment stub introduced in TODO-043. Remove the old throw new NotImplementedException() fallback entirely.
-
----
-
 TODO-051 [Trans] — Sync (core): Add SyncResult record and GeneratedFolderSync.cs in a new ContinueTranslator.Core/Sync/ folder. GeneratedFolderSync.Sync() takes the emitted file list and the Generated/ directory path. It loads .translator-manifest.json (SHA-256 keyed by relative path), skips files whose Generated/ copy differs from the translator's last-written hash (hand-edited), skips files whose content still contains // TODO stubs or raw TS type leaks, writes the rest, updates the manifest, and returns a SyncResult with counts for promoted, skipped-manual-edit, and skipped-has-stubs.
 
 ---

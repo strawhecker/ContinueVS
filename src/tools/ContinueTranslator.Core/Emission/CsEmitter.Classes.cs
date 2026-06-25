@@ -36,7 +36,7 @@ internal sealed partial class CsEmitter
         }
     }
 
-    private static void EmitClassFiles(
+    private void EmitClassFiles(
         string filePath,
         TsClass tsClass,
         string className,
@@ -180,7 +180,7 @@ internal sealed partial class CsEmitter
         return list;
     }
 
-    private static List<MemberDeclarationSyntax> BuildClassMethods(TsMethod[] methods, string filePath, string className)
+    private List<MemberDeclarationSyntax> BuildClassMethods(TsMethod[] methods, string filePath, string className)
     {
         var list = new List<MemberDeclarationSyntax>();
 
@@ -189,17 +189,16 @@ internal sealed partial class CsEmitter
             ParameterListSyntax paramList = BuildParameterList(method.Parameters);
 
             string stubComment = $"// TODO: {filePath} :: {className}.{method.Name}";
-            StatementSyntax body = ThrowStatement(
-                ObjectCreationExpression(IdentifierName("NotImplementedException"))
-                    .WithArgumentList(ArgumentList()))
-                .WithLeadingTrivia(Comment(stubComment), ElasticCarriageReturnLineFeed);
+            BlockSyntax methodBody = IsBodyEmpty(method.Body)
+                ? Block(ParseStatement($"{stubComment}\n"))
+                : Block(List(method.Body.Select(s => EmitStatement(s, filePath))));
 
             MethodDeclarationSyntax methodDecl = MethodDeclaration(
                     ParseTypeSyntax(method.ReturnType.Text),
                     Identifier(method.Name))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
                 .WithParameterList(paramList)
-                .WithBody(Block(body));
+                .WithBody(methodBody);
 
             if (method.TypeParameters.Length > 0)
                 methodDecl = methodDecl.WithTypeParameterList(BuildTypeParameterList(method.TypeParameters));
