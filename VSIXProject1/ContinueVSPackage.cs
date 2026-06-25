@@ -46,9 +46,8 @@ namespace ContinueVS
                 Instance = null;
             }
 
-            base.Dispose(disposing);
-        }
-    }
-
-    }
+                    base.Dispose(disposing);
+                    }
+                }
+            }
 

@@ -19,12 +19,6 @@ namespace ContinueVS.Settings
         [Description("Milliseconds to wait after the last keystroke before requesting a completion.")]
         public int DebounceDelayMs { get; set; } = 150;
 
-        [Category("Binary")]
-        [DisplayName("Binary path override")]
-        [Description("Leave empty to use the automatically downloaded continue-binary. " +
-                     "Set to an absolute path to use a custom build.")]
-        public string BinaryPathOverride { get; set; } = "";
-
         [Category("Privacy")]
         [DisplayName("Disable anonymous telemetry")]
         [Description("Opt out of anonymous usage analytics sent to Continue Dev, Inc.")]
