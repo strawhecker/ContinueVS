@@ -26,14 +26,6 @@ Cookie syntax:
 
 ---
 
-TODO-031 — Wire GhostText autocomplete round-trip.
-Add a pending-reply dictionary to ContinueToolWindowControl so any caller can await a response by messageId.
-Make GhostTextController use ContinueVSPackage.Instance to get the tool window, send autocomplete/complete, await the reply, set _pendingText, and call RenderGhostText().
-Complete both NotifyOutcome branches to send autocomplete/accept and autocomplete/cancel.
-Register the three autocomplete message types in the dispatcher.
-
----
-
 TODO-032 — Implement real llm/complete using System.Net.Http.HttpClient.
 Read ~/.continue/config.json to find the first configured model's provider/apiKey/baseUrl.
 Make a real HTTP POST to the provider endpoint.

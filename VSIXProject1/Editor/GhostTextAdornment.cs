@@ -1,7 +1,9 @@
 ﻿using ContinueVS.IPC;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
+using Newtonsoft.Json.Linq;
 using System;
 using System.ComponentModel.Composition;
 using System.Threading;
@@ -96,6 +98,20 @@ namespace ContinueVS.Editor
                 token.ThrowIfCancellationRequested();
 
                 await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+                var pane = pkg?.FindToolWindow(typeof(ContinueVS.UI.ContinueToolWindowPane), 0, false)
+                    as ContinueVS.UI.ContinueToolWindowPane;
+                if (pane == null) return;
+
+                var reply = await pane.SendToGuiAndAwaitReplyAsync("autocomplete/complete", input, token)
+                    .ConfigureAwait(false);
+
+                var completions = reply?.ToObject<string[]>();
+                var text = completions != null && completions.Length > 0 ? completions[0] : null;
+                if (string.IsNullOrEmpty(text)) return;
+
+                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+                _pendingText = text;
+                _pendingId = completionId;
                 RenderGhostText();
             }
             catch (OperationCanceledException) { }
@@ -197,13 +213,17 @@ namespace ContinueVS.Editor
             var pkg = ContinueVSPackage.Instance;
 
             var resolvedId = id ?? _pendingId ?? "";
-            if (accepted)
+            Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
-                // Binary expects: "autocomplete/accept" with { completionId }
-            }
-            else
-            {
-            }
+                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var pane = pkg?.FindToolWindow(typeof(ContinueVS.UI.ContinueToolWindowPane), 0, false)
+                    as ContinueVS.UI.ContinueToolWindowPane;
+                if (pane == null) return;
+                if (accepted)
+                    pane.SendToGui("autocomplete/accept", new { completionId = resolvedId });
+                else
+                    pane.SendToGui("autocomplete/cancel", new object());
+            }).FileAndForget("vs/continuevs/autocomplete/outcome");
         }
 
         private void OnViewClosed(object sender, EventArgs e)

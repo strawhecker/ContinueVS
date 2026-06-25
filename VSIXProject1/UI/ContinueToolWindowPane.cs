@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.Shell;
+using Newtonsoft.Json.Linq;
 using System.Runtime.InteropServices;
 
 namespace ContinueVS.UI
@@ -28,6 +29,15 @@ namespace ContinueVS.UI
         internal void SendToGui(string messageType, object data)
         {
             _control?.SendToGui(messageType, data);
+        }
+
+        /// <summary>Sends a message to the GUI and awaits a reply with the matching messageId.</summary>
+        internal System.Threading.Tasks.Task<JToken> SendToGuiAndAwaitReplyAsync(
+            string messageType, object data, System.Threading.CancellationToken cancellationToken)
+        {
+            return _control != null
+                ? _control.SendToGuiAndAwaitReplyAsync(messageType, data, cancellationToken)
+                : System.Threading.Tasks.Task.FromResult<JToken>(null);
         }
 
         protected override void Dispose(bool disposing)

@@ -1,5 +1,6 @@
 ﻿using ContinueVS.Binary;
 using ContinueVS.Editor;
+using System.Collections.Concurrent;
 using ContinueVS.Handlers;
 using ContinueVS.Handlers.Config;
 using ContinueVS.Handlers.Context;
@@ -31,6 +32,7 @@ namespace ContinueVS.UI
         private bool _webViewInitialized;
         private bool _disposed;
         private readonly MessageDispatcher _dispatcher = new MessageDispatcher();
+        private readonly ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken>> _pendingReplies = new ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken>>();
         private readonly WebviewPusher _pusher;
         private WorkspaceConfigWatcher _configWatcher;
         private EditorContextProvider _editorContextProvider;
@@ -83,6 +85,9 @@ namespace ContinueVS.UI
             _dispatcher.Register("applyToFile",                  new ApplyToFileHandler(this));
             _dispatcher.Register("acceptDiff",                   new AcceptDiffHandler(this));
             _dispatcher.Register("rejectDiff",                   new RejectDiffHandler(this));
+            _dispatcher.Register("autocomplete/complete",         new AutocompleteCompleteHandler(this));
+            _dispatcher.Register("autocomplete/accept",           new AutocompleteAcceptHandler(this));
+            _dispatcher.Register("autocomplete/cancel",           new AutocompleteCancelHandler(this));
             Loaded += OnLoaded;
         }
 
@@ -157,6 +162,12 @@ namespace ContinueVS.UI
             if (message == null)
                 return System.Threading.Tasks.Task.CompletedTask;
 
+            if (_pendingReplies.TryRemove(message.MessageId, out var pendingTcs))
+            {
+                pendingTcs.TrySetResult(message.Data);
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+
             return _dispatcher.DispatchAsync(message, System.Threading.CancellationToken.None);
         }
 
@@ -187,6 +198,43 @@ namespace ContinueVS.UI
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
+        }
+
+        /// <summary>
+        /// Sends a message to the GUI and waits asynchronously for a reply with the same messageId.
+        /// </summary>
+        internal System.Threading.Tasks.Task<JToken> SendToGuiAndAwaitReplyAsync(
+            string messageType, object data, System.Threading.CancellationToken cancellationToken)
+        {
+            if (!_webViewInitialized || WebView.CoreWebView2 == null)
+                return System.Threading.Tasks.Task.FromResult<JToken>(null);
+
+            var messageId = Guid.NewGuid().ToString();
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<JToken>();
+            _pendingReplies[messageId] = tcs;
+            cancellationToken.Register(() =>
+            {
+                _pendingReplies.TryRemove(messageId, out _);
+                tcs.TrySetCanceled();
+            });
+
+            var msg = new Message
+            {
+                MessageType = messageType,
+                MessageId   = messageId,
+                Data        = JToken.FromObject(data),
+            };
+            var json    = JsonConvert.SerializeObject(msg);
+            var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                await WebView.CoreWebView2.ExecuteScriptAsync(
+                    $"window.continueVS && window.continueVS.onMessage('{escaped}');");
+            }).FileAndForget("vs/continuevs/sendtogui");
+
+            return tcs.Task;
         }
 
         internal void SendReplyToGui(string messageType, string messageId, object data)
