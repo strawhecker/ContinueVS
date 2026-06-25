@@ -23,7 +23,3 @@ Cookie syntax:
 // @ct:rename=GetFileContents
 // @ct:nuget=System.Net.Http
 ```
-
----
-
-TODO-029 — Update AGENTS.md current state table and architecture.md to reflect what is actually built and what remains.

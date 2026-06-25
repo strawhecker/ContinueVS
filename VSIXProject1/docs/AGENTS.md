@@ -20,10 +20,12 @@ C# is the full replacement for the VS Code Extension Host.
 
 | Area | Status | Notes |
 |---|---|---|
-| WebView2 tool window | EXISTS | `UI/ContinueToolWindowControl.xaml.cs` |
-| Binary/IPC layer | EXISTS — WRONG | Must be deleted. No binary ships in the VSIX. |
-| Message handlers | NOT YET | C# handlers to be written after translator runs |
-| ContinueTranslator project | NOT YET | Separate solution, to be created |
+| WebView2 tool window | COMPLETE | UI/ContinueToolWindowControl.xaml.cs — navigates directly to GUI, no binary wait |
+| Binary/IPC layer | REMOVED | Replaced by MessageDispatcher + C# handlers. Binary/GuiExtractor.cs retained for GUI asset extraction only |
+| Message handlers | COMPLETE | 40+ handlers across Handlers/Config, Handlers/Context, Handlers/File, Handlers/Ide, Handlers/Llm, Handlers/Push |
+| EditorContextProvider | COMPLETE | Wired into ContinueToolWindowControl; pushes currentFile and didChangeActiveTextEditor on editor changes |
+| WorkspaceConfigWatcher | COMPLETE | Wired into ContinueToolWindowControl; pushes configUpdate when ~/.continue/config.json changes |
+| ContinueTranslator project | EXISTS | Separate solution at E:\DevStudio\ContinueTranslator\ — re-run against new Continue release tags to regenerate protocol types |
 
 ## Files to read for context
 
@@ -38,8 +40,7 @@ C# is the full replacement for the VS Code Extension Host.
 
 | Thing | Path |
 |---|---|
-| VS extension solution | `E:\DevStudio\VSIXProject1\VSIXProject1.slnx` |
-| Extension project | `VSIXProject1\VSIXProject1.csproj` |
+| Extension project | `E:\GitRepos\ContinueVS\VSIXProject1\VSIXProject1.csproj` |
 | Tool window control | `VSIXProject1\UI\ContinueToolWindowControl.xaml.cs` |
 | GUI (after extraction) | `%APPDATA%\ContinueVS\gui\index.html` |
 | Continue source (GitHub) | `https://github.com/continuedev/continue` |

@@ -24,18 +24,18 @@ Continue React GUI
         |  window.continueVS.onMessage(json)          [C# → GUI]
         |
   C# MessageDispatcher
-  (to be built — routes by MessageType)
         |
-        ├── LlmHandler         HttpClient → OpenAI / Anthropic / Ollama
-        ├── EditorHandler      VS SDK DTE → active file, selection, open docs
-        ├── FileHandler        System.IO → read/write workspace files
-        ├── ConfigHandler      ~/.continue/config.json reader
-        └── DiffHandler        VS editor APIs → apply code changes
+        ├── Handlers/Ide       getIdeInfo, getWorkspaceDirs, getCurrentFile, getBranch, …
+        ├── Handlers/File      readFile, writeFile, applyToFile, acceptDiff, rejectDiff, …
+        ├── Handlers/Config    config/ideSettingsUpdate, config/addModel, …
+        ├── Handlers/Context   context/getContextItems, context/addDocs, …
+        ├── Handlers/Llm       llm/complete, llm/streamChat, llm/listModels, …
+        └── Handlers/Push      WebviewPusher — configUpdate, indexProgress, didChangeActiveTextEditor
 ```
 
 ---
 
-## What is being removed from VSIXProject1
+## What was removed from VSIXProject1
 
 These were built on the false assumption that a standalone binary exists in the VSIX.
 The VS Code VSIX ships no executable — only Node.js extension code that requires VS Code.
@@ -53,14 +53,14 @@ The VS Code VSIX ships no executable — only Node.js extension code that requir
 
 ## What is kept and extended
 
-| File | What changes |
+| File | What was done |
 |---|---|
-| `UI/ContinueToolWindowControl.xaml.cs` | Remove binary wait; navigate directly to GUI |
-| `ContinueVSPackage.cs` | Remove binary/client wiring; add MessageDispatcher init |
-| `IPC/ContinueProtocol.cs` | Keep — Message DTO shape is still correct |
-| `Settings/ContinueOptionsPage.cs` | Keep — LLM config options will expand |
-| `Settings/WorkspaceConfigWatcher.cs` | Keep — watches ~/.continue/config.json |
-| `Editor/EditorContextProvider.cs` | Keep — provides VS editor context |
+| `UI/ContinueToolWindowControl.xaml.cs` | Binary wait removed; navigates directly to GUI; MessageDispatcher, WebviewPusher, EditorContextProvider, WorkspaceConfigWatcher all wired in |
+| `ContinueVSPackage.cs` | Kept as-is; package entry point initialises commands only |
+| `IPC/ContinueProtocol.cs` | Kept; Message DTO and all payload types used by handlers |
+| `Settings/ContinueOptionsPage.cs` | Kept; exposes DisableTelemetry read by IsTelemetryEnabledHandler |
+| `Settings/WorkspaceConfigWatcher.cs` | Refactored to accept WebviewPusher; calls PushConfigUpdate on config.json change |
+| `Editor/EditorContextProvider.cs` | Refactored to accept ContinueToolWindowControl; pushes currentFile and didChangeActiveTextEditor |
 
 ---
 
