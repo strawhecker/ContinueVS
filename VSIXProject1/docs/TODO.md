@@ -26,21 +26,6 @@ Cookie syntax:
 
 ---
 
-TODO-023
-Implement file write and navigation handlers
-`VSIXProject1/Handlers/File/WriteFileHandler.cs`
-`VSIXProject1/Handlers/File/SaveFileHandler.cs`
-`VSIXProject1/Handlers/File/OpenFileHandler.cs`
-`VSIXProject1/Handlers/Ide/OpenUrlHandler.cs`
-`VSIXProject1/Handlers/Ide/GetBranchHandler.cs`
-writeFile and saveFile use System.IO and VS DTE save.
-openFile uses DTE.ItemOperations.OpenFile.
-openUrl uses Process.Start.
-getBranch runs git rev-parse --abbrev-ref HEAD as a subprocess.
-Register all in ContinueToolWindowControl constructor.
-
----
-
 TODO-024
 Implement push-event senders to webview
 `VSIXProject1/Handlers/Push/WebviewPusher.cs`

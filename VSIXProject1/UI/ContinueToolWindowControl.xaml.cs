@@ -38,6 +38,11 @@ namespace ContinueVS.UI
             _dispatcher.Register("readFile",          new ReadFileHandler(this));
             _dispatcher.Register("fileExists",        new FileExistsHandler(this));
             _dispatcher.Register("getOpenFiles",      new GetOpenFilesHandler(this));
+            _dispatcher.Register("writeFile",         new WriteFileHandler(this));
+            _dispatcher.Register("saveFile",          new SaveFileHandler(this));
+            _dispatcher.Register("openFile",          new OpenFileHandler(this));
+            _dispatcher.Register("openUrl",           new OpenUrlHandler(this));
+            _dispatcher.Register("getBranch",         new GetBranchHandler(this));
             Loaded += OnLoaded;
         }
 
