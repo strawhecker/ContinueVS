@@ -26,23 +26,53 @@ Cookie syntax:
 
 ## Repo structure note
 
-The translator (`ContinueTranslator`) is a build-time code generator whose sole output feeds this VSIX. It is architecturally equivalent to a source generator and belongs in the same solution. Merge target:
+The translator (`ContinueTranslator`) is a build-time code generator whose sole output feeds this VSIX. It is architecturally equivalent to a source generator and belongs in the same solution.
+
+Target layout after restructure (TODO-044):
 
 ```
-solution root (ContinueVS/)
-├── VSIXProject1/                ← VSIX
-├── tools/
-│   └── ContinueTranslator/      ← subtree merge: git subtree add --prefix=tools/ContinueTranslator <translator-remote> main
-├── ContinueVS.sln               ← add translator .csproj here, set build order
-└── docs/
-    └── TODO.md                  ← single master TODO (this file)
+ContinueVS/                          ← repo root
+├── src/
+│   ├── VSIXProject1/                ← VSIX (moved from root)
+│   │   └── Generated/               ← translator .cs output — committed as source, not binary
+│   └── tools/
+│       └── ContinueTranslator/      ← subtree merge (see command below)
+├── docs/                            ← promoted from VSIXProject1/docs/
+│   ├── TODO.md
+│   └── translator-design.md
+├── .editorconfig
+├── .gitattributes
+├── .gitignore                       ← bin/ obj/ out/ already excluded; Generated/ must NOT be excluded
+├── README.md
+└── ContinueVS.slnx                  ← renamed; references both src/VSIXProject1 and src/tools/ContinueTranslator
 ```
+
+Subtree merge command (run once from repo root after TODO-044):
+```
+git subtree add --prefix=src/tools/ContinueTranslator <translator-remote> main
+```
+
+`ContinueVS.slnx` after restructure:
+```xml
+<Solution>
+  <Project Path="src/VSIXProject1/VSIXProject1.csproj">
+    <Deploy />
+  </Project>
+  <Project Path="src/tools/ContinueTranslator/ContinueTranslator.csproj" />
+</Solution>
+```
+
+**Why bin/ and obj/ are excluded from the repo:** build outputs are reproducible, machine-specific (obj/ embeds absolute paths), and config-specific (Debug vs Release). The `.vsix` package is a release artifact published to the Marketplace, not distributed from source. Exception: translator-generated `.cs` files are source, not binaries — commit them under `src/VSIXProject1/Generated/` so the VSIX builds without requiring the translator to run first.
 
 TODO items for both projects are listed below in dependency order. Each session: one item, commit, remove.
 
 ---
 
-TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method: the base.Dispose(disposing); line and the three closing braces that follow it are all indented at 20 spaces instead of the correct 8/4/0. Reformat to correct indentation so the file is structurally valid.
+TODO-044 [Repo] — Restructure repo to src/ layout. Move VSIXProject1/ to src/VSIXProject1/. Create src/tools/ for ContinueTranslator subtree. Promote VSIXProject1/docs/ to repo-root docs/. Rename VSIXProject1.slnx to ContinueVS.slnx and update both Project paths. Add src/VSIXProject1/Generated/ with a .gitkeep; ensure .gitignore does NOT exclude Generated/. Verify solution builds before committing.
+
+---
+
+TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method
 
 ---
 
