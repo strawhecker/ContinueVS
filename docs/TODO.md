@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-049 [Trans] — Gap 2 (statement emitter): Implement CsEmitter.Statements.cs as a new partial of CsEmitter. Translate each TsStatement IR node to a Roslyn StatementSyntax using CsEmitter.Expressions.cs for sub-expressions. Handle Return, If (with optional else), For, ForOf (foreach), While, Try/catch, Var (local variable declaration), ExpressionStatement, and Throw. For untranslatable statement kinds, emit a // TODO: untranslatable — <tsFilePath> comment statement.
-
----
-
 TODO-050 [Trans] — Gap 2 (wiring): Update BuildClassMethods (CsEmitter.Classes.cs) and BuildFunctionStub (CsEmitter.Functions.cs) to call the statement emitter when Body is non-empty. When the body is empty or contains only untranslatable nodes, fall back to the // TODO: <tsFilePath> :: <Type>.<Method> comment stub introduced in TODO-043. Remove the old throw new NotImplementedException() fallback entirely.
 
 ---
