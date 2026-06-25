@@ -1,5 +1,6 @@
 ﻿using ContinueVS.Binary;
 using ContinueVS.Handlers;
+using ContinueVS.Handlers.Ide;
 using ContinueVS.IPC;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.VisualStudio.Shell;
@@ -27,6 +28,12 @@ namespace ContinueVS.UI
         public ContinueToolWindowControl()
         {
             InitializeComponent();
+            _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
+            _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
+            _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
+            _dispatcher.Register("getUniqueId",       new GetUniqueIdHandler(this));
+            _dispatcher.Register("isTelemetryEnabled", new IsTelemetryEnabledHandler(this));
+            _dispatcher.Register("isWorkspaceRemote", new IsWorkspaceRemoteHandler(this));
             Loaded += OnLoaded;
         }
 
@@ -115,6 +122,27 @@ namespace ContinueVS.UI
             {
                 MessageType = messageType,
                 MessageId   = Guid.NewGuid().ToString(),
+                Data        = JToken.FromObject(data),
+            };
+            var json    = JsonConvert.SerializeObject(msg);
+            var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                await WebView.CoreWebView2.ExecuteScriptAsync(
+                    $"window.continueVS && window.continueVS.onMessage('{escaped}');");
+            }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
+        }
+
+        internal void SendReplyToGui(string messageType, string messageId, object data)
+        {
+            if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
+
+            var msg = new Message
+            {
+                MessageType = messageType,
+                MessageId   = messageId,
                 Data        = JToken.FromObject(data),
             };
             var json    = JsonConvert.SerializeObject(msg);

@@ -26,20 +26,6 @@ Cookie syntax:
 
 ---
 
-TODO-021
-Implement IDE info handlers
-`VSIXProject1/Handlers/Ide/GetWorkspaceDirsHandler.cs`
-`VSIXProject1/Handlers/Ide/GetIdeInfoHandler.cs`
-`VSIXProject1/Handlers/Ide/GetIdeSettingsHandler.cs`
-`VSIXProject1/Handlers/Ide/GetUniqueIdHandler.cs`
-`VSIXProject1/Handlers/Ide/IsTelemetryEnabledHandler.cs`
-`VSIXProject1/Handlers/Ide/IsWorkspaceRemoteHandler.cs`
-All are simple getters against VS DTE or Shell APIs.
-No side effects.
-Register all in ContinueToolWindowControl constructor.
-
----
-
 TODO-022
 Implement file read handlers
 `VSIXProject1/Handlers/File/ReadFileHandler.cs`
