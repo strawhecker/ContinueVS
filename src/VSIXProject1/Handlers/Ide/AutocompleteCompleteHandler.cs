@@ -1,5 +1,7 @@
-﻿using ContinueVS.IPC;
+﻿using ContinueVS.Handlers.Llm;
+using ContinueVS.IPC;
 using ContinueVS.UI;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,10 +16,31 @@ namespace ContinueVS.Handlers.Ide
             _control = control;
         }
 
-        public Task HandleAsync(Message message, CancellationToken cancellationToken)
+        public async Task HandleAsync(Message message, CancellationToken cancellationToken)
         {
-            _control.SendReplyToGui(message.MessageType, message.MessageId, new string[0]);
-            return Task.CompletedTask;
+            var input = message.Data?.ToObject<AutocompleteInput>() ?? new AutocompleteInput();
+            var prompt = input.Filepath + ":" + input.Pos.Line + ":" + input.Pos.Character;
+
+            var modelConfig = ContinueConfigReader.FindModel("");
+            if (modelConfig == null)
+            {
+                _control.SendReplyToGui(message.MessageType, message.MessageId, new string[0]);
+                return;
+            }
+
+            string completion;
+            try
+            {
+                completion = await LlmHttpClient.CompleteAsync(modelConfig, prompt, cancellationToken).ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex)
+            {
+                _control.SendToGui("showToast", new { message = "Continue: LLM request failed — " + ex.Message, type = "error" });
+                _control.SendReplyToGui(message.MessageType, message.MessageId, new string[0]);
+                return;
+            }
+
+            _control.SendReplyToGui(message.MessageType, message.MessageId, new[] { completion });
         }
     }
 }

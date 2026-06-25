@@ -66,11 +66,7 @@ TODO items for both projects are listed below in dependency order. Each session:
 
 ---
 
-TODO-037 [VSIX]
-
----
-
-TODO-038 [Trans] — Fix translator emitter: map Task<void> → Task everywhere in output (TypeScript Promise<void> → Task). Change is in CsEmitter.Helpers.cs ParseTypeSyntax and/or MappingEngine type resolution.
+TODO-038
 
 ---
 
