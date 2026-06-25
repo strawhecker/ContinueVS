@@ -386,3 +386,7 @@ FodyWeavers.xsd
 /0402.txt
 /0827.txt
 /text.txt
+
+# Translator-generated C# source — must be committed, not excluded
+!src/VSIXProject1/Generated/
+!src/VSIXProject1/Generated/**

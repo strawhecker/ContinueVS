@@ -1,6 +1,6 @@
 # TODO — Ordered Action List
 
-One item per agent session. Commit after each item. Remove completed items. tools and docs moved to VSIXProject1.
+One item per agent session. Commit after each item. Remove completed items.
 
 ## Fork workflow
 
@@ -68,15 +68,11 @@ TODO items for both projects are listed below in dependency order. Each session:
 
 ---
 
-TODO-044 [Repo] — Restructure repo to src/ layout. Move VSIXProject1/ to src/VSIXProject1/. Create src/tools/ for ContinueTranslator subtree. Promote VSIXProject1/docs/ to repo-root docs/. Rename VSIXProject1.slnx to ContinueVS.slnx and update both Project paths. Add src/VSIXProject1/Generated/ with a .gitkeep; ensure .gitignore does NOT exclude Generated/. Verify solution builds before committing.
-
----
-
 TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method
 
 ---
 
-TODO-035 [VSIX] — Honor ContinueOptionsPage in GhostTextController. At the start of RequestCompletionAsync, read the options page via ContinueVSPackage.Instance?.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage and return early if EnableInlineCompletions is false. Replace the hard-coded 150 in OnBufferChanged with options?.DebounceDelayMs ?? 150.
+TODO-035
 
 ---
 
