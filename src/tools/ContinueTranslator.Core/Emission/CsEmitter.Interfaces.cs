@@ -131,8 +131,12 @@ internal sealed partial class CsEmitter
                 ? p.Type.Text + "?"
                 : p.Type.Text;
 
+            bool isIndexSig = typeText.TrimStart().StartsWith('{') && typeText.Contains('[') && typeText.Contains("]:");
+            if (isIndexSig) typeText = "Dictionary<string, string>";
+
             ParameterSyntax paramSyntax = Parameter(Identifier(p.Name))
                 .WithType(ParseTypeSyntax(typeText));
+            if (isIndexSig) paramSyntax = WithLeadingLineComment(paramSyntax, "@ct:todo");
 
             if (p.IsRest)
                 paramSyntax = paramSyntax.AddModifiers(Token(SyntaxKind.ParamsKeyword));

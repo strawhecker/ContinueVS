@@ -64,14 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-039 [Trans] — Fix translator emitter: map TypeScript union return types (T | null) → nullable C# reference types (T?) in method signatures. Handle in MappingEngine.ResolveTypeRef by detecting " | null" suffix and rewriting to "T?".
-
----
-
-TODO-040 [Trans] — Fix translator emitter: drop TypeScript inline object/index-signature parameter types (e.g., { [key: string]: string }) and emit Dictionary<string, string> instead. Detect in BuildParameterList via a regex on the raw type text; substitute Dictionary<string, string> and annotate with a // @ct:todo comment.
-
----
-
 TODO-041 [Trans] — Fix translator emitter: convert TypeScript arrow-function property declarations into proper C# Func<> or event members. In CsEmitter.Classes.cs BuildClassProperties, detect when a property type text contains "=>" and rewrite to the matching Func<> or Action<> delegate type.
 
 ---
