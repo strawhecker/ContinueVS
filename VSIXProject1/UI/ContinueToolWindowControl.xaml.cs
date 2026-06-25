@@ -1,5 +1,6 @@
 ﻿using ContinueVS.Binary;
 using ContinueVS.Handlers;
+using ContinueVS.Handlers.File;
 using ContinueVS.Handlers.Ide;
 using ContinueVS.IPC;
 using Microsoft.Web.WebView2.Core;
@@ -34,6 +35,9 @@ namespace ContinueVS.UI
             _dispatcher.Register("getUniqueId",       new GetUniqueIdHandler(this));
             _dispatcher.Register("isTelemetryEnabled", new IsTelemetryEnabledHandler(this));
             _dispatcher.Register("isWorkspaceRemote", new IsWorkspaceRemoteHandler(this));
+            _dispatcher.Register("readFile",          new ReadFileHandler(this));
+            _dispatcher.Register("fileExists",        new FileExistsHandler(this));
+            _dispatcher.Register("getOpenFiles",      new GetOpenFilesHandler(this));
             Loaded += OnLoaded;
         }
 

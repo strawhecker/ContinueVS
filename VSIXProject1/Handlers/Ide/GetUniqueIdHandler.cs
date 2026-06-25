@@ -35,9 +35,9 @@ namespace ContinueVS.Handlers.Ide
                 "ContinueVS",
                 "unique-id.txt");
 
-            if (File.Exists(filePath))
+            if (global::System.IO.File.Exists(filePath))
             {
-                var content = File.ReadAllText(filePath).Trim();
+                var content = global::System.IO.File.ReadAllText(filePath).Trim();
                 if (!string.IsNullOrEmpty(content))
                 {
                     _cachedId = content;
@@ -47,7 +47,7 @@ namespace ContinueVS.Handlers.Ide
 
             var newId = Guid.NewGuid().ToString();
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-            File.WriteAllText(filePath, newId);
+            global::System.IO.File.WriteAllText(filePath, newId);
             _cachedId = newId;
             return _cachedId;
         }

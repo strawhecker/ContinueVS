@@ -26,17 +26,6 @@ Cookie syntax:
 
 ---
 
-TODO-022
-Implement file read handlers
-`VSIXProject1/Handlers/File/ReadFileHandler.cs`
-`VSIXProject1/Handlers/File/FileExistsHandler.cs`
-`VSIXProject1/Handlers/File/GetOpenFilesHandler.cs`
-Uses System.IO for readFile and fileExists.
-Uses VS DTE RunningDocumentTable for getOpenFiles.
-Register all in ContinueToolWindowControl constructor.
-
----
-
 TODO-023
 Implement file write and navigation handlers
 `VSIXProject1/Handlers/File/WriteFileHandler.cs`
