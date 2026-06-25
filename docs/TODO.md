@@ -24,55 +24,53 @@ Cookie syntax:
 // @ct:nuget=System.Net.Http
 ```
 
-## Repo structure note
-
-The translator (`ContinueTranslator`) is a build-time code generator whose sole output feeds this VSIX. It is architecturally equivalent to a source generator and belongs in the same solution.
-
-Target layout after restructure (TODO-044):
+## Repo structure (current — TODO-044 complete)
 
 ```
-ContinueVS/                          ← repo root
+ContinueVS/
 ├── src/
-│   ├── VSIXProject1/                ← VSIX (moved from root)
+│   ├── VSIXProject1/                ← VSIX (net472)
 │   │   └── Generated/               ← translator .cs output — committed as source, not binary
+│   ├── output/                      ← last translator run output (ContinueCore.csproj + stubs)
 │   └── tools/
-│       └── ContinueTranslator/      ← subtree merge (see command below)
-├── docs/                            ← promoted from VSIXProject1/docs/
+│       ├── ContinueTranslator.Cli/
+│       ├── ContinueTranslator.Core/
+│       └── ContinueTranslator.Tests/
+├── docs/
 │   ├── TODO.md
-│   └── translator-design.md
-├── .editorconfig
-├── .gitattributes
-├── .gitignore                       ← bin/ obj/ out/ already excluded; Generated/ must NOT be excluded
-├── README.md
-└── ContinueVS.slnx                  ← renamed; references both src/VSIXProject1 and src/tools/ContinueTranslator
+│   ├── translator-design.md
+│   ├── architecture.md
+│   ├── protocol.md
+│   └── AGENTS.md
+├── adr/
+├── .gitignore                       ← bin/ obj/ out/ excluded; Generated/ must NOT be excluded
+├── ContinueVS.slnx                  ← all four projects under /src/ folder
+└── README.md
 ```
 
-Subtree merge command (run once from repo root after TODO-044):
-```
-git subtree add --prefix=src/tools/ContinueTranslator <translator-remote> main
-```
-
-`ContinueVS.slnx` after restructure:
+`ContinueVS.slnx` (current):
 ```xml
 <Solution>
-  <Project Path="src/VSIXProject1/VSIXProject1.csproj">
-    <Deploy />
-  </Project>
-  <Project Path="src/tools/ContinueTranslator/ContinueTranslator.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/VSIXProject1/VSIXProject1.csproj" />
+    <Project Path="src/tools/ContinueTranslator.Cli/ContinueTranslator.Cli.csproj" />
+    <Project Path="src/tools/ContinueTranslator.Core/ContinueTranslator.Core.csproj" />
+    <Project Path="src/tools/ContinueTranslator.Tests/ContinueTranslator.Tests.csproj" />
+  </Folder>
 </Solution>
 ```
 
-**Why bin/ and obj/ are excluded from the repo:** build outputs are reproducible, machine-specific (obj/ embeds absolute paths), and config-specific (Debug vs Release). The `.vsix` package is a release artifact published to the Marketplace, not distributed from source. Exception: translator-generated `.cs` files are source, not binaries — commit them under `src/VSIXProject1/Generated/` so the VSIX builds without requiring the translator to run first.
+**Why bin/ and obj/ are excluded from the repo:** build outputs are reproducible and machine-specific (obj/ embeds absolute paths). The `.vsix` is a release artifact published to the Marketplace. Exception: translator-generated `.cs` files are source — commit them under `src/VSIXProject1/Generated/`.
 
 TODO items for both projects are listed below in dependency order. Each session: one item, commit, remove.
 
 ---
 
-TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method
+TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method: the base.Dispose(disposing); line and the three closing braces that follow it are all indented at 20 spaces instead of the correct 8/4/0. Reformat to correct indentation so the file is structurally valid.
 
 ---
 
-TODO-035
+TODO-035 [VSIX] — Honor ContinueOptionsPage in GhostTextController. At the start of RequestCompletionAsync, read the options page via ContinueVSPackage.Instance?.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage and return early if EnableInlineCompletions is false. Replace the hard-coded 150 in OnBufferChanged with options?.DebounceDelayMs ?? 150.
 
 ---
 
