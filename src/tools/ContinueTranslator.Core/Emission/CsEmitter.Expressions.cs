@@ -99,21 +99,27 @@ internal sealed partial class CsEmitter
     private static readonly Dictionary<string, SyntaxKind> s_binaryOpMap =
         new(StringComparer.Ordinal)
         {
-            ["==="] = SyntaxKind.EqualsEqualsToken,
-            ["!=="] = SyntaxKind.ExclamationEqualsToken,
-            ["=="]  = SyntaxKind.EqualsEqualsToken,
-            ["!="]  = SyntaxKind.ExclamationEqualsToken,
-            ["+"]   = SyntaxKind.PlusToken,
-            ["-"]   = SyntaxKind.MinusToken,
-            ["*"]   = SyntaxKind.AsteriskToken,
-            ["/"]   = SyntaxKind.SlashToken,
-            ["%"]   = SyntaxKind.PercentToken,
-            ["<"]   = SyntaxKind.LessThanToken,
-            [">"]   = SyntaxKind.GreaterThanToken,
-            ["<="]  = SyntaxKind.LessThanEqualsToken,
-            [">="]  = SyntaxKind.GreaterThanEqualsToken,
-            ["&&"]  = SyntaxKind.AmpersandAmpersandToken,
-            ["||"]  = SyntaxKind.BarBarToken,
+            ["==="] = SyntaxKind.EqualsExpression,
+            ["!=="] = SyntaxKind.NotEqualsExpression,
+            ["=="]  = SyntaxKind.EqualsExpression,
+            ["!="]  = SyntaxKind.NotEqualsExpression,
+            ["+"]   = SyntaxKind.AddExpression,
+            ["-"]   = SyntaxKind.SubtractExpression,
+            ["*"]   = SyntaxKind.MultiplyExpression,
+            ["/"]   = SyntaxKind.DivideExpression,
+            ["%"]   = SyntaxKind.ModuloExpression,
+            ["<"]   = SyntaxKind.LessThanExpression,
+            [">"]   = SyntaxKind.GreaterThanExpression,
+            ["<="]  = SyntaxKind.LessThanOrEqualExpression,
+            [">="]  = SyntaxKind.GreaterThanOrEqualExpression,
+            ["&&"]  = SyntaxKind.LogicalAndExpression,
+            ["||"]  = SyntaxKind.LogicalOrExpression,
+            ["??"]  = SyntaxKind.CoalesceExpression,
+            ["|"]   = SyntaxKind.BitwiseOrExpression,
+            ["&"]   = SyntaxKind.BitwiseAndExpression,
+            ["^"]   = SyntaxKind.ExclusiveOrExpression,
+            ["<<"]  = SyntaxKind.LeftShiftExpression,
+            [">>"]  = SyntaxKind.RightShiftExpression,
         };
 
     private ExpressionSyntax EmitBinaryExpression(TsBinaryExpression bin)
@@ -134,7 +140,8 @@ internal sealed partial class CsEmitter
         ArgumentListSyntax argList = ArgumentList(
             SeparatedList(call.Args.Select(a => Argument(EmitExpression(a)))));
 
-        if (_callSiteMap.TryResolve(calleeChain, out string dotNetCall))
+        if (!string.IsNullOrEmpty(calleeChain) &&
+            _callSiteMap.TryResolve(calleeChain, out string dotNetCall))
         {
             // Build: <dotNetCall>(<translated args>)
             ExpressionSyntax callee = ParseExpression(dotNetCall);
