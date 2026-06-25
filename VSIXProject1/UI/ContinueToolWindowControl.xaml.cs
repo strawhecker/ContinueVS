@@ -8,6 +8,7 @@ using ContinueVS.Handlers.Ide;
 using ContinueVS.Handlers.Llm;
 using ContinueVS.Handlers.Push;
 using ContinueVS.IPC;
+using ContinueVS.Settings;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json;
@@ -31,12 +32,14 @@ namespace ContinueVS.UI
         private bool _disposed;
         private readonly MessageDispatcher _dispatcher = new MessageDispatcher();
         private readonly WebviewPusher _pusher;
+        private WorkspaceConfigWatcher _configWatcher;
         private EditorContextProvider _editorContextProvider;
 
         public ContinueToolWindowControl()
         {
             InitializeComponent();
             _pusher = new WebviewPusher(this);
+            _configWatcher = new WorkspaceConfigWatcher(_pusher);
             _editorContextProvider = new EditorContextProvider(this);
             _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
             _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
@@ -76,6 +79,7 @@ namespace ContinueVS.UI
             _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
             _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
             _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
+            _dispatcher.Register("getCurrentFile",               new GetCurrentFileHandler(this));
             Loaded += OnLoaded;
         }
 
@@ -119,6 +123,7 @@ namespace ContinueVS.UI
                 _webViewInitialized = true;
                 _pusher.Subscribe();
                 await _editorContextProvider.RegisterAsync();
+                _configWatcher.Start();
             }
 
             WebView.Source = new Uri("https://continue.local/index.html");
@@ -218,6 +223,7 @@ namespace ContinueVS.UI
             });
 
             _editorContextProvider?.Dispose();
+            _configWatcher?.Dispose();
             WebView.Dispose();
         }
     }

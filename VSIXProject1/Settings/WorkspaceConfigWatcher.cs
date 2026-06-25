@@ -1,4 +1,4 @@
-﻿using ContinueVS.IPC;
+﻿using ContinueVS.Handlers.Push;
 using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio.Shell;
@@ -16,13 +16,13 @@ namespace ContinueVS.Settings
     /// </summary>
     internal sealed class WorkspaceConfigWatcher : IDisposable
     {
-        private readonly IServiceProvider _services;
+        private readonly WebviewPusher    _pusher;
         private FileSystemWatcher?        _watcher;
         private bool _disposed;
 
-        public WorkspaceConfigWatcher(IServiceProvider services)
+        public WorkspaceConfigWatcher(WebviewPusher pusher)
         {
-            _services = services;
+            _pusher = pusher;
         }
 
         /// <summary>Locates the solution root and starts watching; must be called on UI thread.</summary>
@@ -30,7 +30,7 @@ namespace ContinueVS.Settings
         {
             ThreadHelper.ThrowIfNotOnUIThread();
 
-            var dte = ((IServiceProvider)_services).GetService(typeof(DTE)) as DTE2;
+            var dte = Package.GetGlobalService(typeof(DTE)) as DTE2;
             string? solutionDir = null;
             try
             {
@@ -64,6 +64,8 @@ namespace ContinueVS.Settings
 
             string content = "";
             try { content = File.ReadAllText(e.FullPath); } catch { }
+
+            _pusher.PushConfigUpdate();
         }
 
         public void Dispose()

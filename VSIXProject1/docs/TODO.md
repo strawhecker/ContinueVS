@@ -24,15 +24,6 @@ Cookie syntax:
 // @ct:nuget=System.Net.Http
 ```
 
----
-
-TODO-027 — Wire WorkspaceConfigWatcher and add getCurrentFile handler.
-Complete OnConfigChanged to call _pusher.PushConfigUpdate().
-Call Start() from ContinueToolWindowControl.NavigateAsync.
-Create Handlers\Ide\GetCurrentFileHandler.cs that uses EditorContextProvider data (DTE active document) to reply with filepath, contents, and cursor position.
-
----
-
 TODO-028 — Implement applyToFile, acceptDiff, rejectDiff handlers using VS editor APIs (IVsTextManager / DTE).
 
 ---
