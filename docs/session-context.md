@@ -1,13 +1,13 @@
 # ContinueVS — LLM Session Context
 
 Paste this file at the start of any new agent session to restore full project context without replaying chat history.
-Last updated: 2026-06-25.
+Last updated: 2026-07-01.
 
 ---
 
 ## What this project is
 
-ContinueVS is a Visual Studio 2022/2026 VSIX extension that ports the open-source Continue AI coding assistant (continuedev/continue, TypeScript) to Visual Studio. It is a translated C# reimplementation, not a wrapper. A tool called ContinueTranslator reads annotated TypeScript source and emits C# stubs. The VSIX consumes those stubs.
+ContinueVS is a Visual Studio 2022/2026 VSIX extension that ports the open-source Continue AI coding assistant (continuedev/continue, TypeScript) to Visual Studio. It is a translated C# reimplementation, not a wrapper. ContinueTranslator reads annotated TypeScript source from a local fork clone and emits C# — signatures today, method bodies as Gap 1/2/3 work is completed (TODO-044–050). The VSIX consumes the promoted output from Generated/.
 
 ## Repo
 
@@ -42,11 +42,28 @@ ContinueVS/
 │   │   ├── ContinueCommands.vsct
 │   │   ├── source.extension.vsixmanifest
 │   │   └── VSIXProject1.csproj
+│   ├── mappings/                    ← JSON data files copied to bin/mappings/ at build time
+│   │   ├── node-api.json            ← Node.js built-in → .NET type mappings
+│   │   ├── npm-packages.json        ← npm package → .NET namespace mappings
+│   │   ├── types.json               ← TS primitive → C# primitive mappings
+│   │   └── callsites.json           ← Node.js call expressions → .NET call expressions (TODO-044)
 │   ├── output/                      ← last translator run output (ContinueCore.csproj + stubs)
 │   └── tools/
 │       ├── ContinueTranslator.Cli/
 │       ├── ContinueTranslator.Core/
-│       └── ContinueTranslator.Tests/
+│       │   ├── Emission/            ← CsEmitter partials (Classes, Functions, Helpers, Interfaces, Enums)
+│       │   │   ├── CsEmitter.Expressions.cs   ← Gap 2, TODO-048 (not yet created)
+│       │   │   └── CsEmitter.Statements.cs    ← Gap 2, TODO-049 (not yet created)
+│       │   ├── IR/                  ← TsFile, TsClass, TsMethod, TsFunction, TsTypeRef …
+│       │   │   ├── TsStatement.cs   ← Gap 2, TODO-047 (not yet created)
+│       │   │   └── TsExpression.cs  ← Gap 2, TODO-047 (not yet created)
+│       │   ├── Mapping/             ← MappingEngine, TypeMap, NodeApiMap, NpmPackageMap
+│       │   │   └── CallSiteMap.cs   ← Gap 3, TODO-044 (not yet created)
+│       │   ├── Parsing/             ← TsParser.cs, parse.mjs (embedded resource)
+│       │   └── Sync/                ← TODO-051 (not yet created)
+│       │       ├── GeneratedFolderSync.cs
+│       │       └── SyncResult.cs
+│       └── ContinueTranslator.Tests/  ← currently empty; tests added in TODO-053
 ├── docs/
 │   ├── TODO.md                      ← master ordered TODO for both projects
 │   ├── session-context.md           ← this file
@@ -91,7 +108,13 @@ ContinueVS/
 
 4. Always use git mv for tracked file moves. Visual Studio must be closed before any git mv of the project root (permission denied otherwise).
 
-5. @ct: cookies in the TypeScript fork source survive upstream merges because they are placed on stable lines. Syntax: @ct:map=, @ct:ignore, @ct:rename=, @ct:nuget=.
+5. @ct: cookies in the TypeScript fork source annotate bodies as well as signatures — the translator is intended to translate method bodies, not only signatures. Current gaps (body walking, statement/expression IR, call-site map) are tracked as TODO-044–050. Syntax: @ct:map=, @ct:ignore, @ct:rename=, @ct:nuget=.
+
+6. output/ is a staging area — raw translator output for inspection. Files are promoted to VSIXProject1/Generated/ by GeneratedFolderSync (TODO-051/052) when they are clean (no // TODO stubs, no raw TS type leaks). A .translator-manifest.json in Generated/ tracks SHA-256 hashes so hand-edited files are never overwritten by a subsequent translator run.
+
+7. CsEmitter is currently stateless (all helpers are static). TODO-047 adds a CallSiteMap constructor parameter — the only instance field CsEmitter will ever need. PipelineRunner constructs it with the loaded CallSiteMap.
+
+8. The fork contains two concrete implementations of the IDE interface: FileSystemIde (filesystem.ts) calls System.IO.* directly; MessageIde (messageIde.ts) routes every call through a _request("messageName", payload) messenger delegate. These are not alternatives — both are required. FileSystemIde is pure System.IO work; MessageIde is a proxy whose bodies follow a single mechanical pattern and should be fully auto-translated once Gap 1/2 body walking is in place.
 
 ## Fork workflow
 
@@ -104,25 +127,49 @@ git push origin
 
 ## TODO list (ordered, dependency-aware — remove items as completed)
 
-TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method: base.Dispose(disposing); and three closing braces are indented at 20 spaces. Correct to 8/4/0.
+TODO-034 [VSIX] — Fix ContinueVSPackage.cs Dispose method: base.Dispose(disposing); and three closing braces indented at 20 spaces. Correct to 8/4/0.
 
 TODO-035 [VSIX] — Honor ContinueOptionsPage in GhostTextController. In RequestCompletionAsync: read options via ContinueVSPackage.Instance?.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage, return early if EnableInlineCompletions is false. Replace hard-coded 150 in OnBufferChanged with options?.DebounceDelayMs ?? 150.
 
-TODO-038 [Trans] — Emitter: map TypeScript Promise<void> to Task (not Task<void>).
+TODO-036 [VSIX] — Surface LLM errors. In LlmCompleteHandler and LlmStreamChatHandler catch HttpRequestException and call _control.SendToGui("showToast", new { message = "Continue: LLM request failed — " + ex.Message, type = "error" }) before returning empty reply.
 
-TODO-039 [Trans] — Emitter: map T | null to T? in method signatures.
+TODO-037 [VSIX] — AutocompleteCompleteHandler: extract AutocompleteInput from message.Data, build prompt from filepath+pos, call ContinueConfigReader.FindModel("") then LlmHttpClient.CompleteAsync, reply string[] with single result. Depends on 036.
 
-TODO-037 [VSIX] — Surface LLM errors. In LlmCompleteHandler and LlmStreamChatHandler catch HttpRequestException and call _control.SendToGui("showToast", new { message = "Continue: LLM request failed — " + ex.Message, type = "error" }) before returning empty reply.
+TODO-038 [Trans] — Emitter: map TypeScript Promise<void> → Task. Fix in CsEmitter.Helpers.cs ParseTypeSyntax and/or MappingEngine type resolution.
 
-TODO-040 [Trans] — Emitter: replace inline object/index-signature parameter types ({ [key: string]: string }) with Dictionary<string, string>.
+TODO-039 [Trans] — Emitter: map T | null → T? in method signatures. Fix in MappingEngine.ResolveTypeRef.
 
-TODO-041 [Trans] — Emitter: convert TypeScript arrow-function property declarations to C# Func<> or event members.
+TODO-040 [Trans] — Emitter: replace { [key: string]: string } parameter types with Dictionary<string, string>. Detect via regex in BuildParameterList.
 
-TODO-036 [VSIX] — AutocompleteCompleteHandler: extract AutocompleteInput from message.Data, build prompt from filepath+pos, call ContinueConfigReader.FindModel("") then LlmHttpClient.CompleteAsync, reply string[] with single result. Depends on 037.
+TODO-041 [Trans] — Emitter: convert TypeScript arrow-function property declarations to Func<>/Action<> members. Detect "=>" in property type text in CsEmitter.Classes.cs BuildClassProperties.
 
-TODO-042 [Trans] — Implement FileSystemIde.cs (45 stubs) using System.IO.*. No VS SDK dependency. Depends on 038-041 emitter fixes producing compilable output.
+TODO-042 [Trans] — Add @ct:ignore to 27 test/vendor TS files in fork. Re-run translator; confirm 114 stubs eliminated.
 
-TODO-043 [Trans] — Implement MessageIde.cs (44 stubs) routing IDE protocol calls through VSIX message dispatcher to VS SDK (DTE, IVsRunningDocTable, etc.). Depends on 042 and 036.
+TODO-043 [Trans] — Replace throw new NotImplementedException() in BuildFunctionStub and BuildClassMethods with // TODO: <tsFilePath> :: <ClassName>.<MethodName>.
+
+TODO-044 [Trans] — Gap 3: Create src/mappings/callsites.json (Node.js call → .NET, e.g. fs.readFileSync → File.ReadAllText). Add CallSiteMap.cs in ContinueTranslator.Core/Mapping/. Wire into MappingEngine. Add CopyToOutputDirectory entry in ContinueTranslator.Cli.csproj.
+
+TODO-045 [Trans] — Gap 1 (parse.mjs statements): Extend walkMethod/walkFunction to emit body array of statement nodes (Return, If, For, ForOf, While, Try, Var, ExpressionStatement, Throw).
+
+TODO-046 [Trans] — Gap 1 (parse.mjs expressions): Extend parse.mjs to walk expression nodes (Call, Member, Await, Binary, Literal, Identifier, ObjectLiteral, Conditional, Arrow). Completes Gap 1 JSON IR.
+
+TODO-047 [Trans] — Gap 2 (C# IR): Add TsStatement.cs and TsExpression.cs record hierarchies in IR/. Add Body field to TsMethod and TsFunction. Update TsParser.cs deserialization. Give CsEmitter a constructor accepting CallSiteMap (its only instance field). Update PipelineRunner.
+
+TODO-048 [Trans] — Gap 2 (expression emitter): Implement CsEmitter.Expressions.cs. TsExpression → Roslyn ExpressionSyntax. Consult CallSiteMap for TsCallExpression; placeholder comment for untranslatable.
+
+TODO-049 [Trans] — Gap 2 (statement emitter): Implement CsEmitter.Statements.cs. TsStatement → Roslyn StatementSyntax using CsEmitter.Expressions for sub-expressions. All 8 kinds; untranslatable → // TODO comment.
+
+TODO-050 [Trans] — Gap 2 (wiring): Update BuildClassMethods and BuildFunctionStub to call statement emitter when Body non-empty. Fallback to // TODO stub. Remove throw new NotImplementedException() entirely.
+
+TODO-051 [Trans] — Sync (core): Add ContinueTranslator.Core/Sync/SyncResult.cs and GeneratedFolderSync.cs. Loads .translator-manifest.json (SHA-256), skips hand-edited and stub-containing files, writes clean files, updates manifest.
+
+TODO-052 [Trans] — Sync (CLI): Add --generated <path> to Program.cs/TranslationOptions. In PipelineRunner.Run() step 7 call GeneratedFolderSync.Sync() and print counts.
+
+TODO-053 [Trans] — Tests: Add xUnit tests to ContinueTranslator.Tests (currently empty) — CallSiteMap, GeneratedFolderSync, statement/expression emitter round-trip. No VS SDK dependency.
+
+TODO-054 [Trans] — Re-run translator after 038–053. Implement remaining // TODO stubs in FileSystemIde.cs using System.IO.*. Promote via --generated.
+
+TODO-055 [Trans] — Re-run translator after 038–053. MessageIde.cs _request-pattern methods should auto-translate. Implement remaining VS SDK stubs directly in Generated/MessageIde.cs; manifest protects them. Depends on 053 and 037.
 
 ---
 
