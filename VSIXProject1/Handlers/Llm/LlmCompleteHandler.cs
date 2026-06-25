@@ -1,5 +1,7 @@
 ﻿using ContinueVS.IPC;
 using ContinueVS.UI;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,10 +16,29 @@ namespace ContinueVS.Handlers.Llm
             _control = control;
         }
 
-        public Task HandleAsync(Message message, CancellationToken cancellationToken)
+        public async Task HandleAsync(Message message, CancellationToken cancellationToken)
         {
-            _control.SendReplyToGui(message.MessageType, message.MessageId, "");
-            return Task.CompletedTask;
+            var prompt = message.Data?["prompt"]?.Value<string>() ?? "";
+            var title  = message.Data?["title"]?.Value<string>() ?? "";
+
+            var modelConfig = ContinueConfigReader.FindModel(title);
+            if (modelConfig == null)
+            {
+                _control.SendReplyToGui(message.MessageType, message.MessageId, "");
+                return;
+            }
+
+            string completion;
+            try
+            {
+                completion = await LlmHttpClient.CompleteAsync(modelConfig, prompt, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                completion = "";
+            }
+
+            _control.SendReplyToGui(message.MessageType, message.MessageId, completion);
         }
     }
 }

@@ -38,5 +38,6 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
 </Project>

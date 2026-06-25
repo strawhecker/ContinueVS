@@ -26,13 +26,5 @@ Cookie syntax:
 
 ---
 
-TODO-032 — Implement real llm/complete using System.Net.Http.HttpClient.
-Read ~/.continue/config.json to find the first configured model's provider/apiKey/baseUrl.
-Make a real HTTP POST to the provider endpoint.
-Return the completion string.
-This unblocks both inline autocomplete and chat.
-
----
-
 TODO-033 — Implement llm/streamChat using the same HttpClient pattern as TODO-032 but streaming chunked responses back to the GUI incrementally via SendToGui.
 
