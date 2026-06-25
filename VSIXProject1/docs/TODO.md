@@ -26,15 +26,6 @@ Cookie syntax:
 
 ---
 
-### TODO-020
-**Create IMessageHandler interface and MessageDispatcher**
-`VSIXProject1/Handlers/IMessageHandler.cs`
-`VSIXProject1/Handlers/MessageDispatcher.cs`
-Routes incoming WebView messages to the correct handler by MessageType.
-Wire into `ContinueToolWindowControl.OnWebMessageReceived`.
-
----
-
 TODO-021
 Implement IDE info handlers
 `VSIXProject1/Handlers/Ide/GetWorkspaceDirsHandler.cs`
@@ -77,7 +68,7 @@ Register all in ContinueToolWindowControl constructor.
 
 TODO-024
 Implement push-event senders to webview
-`VSIXProject1/Handlers/Push/WebviewPusher.cs
+`VSIXProject1/Handlers/Push/WebviewPusher.cs`
 Add a WebviewPusher helper that wraps SendToGui on ContinueToolWindowControl.
 Wire configUpdate to fire on tool window load with a minimal IdeSettings payload.
 Wire indexProgress as a stub that sends a 100% complete payload immediately.

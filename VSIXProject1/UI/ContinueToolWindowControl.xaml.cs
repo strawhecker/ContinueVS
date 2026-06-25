@@ -1,4 +1,5 @@
 ﻿using ContinueVS.Binary;
+using ContinueVS.Handlers;
 using ContinueVS.IPC;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.VisualStudio.Shell;
@@ -21,6 +22,7 @@ namespace ContinueVS.UI
     {
         private bool _webViewInitialized;
         private bool _disposed;
+        private readonly MessageDispatcher _dispatcher = new MessageDispatcher();
 
         public ContinueToolWindowControl()
         {
@@ -89,8 +91,12 @@ namespace ContinueVS.UI
 
         private System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
-            // Reserved for future IPC routing.
-            return System.Threading.Tasks.Task.CompletedTask;
+            var json = e.TryGetWebMessageAsString();
+            var message = JsonConvert.DeserializeObject<Message>(json);
+            if (message == null)
+                return System.Threading.Tasks.Task.CompletedTask;
+
+            return _dispatcher.DispatchAsync(message, System.Threading.CancellationToken.None);
         }
 
         // -----------------------------------------------------------------
