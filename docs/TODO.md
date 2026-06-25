@@ -106,7 +106,7 @@ TODO-043 [Trans] — Replace throw new NotImplementedException() fallback in Bui
 
 ---
 
-TODO-044 [Trans] — Gap 3: Create mappings/callsites.json mapping Node.js call expressions to .NET equivalents (e.g., fs.readFileSync → File.ReadAllText, path.join → Path.Combine, crypto.randomUUID → Guid.NewGuid().ToString, os.homedir → Environment.GetFolderPath). Add CallSiteMap.cs in ContinueTranslator.Core/Mapping/ to load this file and expose TryResolve(callee, out string dotNetCall). Wire into MappingEngine so call-site names are resolved at the same pass as type names.
+TODO-044 [Trans] — Gap 3: Create mappings/callsites.json mapping Node.js call expressions to .NET equivalents (e.g., fs.readFileSync → File.ReadAllText, path.join → Path.Combine, crypto.randomUUID → Guid.NewGuid().ToString, os.homedir → Environment.GetFolderPath). Add CallSiteMap.cs in ContinueTranslator.Core/Mapping/ to load this file and expose TryResolve(callee, out string dotNetCall). Wire into MappingEngine so call-site names are resolved at the same pass as type names. Also add a <Content CopyToOutputDirectory="PreserveNewest"> entry for callsites.json in ContinueTranslator.Cli.csproj alongside the existing entries for node-api.json, npm-packages.json, and types.json — without this the CLI crashes at runtime.
 
 ---
 
@@ -118,11 +118,11 @@ TODO-046 [Trans] — Gap 1 (parse.mjs — expressions): Extend parse.mjs to walk
 
 ---
 
-TODO-047 [Trans] — Gap 2 (C# IR): Add TsStatement.cs and TsExpression.cs sealed record hierarchies in ContinueTranslator.Core/IR/ whose shapes match the JSON produced by the updated parse.mjs. Add a Body field (TsStatement[]) to TsMethod and TsFunction records. Update TsParser.cs deserialization (JsonSerializerOptions / source-gen attributes as needed) to populate Body from the new JSON fields.
+TODO-047 [Trans] — Gap 2 (C# IR): Add TsStatement.cs and TsExpression.cs sealed record hierarchies in ContinueTranslator.Core/IR/ whose shapes match the JSON produced by the updated parse.mjs. Add a Body field (TsStatement[]) to TsMethod and TsFunction records. Update TsParser.cs deserialization (JsonSerializerOptions / source-gen attributes as needed) to populate Body from the new JSON fields. Give CsEmitter a constructor that accepts CallSiteMap so the expression emitter (TODO-048) can consult it — CsEmitter is currently stateless; this is the only instance field it needs. Update PipelineRunner to pass the loaded CallSiteMap when constructing CsEmitter.
 
 ---
 
-TODO-048 [Trans] — Gap 2 (expression emitter): Implement CsEmitter.Expressions.cs as a new partial of CsEmitter. Translate each TsExpression IR node to a Roslyn ExpressionSyntax. For TsCallExpression nodes, consult CallSiteMap first; if a .NET replacement is found, emit it verbatim, otherwise emit the original identifier chain. For untranslatable expression kinds, emit a string literal comment placeholder that keeps the file compilable.
+TODO-048 [Trans] — Gap 2 (expression emitter): Implement CsEmitter.Expressions.cs as a new partial of CsEmitter. Translate each TsExpression IR node to a Roslyn ExpressionSyntax. For TsCallExpression nodes, consult the injected CallSiteMap first; if a .NET replacement is found emit it verbatim, otherwise emit the original identifier chain. For untranslatable expression kinds, emit a string literal comment placeholder that keeps the file compilable.
 
 ---
 
@@ -142,9 +142,13 @@ TODO-052 [Trans] — Sync (CLI): Add --generated <path> optional argument to Pro
 
 ---
 
-TODO-053 [Trans] — Re-run the translator after TODO-038–052 are complete. Review output/ for any remaining // TODO stubs in FileSystemIde.cs. Implement those stubs using System.IO.* (file exists, read, write, list directory, walk directory, get file stats). Run the translator with --generated to auto-promote the completed file to src/VSIXProject1/Generated/.
+TODO-053 [Trans] — Tests: ContinueTranslator.Tests is currently empty. Add xUnit tests covering: (a) CallSiteMap.TryResolve for known and unknown entries, (b) GeneratedFolderSync promotion, skip-manual-edit, and skip-has-stubs paths using a temp directory, (c) at least one round-trip test for the statement/expression emitter — a minimal TsMethod with a known body IR should produce the expected C# source text. These tests have no VS SDK dependency and run on dotnet test.
 
 ---
 
-TODO-054 [Trans] — Re-run the translator after TODO-038–052 are complete. Review output/ for remaining // TODO stubs in MessageIde.cs. The _request-pattern methods should now be body-translated automatically. Implement any remaining stubs that require VS SDK access (DTE, IVsRunningDocumentTable, IVsStatusbar) directly in Generated/MessageIde.cs. The manifest protects hand-written bodies from being overwritten on the next translator run. Depends on TODO-052 and TODO-037.
+TODO-054 [Trans] — Re-run the translator after TODO-038–053 are complete. Review output/ for any remaining // TODO stubs in FileSystemIde.cs. Implement those stubs using System.IO.* (file exists, read, write, list directory, walk directory, get file stats). Run the translator with --generated to auto-promote the completed file to src/VSIXProject1/Generated/.
+
+---
+
+TODO-055 [Trans] — Re-run the translator after TODO-038–053 are complete. Review output/ for remaining // TODO stubs in MessageIde.cs. The _request-pattern methods should now be body-translated automatically. Implement any remaining stubs that require VS SDK access (DTE, IVsRunningDocumentTable, IVsStatusbar) directly in Generated/MessageIde.cs. The manifest protects hand-written bodies from being overwritten on the next translator run. Depends on TODO-053 and TODO-037.
 
