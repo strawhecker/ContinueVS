@@ -108,9 +108,14 @@ internal static class GeneratedFolderSync
     // Skip predicates
     // -------------------------------------------------------------------------
 
-    /// <summary>Returns <see langword="true"/> if <paramref name="content"/> contains a <c>// TODO</c> stub marker.</summary>
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="content"/> contains a <c>// TODO</c> stub marker
+    /// or an emitter placeholder comment (<c>/* unknown:</c> / <c>/* untranslatable</c>).
+    /// </summary>
     private static bool HasStubs(string content) =>
-        content.Contains("// TODO", StringComparison.Ordinal);
+        content.Contains("// TODO", StringComparison.Ordinal) ||
+        content.Contains("/* unknown:", StringComparison.Ordinal) ||
+        content.Contains("/* untranslatable", StringComparison.Ordinal);
 
     /// <summary>
     /// Returns <see langword="true"/> if <paramref name="content"/> contains raw TypeScript type names

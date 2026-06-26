@@ -29,9 +29,10 @@ internal sealed partial class CsEmitter
             TsCallExpression call             => EmitCallExpression(call),
             TsConditionalExpression cond      => EmitConditional(cond),
             TsArrowExpression arrow           => EmitArrow(arrow),
-                TsObjectLiteralExpression objLit  => EmitObjectLiteral(objLit),
-                TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
-                TsUnknownExpression unknown       => EmitUnknown(unknown),
+            TsElementAccessExpression elemAccess => EmitElementAccess(elemAccess),
+            TsObjectLiteralExpression objLit  => EmitObjectLiteral(objLit),
+            TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
+            TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
         };
 
@@ -98,6 +99,17 @@ internal sealed partial class CsEmitter
             EmitExpression(mem.Obj),
             IdentifierName(mem.Property));
     }
+
+    // -------------------------------------------------------------------------
+    // Element access (arr[i])
+    // -------------------------------------------------------------------------
+
+    private ExpressionSyntax EmitElementAccess(TsElementAccessExpression elemAccess) =>
+        ElementAccessExpression(
+            EmitExpression(elemAccess.Obj),
+            BracketedArgumentList(
+                SingletonSeparatedList(
+                    Argument(EmitExpression(elemAccess.Index)))));
 
     // -------------------------------------------------------------------------
     // Await

@@ -377,7 +377,10 @@ FodyWeavers.xsd
 /colorMapAllOptions.patch
 
 # Translator-generated C# source — must be committed, not excluded
-!src/VSIXProject1/Generated/
-!src/VSIXProject1/Generated/**
+#ignore for now!
+#!src/VSIXProject1/Generated/
+#!src/VSIXProject1/Generated/**
+src/VSIXProject1/Generated/
+src/VSIXProject1/Generated/**
 
 src/output/

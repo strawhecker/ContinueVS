@@ -324,6 +324,15 @@ function walkExpression(expr) {
             tail: span.getLiteral().getLiteralText(),
           })),
         };
+      case "ElementAccessExpression":
+      case "ElementAccessChain": {
+        const argExpr = expr.getArgumentExpression?.();
+        return {
+          kind: "ElementAccess",
+          object: walkExpression(expr.getExpression()),
+          index: argExpr ? walkExpression(argExpr) : { kind: "Literal", value: "0" },
+        };
+      }
       case "VoidExpression":
         // TypeScript `void expr` evaluates to undefined; C# has no void operator,
         // so just emit the inner expression, discarding the void wrapper.
