@@ -70,8 +70,21 @@ internal sealed partial class SourceFetcher
         string relative = Path.GetRelativePath(repoPath, absolutePath).Replace('\\', '/');
 
         // Filter: extensions/vscode/** and gui/**
-        return relative.StartsWith("extensions/vscode/", StringComparison.OrdinalIgnoreCase)
-            || relative.StartsWith("gui/", StringComparison.OrdinalIgnoreCase);
+        if (relative.StartsWith("extensions/vscode/", StringComparison.OrdinalIgnoreCase)
+            || relative.StartsWith("gui/", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Filter: any path containing __tests__
+        if (relative.Contains("__tests__", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Filter: any folder segment named __tests__ or test
+        string[] segments = relative.Split('/');
+        if (Array.Exists(segments, s => s.Equals("__tests__", StringComparison.OrdinalIgnoreCase)
+                                     || s.Equals("test", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return false;
     }
 }
 
