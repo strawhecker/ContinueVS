@@ -79,11 +79,18 @@ internal sealed partial class CsEmitter
     // Member
     // -------------------------------------------------------------------------
 
-    private ExpressionSyntax EmitMemberExpression(TsMemberExpression mem) =>
-        MemberAccessExpression(
+    private ExpressionSyntax EmitMemberExpression(TsMemberExpression mem)
+    {
+        // TypeScript `this` has no dedicated IR node and arrives as TsUnknownExpression("this").
+        // Strip it so `this.foo` emits as just `foo`.
+        if (mem.Obj is TsUnknownExpression { Text: "this" })
+            return IdentifierName(mem.Property);
+
+        return MemberAccessExpression(
             SyntaxKind.SimpleMemberAccessExpression,
             EmitExpression(mem.Obj),
             IdentifierName(mem.Property));
+    }
 
     // -------------------------------------------------------------------------
     // Await
@@ -189,9 +196,12 @@ internal sealed partial class CsEmitter
     {
         return expr switch
         {
-            TsIdentifierExpression id  => id.Name,
-            TsMemberExpression mem     => BuildCalleeChain(mem.Obj) + "." + mem.Property,
-            _                          => string.Empty,
+            TsIdentifierExpression id                                        => id.Name,
+            // Strip `this.` — the object part is TsUnknownExpression("this")
+            TsMemberExpression { Obj: TsUnknownExpression { Text: "this" } } mem
+                                                                             => mem.Property,
+            TsMemberExpression mem                                           => BuildCalleeChain(mem.Obj) + "." + mem.Property,
+            _                                                                => string.Empty,
         };
     }
 
