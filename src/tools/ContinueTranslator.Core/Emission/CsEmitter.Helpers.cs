@@ -250,6 +250,10 @@ internal sealed partial class CsEmitter
 
         if (text == "Task<void>") text = "Task";
 
+        // TypeScript `any` and `unknown` have no C# equivalent; map to object.
+        if (text is "any" or "unknown") return PredefinedType(Token(SyntaxKind.ObjectKeyword));
+        if (text is "any?" or "unknown?") return NullableType(PredefinedType(Token(SyntaxKind.ObjectKeyword)));
+
         try
         {
             return (TypeSyntax)SyntaxFactory.ParseTypeName(text);

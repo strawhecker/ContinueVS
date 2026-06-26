@@ -29,8 +29,9 @@ internal sealed partial class CsEmitter
             TsCallExpression call             => EmitCallExpression(call),
             TsConditionalExpression cond      => EmitConditional(cond),
             TsArrowExpression arrow           => EmitArrow(arrow),
-            TsObjectLiteralExpression objLit  => EmitObjectLiteral(objLit),
-            TsUnknownExpression unknown       => EmitUnknown(unknown),
+                TsObjectLiteralExpression objLit  => EmitObjectLiteral(objLit),
+                TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
+                TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
         };
 
@@ -328,6 +329,40 @@ internal sealed partial class CsEmitter
         }
 
         return Placeholder("/* untranslatable arrow body */");
+    }
+
+    // -------------------------------------------------------------------------
+    // Template literal (interpolated string)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Translates a TypeScript template literal, e.g. <c>`Hello ${name}!`</c>,
+    /// to a C# interpolated string: <c>$"Hello {name}!"</c>.
+    /// </summary>
+    private ExpressionSyntax EmitTemplateExpression(TsTemplateExpression tmpl)
+    {
+        var contents = new List<InterpolatedStringContentSyntax>();
+
+        // Head — literal text before the first ${ }
+        if (!string.IsNullOrEmpty(tmpl.Head))
+            contents.Add(InterpolatedStringText(
+                Token(TriviaList(), SyntaxKind.InterpolatedStringTextToken, tmpl.Head, tmpl.Head, TriviaList())));
+
+        foreach (TsTemplateSpan span in tmpl.Spans)
+        {
+            // The interpolated expression: {expr}
+            contents.Add(Interpolation(EmitExpression(span.Expression)));
+
+            // Literal tail text that follows the closing }
+            if (!string.IsNullOrEmpty(span.Tail))
+                contents.Add(InterpolatedStringText(
+                    Token(TriviaList(), SyntaxKind.InterpolatedStringTextToken, span.Tail, span.Tail, TriviaList())));
+        }
+
+        return InterpolatedStringExpression(
+            Token(SyntaxKind.InterpolatedStringStartToken),
+            List(contents),
+            Token(SyntaxKind.InterpolatedStringEndToken));
     }
 
     // -------------------------------------------------------------------------
