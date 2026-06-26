@@ -21,6 +21,7 @@ internal sealed partial class CsEmitter
             TsAwaitExpression aw              => EmitAwaitExpression(aw),
             TsBinaryExpression bin            => EmitBinaryExpression(bin),
             TsUnaryExpression unary           => EmitUnaryExpression(unary),
+            TsTypeOfExpression typeOf         => EmitTypeOf(typeOf),
             TsCallExpression call             => EmitCallExpression(call),
             TsConditionalExpression cond      => EmitConditional(cond),
             TsArrowExpression arrow           => EmitArrow(arrow),
@@ -153,6 +154,49 @@ internal sealed partial class CsEmitter
         if (s_assignmentOpMap.TryGetValue(bin.Op, out SyntaxKind assignKind))
             return AssignmentExpression(assignKind, EmitExpression(bin.Left), EmitExpression(bin.Right));
 
+        // TS `typeof x === "typename"` → C# `x is TypeName`
+        if ((bin.Op is "===" or "==") &&
+            bin.Left is TsTypeOfExpression typeofExpr &&
+            bin.Right is TsLiteralExpression { Value: var typeNameLit })
+        {
+            string csTypeName = typeNameLit.Trim('"', '\'') switch
+            {
+                "string"   => "string",
+                "number"   => "double",
+                "boolean"  => "bool",
+                "bigint"   => "System.Numerics.BigInteger",
+                "symbol"   => "object",
+                "function" => "System.Delegate",
+                "object"   => "object",
+                var other  => other,
+            };
+            return IsPatternExpression(
+                EmitExpression(typeofExpr.Expression),
+                TypePattern(ParseTypeSyntax(csTypeName)));
+        }
+
+        // TS `typeof x !== "typename"` → C# `x is not TypeName`
+        if ((bin.Op is "!==" or "!=") &&
+            bin.Left is TsTypeOfExpression typeofExprNe &&
+            bin.Right is TsLiteralExpression { Value: var typeNameLitNe })
+        {
+            string csTypeName = typeNameLitNe.Trim('"', '\'') switch
+            {
+                "string"   => "string",
+                "number"   => "double",
+                "boolean"  => "bool",
+                "bigint"   => "System.Numerics.BigInteger",
+                "symbol"   => "object",
+                "function" => "System.Delegate",
+                "object"   => "object",
+                var other  => other,
+            };
+            return IsPatternExpression(
+                EmitExpression(typeofExprNe.Expression),
+                UnaryPattern(Token(SyntaxKind.NotKeyword),
+                    TypePattern(ParseTypeSyntax(csTypeName))));
+        }
+
         // TS `instanceof` → C# `is T` pattern
         if (bin.Op == "instanceof")
         {
@@ -167,6 +211,24 @@ internal sealed partial class CsEmitter
 
         return BinaryExpression(opKind, EmitExpression(bin.Left), EmitExpression(bin.Right));
     }
+
+    // -------------------------------------------------------------------------
+    // TypeOf
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Fallback for standalone <c>typeof x</c> not consumed by the binary-operator pattern.
+    /// Emits <c>x.GetType().Name</c> as a best-effort approximation.
+    /// </summary>
+    private ExpressionSyntax EmitTypeOf(TsTypeOfExpression typeOf) =>
+        MemberAccessExpression(
+            SyntaxKind.SimpleMemberAccessExpression,
+            InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    EmitExpression(typeOf.Expression),
+                    IdentifierName("GetType"))),
+            IdentifierName("Name"));
 
     // -------------------------------------------------------------------------
     // Unary

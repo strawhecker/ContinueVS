@@ -210,7 +210,11 @@ function walkBody(node) {
     const body = node.getBody?.();
     if (!body) return [];
     const stmts = body.getStatements?.();
-    if (!stmts) return [];
+    if (!stmts) {
+      // Concise expression body (arrow without braces): `(x) => expr`
+      // Wrap in a synthetic Return so the emitter sees a single-expression body.
+      return [{ kind: "Return", expression: walkExprSafe(body) }];
+    }
     return stmts.map(walkStatement);
   } catch {
     return [];
@@ -297,6 +301,11 @@ function walkExpression(expr) {
           operand: walkExpression(expr.getOperand()),
         };
       }
+      case "TypeOfExpression":
+        return {
+          kind: "TypeOf",
+          expression: walkExpression(expr.getExpression()),
+        };
       default:
         return { kind: "Unknown", text: expr.getText() };
     }

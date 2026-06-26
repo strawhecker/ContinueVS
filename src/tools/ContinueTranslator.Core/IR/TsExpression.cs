@@ -15,6 +15,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsConditionalExpression), "Conditional")]
 [JsonDerivedType(typeof(TsArrowExpression), "Arrow")]
 [JsonDerivedType(typeof(TsUnaryExpression), "Unary")]
+[JsonDerivedType(typeof(TsTypeOfExpression), "TypeOf")]
 [JsonDerivedType(typeof(TsUnknownExpression), "Unknown")]
 internal abstract record TsExpression;
 
@@ -39,5 +40,7 @@ internal sealed record TsConditionalExpression(TsExpression Condition, TsExpress
 internal sealed record TsArrowExpression(TsParameter[] Parameters, TsStatement[] Body) : TsExpression;
 
 internal sealed record TsUnaryExpression(string Op, TsExpression Operand) : TsExpression;
+
+internal sealed record TsTypeOfExpression(TsExpression Expression) : TsExpression;
 
 internal sealed record TsUnknownExpression(string Text) : TsExpression;
