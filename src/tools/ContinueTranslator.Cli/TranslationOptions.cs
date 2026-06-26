@@ -9,4 +9,6 @@ internal sealed record TranslationOptions(
     /// <summary>Git tag or branch to check out before scanning.</summary>
     string Tag,
     /// <summary>Absolute path to the output directory for generated C# files.</summary>
-    string OutDirectory);
+    string OutDirectory,
+    /// <summary>Optional absolute path to the Generated/ folder to promote translated files into.</summary>
+    string? GeneratedDirectory = null);

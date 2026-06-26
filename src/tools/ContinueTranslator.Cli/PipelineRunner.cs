@@ -3,6 +3,7 @@ using ContinueTranslator.Core.Emission;
 using ContinueTranslator.Core.IR;
 using ContinueTranslator.Core.Mapping;
 using ContinueTranslator.Core.Parsing;
+using ContinueTranslator.Core.Sync;
 
 namespace ContinueTranslator.Cli;
 
@@ -81,5 +82,14 @@ internal sealed class PipelineRunner
         }
 
         Console.WriteLine($"Wrote {files.Count} file(s) to '{options.OutDirectory}'.");
+
+        // 7. Optionally promote translated files to the Generated/ folder.
+        if (options.GeneratedDirectory is not null)
+        {
+            SyncResult syncResult = GeneratedFolderSync.Sync(files, options.GeneratedDirectory);
+            Console.WriteLine($"Sync promoted: {syncResult.Promoted}");
+            Console.WriteLine($"Sync skipped (manual edit): {syncResult.SkippedManualEdit}");
+            Console.WriteLine($"Sync skipped (has stubs): {syncResult.SkippedHasStubs}");
+        }
     }
 }

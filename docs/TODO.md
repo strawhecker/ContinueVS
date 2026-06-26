@@ -64,10 +64,6 @@ ContinueVS/
 
 ---
 
-TODO-052 [Trans] — Sync (CLI): Add --generated <path> optional argument to Program.cs. Pass it through TranslationOptions. In PipelineRunner.Run(), add step 7: if GeneratedDirectory is set, call GeneratedFolderSync.Sync() and print the SyncResult counts to stdout. Document the argument in the usage message.
-
----
-
 TODO-053 [Trans] — Tests: ContinueTranslator.Tests is currently empty. Add xUnit tests covering: (a) CallSiteMap.TryResolve for known and unknown entries, (b) GeneratedFolderSync promotion, skip-manual-edit, and skip-has-stubs paths using a temp directory, (c) at least one round-trip test for the statement/expression emitter — a minimal TsMethod with a known body IR should produce the expected C# source text. These tests have no VS SDK dependency and run on dotnet test.
 
 ---
