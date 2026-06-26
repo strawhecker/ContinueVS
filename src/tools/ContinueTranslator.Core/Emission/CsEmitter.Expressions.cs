@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis.CSharp;
+﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ContinueTranslator.Core.IR;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
@@ -7,6 +8,9 @@ namespace ContinueTranslator.Core.Emission;
 
 internal sealed partial class CsEmitter
 {
+    // Set to true the first time EmitSpreadMergeCall is used; CollectResults then emits SpreadMerge.cs.
+    private bool _needsSpreadMerge;
+
     /// <summary>
     /// Translates a <see cref="TsExpression"/> IR node to a Roslyn <see cref="ExpressionSyntax"/>.
     /// For untranslatable kinds a string-literal comment placeholder is returned to keep the
@@ -330,8 +334,57 @@ internal sealed partial class CsEmitter
     // Object literal
     // -------------------------------------------------------------------------
 
-    private static ExpressionSyntax EmitObjectLiteral(TsObjectLiteralExpression objLit) =>
-        Placeholder("/* untranslatable object literal */");
+    private ExpressionSyntax EmitObjectLiteral(TsObjectLiteralExpression objLit)
+    {
+        // Spread properties arrive from the parser with Name="..." and Value = walked IR expression.
+        static bool IsSpread(TsObjectProperty p) => p.Name == "..." && p.Value is not null;
+
+        TsObjectProperty[] named   = [.. objLit.Properties.Where(p => !IsSpread(p))];
+        TsObjectProperty[] spreads = [.. objLit.Properties.Where(IsSpread)];
+
+        return (spreads.Length, named.Length) switch
+        {
+            // {}  →  new { }
+            (0, 0) => AnonymousObjectCreationExpression(
+                           SeparatedList<AnonymousObjectMemberDeclaratorSyntax>()),
+
+            // { ...foo }  →  foo
+            (1, 0) => EmitExpression(spreads[0].Value!),
+
+            // { a, b: expr }  →  new { a, b = expr }
+            (0, _) => AnonymousObjectCreationExpression(
+                           SeparatedList(named.Select(EmitNamedMember))),
+
+            // multi-spread / mixed: SpreadMerge.Merge(a, b, …) — last value wins,
+            // null sources silently skipped.  SpreadMerge.cs is auto-emitted into the output.
+            _ => EmitSpreadMergeCall(spreads, named),
+        };
+    }
+
+    private AnonymousObjectMemberDeclaratorSyntax EmitNamedMember(TsObjectProperty p) =>
+        p.Value is not null
+            ? AnonymousObjectMemberDeclarator(NameEquals(IdentifierName(p.Name)), EmitExpression(p.Value))
+            : AnonymousObjectMemberDeclarator(IdentifierName(p.Name));
+
+    private ExpressionSyntax EmitSpreadMergeCall(TsObjectProperty[] spreads, TsObjectProperty[] named)
+    {
+        _needsSpreadMerge = true;
+
+        IEnumerable<ExpressionSyntax> spreadArgs = spreads.Select(p => EmitExpression(p.Value!));
+
+        // Named props, if any, become a trailing anonymous-object argument.
+        IEnumerable<ExpressionSyntax> args = named.Length == 0
+            ? spreadArgs
+            : spreadArgs.Append(AnonymousObjectCreationExpression(
+                  SeparatedList(named.Select(EmitNamedMember))));
+
+        return InvocationExpression(
+            MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                IdentifierName("SpreadMerge"),
+                IdentifierName("Merge")),
+            ArgumentList(SeparatedList(args.Select(Argument))));
+    }
 
     // -------------------------------------------------------------------------
     // Unknown / placeholder

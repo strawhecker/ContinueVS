@@ -265,10 +265,16 @@ function walkExpression(expr) {
       case "ObjectLiteralExpression":
         return {
           kind: "ObjectLiteral",
-          properties: expr.getProperties().map(p => ({
-            name: p.getName?.() ?? p.getText(),
-            value: p.getInitializer ? walkExprSafe(p.getInitializer()) : null,
-          })),
+          properties: expr.getProperties().map(p => {
+            if (p.getKindName() === "SpreadAssignment") {
+              // Spread: { ...expr } — walk the inner expression into the IR.
+              return { name: "...", value: walkExprSafe(p.getExpression()) };
+            }
+            return {
+              name: p.getName?.() ?? p.getText(),
+              value: p.getInitializer ? walkExprSafe(p.getInitializer()) : null,
+            };
+          }),
         };
       case "ConditionalExpression":
         return {
