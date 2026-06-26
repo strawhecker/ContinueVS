@@ -279,12 +279,23 @@ function walkExpression(expr) {
           parameters: expr.getParameters().map(walkParameter),
           body: walkBody(expr),
         };
-      case "PrefixUnaryExpression":
+      case "PrefixUnaryExpression": {
+        // getOperator() returns a SyntaxKind number; map it to its operator text.
+        const prefixOpMap = {
+          [SyntaxKind.ExclamationToken]: "!",
+          [SyntaxKind.MinusToken]: "-",
+          [SyntaxKind.PlusToken]: "+",
+          [SyntaxKind.TildeToken]: "~",
+          [SyntaxKind.PlusPlusToken]: "++",
+          [SyntaxKind.MinusMinusToken]: "--",
+        };
+        const opText = prefixOpMap[expr.getOperator()] ?? "!";
         return {
           kind: "Unary",
-          op: expr.getOperatorToken().getText(),
+          op: opText,
           operand: walkExpression(expr.getOperand()),
         };
+      }
       default:
         return { kind: "Unknown", text: expr.getText() };
     }
