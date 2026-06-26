@@ -279,6 +279,12 @@ function walkExpression(expr) {
           parameters: expr.getParameters().map(walkParameter),
           body: walkBody(expr),
         };
+      case "PrefixUnaryExpression":
+        return {
+          kind: "Unary",
+          op: expr.getOperatorToken().getText(),
+          operand: walkExpression(expr.getOperand()),
+        };
       default:
         return { kind: "Unknown", text: expr.getText() };
     }

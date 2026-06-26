@@ -20,6 +20,7 @@ internal sealed partial class CsEmitter
             TsMemberExpression mem            => EmitMemberExpression(mem),
             TsAwaitExpression aw              => EmitAwaitExpression(aw),
             TsBinaryExpression bin            => EmitBinaryExpression(bin),
+            TsUnaryExpression unary           => EmitUnaryExpression(unary),
             TsCallExpression call             => EmitCallExpression(call),
             TsConditionalExpression cond      => EmitConditional(cond),
             TsArrowExpression arrow           => EmitArrow(arrow),
@@ -165,6 +166,29 @@ internal sealed partial class CsEmitter
             return Placeholder("/* untranslatable binary op */");
 
         return BinaryExpression(opKind, EmitExpression(bin.Left), EmitExpression(bin.Right));
+    }
+
+    // -------------------------------------------------------------------------
+    // Unary
+    // -------------------------------------------------------------------------
+
+    private static readonly Dictionary<string, SyntaxKind> s_prefixUnaryOpMap =
+        new(StringComparer.Ordinal)
+        {
+            ["!"]  = SyntaxKind.LogicalNotExpression,
+            ["-"]  = SyntaxKind.UnaryMinusExpression,
+            ["+"]  = SyntaxKind.UnaryPlusExpression,
+            ["~"]  = SyntaxKind.BitwiseNotExpression,
+            ["++"] = SyntaxKind.PreIncrementExpression,
+            ["--"] = SyntaxKind.PreDecrementExpression,
+        };
+
+    private ExpressionSyntax EmitUnaryExpression(TsUnaryExpression unary)
+    {
+        if (!s_prefixUnaryOpMap.TryGetValue(unary.Op, out SyntaxKind opKind))
+            return Placeholder($"/* untranslatable unary op: {unary.Op} */");
+
+        return PrefixUnaryExpression(opKind, EmitExpression(unary.Operand));
     }
 
     // -------------------------------------------------------------------------
