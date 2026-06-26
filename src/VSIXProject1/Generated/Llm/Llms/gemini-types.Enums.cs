@@ -1,0 +1,82 @@
+namespace ContinueCore.Llm.Llms;
+public enum BlockReason
+{
+    // TS value: "BLOCK_REASON_UNSPECIFIED"
+    BLOCK_REASON_UNSPECIFIED,
+    // TS value: "SAFETY"
+    SAFETY,
+    // TS value: "OTHER"
+    OTHER,
+    // TS value: "BLOCKLIST"
+    BLOCKLIST,
+    // TS value: "PROHIBITED_CONTENT"
+    PROHIBITED_CONTENT
+}
+
+public enum HarmCategory
+{
+    // TS value: "HARM_CATEGORY_UNSPECIFIED"
+    HARM_CATEGORY_UNSPECIFIED,
+    // TS value: "HARM_CATEGORY_DEROGATORY"
+    HARM_CATEGORY_DEROGATORY,
+    // TS value: "HARM_CATEGORY_TOXICITY"
+    HARM_CATEGORY_TOXICITY,
+    // TS value: "HARM_CATEGORY_VIOLENCE"
+    HARM_CATEGORY_VIOLENCE,
+    // TS value: "HARM_CATEGORY_SEXUAL"
+    HARM_CATEGORY_SEXUAL,
+    // TS value: "HARM_CATEGORY_MEDICAL"
+    HARM_CATEGORY_MEDICAL,
+    // TS value: "HARM_CATEGORY_DANGEROUS"
+    HARM_CATEGORY_DANGEROUS,
+    // TS value: "HARM_CATEGORY_HARASSMENT"
+    HARM_CATEGORY_HARASSMENT,
+    // TS value: "HARM_CATEGORY_HATE_SPEECH"
+    HARM_CATEGORY_HATE_SPEECH,
+    // TS value: "HARM_CATEGORY_SEXUALLY_EXPLICIT"
+    HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    // TS value: "HARM_CATEGORY_DANGEROUS_CONTENT"
+    HARM_CATEGORY_DANGEROUS_CONTENT,
+    // TS value: "HARM_CATEGORY_CIVIC_INTEGRITY"
+    HARM_CATEGORY_CIVIC_INTEGRITY
+}
+
+public enum HarmProbability
+{
+    // TS value: "HARM_PROBABILITY_UNSPECIFIED"
+    HARM_PROBABILITY_UNSPECIFIED,
+    // TS value: "NEGLIGIBLE"
+    NEGLIGIBLE,
+    // TS value: "LOW"
+    LOW,
+    // TS value: "MEDIUM"
+    MEDIUM,
+    // TS value: "HIGH"
+    HIGH
+}
+
+public enum FinishReason
+{
+    // TS value: "FINISH_REASON_UNSPECIFIED"
+    FINISH_REASON_UNSPECIFIED,
+    // TS value: "STOP"
+    STOP,
+    // TS value: "MAX_TOKENS"
+    MAX_TOKENS,
+    // TS value: "SAFETY"
+    SAFETY,
+    // TS value: "RECITATION"
+    RECITATION,
+    // TS value: "LANGUAGE"
+    LANGUAGE,
+    // TS value: "OTHER"
+    OTHER,
+    // TS value: "BLOCKLIST"
+    BLOCKLIST,
+    // TS value: "PROHIBITED_CONTENT"
+    PROHIBITED_CONTENT,
+    // TS value: "SPII"
+    SPII,
+    // TS value: "MALFORMED_FUNCTION_CALL"
+    MALFORMED_FUNCTION_CALL
+}
