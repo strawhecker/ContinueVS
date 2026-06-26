@@ -312,6 +312,10 @@ function walkExpression(expr) {
           kind: "TypeOf",
           expression: walkExpression(expr.getExpression()),
         };
+      case "VoidExpression":
+        // TypeScript `void expr` evaluates to undefined; C# has no void operator,
+        // so just emit the inner expression, discarding the void wrapper.
+        return walkExpression(expr.getExpression());
       default:
         return { kind: "Unknown", text: expr.getText() };
     }
