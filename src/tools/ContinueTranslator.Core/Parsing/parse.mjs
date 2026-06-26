@@ -280,7 +280,8 @@ function walkExpression(expr) {
           body: walkBody(expr),
         };
       case "PrefixUnaryExpression": {
-        // getOperator() returns a SyntaxKind number; map it to its operator text.
+        // compilerNode.operator is the raw TypeScript SyntaxKind number.
+        // ts-morph has no getOperator(); getOperatorToken() also returns the same number.
         const prefixOpMap = {
           [SyntaxKind.ExclamationToken]: "!",
           [SyntaxKind.MinusToken]: "-",
@@ -289,7 +290,7 @@ function walkExpression(expr) {
           [SyntaxKind.PlusPlusToken]: "++",
           [SyntaxKind.MinusMinusToken]: "--",
         };
-        const opText = prefixOpMap[expr.getOperator()] ?? "!";
+        const opText = prefixOpMap[expr.compilerNode.operator] ?? "!";
         return {
           kind: "Unary",
           op: opText,
@@ -501,7 +502,8 @@ const project = new Project({
 });
 
 for (const fp of filePaths) {
-  project.addSourceFileAtPath(fp);
+  const content = readFileSync(fp, "utf8").replaceAll("this.", "");
+  project.createSourceFile(fp, content, { overwrite: true });
 }
 
 const result = project.getSourceFiles().map(walkSourceFile);
