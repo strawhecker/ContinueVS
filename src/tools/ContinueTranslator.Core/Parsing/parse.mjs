@@ -246,6 +246,9 @@ function walkExpression(expr) {
           kind: "Await",
           expression: walkExpression(expr.getExpression()),
         };
+      case "ParenthesizedExpression":
+        // Unwrap — parentheses carry no semantic weight in the IR.
+        return walkExpression(expr.getExpression());
       case "BinaryExpression":
         return {
           kind: "Binary",
