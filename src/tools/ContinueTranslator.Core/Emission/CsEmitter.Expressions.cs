@@ -31,6 +31,7 @@ internal sealed partial class CsEmitter
             TsArrowExpression arrow           => EmitArrow(arrow),
             TsElementAccessExpression elemAccess => EmitElementAccess(elemAccess),
             TsObjectLiteralExpression objLit  => EmitObjectLiteral(objLit),
+            TsArrayLiteralExpression arrLit   => EmitArrayLiteral(arrLit),
             TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
             TsAsExpression asExpr             => EmitAsExpression(asExpr),
             TsUnknownExpression unknown       => EmitUnknown(unknown),
@@ -447,6 +448,29 @@ internal sealed partial class CsEmitter
                 IdentifierName("SpreadMerge"),
                 IdentifierName("Merge")),
             ArgumentList(SeparatedList(args.Select(Argument))));
+    }
+
+    // -------------------------------------------------------------------------
+    // Array literal
+    // -------------------------------------------------------------------------
+
+    private ExpressionSyntax EmitArrayLiteral(TsArrayLiteralExpression arrLit)
+    {
+        // Array literal: [a, b, c] → new[] { a, b, c }
+        if (arrLit.Elements.Length == 0)
+        {
+            // Empty array: [] → Array.Empty<T>() or new T[0]
+            // We'll use explicit array initializer syntax for simplicity
+            return ImplicitArrayCreationExpression(
+                InitializerExpression(
+                    SyntaxKind.ArrayInitializerExpression,
+                    SeparatedList<ExpressionSyntax>()));
+        }
+
+        return ImplicitArrayCreationExpression(
+            InitializerExpression(
+                SyntaxKind.ArrayInitializerExpression,
+                SeparatedList(arrLit.Elements.Select(EmitExpression))));
     }
 
     // -------------------------------------------------------------------------

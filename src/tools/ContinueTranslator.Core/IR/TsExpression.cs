@@ -12,6 +12,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsLiteralExpression), "Literal")]
 [JsonDerivedType(typeof(TsIdentifierExpression), "Identifier")]
 [JsonDerivedType(typeof(TsObjectLiteralExpression), "ObjectLiteral")]
+[JsonDerivedType(typeof(TsArrayLiteralExpression), "ArrayLiteral")]
 [JsonDerivedType(typeof(TsConditionalExpression), "Conditional")]
 [JsonDerivedType(typeof(TsArrowExpression), "Arrow")]
 [JsonDerivedType(typeof(TsUnaryExpression), "Unary")]
@@ -40,6 +41,8 @@ internal sealed record TsLiteralExpression(string Value) : TsExpression;
 internal sealed record TsIdentifierExpression(string Name) : TsExpression;
 
 internal sealed record TsObjectLiteralExpression(TsObjectProperty[] Properties) : TsExpression;
+
+internal sealed record TsArrayLiteralExpression(TsExpression[] Elements) : TsExpression;
 
 internal sealed record TsConditionalExpression(TsExpression Condition, TsExpression WhenTrue, TsExpression WhenFalse) : TsExpression;
 

@@ -37,7 +37,14 @@ internal sealed record TsWhileStatement(TsExpression? Condition, TsStatement[] S
 
 internal sealed record TsTryStatement(TsStatement[] TryStatements, TsStatement[] CatchStatements) : TsStatement;
 
-internal sealed record TsVarStatement(string Name, TsExpression? Initializer) : TsStatement;
+/// <summary>
+/// Represents a variable declaration. Supports single and destructuring patterns.
+/// For single variables: Name = "x", Names = null
+/// For array destructuring: Name = null, Names = ["a", "b"]
+/// For object destructuring: Name = null, Names = ["prop1", "prop2"] (from extracted properties)
+/// </summary>
+internal sealed record TsVarStatement(string? Name, TsExpression? Initializer, string[]? Names = null) : TsStatement;
+
 
 internal sealed record TsExpressionStatement(TsExpression? Expression) : TsStatement;
 

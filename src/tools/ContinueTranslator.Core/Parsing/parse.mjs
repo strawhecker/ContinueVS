@@ -139,6 +139,47 @@ function walkProperty(prop) {
 }
 
 /**
+ * Extracts variable names from a destructuring pattern.
+ * For array patterns like [a, b, c], returns ["a", "b", "c"].
+ * For object patterns like {x, y}, returns ["x", "y"].
+ * @param {import("ts-morph").Node} nameNode
+ * @returns {string[] | null}
+ */
+function extractDestructuringNames(nameNode) {
+  if (!nameNode) return null;
+
+  const kindName = nameNode.getKindName?.();
+
+  // Array destructuring pattern: [a, b, c]
+  if (kindName === "ArrayBindingPattern") {
+    const elements = nameNode.getElements?.() ?? [];
+    const names = [];
+    for (const elem of elements) {
+      const name = elem.getName?.();
+      if (name) {
+        names.push(name);
+      }
+    }
+    return names.length > 0 ? names : null;
+  }
+
+  // Object destructuring pattern: {x, y, z}
+  if (kindName === "ObjectBindingPattern") {
+    const elements = nameNode.getElements?.() ?? [];
+    const names = [];
+    for (const elem of elements) {
+      const name = elem.getName?.();
+      if (name) {
+        names.push(name);
+      }
+    }
+    return names.length > 0 ? names : null;
+  }
+
+  return null;
+}
+
+/**
  * @param {import("ts-morph").Statement} stmt
  * @returns {object}
  */
@@ -183,11 +224,37 @@ function walkStatement(stmt) {
         };
       case "VariableStatement": {
         const decls = stmt.getDeclarations?.() ?? [];
-        return {
-          kind: "Var",
-          name: decls[0]?.getName?.() ?? "",
-          initializer: walkExprSafe(decls[0]?.getInitializer?.()),
-        };
+        const firstDecl = decls[0];
+        if (!firstDecl) {
+          return {
+            kind: "Var",
+            name: null,
+            names: null,
+            initializer: null,
+          };
+        }
+
+        // Check if this is a destructuring declaration
+        const nameNode = firstDecl.getNameNode?.();
+        const destructuredNames = extractDestructuringNames(nameNode);
+
+        if (destructuredNames) {
+          // Destructuring pattern
+          return {
+            kind: "Var",
+            name: null,
+            names: destructuredNames,
+            initializer: walkExprSafe(firstDecl.getInitializer?.()),
+          };
+        } else {
+          // Regular single variable
+          return {
+            kind: "Var",
+            name: firstDecl.getName?.() ?? "",
+            names: null,
+            initializer: walkExprSafe(firstDecl.getInitializer?.()),
+          };
+        }
       }
       case "ExpressionStatement":
         return { kind: "ExpressionStatement", expression: walkExprSafe(stmt.getExpression?.()) };
@@ -278,6 +345,11 @@ function walkExpression(expr) {
               value: p.getInitializer ? walkExprSafe(p.getInitializer()) : null,
             };
           }),
+        };
+      case "ArrayLiteralExpression":
+        return {
+          kind: "ArrayLiteral",
+          elements: expr.getElements().map(walkExpression),
         };
       case "ConditionalExpression":
         return {

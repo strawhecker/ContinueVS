@@ -48,10 +48,32 @@ internal sealed partial class CsEmitter
 
     private StatementSyntax EmitVar(TsVarStatement stmt)
     {
+        // Handle destructuring patterns (array or object)
+        if (stmt.Names is not null && stmt.Names.Length > 0)
+        {
+            // Destructuring: const [a, b] = expr → var (a, b) = expr;
+            // or: const {x, y} = expr → var (x, y) = expr;
+
+            if (stmt.Initializer is null)
+            {
+                // No initializer, can't emit proper deconstruction
+                // Fallback to a comment placeholder
+                return ParseStatement($"// TODO: destructuring without initializer for {string.Join(", ", stmt.Names)}\n");
+            }
+
+            // Generate the tuple deconstruction pattern text
+            string varNames = string.Join(", ", stmt.Names);
+            string initText = EmitExpression(stmt.Initializer).NormalizeWhitespace().ToFullString();
+
+            // Emit: var (a, b, c) = expr;
+            return ParseStatement($"var ({varNames}) = {initText};\n");
+        }
+
+        // Handle regular single variable declaration
         // TsVarStatement carries no declared type; always use var.
         TypeSyntax typeSyntax = IdentifierName("var");
 
-        VariableDeclaratorSyntax declarator = VariableDeclarator(Identifier(stmt.Name));
+        VariableDeclaratorSyntax declarator = VariableDeclarator(Identifier(stmt.Name ?? "_"));
         if (stmt.Initializer is not null)
             declarator = declarator.WithInitializer(
                 EqualsValueClause(EmitExpression(stmt.Initializer)));
