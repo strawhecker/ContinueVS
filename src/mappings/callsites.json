@@ -33,6 +33,8 @@
   "String.includes":   "Contains",
   "String.split":      "Split",
   "String.trim":       "Trim",
-  "String.replace":    "Replace"
+  "String.replace":    "Replace",
+  "Date.now":          "System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()",
+  "DateTimeOffset.toISOString": "ToString(\"O\")"
 }
 

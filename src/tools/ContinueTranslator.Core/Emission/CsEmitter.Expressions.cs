@@ -27,6 +27,7 @@ internal sealed partial class CsEmitter
             TsUnaryExpression unary           => EmitUnaryExpression(unary),
             TsTypeOfExpression typeOf         => EmitTypeOf(typeOf),
             TsCallExpression call             => EmitCallExpression(call),
+            TsNewExpression newExpr           => EmitNewExpression(newExpr),
             TsConditionalExpression cond      => EmitConditional(cond),
             TsArrowExpression arrow           => EmitArrow(arrow),
             TsElementAccessExpression elemAccess => EmitElementAccess(elemAccess),
@@ -333,6 +334,32 @@ internal sealed partial class CsEmitter
             TsMemberExpression mem                                           => BuildCalleeChain(mem.Obj) + "." + mem.Property,
             _                                                                => string.Empty,
         };
+    }
+
+    /// <summary>
+    /// Translates TypeScript <c>new</c> expressions to C# object creation expressions.
+    /// Handles special cases like <c>new Date()</c> → <c>System.DateTimeOffset.UtcNow</c>.
+    /// </summary>
+    private ExpressionSyntax EmitNewExpression(TsNewExpression newExpr)
+    {
+        string typeName = newExpr.Type switch
+        {
+            TsIdentifierExpression id => id.Name,
+            _ => string.Empty
+        };
+
+        // Special handling for Date constructor: `new Date()` → `System.DateTimeOffset.UtcNow`
+        if (typeName == "Date")
+        {
+            return ParseExpression("System.DateTimeOffset.UtcNow");
+        }
+
+        // General case: emit as `new TypeName(args)`
+        ArgumentListSyntax argList = ArgumentList(
+            SeparatedList(newExpr.Args.Select(a => Argument(EmitExpression(a)))));
+
+        TypeSyntax type = ParseTypeSyntax(typeName);
+        return ObjectCreationExpression(type, argList, initializer: null);
     }
 
     // -------------------------------------------------------------------------

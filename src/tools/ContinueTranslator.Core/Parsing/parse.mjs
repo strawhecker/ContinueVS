@@ -303,6 +303,12 @@ function walkExpression(expr) {
           callee: walkExpression(expr.getExpression()),
           args: expr.getArguments().map(walkExpression),
         };
+      case "NewExpression":
+        return {
+          kind: "New",
+          type: walkExpression(expr.getExpression()),
+          args: expr.getArguments().map(walkExpression),
+        };
       case "PropertyAccessExpression":
         return {
           kind: "Member",

@@ -6,6 +6,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(TsCallExpression), "Call")]
+[JsonDerivedType(typeof(TsNewExpression), "New")]
 [JsonDerivedType(typeof(TsMemberExpression), "Member")]
 [JsonDerivedType(typeof(TsAwaitExpression), "Await")]
 [JsonDerivedType(typeof(TsBinaryExpression), "Binary")]
@@ -27,6 +28,8 @@ internal abstract record TsExpression;
 internal sealed record TsTemplateSpan(TsExpression Expression, string Tail);
 
 internal sealed record TsCallExpression(TsExpression Callee, TsExpression[] Args) : TsExpression;
+
+internal sealed record TsNewExpression(TsExpression Type, TsExpression[] Args) : TsExpression;
 
 internal sealed record TsMemberExpression(
     [property: JsonPropertyName("object")] TsExpression Obj,
