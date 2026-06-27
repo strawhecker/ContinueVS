@@ -316,6 +316,40 @@ internal sealed partial class CsEmitter
             return InvocationExpression(callee, argList);
         }
 
+        // Fallback: try array method mapping (e.g., rifs.map → Array.map → System.Linq.Enumerable.Select)
+        if (call.Callee is TsMemberExpression memberExpr)
+        {
+            string methodName = memberExpr.Property;
+            string arrayMethodKey = "Array." + methodName;
+
+            if (_callSiteMap.TryResolve(arrayMethodKey, out string dotNetArrayMethod))
+            {
+                // For array methods, apply the mapped method call on the object.
+                // Handles both:
+                //   - Simple names: "Select" → obj.Select(...)
+                //   - Qualified names: "System.Linq.Enumerable.Select" → Enumerable.Select(obj, ...)
+
+                ExpressionSyntax obj = EmitExpression(memberExpr.Obj);
+
+                // If the mapping is a fully-qualified static method, use it directly
+                if (dotNetArrayMethod.Contains('.'))
+                {
+                    // Parse as full expression (e.g., "System.Linq.Enumerable.Select")
+                    ExpressionSyntax callee = ParseExpression(dotNetArrayMethod);
+                    return InvocationExpression(callee, argList.AddArguments(
+                        Argument(obj)));
+                }
+
+                // Simple method name - use as instance method call
+                return InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        obj,
+                        IdentifierName(dotNetArrayMethod)),
+                    argList);
+            }
+        }
+
         return InvocationExpression(EmitExpression(call.Callee), argList);
     }
 
