@@ -19,6 +19,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsTemplateExpression), "Template")]
 [JsonDerivedType(typeof(TsUnknownExpression), "Unknown")]
 [JsonDerivedType(typeof(TsElementAccessExpression), "ElementAccess")]
+[JsonDerivedType(typeof(TsAsExpression), "As")]
 internal abstract record TsExpression;
 
 /// <summary>One interpolated span: the expression inside <c>${…}</c> and the literal tail that follows it.</summary>
@@ -59,5 +60,7 @@ internal sealed record TsTemplateExpression(string Head, TsTemplateSpan[] Spans)
 internal sealed record TsElementAccessExpression(
     [property: JsonPropertyName("object")] TsExpression Obj,
     TsExpression Index) : TsExpression;
+
+internal sealed record TsAsExpression(TsExpression Expression, string Type) : TsExpression;
 
 internal sealed record TsUnknownExpression(string Text) : TsExpression;

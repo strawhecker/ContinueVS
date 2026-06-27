@@ -171,9 +171,37 @@ internal sealed partial class MappingEngine
         // Handle TypeScript union-with-null (e.g. "string | null") → nullable C# type (e.g. "string?").
         if (typeRef.Text.EndsWith(" | null", StringComparison.Ordinal))
         {
+            const string Suffix = " | null";
+            int suffixLen = Suffix.Length;
+
+            string strippedText = typeRef.Text.Substring(0, typeRef.Text.Length - suffixLen).Trim();
+            string strippedName = typeRef.Name.EndsWith(Suffix, StringComparison.Ordinal)
+                ? typeRef.Name.Substring(0, typeRef.Name.Length - suffixLen).Trim()
+                : typeRef.Name;
+
             var strippedRef = new TsTypeRef(
-                Text: typeRef.Text[..^" | null".Length].Trim(),
-                Name: typeRef.Name[..^" | null".Length].Trim(),
+                Text: strippedText,
+                Name: strippedName,
+                TypeArgs: typeRef.TypeArgs,
+                IsArray: typeRef.IsArray);
+            var (inner, wasResolved) = ResolveTypeRef(strippedRef);
+            return (inner with { Text = inner.Text + "?" }, wasResolved);
+        }
+
+        // Handle TypeScript union-with-undefined (e.g. "string | undefined") → nullable C# type (e.g. "string?").
+        if (typeRef.Text.EndsWith(" | undefined", StringComparison.Ordinal))
+        {
+            const string Suffix = " | undefined";
+            int suffixLen = Suffix.Length;
+
+            string strippedText = typeRef.Text.Substring(0, typeRef.Text.Length - suffixLen).Trim();
+            string strippedName = typeRef.Name.EndsWith(Suffix, StringComparison.Ordinal)
+                ? typeRef.Name.Substring(0, typeRef.Name.Length - suffixLen).Trim()
+                : typeRef.Name;
+
+            var strippedRef = new TsTypeRef(
+                Text: strippedText,
+                Name: strippedName,
                 TypeArgs: typeRef.TypeArgs,
                 IsArray: typeRef.IsArray);
             var (inner, wasResolved) = ResolveTypeRef(strippedRef);

@@ -32,6 +32,7 @@ internal sealed partial class CsEmitter
             TsElementAccessExpression elemAccess => EmitElementAccess(elemAccess),
             TsObjectLiteralExpression objLit  => EmitObjectLiteral(objLit),
             TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
+            TsAsExpression asExpr             => EmitAsExpression(asExpr),
             TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
         };
@@ -246,6 +247,21 @@ internal sealed partial class CsEmitter
                     EmitExpression(typeOf.Expression),
                     IdentifierName("GetType"))),
             IdentifierName("Name"));
+
+    // -------------------------------------------------------------------------
+    // As (type cast)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Translates TypeScript `as` type assertions to C# cast syntax.
+    /// <c>expr as TypeName</c> → <c>(TypeName)expr</c>
+    /// </summary>
+    private ExpressionSyntax EmitAsExpression(TsAsExpression asExpr)
+    {
+        ExpressionSyntax inner = EmitExpression(asExpr.Expression);
+        TypeSyntax targetType = ParseTypeSyntax(asExpr.Type);
+        return CastExpression(targetType, inner);
+    }
 
     // -------------------------------------------------------------------------
     // Unary

@@ -333,6 +333,12 @@ function walkExpression(expr) {
           index: argExpr ? walkExpression(argExpr) : { kind: "Literal", value: "0" },
         };
       }
+      case "AsExpression":
+        return {
+          kind: "As",
+          expression: walkExpression(expr.getExpression()),
+          type: expr.getTypeNode().getText(),
+        };
       case "VoidExpression":
         // TypeScript `void expr` evaluates to undefined; C# has no void operator,
         // so just emit the inner expression, discarding the void wrapper.
