@@ -183,8 +183,12 @@ internal sealed partial class CsEmitter
         BlockSyntax tryBlock = Block(
             List(stmt.TryStatements.Select(s => EmitStatement(s, filePath))));
 
-        // TsTryStatement carries no per-catch variable or type metadata; emit one
-        // catch clause typed as Exception with no declared catch variable.
+        // Use the catch variable name from the TypeScript source if available,
+        // otherwise default to "ex".
+        string catchVarName = !string.IsNullOrWhiteSpace(stmt.CatchVariableName) 
+            ? stmt.CatchVariableName 
+            : "ex";
+
         SyntaxList<CatchClauseSyntax> catchClauses = default;
         if (stmt.CatchStatements.Length > 0)
         {
@@ -192,7 +196,8 @@ internal sealed partial class CsEmitter
                 List(stmt.CatchStatements.Select(s => EmitStatement(s, filePath))));
 
             CatchDeclarationSyntax catchDecl = CatchDeclaration(
-                ParseTypeSyntax("Exception"));
+                ParseTypeSyntax("Exception"),
+                Identifier(catchVarName));
 
             catchClauses = SingletonList(CatchClause(catchDecl, null, catchBlock));
         }

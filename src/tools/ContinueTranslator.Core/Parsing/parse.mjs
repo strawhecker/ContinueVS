@@ -221,6 +221,7 @@ function walkStatement(stmt) {
           kind: "Try",
           tryStatements: stmt.getTryBlock?.()?.getStatements?.()?.map(walkStatement) ?? [],
           catchStatements: stmt.getCatchClause?.()?.getBlock?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          catchVariableName: stmt.getCatchClause?.()?.getParameter?.()?.getName?.() ?? null,
         };
       case "VariableStatement": {
         const decls = stmt.getDeclarations?.() ?? [];

@@ -42,8 +42,15 @@ internal sealed partial class CsEmitter
     // Identifier
     // -------------------------------------------------------------------------
 
-    private static ExpressionSyntax EmitIdentifier(TsIdentifierExpression id) =>
-        IdentifierName(id.Name);
+    private static ExpressionSyntax EmitIdentifier(TsIdentifierExpression id)
+    {
+        // TypeScript 'undefined' should map to C# 'null' or 'default' depending on context.
+        // For simplicity, emit 'null' as it works for both reference and nullable value types.
+        if (id.Name == "undefined")
+            return LiteralExpression(SyntaxKind.NullLiteralExpression);
+
+        return IdentifierName(id.Name);
+    }
 
     // -------------------------------------------------------------------------
     // Literal
@@ -54,6 +61,9 @@ internal sealed partial class CsEmitter
         string v = lit.Value;
 
         if (v == "null")
+            return LiteralExpression(SyntaxKind.NullLiteralExpression);
+
+        if (v == "undefined")
             return LiteralExpression(SyntaxKind.NullLiteralExpression);
 
         if (v == "true")

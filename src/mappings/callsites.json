@@ -14,5 +14,25 @@
   "os.tmpdir":         "System.IO.Path.GetTempPath()",
   "os.platform":       "System.Runtime.InteropServices.RuntimeInformation.OSDescription",
   "JSON.stringify":    "System.Text.Json.JsonSerializer.Serialize",
-  "JSON.parse":        "System.Text.Json.JsonSerializer.Deserialize"
+  "JSON.parse":        "System.Text.Json.JsonSerializer.Deserialize",
+  "console.log":       "System.Console.WriteLine",
+  "console.warn":      "System.Diagnostics.Debug.WriteLine",
+  "console.error":     "System.Diagnostics.Debug.WriteLine",
+  "Set.has":           "Contains",
+  "Set.add":           "Add",
+  "Set.delete":        "Remove",
+  "Map.has":           "ContainsKey",
+  "Map.get":           "TryGetValue",
+  "Map.set":           "indexer",
+  "Array.some":        "Any",
+  "Array.every":       "All",
+  "Array.find":        "FirstOrDefault",
+  "Array.filter":      "Where",
+  "Array.map":         "Select",
+  "Array.includes":    "Contains",
+  "String.includes":   "Contains",
+  "String.split":      "Split",
+  "String.trim":       "Trim",
+  "String.replace":    "Replace"
 }
+

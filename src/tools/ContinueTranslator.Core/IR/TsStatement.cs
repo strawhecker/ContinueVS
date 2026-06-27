@@ -35,7 +35,7 @@ internal sealed record TsForOfStatement(
 
 internal sealed record TsWhileStatement(TsExpression? Condition, TsStatement[] Statements) : TsStatement;
 
-internal sealed record TsTryStatement(TsStatement[] TryStatements, TsStatement[] CatchStatements) : TsStatement;
+internal sealed record TsTryStatement(TsStatement[] TryStatements, TsStatement[] CatchStatements, string? CatchVariableName = null) : TsStatement;
 
 /// <summary>
 /// Represents a variable declaration. Supports single and destructuring patterns.
