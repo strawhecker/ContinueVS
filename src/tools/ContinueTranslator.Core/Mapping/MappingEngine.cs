@@ -17,6 +17,7 @@ internal sealed partial class MappingEngine
     private readonly NpmPackageMap _npmPackage;
     private readonly TypeMap _typeMap;
     private readonly CallSiteMap _callSiteMap;
+    private HashSet<string> _localTypes = new(StringComparer.Ordinal);
 
     public MappingEngine(NodeApiMap nodeApi, NpmPackageMap npmPackage, TypeMap typeMap, CallSiteMap callSiteMap)
     {
@@ -39,7 +40,37 @@ internal sealed partial class MappingEngine
     public TsFile[] Apply(TsFile[] files)
     {
         ArgumentNullException.ThrowIfNull(files);
+
+        // First pass: collect all locally-defined types (classes, interfaces, enums)
+        _localTypes = CollectLocalTypes(files);
+
         return [.. files.Select(ApplyFile)];
+    }
+
+    /// <summary>
+    /// Collects all class, interface, enum, and type alias names defined across all files.
+    /// These are considered "local types" and should not trigger TODO comments when used.
+    /// </summary>
+    private static HashSet<string> CollectLocalTypes(TsFile[] files)
+    {
+        var local = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var file in files)
+        {
+            foreach (var cls in file.Classes)
+                local.Add(cls.Name);
+
+            foreach (var iface in file.Interfaces)
+                local.Add(iface.Name);
+
+            foreach (var enumm in file.Enums)
+                local.Add(enumm.Name);
+
+            foreach (var alias in file.TypeAliases)
+                local.Add(alias.Name);
+        }
+
+        return local;
     }
 
     private TsFile ApplyFile(TsFile file) => file with
@@ -240,7 +271,8 @@ internal sealed partial class MappingEngine
     }
 
     /// <summary>
-    /// Resolves a single type base name against TypeMap, NodeApiMap, and NpmPackageMap.
+    /// Resolves a single type base name against TypeMap, NodeApiMap, NpmPackageMap, local types, and CallSiteMap.
+    /// Local types defined in the source files are considered "resolved" to prevent false TODO markers.
     /// </summary>
     private string ResolveName(string name, out bool resolved)
     {
@@ -277,6 +309,14 @@ internal sealed partial class MappingEngine
         {
             resolved = true;
             return callSiteResult;
+        }
+
+        // Local types (classes, interfaces, enums, aliases defined in source files).
+        // These are considered "resolved" to avoid marking them as TODO.
+        if (_localTypes.Contains(name))
+        {
+            resolved = true;
+            return name;
         }
 
         // Unresolved — return the original name, caller decides whether to tag.
