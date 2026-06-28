@@ -27,8 +27,15 @@ internal sealed partial class CsEmitter
             TsForStatement forStmt         => EmitFor(forStmt, filePath),
             TsForOfStatement forOfStmt     => EmitForOf(forOfStmt, filePath),
             TsTryStatement tryStmt         => EmitTry(tryStmt, filePath),
+            TsUnknownStatement unknown     => EmitUnknownStatement(unknown),
             _                              => ParseStatement($"// TODO: untranslatable — {filePath}\n"),
         };
+    }
+
+    private StatementSyntax EmitUnknownStatement(TsUnknownStatement unknown)
+    {
+        // Try to parse as a simple statement first
+        return ParseStatement(unknown.Text);
     }
 
     private StatementSyntax EmitReturn(TsReturnStatement stmt) =>

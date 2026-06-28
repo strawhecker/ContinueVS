@@ -217,10 +217,10 @@ internal sealed partial class CsEmitter
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="body"/> has no translatable statements,
-    /// i.e. it is null, empty, or every element is a <see cref="TsUnknownStatement"/>.
+    /// i.e. it is null or empty. Unknown statements are still emitted as raw text.
     /// </summary>
     private static bool IsBodyEmpty(TsStatement[]? body) =>
-        body is null || body.Length == 0 || body.All(static s => s is TsUnknownStatement);
+        body is null || body.Length == 0;
 
     // -------------------------------------------------------------------------
     // Type-name helpers

@@ -397,6 +397,8 @@ internal sealed partial class CsEmitter
             TsMemberExpression { Obj: TsUnknownExpression { Text: "this" } } mem
                                                                              => mem.Property,
             TsMemberExpression mem                                           => BuildCalleeChain(mem.Obj) + "." + mem.Property,
+            // Unwrap type assertions (e.g., (expr as any).method) and continue building the chain
+            TsAsExpression asExpr                                            => BuildCalleeChain(asExpr.Expression),
             _                                                                => string.Empty,
         };
     }
