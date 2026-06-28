@@ -303,6 +303,7 @@ internal sealed partial class CsEmitter
             {
                 "++" => PostfixUnaryExpression(SyntaxKind.PostIncrementExpression, operandExpr),
                 "--" => PostfixUnaryExpression(SyntaxKind.PostDecrementExpression, operandExpr),
+                "!" => PostfixUnaryExpression(SyntaxKind.SuppressNullableWarningExpression, operandExpr),
                 _ => Placeholder($"/* untranslatable postfix op: {baseOp} */"),
             };
         }

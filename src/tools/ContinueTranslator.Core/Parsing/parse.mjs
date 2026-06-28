@@ -442,6 +442,14 @@ function walkExpression(expr) {
           kind: "Spread",
           expression: walkExpression(expr.getExpression()),
         };
+      case "NonNullExpression":
+        // TypeScript non-null assertion: expr!
+        // Emit as a postfix ! operator (null-forgiving operator in C#) to preserve intent.
+        return {
+          kind: "Unary",
+          op: "postfix:!",
+          operand: walkExpression(expr.getExpression()),
+        };
       default:
         return { kind: "Unknown", text: expr.getText() };
     }
