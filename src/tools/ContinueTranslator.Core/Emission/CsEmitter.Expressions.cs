@@ -293,10 +293,25 @@ internal sealed partial class CsEmitter
 
     private ExpressionSyntax EmitUnaryExpression(TsUnaryExpression unary)
     {
-        if (!s_prefixUnaryOpMap.TryGetValue(unary.Op, out SyntaxKind opKind))
+        // Handle postfix operators by extracting the base operator (++ or --)
+        if (unary.Op.StartsWith("postfix:", StringComparison.Ordinal))
+        {
+            string baseOp = unary.Op["postfix:".Length..];
+            ExpressionSyntax operandExpr = EmitExpression(unary.Operand);
+
+            return baseOp switch
+            {
+                "++" => PostfixUnaryExpression(SyntaxKind.PostIncrementExpression, operandExpr),
+                "--" => PostfixUnaryExpression(SyntaxKind.PostDecrementExpression, operandExpr),
+                _ => Placeholder($"/* untranslatable postfix op: {baseOp} */"),
+            };
+        }
+
+        // Check for prefix operators
+        if (!s_prefixUnaryOpMap.TryGetValue(unary.Op, out SyntaxKind prefixOpKind))
             return Placeholder($"/* untranslatable unary op: {unary.Op} */");
 
-        return PrefixUnaryExpression(opKind, EmitExpression(unary.Operand));
+        return PrefixUnaryExpression(prefixOpKind, EmitExpression(unary.Operand));
     }
 
     // -------------------------------------------------------------------------

@@ -389,6 +389,20 @@ function walkExpression(expr) {
           operand: walkExpression(expr.getOperand()),
         };
       }
+      case "PostfixUnaryExpression": {
+        // compilerNode.operator is the raw TypeScript SyntaxKind number.
+        // For postfix, we prefix the operator with "postfix:" to distinguish from prefix.
+        const postfixOpMap = {
+          [SyntaxKind.PlusPlusToken]: "++",
+          [SyntaxKind.MinusMinusToken]: "--",
+        };
+        const opText = postfixOpMap[expr.compilerNode.operator] ?? "?";
+        return {
+          kind: "Unary",
+          op: `postfix:${opText}`,
+          operand: walkExpression(expr.getOperand()),
+        };
+      }
       case "TypeOfExpression":
         return {
           kind: "TypeOf",
