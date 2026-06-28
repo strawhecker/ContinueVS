@@ -67,7 +67,7 @@ internal sealed class RepoScanner
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)];
     }
 
-    private static bool IsIncluded(string path)
+    internal static bool IsIncluded(string path)
     {
         // Exclude test files by file name pattern.
         if (path.Contains(".test.ts", StringComparison.OrdinalIgnoreCase))
@@ -77,11 +77,22 @@ internal sealed class RepoScanner
         if (path.Contains("__tests__", StringComparison.OrdinalIgnoreCase))
             return false;
 
+        // Normalize path to forward slashes for consistent matching on all OSes.
+        string normalizedPath = path.Replace('\\', '/');
+
+        // Exclude top-level "test" or "tests" directories within core/,
+        // but not arbitrary directories named Test nested within a component structure.
+        // Match patterns like "/core/test/" and "/core/tests/" but not "/RootPathContext/Test/".
+        if (normalizedPath.Contains("/core/test/", StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.Contains("/core/tests/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
         // Examine individual path segments for excluded directories.
         string[] segments = path.Split(
             [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
             StringSplitOptions.RemoveEmptyEntries);
 
+        // Exclude specific directory names that indicate non-source content.
         foreach (string segment in segments)
         {
             if (segment.Equals("extensions", StringComparison.OrdinalIgnoreCase))
@@ -91,8 +102,6 @@ internal sealed class RepoScanner
             if (segment.Equals("vendor", StringComparison.OrdinalIgnoreCase))
                 return false;
             if (segment.Equals("__tests__", StringComparison.OrdinalIgnoreCase))
-                return false;
-            if (segment.Equals("test", StringComparison.OrdinalIgnoreCase))
                 return false;
         }
 

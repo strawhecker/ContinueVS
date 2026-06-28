@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ContinueTranslator.Core\ContinueTranslator.Core.csproj" />
+    <ProjectReference Include="..\ContinueTranslator.Cli\ContinueTranslator.Cli.csproj" />
   </ItemGroup>
 
 </Project>
