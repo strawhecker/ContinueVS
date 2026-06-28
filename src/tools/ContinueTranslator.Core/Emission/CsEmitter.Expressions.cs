@@ -35,6 +35,7 @@ internal sealed partial class CsEmitter
             TsArrayLiteralExpression arrLit   => EmitArrayLiteral(arrLit),
             TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
             TsAsExpression asExpr             => EmitAsExpression(asExpr),
+            TsRegexExpression regex           => EmitRegexExpression(regex),
             TsSpreadElement spread            => EmitSpreadElement(spread),
             TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
@@ -95,6 +96,56 @@ internal sealed partial class CsEmitter
 
         // Fallback: treat as identifier (e.g. enum member reference).
         return IdentifierName(v);
+    }
+
+    // -------------------------------------------------------------------------
+    // Regex literal
+    // -------------------------------------------------------------------------
+
+    private static ExpressionSyntax EmitRegexExpression(TsRegexExpression regex)
+    {
+        // Convert TypeScript regex literal to C# Regex constructor call.
+        // TypeScript: /pattern/flags → C#: new Regex("pattern", RegexOptions.Flags)
+
+        // Build regex options from flags
+        var regexOptions = new List<string>();
+        foreach (char flag in regex.Flags)
+        {
+            switch (flag)
+            {
+                case 'i':
+                    regexOptions.Add("RegexOptions.IgnoreCase");
+                    break;
+                case 'm':
+                    regexOptions.Add("RegexOptions.Multiline");
+                    break;
+                case 's':
+                    regexOptions.Add("RegexOptions.Singleline");
+                    break;
+                case 'x':
+                    regexOptions.Add("RegexOptions.IgnorePatternWhitespace");
+                    break;
+                // 'g' (global) is handled by the replace method, not the regex itself
+                // 'u' (unicode) and 'y' (sticky) don't have direct C# equivalents
+            }
+        }
+
+        var args = new List<ArgumentSyntax>
+        {
+            Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(regex.Pattern)))
+        };
+
+        // Add regex options if any were specified
+        if (regexOptions.Count > 0)
+        {
+            string optionsExpr = string.Join(" | ", regexOptions);
+            args.Add(Argument(ParseExpression(optionsExpr)));
+        }
+
+        return ObjectCreationExpression(
+            ParseTypeSyntax("System.Text.RegularExpressions.Regex"),
+            ArgumentList(SeparatedList(args)),
+            initializer: null);
     }
 
     // -------------------------------------------------------------------------

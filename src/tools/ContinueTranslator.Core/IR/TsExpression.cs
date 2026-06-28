@@ -22,6 +22,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsUnknownExpression), "Unknown")]
 [JsonDerivedType(typeof(TsElementAccessExpression), "ElementAccess")]
 [JsonDerivedType(typeof(TsAsExpression), "As")]
+[JsonDerivedType(typeof(TsRegexExpression), "Regex")]
 [JsonDerivedType(typeof(TsSpreadElement), "Spread")]
 internal abstract record TsExpression;
 
@@ -41,6 +42,8 @@ internal sealed record TsAwaitExpression(TsExpression Expression) : TsExpression
 internal sealed record TsBinaryExpression(string Op, TsExpression Left, TsExpression Right) : TsExpression;
 
 internal sealed record TsLiteralExpression(string Value) : TsExpression;
+
+internal sealed record TsRegexExpression(string Pattern, string Flags) : TsExpression;
 
 internal sealed record TsIdentifierExpression(string Name) : TsExpression;
 

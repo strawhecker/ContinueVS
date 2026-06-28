@@ -337,6 +337,14 @@ function walkExpression(expr) {
       case "NullKeyword":
       case "NoSubstitutionTemplateLiteral":
         return { kind: "Literal", value: expr.getText() };
+      case "RegularExpressionLiteral":
+        // Parse regex literal: /pattern/flags
+        // expr.getText() returns the full regex with slashes and flags, e.g. "/^:\s*/i"
+        const regexText = expr.getText();
+        const lastSlashIdx = regexText.lastIndexOf('/');
+        const pattern = regexText.substring(1, lastSlashIdx);
+        const flags = regexText.substring(lastSlashIdx + 1);
+        return { kind: "Regex", pattern, flags };
       case "Identifier":
         return { kind: "Identifier", name: expr.getText() };
       case "ObjectLiteralExpression":
