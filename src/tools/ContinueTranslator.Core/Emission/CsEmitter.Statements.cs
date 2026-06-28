@@ -183,11 +183,9 @@ internal sealed partial class CsEmitter
         BlockSyntax tryBlock = Block(
             List(stmt.TryStatements.Select(s => EmitStatement(s, filePath))));
 
-        // Use the catch variable name from the TypeScript source if available,
-        // otherwise default to "ex".
-        string catchVarName = !string.IsNullOrWhiteSpace(stmt.CatchVariableName) 
-            ? stmt.CatchVariableName 
-            : "ex";
+        // Use the catch variable name from the TypeScript source.
+        // The parser always extracts this from the catch clause parameter.
+        string catchVarName = stmt.CatchVariableName ?? "e";
 
         SyntaxList<CatchClauseSyntax> catchClauses = default;
         if (stmt.CatchStatements.Length > 0)
