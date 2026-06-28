@@ -422,6 +422,12 @@ function walkExpression(expr) {
         // TypeScript `void expr` evaluates to undefined; C# has no void operator,
         // so just emit the inner expression, discarding the void wrapper.
         return walkExpression(expr.getExpression());
+      case "SpreadElement":
+        // TypeScript spread operator: ...expr (in function arguments or array literals)
+        return {
+          kind: "Spread",
+          expression: walkExpression(expr.getExpression()),
+        };
       default:
         return { kind: "Unknown", text: expr.getText() };
     }

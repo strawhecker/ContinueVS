@@ -35,6 +35,7 @@ internal sealed partial class CsEmitter
             TsArrayLiteralExpression arrLit   => EmitArrayLiteral(arrLit),
             TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
             TsAsExpression asExpr             => EmitAsExpression(asExpr),
+            TsSpreadElement spread            => EmitSpreadElement(spread),
             TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
         };
@@ -305,21 +306,46 @@ internal sealed partial class CsEmitter
     private ExpressionSyntax EmitCallExpression(TsCallExpression call)
     {
         string calleeChain = BuildCalleeChain(call.Callee);
+
+        // Check if any arguments are spread elements
+        bool hasSpread = call.Args.Any(arg => arg is TsSpreadElement);
+
         ArgumentListSyntax argList = ArgumentList(
             SeparatedList(call.Args.Select(a => Argument(EmitExpression(a)))));
 
         if (!string.IsNullOrEmpty(calleeChain) &&
             _callSiteMap.TryResolve(calleeChain, out string dotNetCall))
         {
+            // Special handling for array.push(...items) → array.AddRange(items)
+            if (hasSpread && calleeChain.EndsWith(".push", StringComparison.Ordinal) && 
+                call.Callee is TsMemberExpression memberExpr)
+            {
+                // Extract the spread argument
+                TsSpreadElement? spreadArg = call.Args.OfType<TsSpreadElement>().FirstOrDefault();
+                if (spreadArg != null)
+                {
+                    ExpressionSyntax obj = EmitExpression(memberExpr.Obj);
+                    ExpressionSyntax spreadExpr = EmitExpression(spreadArg.Expression);
+
+                    // Convert to AddRange instead of push with spread
+                    return InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            obj,
+                            IdentifierName("AddRange")),
+                        ArgumentList(SingletonSeparatedList(Argument(spreadExpr))));
+                }
+            }
+
             // Build: <dotNetCall>(<translated args>)
             ExpressionSyntax callee = ParseExpression(dotNetCall);
             return InvocationExpression(callee, argList);
         }
 
         // Fallback: try array method mapping (e.g., rifs.map → Array.map → System.Linq.Enumerable.Select)
-        if (call.Callee is TsMemberExpression memberExpr)
+        if (call.Callee is TsMemberExpression memberExpr2)
         {
-            string methodName = memberExpr.Property;
+            string methodName = memberExpr2.Property;
             string arrayMethodKey = "Array." + methodName;
 
             if (_callSiteMap.TryResolve(arrayMethodKey, out string dotNetArrayMethod))
@@ -329,15 +355,20 @@ internal sealed partial class CsEmitter
                 //   - Simple names: "Select" → obj.Select(...)
                 //   - Qualified names: "System.Linq.Enumerable.Select" → Enumerable.Select(obj, ...)
 
-                ExpressionSyntax obj = EmitExpression(memberExpr.Obj);
+                ExpressionSyntax obj = EmitExpression(memberExpr2.Obj);
 
                 // If the mapping is a fully-qualified static method, use it directly
                 if (dotNetArrayMethod.Contains('.'))
                 {
                     // Parse as full expression (e.g., "System.Linq.Enumerable.Select")
                     ExpressionSyntax callee = ParseExpression(dotNetArrayMethod);
-                    return InvocationExpression(callee, argList.AddArguments(
-                        Argument(obj)));
+
+                    // Build a new argument list with the array object as the FIRST argument,
+                    // followed by the original arguments (e.g., the lambda for Select).
+                    var newArgs = new List<ArgumentSyntax> { Argument(obj) };
+                    newArgs.AddRange(argList.Arguments);
+
+                    return InvocationExpression(callee, ArgumentList(SeparatedList(newArgs)));
                 }
 
                 // Simple method name - use as instance method call
@@ -543,6 +574,15 @@ internal sealed partial class CsEmitter
                 SyntaxKind.ArrayInitializerExpression,
                 SeparatedList(arrLit.Elements.Select(EmitExpression))));
     }
+
+    // -------------------------------------------------------------------------
+    // Spread element
+    // -------------------------------------------------------------------------
+
+    private ExpressionSyntax EmitSpreadElement(TsSpreadElement spread) =>
+        // Spread elements are typically handled in the call expression handler.
+        // If a spread appears outside of a call context, emit the inner expression.
+        EmitExpression(spread.Expression);
 
     // -------------------------------------------------------------------------
     // Unknown / placeholder
