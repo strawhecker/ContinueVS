@@ -305,9 +305,18 @@ function walkExpression(expr) {
     const kind = expr.getKindName();
     switch (kind) {
       case "CallExpression":
+        // Check if this is a dynamic import call: import(...)
+        // In this case, the callee is an ImportKeyword, not an expression.
+        const calleeNode = expr.getExpression();
+        if (calleeNode.getKindName() === "ImportKeyword") {
+          return {
+            kind: "ImportCall",
+            args: expr.getArguments().map(walkExpression),
+          };
+        }
         return {
           kind: "Call",
-          callee: walkExpression(expr.getExpression()),
+          callee: walkExpression(calleeNode),
           args: expr.getArguments().map(walkExpression),
         };
       case "NewExpression":

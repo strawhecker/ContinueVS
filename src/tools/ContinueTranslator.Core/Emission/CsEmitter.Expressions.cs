@@ -45,6 +45,7 @@ internal sealed partial class CsEmitter
             TsRegexExpression regex           => EmitRegexExpression(regex),
             TsSpreadElement spread            => EmitSpreadElement(spread),
             TsYieldExpression yield           => EmitYield(yield),
+            TsImportCallExpression importCall => EmitImportCall(importCall),
             TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
         };
@@ -819,6 +820,27 @@ internal sealed partial class CsEmitter
             return Placeholder($"/* yield {(yield.Delegate ? "* " : "")}expr - must be statement */");
         }
         return Placeholder("/* yield - must be statement */");
+    }
+
+    // -------------------------------------------------------------------------
+    // Dynamic Import
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Emits a dynamic import call: <c>import("module")</c>.
+    /// In TypeScript, this is an async operation that returns a Promise.
+    /// In C#, we emit it as an invocation with parentheses intact to show it's still an async call.
+    /// </summary>
+    private ExpressionSyntax EmitImportCall(TsImportCallExpression importCall)
+    {
+        // Build the argument list for the import call
+        ArgumentListSyntax argList = ArgumentList(
+            SeparatedList(importCall.Args.Select(a => Argument(EmitExpression(a)))));
+
+        // Emit as: import<args>
+        // The actual method will need to be defined in C#, but this preserves the structure.
+        ExpressionSyntax importIdentifier = IdentifierName("import");
+        return InvocationExpression(importIdentifier, argList);
     }
 
     // -------------------------------------------------------------------------

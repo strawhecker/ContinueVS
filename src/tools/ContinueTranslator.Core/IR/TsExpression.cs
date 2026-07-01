@@ -25,6 +25,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsRegexExpression), "Regex")]
 [JsonDerivedType(typeof(TsSpreadElement), "Spread")]
 [JsonDerivedType(typeof(TsYieldExpression), "Yield")]
+[JsonDerivedType(typeof(TsImportCallExpression), "ImportCall")]
 internal abstract record TsExpression;
 
 /// <summary>One interpolated span: the expression inside <c>${…}</c> and the literal tail that follows it.</summary>
@@ -81,3 +82,6 @@ internal sealed record TsSpreadElement(TsExpression Expression) : TsExpression;
 
 /// <summary>Represents a yield expression: <c>yield expr</c> or <c>yield* expr</c>.</summary>
 internal sealed record TsYieldExpression(TsExpression? Expression, bool Delegate = false) : TsExpression;
+
+/// <summary>Represents a dynamic import expression: <c>import("module")</c>.</summary>
+internal sealed record TsImportCallExpression(TsExpression[] Args) : TsExpression;
