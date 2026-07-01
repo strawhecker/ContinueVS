@@ -297,19 +297,35 @@ internal sealed partial class CsEmitter
         }
 
         // TS `"prop" in obj` → C# `HasProperty(obj, "prop")`
+        // TS `identifier in obj` → C# `HasProperty(obj, identifier)`
         // This checks for property existence on dynamic objects (JToken, etc.)
-        if (bin.Op == "in" && bin.Left is TsLiteralExpression { Value: var propName })
+        if (bin.Op == "in")
         {
             _needsHasPropertyHelper = true;
-            // Extract the property name from the quoted literal
-            string cleanPropName = propName.Trim('"', '\'');
-            return InvocationExpression(
-                IdentifierName("HasProperty"),
-                ArgumentList(SeparatedList(new[]
-                {
-                    Argument(EmitExpression(bin.Right)),
-                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(cleanPropName)))
-                })));
+
+            if (bin.Left is TsLiteralExpression { Value: var propName })
+            {
+                // Extract the property name from the quoted literal
+                string cleanPropName = propName.Trim('"', '\'');
+                return InvocationExpression(
+                    IdentifierName("HasProperty"),
+                    ArgumentList(SeparatedList(new[]
+                    {
+                        Argument(EmitExpression(bin.Right)),
+                        Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(cleanPropName)))
+                    })));
+            }
+            else
+            {
+                // For non-literal left operands (identifiers, expressions, etc.), pass the expression as-is
+                return InvocationExpression(
+                    IdentifierName("HasProperty"),
+                    ArgumentList(SeparatedList(new[]
+                    {
+                        Argument(EmitExpression(bin.Right)),
+                        Argument(EmitExpression(bin.Left))
+                    })));
+            }
         }
 
         if (!s_binaryOpMap.TryGetValue(bin.Op, out SyntaxKind opKind))

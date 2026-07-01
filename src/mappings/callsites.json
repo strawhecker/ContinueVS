@@ -35,6 +35,7 @@
   "String.split":      "Split",
   "String.trim":       "Trim",
   "String.replace":    "Replace",
+  "String.replaceAll": "System.Text.RegularExpressions.Regex.Replace",
   "Date.now":          "System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()",
   "DateTimeOffset.toISOString": "ToString(\"O\")"
 }
