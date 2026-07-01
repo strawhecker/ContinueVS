@@ -90,10 +90,11 @@ internal sealed class PipelineRunner
         // 7. Optionally promote translated files to the Generated/ folder.
         if (options.GeneratedDirectory is not null)
         {
-            SyncResult syncResult = GeneratedFolderSync.Sync(files, options.GeneratedDirectory);
-            Console.WriteLine($"Sync promoted: {syncResult.Promoted}");
-            Console.WriteLine($"Sync skipped (manual edit): {syncResult.SkippedManualEdit}");
-            Console.WriteLine($"Sync skipped (has stubs): {syncResult.SkippedHasStubs}");
+            string rejectedDir = options.RejectedDirectory
+                ?? Path.Combine(Path.GetDirectoryName(options.GeneratedDirectory) ?? options.OutDirectory, "..", "rejected");
+
+            SyncResult syncResult = GeneratedFolderSync.Sync(files, options.GeneratedDirectory, rejectedDir);
+            Console.WriteLine(syncResult);
         }
     }
 

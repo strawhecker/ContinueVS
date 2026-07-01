@@ -11,4 +11,7 @@ internal sealed record TranslationOptions(
     /// <summary>Absolute path to the output directory for generated C# files.</summary>
     string OutDirectory,
     /// <summary>Optional absolute path to the Generated/ folder to promote translated files into.</summary>
-    string? GeneratedDirectory = null);
+    string? GeneratedDirectory = null,
+    /// <summary>Optional absolute path to the rejected/ folder for Phase 2 work queue.</summary>
+    string? RejectedDirectory = null);
+

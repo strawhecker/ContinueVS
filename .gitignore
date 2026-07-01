@@ -383,5 +383,12 @@ FodyWeavers.xsd
 src/VSIXProject1/Generated/
 src/VSIXProject1/Generated/**
 
+# Translator scratch output (regenerated each run)
 src/output/
 src/output/**
+
+# Translator rejected files — Phase 2 work queue (VERSION CONTROLLED)
+# Files rejected due to stubs, TODO markers, or TypeScript type leaks
+src/rejected/
+src/rejected/**
+src/rejected/.rejection-manifest.json
