@@ -379,6 +379,15 @@ function walkExpression(expr) {
           parameters: expr.getParameters().map(walkParameter),
           body: walkBody(expr),
         };
+      case "FunctionExpression":
+        // TypeScript function expressions (including async and generator variants).
+        // e.g., `async function* () { ... }` or `function(x) { return x + 1; }`
+        // Treat as arrow function for IR purposes: extract parameters and body.
+        return {
+          kind: "Arrow",
+          parameters: expr.getParameters().map(walkParameter),
+          body: walkBody(expr),
+        };
       case "PrefixUnaryExpression": {
         // compilerNode.operator is the raw TypeScript SyntaxKind number.
         // ts-morph has no getOperator(); getOperatorToken() also returns the same number.
