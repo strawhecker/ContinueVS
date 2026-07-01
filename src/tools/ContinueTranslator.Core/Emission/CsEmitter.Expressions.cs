@@ -11,6 +11,10 @@ internal sealed partial class CsEmitter
     // Set to true the first time EmitSpreadMergeCall is used; CollectResults then emits SpreadMerge.cs.
     private bool _needsSpreadMerge;
 
+    // Track local generator methods extracted from arrow expressions
+    private int _localGeneratorCounter;
+    private readonly Dictionary<string, LocalFunctionStatementSyntax> _pendingLocalGenerators = new();
+
     /// <summary>
     /// Translates a <see cref="TsExpression"/> IR node to a Roslyn <see cref="ExpressionSyntax"/>.
     /// For untranslatable kinds a string-literal comment placeholder is returned to keep the
@@ -569,13 +573,56 @@ internal sealed partial class CsEmitter
         }
 
         // Generator functions cannot be expressed as C# lambdas and require a method-level declaration.
-        // For now, emit a placeholder indicating this requires manual translation.
+        // Extract to a local method and return its method group reference.
         if (arrow.IsGenerator)
         {
-            return Placeholder("/* TODO: async/generator function requires local method body declaration */");
+            return EmitGeneratorAsLocalMethod(arrow);
         }
 
         return Placeholder("/* untranslatable arrow body */");
+    }
+
+    /// <summary>
+    /// Translates an async/non-async generator arrow function to a local method declaration.
+    /// Returns an identifier that references the generated local method.
+    /// The method declaration is queued in <see cref="_pendingLocalGenerators"/> to be injected
+    /// by the statement emitter.
+    /// </summary>
+    private ExpressionSyntax EmitGeneratorAsLocalMethod(TsArrowExpression arrow)
+    {
+        _localGeneratorCounter++;
+        string methodName = $"__GeneratorLocal_{_localGeneratorCounter}";
+
+        ParameterListSyntax paramList = BuildParameterList(arrow.Parameters);
+
+        // Build the method body from arrow.Body statements using EmitStatementBlock
+        // to ensure any nested local methods are injected correctly
+        var bodyStatements = EmitStatementBlock(arrow.Body);
+        BlockSyntax methodBody = Block(bodyStatements);
+
+        // Infer the yield type from the body (analyze yield statements for type hints)
+        // For now, default to AsyncGenerator<object> or IAsyncEnumerable<object>
+        // A more sophisticated implementation would analyze yields to determine the actual type
+        string returnType = arrow.IsAsync 
+            ? "IAsyncEnumerable<object>"
+            : "IEnumerable<object>";
+
+        // Build the local method declaration
+        var localMethod = LocalFunctionStatement(
+            ParseTypeSyntax(returnType),
+            Identifier(methodName))
+            .WithParameterList(paramList)
+            .WithBody(methodBody);
+
+        // Add async modifier if needed
+        if (arrow.IsAsync)
+            localMethod = localMethod.AddModifiers(Token(SyntaxKind.AsyncKeyword));
+
+        // Queue this method to be injected before the current statement
+        _pendingLocalGenerators[methodName] = localMethod;
+
+        // Return a reference to the local method (method group)
+        return IdentifierName(methodName);
     }
 
     // -------------------------------------------------------------------------

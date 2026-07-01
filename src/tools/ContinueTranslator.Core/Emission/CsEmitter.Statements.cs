@@ -32,6 +32,31 @@ internal sealed partial class CsEmitter
         };
     }
 
+    /// <summary>
+    /// Emits a sequence of statements and automatically injects any pending local generator methods
+    /// at the beginning of the block. This ensures local functions appear before other statements
+    /// in accordance with C# scoping rules.
+    /// </summary>
+    internal IReadOnlyList<StatementSyntax> EmitStatementBlock(TsStatement[] statements, string filePath = "")
+    {
+        var result = new List<StatementSyntax>();
+
+        // First, emit all statements (which may populate _pendingLocalGenerators)
+        var emittedStatements = statements.Select(s => EmitStatement(s, filePath)).ToList();
+
+        // Inject any pending local generator methods at the start of the block
+        if (_pendingLocalGenerators.Count > 0)
+        {
+            result.AddRange(_pendingLocalGenerators.Values);
+            _pendingLocalGenerators.Clear();
+        }
+
+        // Add the regular statements
+        result.AddRange(emittedStatements);
+
+        return result.AsReadOnly();
+    }
+
     private StatementSyntax EmitUnknownStatement(TsUnknownStatement unknown)
     {
         // Try to parse as a simple statement first

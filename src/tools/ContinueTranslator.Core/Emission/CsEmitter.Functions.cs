@@ -105,7 +105,7 @@ internal sealed partial class CsEmitter
         string stubComment = $"// TODO: {filePath} :: {className}.{methodName}";
         BlockSyntax methodBody = IsBodyEmpty(func.Body)
             ? Block(ParseStatement($"{stubComment}\n"))
-            : Block(List(func.Body.Select(s => EmitStatement(s, filePath))));
+            : Block(List(EmitStatementBlock(func.Body, filePath)));
 
         MethodDeclarationSyntax methodDecl = MethodDeclaration(
                 ParseTypeSyntax(func.ReturnType.Text),
