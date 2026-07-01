@@ -328,6 +328,21 @@ internal sealed partial class CsEmitter
             }
         }
 
+        // TS `**` (exponentiation) → C# `Math.Pow(base, exponent)`
+        if (bin.Op == "**")
+        {
+            return InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName("Math"),
+                    IdentifierName("Pow")),
+                ArgumentList(SeparatedList(new[]
+                {
+                    Argument(EmitExpression(bin.Left)),
+                    Argument(EmitExpression(bin.Right))
+                })));
+        }
+
         if (!s_binaryOpMap.TryGetValue(bin.Op, out SyntaxKind opKind))
             return Placeholder("/* untranslatable binary op */");
 
