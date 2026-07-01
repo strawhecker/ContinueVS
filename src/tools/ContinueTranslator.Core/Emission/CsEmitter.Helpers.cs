@@ -285,4 +285,21 @@ internal sealed partial class CsEmitter
 
         return cu.ToFullString();
     }
+
+    // -------------------------------------------------------------------------
+    // Generator method name helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Converts a camelCase variable name to PascalCase method name.
+    /// Example: "generatorWithCancellation" → "GeneratorWithCancellation"
+    /// </summary>
+    private static string VariableNameToMethodName(string? varName)
+    {
+        if (string.IsNullOrEmpty(varName))
+            return "__GeneratorFunc";
+
+        // Capitalize the first character
+        return char.ToUpperInvariant(varName[0]) + varName[1..];
+    }
 }

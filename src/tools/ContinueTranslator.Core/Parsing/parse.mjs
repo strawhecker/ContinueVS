@@ -204,11 +204,18 @@ function walkStatement(stmt) {
           statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
         };
       case "ForOfStatement":
+        // Extract variable name from initializer, stripping the declaration keyword if present
+        let varName = stmt.getInitializer?.()?.getText() ?? null;
+        if (varName) {
+          // Remove leading const/let/var keywords
+          varName = varName.replace(/^\s*(const|let|var)\s+/, "");
+        }
         return {
           kind: "ForOf",
-          variable: stmt.getInitializer?.()?.getText() ?? null,
+          variable: varName,
           expression: walkExprSafe(stmt.getExpression?.()),
           statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          isAwait: stmt.getAwaitKeyword?.() != null,
         };
       case "WhileStatement":
         return {
@@ -378,6 +385,8 @@ function walkExpression(expr) {
           kind: "Arrow",
           parameters: expr.getParameters().map(walkParameter),
           body: walkBody(expr),
+          isAsync: expr.isAsync(),
+          isGenerator: expr.getAsteriskToken?.() != null,
         };
       case "FunctionExpression":
         // TypeScript function expressions (including async and generator variants).
@@ -387,6 +396,8 @@ function walkExpression(expr) {
           kind: "Arrow",
           parameters: expr.getParameters().map(walkParameter),
           body: walkBody(expr),
+          isAsync: expr.isAsync(),
+          isGenerator: expr.getAsteriskToken?.() != null,
         };
       case "PrefixUnaryExpression": {
         // compilerNode.operator is the raw TypeScript SyntaxKind number.

@@ -54,7 +54,7 @@ internal sealed record TsArrayLiteralExpression(TsExpression[] Elements) : TsExp
 
 internal sealed record TsConditionalExpression(TsExpression Condition, TsExpression WhenTrue, TsExpression WhenFalse) : TsExpression;
 
-internal sealed record TsArrowExpression(TsParameter[] Parameters, TsStatement[] Body) : TsExpression;
+internal sealed record TsArrowExpression(TsParameter[] Parameters, TsStatement[] Body, bool IsAsync = false, bool IsGenerator = false) : TsExpression;
 
 internal sealed record TsUnaryExpression(string Op, TsExpression Operand) : TsExpression;
 

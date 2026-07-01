@@ -518,23 +518,26 @@ internal sealed partial class CsEmitter
         // Single return-expression body: () => expr
         if (arrow.Body is [TsReturnStatement { Expression: not null } ret])
         {
-            return ParenthesizedLambdaExpression(paramList, null,
+            var lambda = ParenthesizedLambdaExpression(paramList, null,
                 EmitExpression(ret.Expression));
+            return arrow.IsAsync ? lambda.WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword)) : lambda;
         }
 
         // Single expression-statement body: () => expr
         if (arrow.Body is [TsExpressionStatement { Expression: not null } exprStmt])
         {
-            return ParenthesizedLambdaExpression(paramList, null,
+            var lambda = ParenthesizedLambdaExpression(paramList, null,
                 EmitExpression(exprStmt.Expression));
+            return arrow.IsAsync ? lambda.WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword)) : lambda;
         }
 
         // Single variable-declaration body with initializer: () => { const x = expr; }
         // Extract the initializer expression as the lambda body
         if (arrow.Body is [TsVarStatement { Initializer: not null } varStmt])
         {
-            return ParenthesizedLambdaExpression(paramList, null,
+            var lambda = ParenthesizedLambdaExpression(paramList, null,
                 EmitExpression(varStmt.Initializer));
+            return arrow.IsAsync ? lambda.WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword)) : lambda;
         }
 
         // Two-statement pattern: variable declaration followed by return
@@ -561,7 +564,15 @@ internal sealed partial class CsEmitter
             // Emit the return statement
             statements.Add(ReturnStatement(EmitExpression(ret2.Expression)));
 
-            return ParenthesizedLambdaExpression(paramList, Block(statements));
+            var lambda = ParenthesizedLambdaExpression(paramList, Block(statements));
+            return arrow.IsAsync ? lambda.WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword)) : lambda;
+        }
+
+        // Generator functions cannot be expressed as C# lambdas and require a method-level declaration.
+        // For now, emit a placeholder indicating this requires manual translation.
+        if (arrow.IsGenerator)
+        {
+            return Placeholder("/* TODO: async/generator function requires local method body declaration */");
         }
 
         return Placeholder("/* untranslatable arrow body */");

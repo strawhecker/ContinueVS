@@ -31,7 +31,8 @@ internal sealed record TsForStatement(
 internal sealed record TsForOfStatement(
     string? Variable,
     TsExpression? Expression,
-    TsStatement[] Statements) : TsStatement;
+    TsStatement[] Statements,
+    bool IsAwait = false) : TsStatement;
 
 internal sealed record TsWhileStatement(TsExpression? Condition, TsStatement[] Statements) : TsStatement;
 

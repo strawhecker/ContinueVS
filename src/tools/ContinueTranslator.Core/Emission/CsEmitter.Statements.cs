@@ -206,6 +206,13 @@ internal sealed partial class CsEmitter
         BlockSyntax body = Block(
             List(stmt.Statements.Select(s => EmitStatement(s, filePath))));
 
+        // If IsAwait is true, emit as 'await foreach' instead of 'foreach'
+        if (stmt.IsAwait)
+        {
+            return ForEachStatement(typeSyntax, identifier, iterable, body)
+                .WithAwaitKeyword(Token(SyntaxKind.AwaitKeyword));
+        }
+
         return ForEachStatement(typeSyntax, identifier, iterable, body);
     }
 
