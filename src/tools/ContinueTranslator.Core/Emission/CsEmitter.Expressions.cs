@@ -92,6 +92,13 @@ internal sealed partial class CsEmitter
             (v.StartsWith('\'') && v.EndsWith('\'')) ||
             (v.StartsWith('`') && v.EndsWith('`')))
         {
+            // Handle empty quoted strings: "" → empty string
+            // Range [1..^1] is invalid for 2-character strings, so check length explicitly.
+            if (v.Length == 2)
+                return LiteralExpression(
+                    SyntaxKind.StringLiteralExpression,
+                    Literal(""));
+
             string inner = v[1..^1];
             return LiteralExpression(
                 SyntaxKind.StringLiteralExpression,

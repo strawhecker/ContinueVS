@@ -492,6 +492,14 @@ function walkExpression(expr) {
           expression: walkExpression(expr.getExpression()),
           type: expr.getTypeNode().getText(),
         };
+      case "SatisfiesExpression":
+        // TypeScript `satisfies` keyword (type guard without casting).
+        // Treat like `as` for IR purposes: extract the inner expression and type.
+        return {
+          kind: "As",
+          expression: walkExpression(expr.getExpression()),
+          type: expr.getTypeNode().getText(),
+        };
       case "VoidExpression":
         // TypeScript `void expr` evaluates to undefined; C# has no void operator,
         // so just emit the inner expression, discarding the void wrapper.
