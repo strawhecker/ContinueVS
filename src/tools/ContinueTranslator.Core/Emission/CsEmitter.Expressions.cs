@@ -937,6 +937,10 @@ internal sealed partial class CsEmitter
         if (unknown.Text == "this")
             return IdentifierName("this");
 
+        // TypeScript 'super' should map to C# 'base' identifier
+        if (unknown.Text == "super")
+            return IdentifierName("base");
+
         return Placeholder($"/* unknown: {unknown.Text} */");
     }
 
