@@ -70,11 +70,11 @@ internal sealed class RepoScanner
     internal static bool IsIncluded(string path)
     {
         // Exclude test files by file name pattern.
-        if (path.Contains(".test.ts", StringComparison.OrdinalIgnoreCase))
+        if (path.IndexOf(".test.ts", StringComparison.OrdinalIgnoreCase) >= 0)
             return false;
-        if (path.Contains(".vitest.ts", StringComparison.OrdinalIgnoreCase))
+        if (path.IndexOf(".vitest.ts", StringComparison.OrdinalIgnoreCase) >= 0)
             return false;
-        if (path.Contains("__tests__", StringComparison.OrdinalIgnoreCase))
+        if (path.IndexOf("__tests__", StringComparison.OrdinalIgnoreCase) >= 0)
             return false;
 
         // Normalize path to forward slashes for consistent matching on all OSes.
@@ -83,8 +83,8 @@ internal sealed class RepoScanner
         // Exclude top-level "test" or "tests" directories within core/,
         // but not arbitrary directories named Test nested within a component structure.
         // Match patterns like "/core/test/" and "/core/tests/" but not "/RootPathContext/Test/".
-        if (normalizedPath.Contains("/core/test/", StringComparison.OrdinalIgnoreCase)
-            || normalizedPath.Contains("/core/tests/", StringComparison.OrdinalIgnoreCase))
+        if (normalizedPath.IndexOf("/core/test/", StringComparison.OrdinalIgnoreCase) >= 0
+            || normalizedPath.IndexOf("/core/tests/", StringComparison.OrdinalIgnoreCase) >= 0)
             return false;
 
         // Examine individual path segments for excluded directories.
