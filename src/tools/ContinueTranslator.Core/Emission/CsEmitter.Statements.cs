@@ -43,10 +43,34 @@ internal sealed partial class CsEmitter
             ? ReturnStatement(EmitExpression(stmt.Expression))
             : ReturnStatement();
 
-    private StatementSyntax EmitExpressionStatement(TsExpressionStatement stmt) =>
-        stmt.Expression is not null
+    private StatementSyntax EmitExpressionStatement(TsExpressionStatement stmt)
+    {
+        if (stmt.Expression is TsYieldExpression yieldExpr)
+        {
+            return EmitYieldStatement(yieldExpr);
+        }
+
+        return stmt.Expression is not null
             ? ExpressionStatement(EmitExpression(stmt.Expression))
             : ExpressionStatement(EmitExpression(new TsUnknownExpression(string.Empty)));
+    }
+
+    private StatementSyntax EmitYieldStatement(TsYieldExpression yieldExpr)
+    {
+        // Convert yield expression to a yield return statement.
+        // JavaScript: yield expr → C#: yield return expr;
+        // JavaScript: yield* expr → C#: yield return expr; (C# does not have yield* like Python/JS)
+
+        if (yieldExpr.Expression is not null)
+        {
+            return YieldStatement(
+                SyntaxKind.YieldReturnStatement,
+                EmitExpression(yieldExpr.Expression));
+        }
+
+        // Bare yield with no expression (rare in TypeScript)
+        return ParseStatement("yield break;\n");
+    }
 
     private StatementSyntax EmitThrow(TsThrowStatement stmt) =>
         stmt.Expression is not null

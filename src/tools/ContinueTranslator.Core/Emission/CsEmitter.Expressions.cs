@@ -37,6 +37,7 @@ internal sealed partial class CsEmitter
             TsAsExpression asExpr             => EmitAsExpression(asExpr),
             TsRegexExpression regex           => EmitRegexExpression(regex),
             TsSpreadElement spread            => EmitSpreadElement(spread),
+            TsYieldExpression yield           => EmitYield(yield),
             TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
         };
@@ -652,6 +653,24 @@ internal sealed partial class CsEmitter
         // Spread elements are typically handled in the call expression handler.
         // If a spread appears outside of a call context, emit the inner expression.
         EmitExpression(spread.Expression);
+
+    // -------------------------------------------------------------------------
+    // Yield expression
+    // -------------------------------------------------------------------------
+
+    private ExpressionSyntax EmitYield(TsYieldExpression yield)
+    {
+        // In C#, yield return must be a statement, not an expression.
+        // However, we can emit it as an invocation that returns the yielded value for type-checking.
+        // The statement emitter will handle the actual yield return statement.
+        // For now, when a yield appears as an expression, emit a placeholder that indicates
+        // this should have been handled at the statement level.
+        if (yield.Expression is not null)
+        {
+            return Placeholder($"/* yield {(yield.Delegate ? "* " : "")}expr - must be statement */");
+        }
+        return Placeholder("/* yield - must be statement */");
+    }
 
     // -------------------------------------------------------------------------
     // Unknown / placeholder

@@ -458,6 +458,16 @@ function walkExpression(expr) {
           op: "postfix:!",
           operand: walkExpression(expr.getExpression()),
         };
+      case "YieldExpression":
+        // TypeScript yield expression: yield expr or yield* expr
+        // The asterisk flag is encoded in the Delegate property (true for yield*)
+        const yieldExpr = expr.getExpression?.();
+        const isDelegate = expr.compilerNode?.asteriskToken != null;
+        return {
+          kind: "Yield",
+          expression: yieldExpr ? walkExpression(yieldExpr) : null,
+          delegate: isDelegate,
+        };
       default:
         return { kind: "Unknown", text: expr.getText() };
     }
