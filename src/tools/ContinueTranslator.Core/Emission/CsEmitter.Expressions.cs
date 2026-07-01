@@ -915,8 +915,14 @@ internal sealed partial class CsEmitter
     // Unknown / placeholder
     // -------------------------------------------------------------------------
 
-    private static ExpressionSyntax EmitUnknown(TsUnknownExpression unknown) =>
-        Placeholder($"/* unknown: {unknown.Text} */");
+    private static ExpressionSyntax EmitUnknown(TsUnknownExpression unknown)
+    {
+        // TypeScript 'this' should map to C# 'this' identifier
+        if (unknown.Text == "this")
+            return IdentifierName("this");
+
+        return Placeholder($"/* unknown: {unknown.Text} */");
+    }
 
     /// <summary>
     /// Returns a string-literal expression whose value is <paramref name="comment"/>.
