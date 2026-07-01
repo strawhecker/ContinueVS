@@ -409,17 +409,18 @@ function walkExpression(expr) {
           isGenerator: expr.getAsteriskToken?.() != null,
         };
       case "PrefixUnaryExpression": {
-        // compilerNode.operator is the raw TypeScript SyntaxKind number.
-        // ts-morph has no getOperator(); getOperatorToken() also returns the same number.
-        const prefixOpMap = {
-          [SyntaxKind.ExclamationToken]: "!",
-          [SyntaxKind.MinusToken]: "-",
-          [SyntaxKind.PlusToken]: "+",
-          [SyntaxKind.TildeToken]: "~",
-          [SyntaxKind.PlusPlusToken]: "++",
-          [SyntaxKind.MinusMinusToken]: "--",
-        };
-        const opText = prefixOpMap[expr.compilerNode.operator] ?? "!";
+        // Get the operator token text directly
+        const opToken = expr.getOperatorToken();
+        const opText = opToken?.getText?.() ?? "!";
+
+        // Special handling for delete operator: emit as TsDeleteExpression
+        if (opText === "delete") {
+          return {
+            kind: "Delete",
+            operand: walkExpression(expr.getOperand()),
+          };
+        }
+
         return {
           kind: "Unary",
           op: opText,
@@ -487,7 +488,7 @@ function walkExpression(expr) {
           op: "postfix:!",
           operand: walkExpression(expr.getExpression()),
         };
-      case "YieldExpression":
+       case "YieldExpression":
         // TypeScript yield expression: yield expr or yield* expr
         // The asterisk flag is encoded in the Delegate property (true for yield*)
         const yieldExpr = expr.getExpression?.();
@@ -497,7 +498,14 @@ function walkExpression(expr) {
           expression: yieldExpr ? walkExpression(yieldExpr) : null,
           delegate: isDelegate,
         };
+       case "DeleteExpression":
+        // TypeScript delete expression: delete obj.prop
+        return {
+          kind: "Delete",
+          operand: walkExpression(expr.getExpression()),
+        };
       default:
+        // Log unknown expression kinds for debugging
         return { kind: "Unknown", text: expr.getText() };
     }
   } catch {

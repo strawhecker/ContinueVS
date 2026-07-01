@@ -18,6 +18,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsArrowExpression), "Arrow")]
 [JsonDerivedType(typeof(TsUnaryExpression), "Unary")]
 [JsonDerivedType(typeof(TsTypeOfExpression), "TypeOf")]
+[JsonDerivedType(typeof(TsDeleteExpression), "Delete")]
 [JsonDerivedType(typeof(TsTemplateExpression), "Template")]
 [JsonDerivedType(typeof(TsUnknownExpression), "Unknown")]
 [JsonDerivedType(typeof(TsElementAccessExpression), "ElementAccess")]
@@ -60,6 +61,8 @@ internal sealed record TsArrowExpression(TsParameter[] Parameters, TsStatement[]
 internal sealed record TsUnaryExpression(string Op, TsExpression Operand) : TsExpression;
 
 internal sealed record TsTypeOfExpression(TsExpression Expression) : TsExpression;
+
+internal sealed record TsDeleteExpression(TsExpression Operand) : TsExpression;
 
 /// <summary>
 /// A TypeScript template literal with one or more interpolated expressions,

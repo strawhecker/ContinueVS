@@ -33,6 +33,7 @@ internal sealed partial class CsEmitter
             TsBinaryExpression bin            => EmitBinaryExpression(bin),
             TsUnaryExpression unary           => EmitUnaryExpression(unary),
             TsTypeOfExpression typeOf         => EmitTypeOf(typeOf),
+            TsDeleteExpression del            => EmitDeleteExpression(del),
             TsCallExpression call             => EmitCallExpression(call),
             TsNewExpression newExpr           => EmitNewExpression(newExpr),
             TsConditionalExpression cond      => EmitConditional(cond),
@@ -369,6 +370,39 @@ internal sealed partial class CsEmitter
             IdentifierName("Name"));
 
     // -------------------------------------------------------------------------
+    // Delete
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Handles TypeScript <c>delete expr</c> statements.
+    /// C# has no direct delete operator. For module cache clearing (require.cache),
+    /// this delegates to a RequireShim helper. For general property deletion,
+    /// returns a comment noting the limitation.
+    /// </summary>
+    private ExpressionSyntax EmitDeleteExpression(TsDeleteExpression del)
+    {
+        // Check if this is a delete require.cache[...] pattern
+        if (del.Operand is TsElementAccessExpression elemAccess &&
+            elemAccess.Obj is TsMemberExpression memAccess &&
+            memAccess.Obj is TsIdentifierExpression id &&
+            id.Name == "require" &&
+            memAccess.Property == "cache")
+        {
+            // Emit as RequireShim.ClearCache(...)
+            return InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName("RequireShim"),
+                    IdentifierName("ClearCache")),
+                ArgumentList(SingletonSeparatedList(
+                    Argument(EmitExpression(elemAccess.Index)))));
+        }
+
+        // Generic delete: emit a comment placeholder
+        return Placeholder("/* C# has no delete operator; use RequireShim or equivalent pattern */");
+    }
+
+    // -------------------------------------------------------------------------
     // As (type cast)
     // -------------------------------------------------------------------------
 
@@ -428,6 +462,37 @@ internal sealed partial class CsEmitter
 
     private ExpressionSyntax EmitCallExpression(TsCallExpression call)
     {
+        // Special handling for require() calls → RequireShim.Import()
+        if (call.Callee is TsIdentifierExpression id && id.Name == "require")
+        {
+            ArgumentListSyntax requireArgList = ArgumentList(
+                SeparatedList(call.Args.Select(a => Argument(EmitExpression(a)))));
+
+            return InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName("RequireShim"),
+                    IdentifierName("Import")),
+                requireArgList);
+        }
+
+        // Special handling for require.resolve() → RequireShim.Resolve()
+        if (call.Callee is TsMemberExpression memExpr &&
+            memExpr.Obj is TsIdentifierExpression reqId &&
+            reqId.Name == "require" &&
+            memExpr.Property == "resolve")
+        {
+            ArgumentListSyntax resolveArgList = ArgumentList(
+                SeparatedList(call.Args.Select(a => Argument(EmitExpression(a)))));
+
+            return InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName("RequireShim"),
+                    IdentifierName("Resolve")),
+                resolveArgList);
+        }
+
         string calleeChain = BuildCalleeChain(call.Callee);
 
         // Check if any arguments are spread elements
@@ -827,9 +892,9 @@ internal sealed partial class CsEmitter
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Emits a dynamic import call: <c>import("module")</c>.
-    /// In TypeScript, this is an async operation that returns a Promise.
-    /// In C#, we emit it as an invocation with parentheses intact to show it's still an async call.
+    /// Emits a dynamic import call: <c>await import("module")</c>.
+    /// In TypeScript, this is an async operation that returns a Promise of a module namespace.
+    /// In C#, we emit it as <c>RequireShim.Import(...)</c> to load and return the module as a dynamic object.
     /// </summary>
     private ExpressionSyntax EmitImportCall(TsImportCallExpression importCall)
     {
@@ -837,10 +902,13 @@ internal sealed partial class CsEmitter
         ArgumentListSyntax argList = ArgumentList(
             SeparatedList(importCall.Args.Select(a => Argument(EmitExpression(a)))));
 
-        // Emit as: import<args>
-        // The actual method will need to be defined in C#, but this preserves the structure.
-        ExpressionSyntax importIdentifier = IdentifierName("import");
-        return InvocationExpression(importIdentifier, argList);
+        // Emit as: RequireShim.Import(args)
+        // This routes the dynamic import through the shim that handles loading modules.
+        ExpressionSyntax requireShimImport = MemberAccessExpression(
+            SyntaxKind.SimpleMemberAccessExpression,
+            IdentifierName("RequireShim"),
+            IdentifierName("Import"));
+        return InvocationExpression(requireShimImport, argList);
     }
 
     // -------------------------------------------------------------------------

@@ -69,6 +69,10 @@ internal sealed class PipelineRunner
         IReadOnlyList<EmittedFile> emitted = _csEmitter.Emit(mapped, options.OutDirectory);
         var files = new List<EmittedFile>(emitted);
 
+        // 4a. Generate RequireShim helper class.
+        EmittedFile requireShim = GenerateRequireShim();
+        files.Add(requireShim);
+
         // 5. Emit project file and append.
         EmittedFile csproj = _projectEmitter.Emit(mapped, "net10.0");
         files.Add(csproj);
@@ -91,5 +95,76 @@ internal sealed class PipelineRunner
             Console.WriteLine($"Sync skipped (manual edit): {syncResult.SkippedManualEdit}");
             Console.WriteLine($"Sync skipped (has stubs): {syncResult.SkippedHasStubs}");
         }
+    }
+
+    /// <summary>
+    /// Generates the RequireShim.cs helper class.
+    /// </summary>
+    private static EmittedFile GenerateRequireShim()
+    {
+        const string shimContent = @"namespace ContinueTranslator.Generated;
+
+/// <summary>
+/// Shim for Node.js require/CommonJS patterns translated to C#.
+/// Provides methods to load dynamic modules and manage module caching semantics.
+/// 
+/// In Node.js, require() loads modules with caching by default, and delete require.cache[]
+/// clears entries so the next require() loads fresh. In C#/.NET, we simulate this by:
+/// - Loading directly from files each time (no persistent cache)
+/// - Returning deserialized objects (for .json) or dynamic types (for .js files)
+/// </summary>
+public static class RequireShim
+{
+    /// <summary>
+    /// Loads and parses a JavaScript or JSON module from the specified path.
+    /// Always loads fresh from disk (no caching).
+    /// </summary>
+    /// <param name=""modulePath"">Path to the module file (.js, .mjs, .json, etc.)</param>
+    /// <returns>
+    /// For .json files: a dynamic object (parsed JSON structure)
+    /// For .js files: null (JS files cannot be directly executed in C#)
+    /// </returns>
+    public static dynamic? Import(string modulePath)
+    {
+        if (!File.Exists(modulePath))
+            throw new FileNotFoundException($""Module not found: {modulePath}"");
+
+        string ext = Path.GetExtension(modulePath).ToLowerInvariant();
+
+        if (ext == "".json"")
+        {
+            string json = File.ReadAllText(modulePath);
+            return System.Text.Json.JsonDocument.Parse(json).RootElement;
+        }
+
+        // For .js/.mjs files, return null (JS code cannot be directly executed in C#)
+        // Callers should use a different pattern (e.g., RPC, subprocess, Roslyn)
+        return null;
+    }
+
+    /// <summary>
+    /// Clears the cached entry for a module, ensuring the next Import() call loads fresh.
+    /// In C#, this is a no-op since Import() always loads fresh from disk.
+    /// </summary>
+    /// <param name=""modulePath"">Path to the module to clear from cache</param>
+    public static void ClearCache(string modulePath)
+    {
+        // No-op: C# file I/O doesn't have a persistent module cache like Node.js
+    }
+
+    /// <summary>
+    /// Resolves a module path to an absolute file path.
+    /// Simulates Node.js require.resolve() for basic cases.
+    /// </summary>
+    /// <param name=""modulePath"">Module path (relative or absolute)</param>
+    /// <returns>Absolute path to the module</returns>
+    public static string Resolve(string modulePath)
+    {
+        return Path.GetFullPath(modulePath);
+    }
+}
+";
+
+        return new EmittedFile("RequireShim.cs", shimContent);
     }
 }
