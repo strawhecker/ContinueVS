@@ -384,3 +384,4 @@ src/VSIXProject1/Generated/
 src/VSIXProject1/Generated/**
 
 src/output/
+src/output/**

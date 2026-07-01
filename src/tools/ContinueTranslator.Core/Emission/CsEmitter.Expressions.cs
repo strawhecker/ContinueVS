@@ -579,7 +579,13 @@ internal sealed partial class CsEmitter
             return EmitGeneratorAsLocalMethod(arrow);
         }
 
-        return Placeholder("/* untranslatable arrow body */");
+        // Multi-statement block body: () => { statements }
+        // This is the catch-all for arrow bodies that don't match simpler patterns.
+        // Emit as a block lambda to preserve complex control flow (for, try-catch, etc.)
+        var bodyStatements = EmitStatementBlock(arrow.Body);
+        var blockBody = Block(bodyStatements);
+        var blockLambda = ParenthesizedLambdaExpression(paramList, blockBody);
+        return arrow.IsAsync ? blockLambda.WithAsyncKeyword(Token(SyntaxKind.AsyncKeyword)) : blockLambda;
     }
 
     /// <summary>
