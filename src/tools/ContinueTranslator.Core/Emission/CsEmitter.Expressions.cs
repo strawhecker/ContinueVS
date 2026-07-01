@@ -11,6 +11,9 @@ internal sealed partial class CsEmitter
     // Set to true the first time EmitSpreadMergeCall is used; CollectResults then emits SpreadMerge.cs.
     private bool _needsSpreadMerge;
 
+    // Set to true the first time the `in` operator is translated; CollectResults then emits HasProperty.cs.
+    private bool _needsHasPropertyHelper;
+
     // Track local generator methods extracted from arrow expressions
     private int _localGeneratorCounter;
     private readonly Dictionary<string, LocalFunctionStatementSyntax> _pendingLocalGenerators = new();
@@ -291,6 +294,22 @@ internal sealed partial class CsEmitter
             return IsPatternExpression(
                 EmitExpression(bin.Left),
                 TypePattern(ParseTypeSyntax(typeName)));
+        }
+
+        // TS `"prop" in obj` → C# `HasProperty(obj, "prop")`
+        // This checks for property existence on dynamic objects (JToken, etc.)
+        if (bin.Op == "in" && bin.Left is TsLiteralExpression { Value: var propName })
+        {
+            _needsHasPropertyHelper = true;
+            // Extract the property name from the quoted literal
+            string cleanPropName = propName.Trim('"', '\'');
+            return InvocationExpression(
+                IdentifierName("HasProperty"),
+                ArgumentList(SeparatedList(new[]
+                {
+                    Argument(EmitExpression(bin.Right)),
+                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(cleanPropName)))
+                })));
         }
 
         if (!s_binaryOpMap.TryGetValue(bin.Op, out SyntaxKind opKind))
