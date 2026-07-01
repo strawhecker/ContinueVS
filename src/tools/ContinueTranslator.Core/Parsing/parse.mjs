@@ -326,12 +326,19 @@ function walkExpression(expr) {
           args: expr.getArguments().map(walkExpression),
         };
       case "PropertyAccessExpression":
-        return {
-          kind: "Member",
-          object: walkExpression(expr.getExpression()),
-          property: expr.getName(),
-        };
-      case "AwaitExpression":
+         return {
+           kind: "Member",
+           object: walkExpression(expr.getExpression()),
+           property: expr.getName(),
+         };
+       case "MetaProperty":
+         // TypeScript MetaProperty: import.meta.url, import.meta.main, etc.
+         // getName() returns the property name (e.g., "url", "main")
+         return {
+           kind: "MetaProperty",
+           property: expr.getName(),
+         };
+       case "AwaitExpression":
         return {
           kind: "Await",
           expression: walkExpression(expr.getExpression()),

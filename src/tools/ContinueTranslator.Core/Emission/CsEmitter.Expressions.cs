@@ -48,6 +48,7 @@ internal sealed partial class CsEmitter
             TsSpreadElement spread            => EmitSpreadElement(spread),
             TsYieldExpression yield           => EmitYield(yield),
             TsImportCallExpression importCall => EmitImportCall(importCall),
+            TsMetaPropertyExpression metaProp  => EmitMetaProperty(metaProp),
             TsUnknownExpression unknown       => EmitUnknown(unknown),
             _                                 => Placeholder("/* untranslatable expression */"),
         };
@@ -170,10 +171,55 @@ internal sealed partial class CsEmitter
         if (mem.Obj is TsUnknownExpression { Text: "this" })
             return IdentifierName(mem.Property);
 
+        // Special handling for import.meta.url: translate to assembly location path
+        // In TypeScript's AST, import.meta is a MetaProperty with property="meta", and
+        // import.meta.url is a PropertyAccessExpression accessing .url on that MetaProperty.
+        // This pattern is common in Node.js/ESM modules for deriving the module directory.
+        if (mem.Obj is TsMetaPropertyExpression { Property: "meta" } && mem.Property == "url")
+        {
+            // In VSIX/.NET Framework, we need to get the assembly location.
+            // Emit: System.Reflection.Assembly.GetExecutingAssembly().Location
+            return MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        ParseExpression("System.Reflection.Assembly"),
+                        IdentifierName("GetExecutingAssembly"))),
+                IdentifierName("Location"));
+        }
+
         return MemberAccessExpression(
             SyntaxKind.SimpleMemberAccessExpression,
             EmitExpression(mem.Obj),
             IdentifierName(mem.Property));
+    }
+
+    // -------------------------------------------------------------------------
+    // MetaProperty (import.meta.*)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Handles TypeScript meta property expressions, e.g., <c>import.meta.url</c>.
+    /// In a VSIX/.NET Framework context, translates to assembly location lookups.
+    /// </summary>
+    private ExpressionSyntax EmitMetaProperty(TsMetaPropertyExpression metaProp)
+    {
+        return metaProp.Property switch
+        {
+            // import.meta.url → Assembly.GetExecutingAssembly().Location
+            "url" => MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        ParseExpression("System.Reflection.Assembly"),
+                        IdentifierName("GetExecutingAssembly"))),
+                IdentifierName("Location")),
+
+            // For other meta properties, emit a placeholder noting they may not be available in .NET
+            _ => Placeholder($"/* import.meta.{metaProp.Property} (not available in .NET) */"),
+        };
     }
 
     // -------------------------------------------------------------------------

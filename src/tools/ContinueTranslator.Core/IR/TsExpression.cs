@@ -28,6 +28,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsYieldExpression), "Yield")]
 [JsonDerivedType(typeof(TsImportCallExpression), "ImportCall")]
 [JsonDerivedType(typeof(TsTaggedTemplateExpression), "TaggedTemplate")]
+[JsonDerivedType(typeof(TsMetaPropertyExpression), "MetaProperty")]
 internal abstract record TsExpression;
 
 /// <summary>One interpolated span: the expression inside <c>${…}</c> and the literal tail that follows it.</summary>
@@ -96,3 +97,9 @@ internal sealed record TsImportCallExpression(TsExpression[] Args) : TsExpressio
 /// <see cref="Template"/> is the template expression with interpolations.
 /// </summary>
 internal sealed record TsTaggedTemplateExpression(string Tag, TsTemplateExpression Template) : TsExpression;
+
+/// <summary>
+/// Represents a meta property expression, e.g. <c>import.meta.url</c>.
+/// <see cref="Property"/> is the property name (e.g., "url" for "import.meta.url").
+/// </summary>
+internal sealed record TsMetaPropertyExpression(string Property) : TsExpression;
