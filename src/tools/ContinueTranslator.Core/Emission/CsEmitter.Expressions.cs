@@ -529,6 +529,41 @@ internal sealed partial class CsEmitter
                 EmitExpression(exprStmt.Expression));
         }
 
+        // Single variable-declaration body with initializer: () => { const x = expr; }
+        // Extract the initializer expression as the lambda body
+        if (arrow.Body is [TsVarStatement { Initializer: not null } varStmt])
+        {
+            return ParenthesizedLambdaExpression(paramList, null,
+                EmitExpression(varStmt.Initializer));
+        }
+
+        // Two-statement pattern: variable declaration followed by return
+        // If the return expression is a simple conditional or if the variable is referenced in the return,
+        // emit as a block lambda to preserve variable scope.
+        if (arrow.Body is [
+            TsVarStatement { Initializer: not null, Name: not null } varStmt2,
+            TsReturnStatement { Expression: not null } ret2
+        ])
+        {
+            // For now, emit a block lambda to handle the general case safely
+            var statements = new List<StatementSyntax>();
+
+            // Emit the variable declaration
+            statements.Add(LocalDeclarationStatement(
+                VariableDeclaration(
+                    IdentifierName("var"),
+                    SingletonSeparatedList(
+                        VariableDeclarator(
+                            Identifier(varStmt2.Name),
+                            null,
+                            EqualsValueClause(EmitExpression(varStmt2.Initializer)))))));
+
+            // Emit the return statement
+            statements.Add(ReturnStatement(EmitExpression(ret2.Expression)));
+
+            return ParenthesizedLambdaExpression(paramList, Block(statements));
+        }
+
         return Placeholder("/* untranslatable arrow body */");
     }
 
