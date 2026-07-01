@@ -455,6 +455,21 @@ function walkExpression(expr) {
             tail: span.getLiteral().getLiteralText(),
           })),
         };
+      case "TaggedTemplateExpression":
+        // Tagged template: tag`template ${expr}`
+        // Extract the tag (tag function name) and the template expression
+        return {
+          kind: "TaggedTemplate",
+          tag: expr.getTag().getText(),
+          template: {
+            kind: "Template",
+            head: expr.getTemplate().getHead().getLiteralText(),
+            spans: expr.getTemplate().getTemplateSpans().map(span => ({
+              expression: walkExpression(span.getExpression()),
+              tail: span.getLiteral().getLiteralText(),
+            })),
+          },
+        };
       case "ElementAccessExpression":
       case "ElementAccessChain": {
         const argExpr = expr.getArgumentExpression?.();

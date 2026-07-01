@@ -27,6 +27,7 @@ internal sealed record TsObjectProperty(string Name, TsExpression? Value);
 [JsonDerivedType(typeof(TsSpreadElement), "Spread")]
 [JsonDerivedType(typeof(TsYieldExpression), "Yield")]
 [JsonDerivedType(typeof(TsImportCallExpression), "ImportCall")]
+[JsonDerivedType(typeof(TsTaggedTemplateExpression), "TaggedTemplate")]
 internal abstract record TsExpression;
 
 /// <summary>One interpolated span: the expression inside <c>${…}</c> and the literal tail that follows it.</summary>
@@ -88,3 +89,10 @@ internal sealed record TsYieldExpression(TsExpression? Expression, bool Delegate
 
 /// <summary>Represents a dynamic import expression: <c>import("module")</c>.</summary>
 internal sealed record TsImportCallExpression(TsExpression[] Args) : TsExpression;
+
+/// <summary>
+/// Represents a tagged template literal expression, e.g. <c>dedent`Hello ${name}`</c>.
+/// <see cref="Tag"/> is the tag function identifier (e.g., "dedent").
+/// <see cref="Template"/> is the template expression with interpolations.
+/// </summary>
+internal sealed record TsTaggedTemplateExpression(string Tag, TsTemplateExpression Template) : TsExpression;

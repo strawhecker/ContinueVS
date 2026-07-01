@@ -42,6 +42,7 @@ internal sealed partial class CsEmitter
             TsObjectLiteralExpression objLit  => EmitObjectLiteral(objLit),
             TsArrayLiteralExpression arrLit   => EmitArrayLiteral(arrLit),
             TsTemplateExpression tmpl         => EmitTemplateExpression(tmpl),
+            TsTaggedTemplateExpression tagged => EmitTaggedTemplateExpression(tagged),
             TsAsExpression asExpr             => EmitAsExpression(asExpr),
             TsRegexExpression regex           => EmitRegexExpression(regex),
             TsSpreadElement spread            => EmitSpreadElement(spread),
@@ -779,6 +780,21 @@ internal sealed partial class CsEmitter
             Token(SyntaxKind.InterpolatedStringStartToken),
             List(contents),
             Token(SyntaxKind.InterpolatedStringEndToken));
+    }
+
+    /// <summary>
+    /// Translates a TypeScript tagged template literal, e.g. <c>dedent`Hello ${name}!`</c>,
+    /// to a C# method call: <c>dedent($"Hello {name}!")</c>.
+    /// </summary>
+    private ExpressionSyntax EmitTaggedTemplateExpression(TsTaggedTemplateExpression tagged)
+    {
+        // Emit the template expression as an interpolated string
+        ExpressionSyntax templateExpr = EmitTemplateExpression(tagged.Template);
+
+        // Call the tag function with the template as the only argument
+        return InvocationExpression(
+            IdentifierName(tagged.Tag),
+            ArgumentList(SingletonSeparatedList(Argument(templateExpr))));
     }
 
     // -------------------------------------------------------------------------
