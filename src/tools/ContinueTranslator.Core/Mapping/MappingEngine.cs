@@ -199,6 +199,15 @@ internal sealed partial class MappingEngine
     /// </summary>
     private (TsTypeRef Ref, bool WasResolved) ResolveTypeRef(TsTypeRef typeRef)
     {
+        // Handle function signature types (e.g., "(args: X) => boolean").
+        // Function types cannot be precisely mapped without full signature parsing,
+        // so we mark them as resolved by converting to "Delegate" type.
+        if (typeRef.Text.Contains("=>", StringComparison.Ordinal))
+        {
+            // Replace the entire function signature with "Delegate" as a resolvable stand-in.
+            return (typeRef with { Name = "Delegate", Text = "Delegate" }, true);
+        }
+
         // Handle TypeScript union-with-null (e.g. "string | null") → nullable C# type (e.g. "string?").
         if (typeRef.Text.EndsWith(" | null", StringComparison.Ordinal))
         {
