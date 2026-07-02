@@ -139,9 +139,20 @@ internal sealed partial class CsEmitter
 
         foreach (TsParameter p in parameters)
         {
-            string typeText = p.IsOptional && !p.Type.Text.EndsWith('?')
-                ? p.Type.Text + "?"
-                : p.Type.Text;
+            string typeText = p.Type.Text;
+
+            // Detect and handle union types (e.g., "ChatMessage[] | string" → "object")
+            bool isUnionType = typeText.Contains(" | ", StringComparison.Ordinal);
+            if (isUnionType)
+            {
+                typeText = "object";
+            }
+
+            // Apply optional modifier if needed (but skip if already nullable)
+            if (p.IsOptional && !typeText.EndsWith("?"))
+            {
+                typeText = typeText + "?";
+            }
 
             // Detect and handle index signatures using the shared helper
             bool isIndexSig = TryExtractIndexSignatureValueType(typeText, out string valueType);
@@ -152,16 +163,54 @@ internal sealed partial class CsEmitter
 
             ParameterSyntax paramSyntax = Parameter(Identifier(p.Name))
                 .WithType(ParseTypeSyntax(typeText));
-            if (isIndexSig)
+
+            // Add TODO comment if union type or index signature
+            if (isUnionType)
+                paramSyntax = WithLeadingLineComment(paramSyntax, "@ct:todo=union-type");
+            else if (isIndexSig)
                 paramSyntax = WithLeadingLineComment(paramSyntax, "@ct:todo");
 
+            // Apply rest parameter modifier if needed
             if (p.IsRest)
                 paramSyntax = paramSyntax.AddModifiers(Token(SyntaxKind.ParamsKeyword));
+
+            // Apply default value if parameter has initializer
+            if (p.HasInitializer)
+            {
+                // Heuristic default values based on type
+                EqualsValueClauseSyntax defaultValue = GetDefaultValueForType(typeText);
+                paramSyntax = paramSyntax.WithDefault(defaultValue);
+            }
 
             paramSyntaxes.Add(paramSyntax);
         }
 
         return ParameterList(SeparatedList(paramSyntaxes));
+    }
+
+    /// <summary>
+    /// Returns a heuristic default value for a given C# type.
+    /// Used when a TypeScript parameter has a default value but the specific value is not captured.
+    /// </summary>
+    private static EqualsValueClauseSyntax GetDefaultValueForType(string typeText)
+    {
+        // Strip trailing '?' for nullable types
+        string baseType = typeText.TrimEnd('?');
+
+        // Common string types → empty string
+        if (baseType is "string" or "String")
+            return EqualsValueClause(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal("")));
+
+        // Common bool types → false
+        if (baseType is "bool" or "boolean" or "Boolean")
+            return EqualsValueClause(LiteralExpression(SyntaxKind.FalseLiteralExpression));
+
+        // Common numeric types → 0
+        if (baseType is "int" or "long" or "float" or "double" or "decimal" or "byte" or "short")
+            return EqualsValueClause(LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0)));
+
+        // Default to null for reference types
+        return EqualsValueClause(LiteralExpression(SyntaxKind.NullLiteralExpression));
     }
 
     internal static TypeParameterListSyntax BuildTypeParameterList(string[] typeParams)

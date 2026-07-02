@@ -128,7 +128,12 @@ internal sealed partial class CsEmitter
             .WithParameterList(paramList)
             .WithBody(methodBody);
 
-        if (func.IsAsync)
+        // Note: For async generators (IsAsync && IsGenerator), we do NOT apply the async keyword.
+        // TypeScript async generators become IAsyncEnumerable<T> in C#, which handles iteration
+        // natively. The async keyword would cause "async IAsyncEnumerable<T>" syntax, which is
+        // invalid in .NET Framework 4.7.2 (requires C# 8.0+ / .NET 5.0+).
+        // Only apply async modifier for async functions that are NOT generators.
+        if (func.IsAsync && !func.IsGenerator)
             methodDecl = methodDecl.AddModifiers(Token(SyntaxKind.AsyncKeyword));
 
         if (func.TypeParameters.Length > 0)
