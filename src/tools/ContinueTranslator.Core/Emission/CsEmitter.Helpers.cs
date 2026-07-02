@@ -280,6 +280,132 @@ internal sealed partial class CsEmitter
     }
 
     /// <summary>
+    /// Converts a TypeScript object literal type syntax (e.g., <c>{ prefix: string; suffix: string }</c>)
+    /// into a C# tuple syntax (e.g., <c>(string prefix, string suffix)</c>).
+    /// Returns the original text if it is not an object literal.
+    /// </summary>
+    /// <remarks>
+    /// Detects object literal patterns by:
+    /// 1. Trimming leading/trailing whitespace and checking for <c>{...}</c> braces
+    /// 2. Splitting properties by <c>;</c> while respecting generic nesting (angle brackets)
+    /// 3. Parsing each property as <c>name: type</c>
+    /// 4. Building the tuple format: <c>(type name, type name, ...)</c>
+    /// 
+    /// TODO: Future enhancements for more complex scenarios:
+    /// - Nested object literals: Currently only handles top-level properties. Nested objects
+    ///   (e.g., { config: { enabled: boolean } }) will not convert correctly.
+    /// - Union types: TypeScript union syntax (e.g., { a: string | number }) is not converted.
+    ///   The entire type falls back to 'object' if parsing fails.
+    /// - Index signatures: TypeScript index signatures (e.g., { [key: string]: any }) are not
+    ///   recognized as object literals and fall back to object.
+    /// - Optional properties: Optional fields (e.g., { optional?: string }) are preserved but
+    ///   may require additional handling if C# tuple nullability semantics differ.
+    /// </remarks>
+    private static string ConvertObjectLiteralToTuple(string text)
+    {
+        // Quick check: must be wrapped in braces
+        string trimmed = text.Trim();
+        if (!trimmed.StartsWith('{') || !trimmed.EndsWith('}'))
+            return text;
+
+        // Extract the content between braces
+        string content = trimmed[1..^1].Trim();
+        if (content.Length == 0)
+            return text; // Empty object literal {} → fallback
+
+        // Split on semicolons, respecting generic nesting
+        List<string> properties = SplitPropertiesRespectingGenerics(content);
+
+        if (properties.Count == 0)
+            return text; // No properties found; not a valid object literal
+
+        // Parse each property as "name: type" and build tuple elements
+        List<string> tupleElements = new();
+        foreach (string prop in properties)
+        {
+            string trimmedProp = prop.Trim();
+            if (trimmedProp.Length == 0)
+                continue;
+
+            // Split on the first ':' to separate name and type
+            int colonIdx = trimmedProp.IndexOf(':');
+            if (colonIdx <= 0)
+                return text; // Invalid property syntax; bail out
+
+            string name = trimmedProp[..colonIdx].Trim();
+            string type = trimmedProp[(colonIdx + 1)..].Trim();
+
+            // Validate: name should be a valid identifier
+            if (!IsValidIdentifier(name) || type.Length == 0)
+                return text;
+
+            // Build tuple element: "type name"
+            tupleElements.Add($"{type} {name}");
+        }
+
+        if (tupleElements.Count == 0)
+            return text;
+
+        // Return the C# tuple syntax
+        return $"({string.Join(", ", tupleElements)})";
+    }
+
+    /// <summary>
+    /// Splits a property list string on semicolons while respecting nested generic angle brackets.
+    /// Example: <c>a: string; b: List&lt;int&gt;; c: bool</c> → three properties.
+    /// </summary>
+    private static List<string> SplitPropertiesRespectingGenerics(string text)
+    {
+        List<string> parts = [];
+        int depth = 0;
+        int start = 0;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char ch = text[i];
+            if (ch == '<')
+                depth++;
+            else if (ch == '>')
+                depth--;
+            else if (ch == ';' && depth == 0)
+            {
+                parts.Add(text[start..i]);
+                start = i + 1;
+            }
+        }
+
+        // Add the final segment (may not end with ';')
+        if (start < text.Length)
+            parts.Add(text[start..]);
+
+        return parts;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="name"/> is a valid C# identifier.
+    /// </summary>
+    private static bool IsValidIdentifier(string name)
+    {
+        if (name.Length == 0)
+            return false;
+
+        // First character must be letter or underscore
+        char first = name[0];
+        if (!char.IsLetter(first) && first != '_')
+            return false;
+
+        // Remaining characters must be letter, digit, or underscore
+        for (int i = 1; i < name.Length; i++)
+        {
+            char ch = name[i];
+            if (!char.IsLetterOrDigit(ch) && ch != '_')
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Converts a raw type-text string into a <see cref="TypeSyntax"/> the compiler accepts.
     /// Defaults to <c>object</c> when the text is empty or unparseable.
     /// </summary>
@@ -293,6 +419,9 @@ internal sealed partial class CsEmitter
         // TypeScript `any` and `unknown` have no C# equivalent; map to object.
         if (text is "any" or "unknown") return PredefinedType(Token(SyntaxKind.ObjectKeyword));
         if (text is "any?" or "unknown?") return NullableType(PredefinedType(Token(SyntaxKind.ObjectKeyword)));
+
+        // Convert TypeScript object literal types to C# tuple syntax before parsing
+        text = ConvertObjectLiteralToTuple(text);
 
         try
         {
