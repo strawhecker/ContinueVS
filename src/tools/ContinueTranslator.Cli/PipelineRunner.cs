@@ -55,6 +55,17 @@ internal sealed class PipelineRunner
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        // 0. Clean output directories to ensure a fresh start.
+        CleanDirectory(options.OutDirectory);
+        if (options.GeneratedDirectory is not null)
+        {
+            CleanDirectory(options.GeneratedDirectory);
+        }
+        if (options.RejectedDirectory is not null)
+        {
+            CleanDirectory(options.RejectedDirectory);
+        }
+
         // 1. Checkout and scan.
         var scanner = new RepoScanner();
         IReadOnlyList<string> tsPaths = scanner.CheckoutAndScan(options.RepoPath, options.Tag);
@@ -167,5 +178,29 @@ public static class RequireShim
 ";
 
         return new EmittedFile("RequireShim.cs", shimContent);
+    }
+
+    /// <summary>
+    /// Recursively deletes all files and subdirectories in the specified directory.
+    /// If the directory does not exist, this method returns silently.
+    /// </summary>
+    /// <param name="directoryPath">Path to the directory to clean.</param>
+    private static void CleanDirectory(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            return;
+
+        try
+        {
+            if (Directory.Exists(directoryPath))
+            {
+                Directory.Delete(directoryPath, recursive: true);
+                Console.WriteLine($"Cleaned directory: {directoryPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Failed to clean directory '{directoryPath}': {ex.Message}");
+        }
     }
 }
