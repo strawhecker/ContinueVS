@@ -109,6 +109,58 @@ function splitTopLevelComma(s) {
 }
 
 // ---------------------------------------------------------------------------
+// Template literal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts the text content of a template literal head or tail, preserving escape sequences.
+ * ts-morph's getLiteralText() interprets escape sequences (e.g., "\n" becomes a newline).
+ * We use getText() to get the source representation, then strip surrounding backticks/braces.
+ * @param {import("ts-morph").Node} node The template literal head or tail node
+ * @returns {string} The literal text with escape sequences preserved
+ */
+function getTemplateLiteralText(node) {
+  const sourceText = node.getText();
+  // Template heads/tails in source are wrapped like `text` or }text`
+  // getText() returns the raw source including backticks/braces
+  // We need to extract just the content with escape sequences preserved
+
+  // For template head: getText() returns `text` or `text${
+  // For template tail: getText() returns }text` or }text${
+  // The getLiteralValue() gives us the interpreted string, which loses escape sequences
+  // Instead, use the source file's full text and extract the character range
+
+  const sourceFile = node.getSourceFile();
+  const fullText = sourceFile.getFullText();
+  const start = node.getStart(sourceFile, true); // include trivia
+  const end = node.getEnd();
+  const rawText = fullText.substring(start, end);
+
+  // Strip backticks and handle template markers
+  // Template head: `text` or `text${
+  // Template middle (tail): }text` or }text${  
+  // Template tail: }text`
+
+  let content = rawText;
+
+  // Remove leading backtick or closing brace-backtick from head
+  if (content.startsWith('`')) {
+    content = content.substring(1);
+  } else if (content.startsWith('}')) {
+    content = content.substring(1);
+  }
+
+  // Remove trailing backtick or opening brace-backtick from tail
+  if (content.endsWith('`')) {
+    content = content.substring(0, content.length - 1);
+  } else if (content.endsWith('${')) {
+    content = content.substring(0, content.length - 2);
+  }
+
+  return content;
+}
+
+// ---------------------------------------------------------------------------
 // Node walkers
 // ---------------------------------------------------------------------------
 
@@ -425,9 +477,19 @@ function walkExpression(expr) {
           isGenerator: expr.getAsteriskToken?.() != null,
         };
       case "PrefixUnaryExpression": {
-        // Get the operator token text directly
-        const opToken = expr.getOperatorToken();
-        const opText = opToken?.getText?.() ?? "!";
+        // Map SyntaxKind numbers to operator strings for all prefix unary operators
+        const prefixOpMap = {
+          [SyntaxKind.ExclamationToken]: "!",
+          [SyntaxKind.MinusToken]: "-",
+          [SyntaxKind.PlusToken]: "+",
+          [SyntaxKind.TildeToken]: "~",
+          [SyntaxKind.PlusPlusToken]: "++",
+          [SyntaxKind.MinusMinusToken]: "--",
+          [SyntaxKind.DeleteKeyword]: "delete",
+          [SyntaxKind.TypeOfKeyword]: "typeof",
+          [SyntaxKind.VoidKeyword]: "void",
+        };
+        const opText = prefixOpMap[expr.compilerNode.operator] ?? "?";
 
         // Special handling for delete operator: emit as TsDeleteExpression
         if (opText === "delete") {
@@ -465,10 +527,10 @@ function walkExpression(expr) {
       case "TemplateExpression":
         return {
           kind: "Template",
-          head: expr.getHead().getLiteralText(),
+          head: getTemplateLiteralText(expr.getHead()),
           spans: expr.getTemplateSpans().map(span => ({
             expression: walkExpression(span.getExpression()),
-            tail: span.getLiteral().getLiteralText(),
+            tail: getTemplateLiteralText(span.getLiteral()),
           })),
         };
       case "TaggedTemplateExpression":
@@ -479,10 +541,10 @@ function walkExpression(expr) {
           tag: expr.getTag().getText(),
           template: {
             kind: "Template",
-            head: expr.getTemplate().getHead().getLiteralText(),
+            head: getTemplateLiteralText(expr.getTemplate().getHead()),
             spans: expr.getTemplate().getTemplateSpans().map(span => ({
               expression: walkExpression(span.getExpression()),
-              tail: span.getLiteral().getLiteralText(),
+              tail: getTemplateLiteralText(span.getLiteral()),
             })),
           },
         };
