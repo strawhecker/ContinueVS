@@ -503,6 +503,13 @@ internal sealed partial class CsEmitter
             };
         }
 
+        // Handle 'void' operator: emit the operand as-is since C# doesn't have a void operator
+        // The void operator in TypeScript discards the result; in C# we just emit the expression
+        if (unary.Op == "void")
+        {
+            return EmitExpression(unary.Operand);
+        }
+
         // Check for prefix operators
         if (!s_prefixUnaryOpMap.TryGetValue(unary.Op, out SyntaxKind prefixOpKind))
             return Placeholder($"/* untranslatable unary op: {unary.Op} */");
@@ -545,6 +552,131 @@ internal sealed partial class CsEmitter
                     IdentifierName("RequireShim"),
                     IdentifierName("Resolve")),
                 resolveArgList);
+        }
+
+        // Special handling for Promise.catch() → ContinueWith() with exception handling
+        // TypeScript: promise.catch(e => handler(e))
+        // C#: promise.ContinueWith(t => { if (t.IsFaulted) handler(...); }, TaskScheduler.Default)
+        if (call.Callee is TsMemberExpression catchMem &&
+            catchMem.Property == "catch" &&
+            call.Args.Length == 1)
+        {
+            ExpressionSyntax promiseExpr = EmitExpression(catchMem.Obj);
+            TsExpression handlerArg = call.Args[0];
+
+            // Special handling when the argument is an arrow function
+            if (handlerArg is TsArrowExpression arrowExpr && arrowExpr.Parameters.Length > 0)
+            {
+                // Extract the error parameter name
+                string errorParamName = arrowExpr.Parameters[0].Name;
+
+                // Create wrapper lambda that extracts exception and calls the original handler
+                // (t) => {
+                //   if (t.IsFaulted && t.Exception != null)
+                //   {
+                //     var error = t.Exception.InnerException ?? t.Exception;
+                //     ... original handler body with error parameter ...
+                //   }
+                // }
+
+                // Build: t.Exception.InnerException ?? t.Exception
+                ExpressionSyntax exceptionExpr = BinaryExpression(
+                    SyntaxKind.CoalesceExpression,
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("t"),
+                            IdentifierName("Exception")),
+                        IdentifierName("InnerException")),
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("t"),
+                        IdentifierName("Exception")));
+
+                // Create variable declaration: var error = ...
+                StatementSyntax varDecl = LocalDeclarationStatement(
+                    VariableDeclaration(
+                        ParseTypeName("var"),
+                        SingletonSeparatedList(
+                            VariableDeclarator(
+                                Identifier(errorParamName),
+                                null,
+                                EqualsValueClause(exceptionExpr)))));
+
+                // Create condition: t.IsFaulted && t.Exception != null
+                ExpressionSyntax condition = BinaryExpression(
+                    SyntaxKind.LogicalAndExpression,
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("t"),
+                        IdentifierName("IsFaulted")),
+                    BinaryExpression(
+                        SyntaxKind.NotEqualsExpression,
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("t"),
+                            IdentifierName("Exception")),
+                        LiteralExpression(SyntaxKind.NullLiteralExpression)));
+
+                // Convert the arrow function body to statements
+                // For now, we'll handle the simple case where the body is a single statement
+                List<StatementSyntax> handlerStatements = new();
+                handlerStatements.Add(varDecl);
+
+                // Emit the handler body statements, replacing error parameter references
+                foreach (var stmt in arrowExpr.Body)
+                {
+                    handlerStatements.Add(EmitStatement(stmt));
+                }
+
+                // Create the if statement
+                StatementSyntax ifStatement = IfStatement(
+                    condition,
+                    Block(handlerStatements));
+
+                // Create the wrapper lambda: (t) => { if (...) { ... } }
+                ExpressionSyntax wrapperLambda = SimpleLambdaExpression(
+                    Parameter(Identifier("t")),
+                    Block(ifStatement));
+
+                // Return: promiseExpr.ContinueWith(wrapperLambda, TaskScheduler.Default)
+                return InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        promiseExpr,
+                        IdentifierName("ContinueWith")),
+                    ArgumentList(
+                        SeparatedList(new[]
+                        {
+                            Argument(wrapperLambda),
+                            Argument(
+                                MemberAccessExpression(
+                                    SyntaxKind.SimpleMemberAccessExpression,
+                                    IdentifierName("TaskScheduler"),
+                                    IdentifierName("Default")))
+                        })));
+            }
+            else
+            {
+                // Fallback for non-arrow functions: just pass through to ContinueWith
+                // This might not work correctly, but it's better than crashing
+                return InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        promiseExpr,
+                        IdentifierName("ContinueWith")),
+                    ArgumentList(
+                        SeparatedList(new[]
+                        {
+                            Argument(EmitExpression(handlerArg)),
+                            Argument(
+                                MemberAccessExpression(
+                                    SyntaxKind.SimpleMemberAccessExpression,
+                                    IdentifierName("TaskScheduler"),
+                                    IdentifierName("Default")))
+                        })));
+            }
         }
 
         string calleeChain = BuildCalleeChain(call.Callee);
