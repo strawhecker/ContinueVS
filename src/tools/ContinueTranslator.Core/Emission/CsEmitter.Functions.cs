@@ -107,8 +107,20 @@ internal sealed partial class CsEmitter
             ? Block(ParseStatement($"{stubComment}\n"))
             : Block(List(EmitStatementBlock(func.Body, filePath)));
 
+        // Determine the return type based on whether this is a generator
+        string returnTypeText = func.ReturnType.Text;
+        if (func.IsGenerator)
+        {
+            // For generator functions, wrap the return type in IAsyncEnumerable or IEnumerable
+            // Since we don't deeply analyze yields to determine the actual yield type,
+            // we default to object for simplicity.
+            returnTypeText = func.IsAsync 
+                ? "IAsyncEnumerable<object>" 
+                : "IEnumerable<object>";
+        }
+
         MethodDeclarationSyntax methodDecl = MethodDeclaration(
-                ParseTypeSyntax(func.ReturnType.Text),
+                ParseTypeSyntax(returnTypeText),
                 Identifier(methodName))
             .AddModifiers(
                 Token(SyntaxKind.PublicKeyword),

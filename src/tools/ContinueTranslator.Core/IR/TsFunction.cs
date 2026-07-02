@@ -7,6 +7,7 @@ internal sealed record TsFunction(
     TsParameter[] Parameters,
     string[] TypeParameters,
     bool IsAsync,
+    bool IsGenerator,
     bool IsExported,
     string[] Cookies)
 {

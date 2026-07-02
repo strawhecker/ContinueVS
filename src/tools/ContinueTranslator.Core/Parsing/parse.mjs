@@ -661,6 +661,7 @@ function walkFunction(fn) {
     parameters: fn.getParameters().map(walkParameter),
     typeParameters: fn.getTypeParameters().map(tp => tp.getName()),
     isAsync: fn.isAsync(),
+    isGenerator: fn.getAsteriskToken?.() != null,
     isExported: fn.isExported(),
     body: walkBody(fn),
     cookies: extractCookies(fn),

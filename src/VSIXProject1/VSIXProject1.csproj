@@ -35,6 +35,9 @@
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.40034" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4022.49" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <!-- Required for IAsyncEnumerable<T> support in .NET Framework 4.7.2 -->
+    <!-- This enables async generator functions (async function*) translated from TypeScript -->
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System.ComponentModel.Composition" />
