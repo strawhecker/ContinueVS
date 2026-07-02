@@ -210,11 +210,21 @@ internal sealed partial class MappingEngine
                 ? typeRef.Name.Substring(0, typeRef.Name.Length - suffixLen).Trim()
                 : typeRef.Name;
 
+            // Detect array syntax that was hidden behind the union suffix (e.g. "Foo[] | null").
+            bool strippedIsArray = typeRef.IsArray;
+            if (!strippedIsArray && strippedText.EndsWith("[]", StringComparison.Ordinal))
+            {
+                strippedText = strippedText[..^2];
+                if (strippedName.EndsWith("[]", StringComparison.Ordinal))
+                    strippedName = strippedName[..^2];
+                strippedIsArray = true;
+            }
+
             var strippedRef = new TsTypeRef(
                 Text: strippedText,
                 Name: strippedName,
                 TypeArgs: typeRef.TypeArgs,
-                IsArray: typeRef.IsArray);
+                IsArray: strippedIsArray);
             var (inner, wasResolved) = ResolveTypeRef(strippedRef);
             return (inner with { Text = inner.Text + "?" }, wasResolved);
         }
@@ -230,11 +240,21 @@ internal sealed partial class MappingEngine
                 ? typeRef.Name.Substring(0, typeRef.Name.Length - suffixLen).Trim()
                 : typeRef.Name;
 
+            // Detect array syntax that was hidden behind the union suffix (e.g. "Foo[] | undefined").
+            bool strippedIsArray = typeRef.IsArray;
+            if (!strippedIsArray && strippedText.EndsWith("[]", StringComparison.Ordinal))
+            {
+                strippedText = strippedText[..^2];
+                if (strippedName.EndsWith("[]", StringComparison.Ordinal))
+                    strippedName = strippedName[..^2];
+                strippedIsArray = true;
+            }
+
             var strippedRef = new TsTypeRef(
                 Text: strippedText,
                 Name: strippedName,
                 TypeArgs: typeRef.TypeArgs,
-                IsArray: typeRef.IsArray);
+                IsArray: strippedIsArray);
             var (inner, wasResolved) = ResolveTypeRef(strippedRef);
             return (inner with { Text = inner.Text + "?" }, wasResolved);
         }

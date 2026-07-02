@@ -48,6 +48,8 @@ internal sealed partial class CsEmitter
         // Properties
         foreach (TsProperty prop in tsIface.Properties)
         {
+            if (HasIgnoreCookie(prop.Cookies)) continue;
+
             PropertyDeclarationSyntax propDecl = BuildInterfaceProperty(prop);
             memberSyntaxList.Add(propDecl);
         }
@@ -55,6 +57,8 @@ internal sealed partial class CsEmitter
         // Methods
         foreach (TsMethod method in tsIface.Methods)
         {
+            if (HasIgnoreCookie(method.Cookies)) continue;
+
             MethodDeclarationSyntax methodDecl = BuildInterfaceMethod(method);
             memberSyntaxList.Add(methodDecl);
         }
