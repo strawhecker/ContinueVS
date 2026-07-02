@@ -59,6 +59,31 @@ internal sealed partial class TypeMap
     }
 
     /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="tsType"/> is a known type in the map.
+    /// Handles both simple types (<c>string</c>, <c>void</c>) and generic bases (<c>Promise&lt;T&gt;</c>).
+    /// This allows callers to distinguish "type found but maps to itself" from "type not found".
+    /// </summary>
+    public bool Contains(string tsType)
+    {
+        if (string.IsNullOrWhiteSpace(tsType))
+            return false;
+
+        // Fast path: exact match (handles simple types and identity-mapped names).
+        if (_map.ContainsKey(tsType))
+            return true;
+
+        // Generic form: check if the base name is known.
+        int angleBracket = tsType.IndexOf('<');
+        if (angleBracket > 0)
+        {
+            string baseName = tsType[..angleBracket];
+            return _map.ContainsKey(baseName);
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Removes a generic placeholder suffix (<c>&lt;T&gt;</c>, <c>&lt;K,V&gt;</c>, etc.)
     /// from a type name, returning only the base identifier.
     /// </summary>

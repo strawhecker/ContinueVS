@@ -283,11 +283,11 @@ internal sealed partial class MappingEngine
         }
 
         // TypeMap covers TS primitives and well-known generics.
-        string mapped = _typeMap.Resolve(name);
-        if (!string.Equals(mapped, name, StringComparison.Ordinal))
+        // Use Contains() to distinguish "type found but identity-mapped" from "type not found".
+        if (_typeMap.Contains(name))
         {
             resolved = true;
-            return mapped;
+            return _typeMap.Resolve(name);
         }
 
         // NodeApiMap (e.g. "fs.readFile").
