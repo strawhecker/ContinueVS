@@ -60,8 +60,20 @@ internal sealed class PipelineRunner
         if (options.GeneratedDirectory is not null)
         {
             CleanDirectory(options.GeneratedDirectory);
+
+            // If rejected directory is not explicitly provided, clean the auto-determined path.
+            if (options.RejectedDirectory is null)
+            {
+                string autoRejectedDir = Path.Combine(
+                    Path.GetDirectoryName(options.GeneratedDirectory) ?? options.OutDirectory, "..", "rejected");
+                CleanDirectory(autoRejectedDir);
+            }
+            else
+            {
+                CleanDirectory(options.RejectedDirectory);
+            }
         }
-        if (options.RejectedDirectory is not null)
+        else if (options.RejectedDirectory is not null)
         {
             CleanDirectory(options.RejectedDirectory);
         }
