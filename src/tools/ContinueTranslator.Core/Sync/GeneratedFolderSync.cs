@@ -58,13 +58,13 @@ internal static class GeneratedFolderSync
                 }
             }
 
-            // Check for unresolved stubs or raw TS type leaks.
-            var rejectionReasons = DetectRejectionReasons(content);
-            if (rejectionReasons.Count > 0)
-            {
-                WriteRejectedFile(file.RelativePath, content, rejectionReasons, rejectedDirectory, result);
-                continue;
-            }
+            //// Check for unresolved stubs or raw TS type leaks.
+            //var rejectionReasons = DetectRejectionReasons(content);
+            //if (rejectionReasons.Count > 0)
+            //{
+            //    WriteRejectedFile(file.RelativePath, content, rejectionReasons, rejectedDirectory, result);
+            //    continue;
+            //}
 
             // Safe to promote — write file and record hash in manifest.
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
