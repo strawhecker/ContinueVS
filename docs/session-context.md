@@ -116,7 +116,7 @@ ContinueVS/
 
 8. The fork contains two concrete implementations of the IDE interface: FileSystemIde (filesystem.ts) calls System.IO.* directly; MessageIde (messageIde.ts) routes every call through a _request("messageName", payload) messenger delegate. These are not alternatives — both are required. FileSystemIde is pure System.IO work; MessageIde is a proxy whose bodies follow a single mechanical pattern and should be fully auto-translated once Gap 1/2 body walking is in place.
 
-9. **PipelineRunner cleanup (NEW):** When the translator CLI is invoked with `--out`, `--generated`, or `--rejected-dir` parameters, those directories are recursively deleted (if they exist) at startup, **before** the translation pipeline runs. This ensures each translation run starts with a clean slate and avoids stale files from previous runs. Warnings are logged if cleanup fails, but the pipeline continues.
+9. **PipelineRunner cleanup (NEW):** When the translator CLI is invoked with `--out`, `--generated`, or `--rejected-dir` parameters, those directories are recursively deleted (if they exist) at startup, **before** the translation pipeline runs. This ensures each translation run starts with a clean slate and avoids stale files from previous runs. Additionally, the optional `--post-translate-clean-generated` flag deletes the Generated/ folder **after** translation completes, useful for testing scenarios to prevent folder pollution during CI/local test runs. Warnings are logged if cleanup fails, but the pipeline continues.
 
 ## Fork workflow
 

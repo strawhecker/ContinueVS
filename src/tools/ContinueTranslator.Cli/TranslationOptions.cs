@@ -13,5 +13,7 @@ internal sealed record TranslationOptions(
     /// <summary>Optional absolute path to the Generated/ folder to promote translated files into.</summary>
     string? GeneratedDirectory = null,
     /// <summary>Optional absolute path to the rejected/ folder for Phase 2 work queue.</summary>
-    string? RejectedDirectory = null);
+    string? RejectedDirectory = null,
+    /// <summary>When true, delete the Generated/ folder after translation completes. Useful for testing to prevent folder pollution.</summary>
+    bool PostTranslateCleanGenerated = false);
 

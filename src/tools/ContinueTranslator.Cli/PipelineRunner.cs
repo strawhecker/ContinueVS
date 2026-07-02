@@ -106,6 +106,12 @@ internal sealed class PipelineRunner
 
             SyncResult syncResult = GeneratedFolderSync.Sync(files, options.GeneratedDirectory, rejectedDir);
             Console.WriteLine(syncResult);
+
+            // 8. Optionally clean the Generated/ folder after translation (useful for testing).
+            if (options.PostTranslateCleanGenerated)
+            {
+                CleanDirectory(options.GeneratedDirectory);
+            }
         }
     }
 
