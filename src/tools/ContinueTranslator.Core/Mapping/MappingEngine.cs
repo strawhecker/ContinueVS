@@ -208,6 +208,13 @@ internal sealed partial class MappingEngine
             return (typeRef with { Name = "Delegate", Text = "Delegate" }, true);
         }
 
+        // Handle bare "Function" type (TypeScript's simplified function type when full context unavailable).
+        // This occurs when the parser receives a type name without access to the full declaration.
+        if (typeRef.Name.Equals("Function", StringComparison.Ordinal))
+        {
+            return (typeRef with { Name = "Delegate", Text = "Delegate" }, true);
+        }
+
         // Handle TypeScript union-with-null (e.g. "string | null") → nullable C# type (e.g. "string?").
         if (typeRef.Text.EndsWith(" | null", StringComparison.Ordinal))
         {

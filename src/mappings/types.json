@@ -5,6 +5,7 @@
   "any":                 "object",
   "unknown":             "object",
   "void":                "void",
+  "Function":            "Delegate",
   "Promise<T>":          "Task<T>",
   "AsyncGenerator<T>":   "IAsyncEnumerable<T>",
   "Array<T>":            "List<T>",

@@ -37,13 +37,18 @@ function extractCookies(node) {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolves a type text for a node using getType().getText() with a fallback.
+ * Resolves a type text for a node, preferring declared type annotation text to preserve syntax.
+ * For declared properties: getTypeNode() returns the source-level annotation (e.g., "(args) => boolean").
+ * For inferred types: falls back to getType().getText(), which may simplify to "Function".
  * @param {import("ts-morph").Node} node  The node whose type we want.
  * @param {import("ts-morph").Node} [ctx] Context node for getText (defaults to node).
  * @returns {string}
  */
 function resolveTypeText(node, ctx) {
   try {
+    // Prefer declared type annotation — preserves arrow function syntax.
+    const typeNode = node.getTypeNode?.();
+    if (typeNode) return typeNode.getText();
     return node.getType().getText(ctx ?? node);
   } catch {
     try {
