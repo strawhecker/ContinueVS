@@ -85,6 +85,14 @@ internal sealed partial class CsEmitter
             ? prop.Type.Text + "?"
             : prop.Type.Text;
 
+        // Detect and handle index signatures: { [key: string]: ValueType }
+        // Convert to Dictionary<string, ValueType>
+        bool isIndexSig = TryExtractIndexSignatureValueType(typeText, out string valueType);
+        if (isIndexSig)
+        {
+            typeText = $"Dictionary<string, {valueType}>";
+        }
+
         PropertyDeclarationSyntax propDecl = PropertyDeclaration(
                 ParseTypeSyntax(typeText),
                 Identifier(prop.Name))
@@ -96,7 +104,7 @@ internal sealed partial class CsEmitter
                     .WithSemicolonToken(Token(SyntaxKind.SemicolonToken)),
             })));
 
-        if (HasTodoCookie(prop.Cookies))
+        if (HasTodoCookie(prop.Cookies) || isIndexSig)
             propDecl = WithLeadingLineComment(propDecl, "TODO");
 
         return propDecl;
@@ -135,12 +143,17 @@ internal sealed partial class CsEmitter
                 ? p.Type.Text + "?"
                 : p.Type.Text;
 
-            bool isIndexSig = typeText.TrimStart().StartsWith('{') && typeText.Contains('[') && typeText.Contains("]:");
-            if (isIndexSig) typeText = "Dictionary<string, string>";
+            // Detect and handle index signatures using the shared helper
+            bool isIndexSig = TryExtractIndexSignatureValueType(typeText, out string valueType);
+            if (isIndexSig)
+            {
+                typeText = $"Dictionary<string, {valueType}>";
+            }
 
             ParameterSyntax paramSyntax = Parameter(Identifier(p.Name))
                 .WithType(ParseTypeSyntax(typeText));
-            if (isIndexSig) paramSyntax = WithLeadingLineComment(paramSyntax, "@ct:todo");
+            if (isIndexSig)
+                paramSyntax = WithLeadingLineComment(paramSyntax, "@ct:todo");
 
             if (p.IsRest)
                 paramSyntax = paramSyntax.AddModifiers(Token(SyntaxKind.ParamsKeyword));
@@ -157,5 +170,39 @@ internal sealed partial class CsEmitter
             .Select(tp => TypeParameter(Identifier(tp)))
             .ToArray();
         return TypeParameterList(SeparatedList(tpSyntaxes));
+    }
+
+    /// <summary>
+    /// Detects and extracts the value type from a TypeScript index signature.
+    /// Index signatures have the form: { [key: string]: ValueType } or { [key: SomeType]: ValueType }
+    /// Extracts "ValueType" from the signature and returns it as the Dictionary value type.
+    /// </summary>
+    /// <param name="typeText">The type text to check (e.g., "{ [key: string]: RangeInFileWithContents[] }")</param>
+    /// <param name="valueType">The extracted value type (e.g., "RangeInFileWithContents[]"), empty if not an index signature</param>
+    /// <returns>True if typeText is an index signature, false otherwise</returns>
+    private static bool TryExtractIndexSignatureValueType(string typeText, out string valueType)
+    {
+        valueType = string.Empty;
+
+        string trimmed = typeText.TrimStart();
+        if (!trimmed.StartsWith('{')) return false;
+        if (!trimmed.Contains('[')) return false;
+        if (!trimmed.Contains("]:")) return false;
+
+        // Find the closing } to isolate the signature
+        int closingBrace = trimmed.LastIndexOf('}');
+        if (closingBrace < 0) return false;
+
+        // Extract content between { and }
+        int openBrace = trimmed.IndexOf('{');
+        string signature = trimmed.Substring(openBrace + 1, closingBrace - openBrace - 1);
+
+        // Find ]: to locate where the value type starts
+        int colonIdx = signature.IndexOf("]:");
+        if (colonIdx < 0) return false;
+
+        // Extract value type after ]:
+        valueType = signature.Substring(colonIdx + 2).Trim();
+        return !string.IsNullOrEmpty(valueType);
     }
 }
