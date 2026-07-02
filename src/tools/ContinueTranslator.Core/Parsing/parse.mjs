@@ -144,11 +144,12 @@ function walkProperty(prop) {
 }
 
 /**
- * Extracts variable names from a destructuring pattern.
- * For array patterns like [a, b, c], returns ["a", "b", "c"].
- * For object patterns like {x, y}, returns ["x", "y"].
+ * Extracts variable names from a destructuring pattern and returns pattern kind.
+ * For array patterns like [a, b, c], returns { names: ["a", "b", "c"], patternKind: "Array" }.
+ * For object patterns like {x, y}, returns { names: ["x", "y"], patternKind: "Object" }.
+ * For non-destructuring, returns null.
  * @param {import("ts-morph").Node} nameNode
- * @returns {string[] | null}
+ * @returns {{ names: string[], patternKind: "Array" | "Object" } | null}
  */
 function extractDestructuringNames(nameNode) {
   if (!nameNode) return null;
@@ -165,7 +166,7 @@ function extractDestructuringNames(nameNode) {
         names.push(name);
       }
     }
-    return names.length > 0 ? names : null;
+    return names.length > 0 ? { names, patternKind: "Array" } : null;
   }
 
   // Object destructuring pattern: {x, y, z}
@@ -178,7 +179,7 @@ function extractDestructuringNames(nameNode) {
         names.push(name);
       }
     }
-    return names.length > 0 ? names : null;
+    return names.length > 0 ? { names, patternKind: "Object" } : null;
   }
 
   return null;
@@ -243,20 +244,22 @@ function walkStatement(stmt) {
             kind: "Var",
             name: null,
             names: null,
+            patternKind: null,
             initializer: null,
           };
         }
 
         // Check if this is a destructuring declaration
         const nameNode = firstDecl.getNameNode?.();
-        const destructuredNames = extractDestructuringNames(nameNode);
+        const destructuringInfo = extractDestructuringNames(nameNode);
 
-        if (destructuredNames) {
+        if (destructuringInfo) {
           // Destructuring pattern
           return {
             kind: "Var",
             name: null,
-            names: destructuredNames,
+            names: destructuringInfo.names,
+            patternKind: destructuringInfo.patternKind,
             initializer: walkExprSafe(firstDecl.getInitializer?.()),
           };
         } else {
@@ -265,6 +268,7 @@ function walkStatement(stmt) {
             kind: "Var",
             name: firstDecl.getName?.() ?? "",
             names: null,
+            patternKind: null,
             initializer: walkExprSafe(firstDecl.getInitializer?.()),
           };
         }

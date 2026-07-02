@@ -107,9 +107,6 @@ internal sealed partial class CsEmitter
         // Handle destructuring patterns (array or object)
         if (stmt.Names is not null && stmt.Names.Length > 0)
         {
-            // Destructuring: const [a, b] = expr → var (a, b) = expr;
-            // or: const {x, y} = expr → var (x, y) = expr;
-
             if (stmt.Initializer is null)
             {
                 // No initializer, can't emit proper deconstruction
@@ -117,12 +114,46 @@ internal sealed partial class CsEmitter
                 return ParseStatement($"// TODO: destructuring without initializer for {string.Join(", ", stmt.Names)}\n");
             }
 
-            // Generate the tuple deconstruction pattern text
-            string varNames = string.Join(", ", stmt.Names);
-            string initText = EmitExpression(stmt.Initializer).NormalizeWhitespace().ToFullString();
+            // Distinguish between array and object destructuring
+            if (stmt.PatternKind == "Array")
+            {
+                // Array destructuring: const [a, b] = expr → var (a, b) = expr;
+                string varNames = string.Join(", ", stmt.Names);
+                string initText = EmitExpression(stmt.Initializer).NormalizeWhitespace().ToFullString();
+                return ParseStatement($"var ({varNames}) = {initText};\n");
+            }
+            else if (stmt.PatternKind == "Object")
+            {
+                // Object destructuring: const { config } = expr
+                if (stmt.Names.Length == 1)
+                {
+                    // Single property extraction: const { config } = expr → var config = (expr).config;
+                    string propName = stmt.Names[0];
+                    string initText = EmitExpression(stmt.Initializer).NormalizeWhitespace().ToFullString();
 
-            // Emit: var (a, b, c) = expr;
-            return ParseStatement($"var ({varNames}) = {initText};\n");
+                    // If the initializer is an await expression, we need to wrap it in parens for property access
+                    if (initText.StartsWith("await "))
+                    {
+                        initText = $"({initText})";
+                    }
+
+                    // Convert property name from camelCase to PascalCase for C# convention
+                    string csPropertyName = ToPascalCase(propName);
+                    return ParseStatement($"var {propName} = {initText}.{csPropertyName};\n");
+                }
+                else
+                {
+                    // Multiple property extraction: fallback to TODO comment
+                    // This requires complex analysis to determine the source type's properties
+                    string propNames = string.Join(", ", stmt.Names);
+                    return ParseStatement($"// TODO: Object destructuring {{ {propNames} }} = expr — convert manually to property extraction\n");
+                }
+            }
+            else
+            {
+                // PatternKind is null/unknown, fallback to TODO comment
+                return ParseStatement($"// TODO: Unknown destructuring pattern for {string.Join(", ", stmt.Names)}\n");
+            }
         }
 
         // Handle regular single variable declaration
@@ -135,11 +166,11 @@ internal sealed partial class CsEmitter
                 EqualsValueClause(EmitExpression(stmt.Initializer)));
 
         return LocalDeclarationStatement(
-            VariableDeclaration(typeSyntax)
-                .WithVariables(SingletonSeparatedList(declarator)));
-    }
+                     VariableDeclaration(typeSyntax)
+                         .WithVariables(SingletonSeparatedList(declarator)));
+            }
 
-    private StatementSyntax EmitIf(TsIfStatement stmt, string filePath)
+            private StatementSyntax EmitIf(TsIfStatement stmt, string filePath)
     {
         ExpressionSyntax condition = stmt.Condition is not null
             ? EmitExpression(stmt.Condition)
