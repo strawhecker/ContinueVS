@@ -294,6 +294,15 @@ internal sealed partial class CsEmitter
             catchClauses = SingletonList(CatchClause(catchDecl, null, catchBlock));
         }
 
-        return TryStatement(tryBlock, catchClauses, null);
+        // Emit finally block if present
+        FinallyClauseSyntax? finallyClause = null;
+        if (stmt.FinallyStatements?.Length > 0)
+        {
+            BlockSyntax finallyBlock = Block(
+                List(stmt.FinallyStatements.Select(s => EmitStatement(s, filePath))));
+            finallyClause = FinallyClause(finallyBlock);
+        }
+
+        return TryStatement(tryBlock, catchClauses, finallyClause);
     }
 }
