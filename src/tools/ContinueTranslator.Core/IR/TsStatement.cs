@@ -12,6 +12,7 @@ namespace ContinueTranslator.Core.IR;
 [JsonDerivedType(typeof(TsVarStatement), "Var")]
 [JsonDerivedType(typeof(TsExpressionStatement), "ExpressionStatement")]
 [JsonDerivedType(typeof(TsThrowStatement), "Throw")]
+[JsonDerivedType(typeof(TsFunctionDeclarationStatement), "FunctionDeclaration")]
 [JsonDerivedType(typeof(TsUnknownStatement), "Unknown")]
 internal abstract record TsStatement;
 
@@ -54,5 +55,17 @@ internal sealed record TsVarStatement(string? Name, TsExpression? Initializer, s
 internal sealed record TsExpressionStatement(TsExpression? Expression) : TsStatement;
 
 internal sealed record TsThrowStatement(TsExpression? Expression) : TsStatement;
+
+/// <summary>
+/// Represents a nested function declaration statement (function declared inside another function body).
+/// </summary>
+internal sealed record TsFunctionDeclarationStatement(
+    string Name,
+    TsParameter[] Parameters,
+    TsTypeRef ReturnType,
+    TsStatement[] Body,
+    bool IsAsync = false,
+    bool IsGenerator = false,
+    string[] TypeParameters = default!) : TsStatement;
 
 internal sealed record TsUnknownStatement(string Text) : TsStatement;

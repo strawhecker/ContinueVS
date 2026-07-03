@@ -330,6 +330,8 @@ function walkStatement(stmt) {
         return { kind: "ExpressionStatement", expression: walkExprSafe(stmt.getExpression?.()) };
       case "ThrowStatement":
         return { kind: "Throw", expression: walkExprSafe(stmt.getExpression?.()) };
+      case "FunctionDeclaration":
+        return walkFunctionStatement(stmt);
       default:
         return { kind: "Unknown", text: stmt.getText() };
     }
@@ -730,6 +732,32 @@ function walkFunction(fn) {
     isAsync: fn.isAsync(),
     isGenerator: fn.getAsteriskToken?.() != null,
     isExported: fn.isExported(),
+    body: walkBody(fn),
+    cookies: extractCookies(fn),
+  };
+}
+
+/**
+ * Walks a nested FunctionDeclaration statement (function declared inside another function body).
+ * Reuses the same structure as walkFunction but for statement context.
+ * @param {import("ts-morph").FunctionDeclaration} fn
+ * @returns {object}
+ */
+function walkFunctionStatement(fn) {
+  let returnTypeText;
+  try {
+    returnTypeText = fn.getReturnType().getText(fn);
+  } catch {
+    returnTypeText = "void";
+  }
+  return {
+    kind: "FunctionDeclaration",
+    name: fn.getName() ?? "(anonymous)",
+    returnType: buildTypeRef(returnTypeText),
+    parameters: fn.getParameters().map(walkParameter),
+    typeParameters: fn.getTypeParameters().map(tp => tp.getName()),
+    isAsync: fn.isAsync(),
+    isGenerator: fn.getAsteriskToken?.() != null,
     body: walkBody(fn),
     cookies: extractCookies(fn),
   };

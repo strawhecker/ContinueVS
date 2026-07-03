@@ -27,6 +27,7 @@ internal sealed partial class CsEmitter
             TsForStatement forStmt         => EmitFor(forStmt, filePath),
             TsForOfStatement forOfStmt     => EmitForOf(forOfStmt, filePath),
             TsTryStatement tryStmt         => EmitTry(tryStmt, filePath),
+            TsFunctionDeclarationStatement funcDecl => EmitFunctionDeclaration(funcDecl, filePath),
             TsUnknownStatement unknown     => EmitUnknownStatement(unknown),
             _                              => ParseStatement($"// TODO: untranslatable — {filePath}\n"),
         };
@@ -304,5 +305,49 @@ internal sealed partial class CsEmitter
         }
 
         return TryStatement(tryBlock, catchClauses, finallyClause);
+    }
+
+    private StatementSyntax EmitFunctionDeclaration(TsFunctionDeclarationStatement funcDecl, string filePath)
+    {
+        // Emit as a C# local function (C# 7.0+)
+        // Local functions are statements that declare and define a nested function.
+
+        // Build parameter list
+        var parameters = new List<ParameterSyntax>();
+        foreach (TsParameter param in funcDecl.Parameters)
+        {
+            TypeSyntax paramType = ParseTypeSyntax(param.Type.Name);
+            ParameterSyntax paramSyntax = Parameter(Identifier(param.Name))
+                .WithType(paramType);
+
+            if (param.IsOptional)
+            {
+                // Add default value for optional parameters
+                paramSyntax = paramSyntax.WithDefault(EqualsValueClause(LiteralExpression(SyntaxKind.NullLiteralExpression)));
+            }
+
+            parameters.Add(paramSyntax);
+        }
+
+        // Build return type
+        TypeSyntax returnType = ParseTypeSyntax(funcDecl.ReturnType.Name);
+
+        // Build function body
+        BlockSyntax body = Block(List(funcDecl.Body.Select(s => EmitStatement(s, filePath))));
+
+        // Create local function declaration
+        LocalFunctionStatementSyntax localFunc = LocalFunctionStatement(
+            returnType,
+            Identifier(funcDecl.Name))
+            .WithParameterList(ParameterList(SeparatedList(parameters)))
+            .WithBody(body);
+
+        // Add async modifier if needed
+        if (funcDecl.IsAsync)
+        {
+            localFunc = localFunc.AddModifiers(Token(SyntaxKind.AsyncKeyword));
+        }
+
+        return localFunc;
     }
 }
