@@ -120,44 +120,38 @@ function splitTopLevelComma(s) {
  * @returns {string} The literal text with escape sequences preserved
  */
 function getTemplateLiteralText(node) {
-  const sourceText = node.getText();
-  // Template heads/tails in source are wrapped like `text` or }text`
-  // getText() returns the raw source including backticks/braces
-  // We need to extract just the content with escape sequences preserved
+  // Try to use the literal value which is the clean interpreted string.
+  // For template heads and tails, getLiteralValue() returns the actual text content
+  // without the backticks or braces, and with escape sequences properly interpreted.
+  try {
+    return node.getLiteralValue();
+  } catch (e) {
+    // Fall back to manual extraction if getLiteralValue fails
+    const sourceFile = node.getSourceFile();
+    const fullText = sourceFile.getFullText();
+    const start = node.getStart(sourceFile, false); // exclude trivia
+    const end = node.getEnd();
+    let rawText = fullText.substring(start, end);
 
-  // For template head: getText() returns `text` or `text${
-  // For template tail: getText() returns }text` or }text${
-  // The getLiteralValue() gives us the interpreted string, which loses escape sequences
-  // Instead, use the source file's full text and extract the character range
+    // Strip the backtick/brace markers
+    let content = rawText;
+    if (content.startsWith('`')) {
+      content = content.substring(1);
+    } else if (content.startsWith('}')) {
+      content = content.substring(1);
+    }
 
-  const sourceFile = node.getSourceFile();
-  const fullText = sourceFile.getFullText();
-  const start = node.getStart(sourceFile, true); // include trivia
-  const end = node.getEnd();
-  const rawText = fullText.substring(start, end);
+    if (content.endsWith('`')) {
+      content = content.substring(0, content.length - 1);
+    } else if (content.endsWith('${')) {
+      content = content.substring(0, content.length - 2);
+    }
 
-  // Strip backticks and handle template markers
-  // Template head: `text` or `text${
-  // Template middle (tail): }text` or }text${  
-  // Template tail: }text`
-
-  let content = rawText;
-
-  // Remove leading backtick or closing brace-backtick from head
-  if (content.startsWith('`')) {
-    content = content.substring(1);
-  } else if (content.startsWith('}')) {
-    content = content.substring(1);
+    // Clean up any internal newlines and excess whitespace
+    // but preserve intentional escape sequences like \n
+    const lines = content.split('\n').map(line => line.trim()).filter(line => line);
+    return lines.join('');
   }
-
-  // Remove trailing backtick or opening brace-backtick from tail
-  if (content.endsWith('`')) {
-    content = content.substring(0, content.length - 1);
-  } else if (content.endsWith('${')) {
-    content = content.substring(0, content.length - 2);
-  }
-
-  return content;
 }
 
 // ---------------------------------------------------------------------------
