@@ -317,12 +317,15 @@ function walkStatement(stmt) {
           };
         } else {
           // Regular single variable
+          const typeNode = firstDecl.getTypeNode?.();
+          const typeText = typeNode ? typeNode.getText() : null;
           return {
             kind: "Var",
             name: firstDecl.getName?.() ?? "",
             names: null,
             patternKind: null,
             initializer: walkExprSafe(firstDecl.getInitializer?.()),
+            type: typeText,
           };
         }
       }

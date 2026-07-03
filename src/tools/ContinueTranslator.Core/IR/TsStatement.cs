@@ -49,7 +49,7 @@ internal sealed record TsTryStatement(
 /// For array destructuring: Name = null, Names = ["a", "b"], PatternKind = "Array"
 /// For object destructuring: Name = null, Names = ["prop1", "prop2"], PatternKind = "Object"
 /// </summary>
-internal sealed record TsVarStatement(string? Name, TsExpression? Initializer, string[]? Names = null, string? PatternKind = null) : TsStatement;
+internal sealed record TsVarStatement(string? Name, TsExpression? Initializer, string[]? Names = null, string? PatternKind = null, string? Type = null) : TsStatement;
 
 
 internal sealed record TsExpressionStatement(TsExpression? Expression) : TsStatement;

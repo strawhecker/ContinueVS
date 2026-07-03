@@ -158,13 +158,46 @@ internal sealed partial class CsEmitter
         }
 
         // Handle regular single variable declaration
-        // TsVarStatement carries no declared type; always use var.
+        // Check if we have type information and empty array initializer
         TypeSyntax typeSyntax = IdentifierName("var");
+        ExpressionSyntax? initExpr = null;
+
+        if (stmt.Initializer is not null)
+        {
+            // Check if this is an empty array literal with a known type
+            if (stmt.Initializer is TsArrayLiteralExpression arrLit && 
+                arrLit.Elements.Length == 0 && 
+                stmt.Type is not null)
+            {
+                // Parse the type to extract element type
+                string elementType = ExtractArrayElementType(stmt.Type);
+                if (!string.IsNullOrEmpty(elementType))
+                {
+                    // Generate: new List<ElementType>()
+                    initExpr = ObjectCreationExpression(
+                        GenericName(
+                            Identifier("List"),
+                            TypeArgumentList(SingletonSeparatedList<TypeSyntax>(
+                                ParseTypeName(elementType)))),
+                        ArgumentList(),
+                        null);
+                }
+                else
+                {
+                    // Fallback to standard array emission if type can't be parsed
+                    initExpr = EmitExpression(stmt.Initializer);
+                }
+            }
+            else
+            {
+                initExpr = EmitExpression(stmt.Initializer);
+            }
+        }
 
         VariableDeclaratorSyntax declarator = VariableDeclarator(Identifier(stmt.Name ?? "_"));
-        if (stmt.Initializer is not null)
+        if (initExpr is not null)
             declarator = declarator.WithInitializer(
-                EqualsValueClause(EmitExpression(stmt.Initializer)));
+                EqualsValueClause(initExpr));
 
         return LocalDeclarationStatement(
                      VariableDeclaration(typeSyntax)
@@ -349,5 +382,32 @@ internal sealed partial class CsEmitter
         }
 
         return localFunc;
+    }
+
+    /// <summary>
+    /// Extracts the element type from a TypeScript array type string.
+    /// For example: "string[]" → "string", "T[]" → "T", "string[][]" → "string[]"
+    /// </summary>
+    private static string ExtractArrayElementType(string? typeStr)
+    {
+        if (string.IsNullOrWhiteSpace(typeStr))
+            return string.Empty;
+
+        typeStr = typeStr.Trim();
+
+        // Handle array type syntax: remove trailing []
+        if (typeStr.EndsWith("[]"))
+        {
+            return typeStr.Substring(0, typeStr.Length - 2).Trim();
+        }
+
+        // Handle generic array syntax: Array<T> → T
+        if (typeStr.StartsWith("Array<") && typeStr.EndsWith(">"))
+        {
+            return typeStr.Substring(6, typeStr.Length - 7).Trim();
+        }
+
+        // Not an array type, return empty
+        return string.Empty;
     }
 }
