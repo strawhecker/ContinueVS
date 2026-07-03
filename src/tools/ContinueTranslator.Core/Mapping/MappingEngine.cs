@@ -215,6 +215,47 @@ internal sealed partial class MappingEngine
             return (typeRef with { Name = "Delegate", Text = "Delegate" }, true);
         }
 
+        // Handle TypeScript typeof operator in type position (e.g., "typeof BaseContextProvider | undefined").
+        // The typeof operator represents the class/constructor itself (not an instance).
+        // This maps to C#'s System.Type, which represents runtime type information.
+        if (typeRef.Text.StartsWith("typeof ", StringComparison.Ordinal))
+        {
+            const string Prefix = "typeof ";
+            int prefixLen = Prefix.Length;
+
+            // Check if the typeof is part of a union (e.g., "typeof X | undefined" or "typeof X | null").
+            bool hasUndefinedSuffix = typeRef.Text.EndsWith(" | undefined", StringComparison.Ordinal);
+            bool hasNullSuffix = typeRef.Text.EndsWith(" | null", StringComparison.Ordinal);
+
+            // Extract the class name after "typeof ", stripping any union suffix.
+            string classNameWithSuffix = typeRef.Text.Substring(prefixLen);
+            string className = classNameWithSuffix;
+
+            if (hasUndefinedSuffix)
+            {
+                className = classNameWithSuffix.Substring(0, classNameWithSuffix.Length - " | undefined".Length).Trim();
+            }
+            else if (hasNullSuffix)
+            {
+                className = classNameWithSuffix.Substring(0, classNameWithSuffix.Length - " | null".Length).Trim();
+            }
+
+            // Construct the mapped type: "Type" for typeof without union, "Type?" with union.
+            string mappedText = "Type";
+            if (hasUndefinedSuffix || hasNullSuffix)
+                mappedText = mappedText + "?";
+
+            var typeofRef = new TsTypeRef(
+                Text: mappedText,
+                Name: "Type",
+                TypeArgs: [],
+                IsArray: false);
+
+            // Resolve the constructed Type reference. Since "Type" is a C# keyword/type,
+            // it should resolve to "Type" without needing further mapping.
+            return ResolveTypeRef(typeofRef);
+        }
+
         // Handle TypeScript union-with-null (e.g. "string | null") → nullable C# type (e.g. "string?").
         if (typeRef.Text.EndsWith(" | null", StringComparison.Ordinal))
         {
