@@ -150,7 +150,7 @@ function getTemplateLiteralText(node) {
     // Clean up any internal newlines and excess whitespace
     // but preserve intentional escape sequences like \n
     const lines = content.split('\n').map(line => line.trim()).filter(line => line);
-    return lines.join('');
+    return lines.join(' ');
   }
 }
 
