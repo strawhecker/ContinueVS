@@ -81,7 +81,8 @@ internal sealed partial class SourceFetcher
         // Filter: any folder segment named __tests__ or test
         string[] segments = relative.Split('/');
         if (Array.Exists(segments, s => s.Equals("__tests__", StringComparison.OrdinalIgnoreCase)
-                                     || s.Equals("test", StringComparison.OrdinalIgnoreCase)))
+                                     || s.Equals("test", StringComparison.InvariantCultureIgnoreCase)
+                                     ))
             return true;
 
         return false;

@@ -83,8 +83,8 @@ internal sealed class RepoScanner
         // Exclude top-level "test" or "tests" directories within core/,
         // but not arbitrary directories named Test nested within a component structure.
         // Match patterns like "/core/test/" and "/core/tests/" but not "/RootPathContext/Test/".
-        if (normalizedPath.IndexOf("/core/test/", StringComparison.OrdinalIgnoreCase) >= 0
-            || normalizedPath.IndexOf("/core/tests/", StringComparison.OrdinalIgnoreCase) >= 0)
+        if (normalizedPath.IndexOf("/core/test/", StringComparison.InvariantCultureIgnoreCase) >= 0
+            || normalizedPath.IndexOf("/core/tests/", StringComparison.InvariantCultureIgnoreCase) >= 0)
             return false;
 
         // Examine individual path segments for excluded directories.
@@ -102,6 +102,8 @@ internal sealed class RepoScanner
             if (segment.Equals("vendor", StringComparison.OrdinalIgnoreCase))
                 return false;
             if (segment.Equals("__tests__", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (segment.Equals("test", StringComparison.InvariantCultureIgnoreCase))
                 return false;
         }
 

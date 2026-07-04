@@ -163,13 +163,34 @@ function getTemplateLiteralText(node) {
  * @returns {object}
  */
 function walkParameter(param) {
+  // Check if this parameter is a destructuring pattern (e.g., { x, y } or [a, b])
+  const nameNode = param.getNameNode?.();
+  const destructuringInfo = extractDestructuringNames(nameNode);
+
+  let paramName = param.getName();
+  let paramCookies = extractCookies(param);
+
+  // If this is a destructuring pattern, create a synthetic parameter name
+  // and mark it with a cookie so the C# emitter knows this was destructured
+  if (destructuringInfo) {
+    // Use a synthetic name like __destructured_0 to avoid conflicts
+    paramName = `__destructured_${destructuringInfo.patternKind.toLowerCase()}`;
+
+    // Store the destructuring metadata in cookies for the C# emitter
+    paramCookies = [
+      ...paramCookies,
+      `@ct:destructuring=${destructuringInfo.patternKind}`,
+      `@ct:destructuring_names=${destructuringInfo.names.join(",")}`,
+    ];
+  }
+
   return {
-    name: param.getName(),
+    name: paramName,
     type: buildTypeRef(resolveTypeText(param, param)),
     isOptional: param.isOptional(),
     isRest: param.isRestParameter(),
     hasInitializer: param.hasInitializer(),
-    cookies: extractCookies(param),
+    cookies: paramCookies,
   };
 }
 
