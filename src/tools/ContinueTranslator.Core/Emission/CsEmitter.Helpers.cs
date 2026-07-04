@@ -565,7 +565,7 @@ internal sealed partial class CsEmitter
     /// - Spaces before commas: "value , " → "value,"
     /// - Incorrect colon syntax (colons should be converted to equals)
     /// - Excessive line breaks in nested objects
-    /// - Collapses simple nested objects to more compact format
+    /// - Missing 'new' keyword in nested anonymous object creations
     /// </summary>
     private static string FixAnonymousObjectFormatting(string code)
     {
@@ -586,6 +586,14 @@ internal sealed partial class CsEmitter
             code,
             @"(\w+)\s*:\s*(?=\{|\w+|\(|new\s|"")",
             "$1 = ");
+
+        // Fix: Inject 'new' keyword before opening braces in property assignments that are missing it.
+        // This handles nested anonymous objects: "propertyName = {" → "propertyName = new {"
+        // We match "= " followed by optional whitespace and "{", but NOT if preceded by "new"
+        code = System.Text.RegularExpressions.Regex.Replace(
+            code,
+            @"(?<!new\s)=\s*\{",
+            "= new {");
 
         // Collapse redundant line breaks around single-line properties
         // E.g., "line = \n node.startPosition.row," -> "line = node.startPosition.row,"

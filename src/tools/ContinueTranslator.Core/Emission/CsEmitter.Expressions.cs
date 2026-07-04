@@ -1005,18 +1005,28 @@ internal sealed partial class CsEmitter
         TsObjectProperty[] named   = [.. objLit.Properties.Where(p => !IsSpread(p))];
         TsObjectProperty[] spreads = [.. objLit.Properties.Where(IsSpread)];
 
+        // Helper method to create anonymous object creation expressions with explicit tokens.
+        // This ensures the 'new' keyword is always present in the generated syntax tree, even in nested contexts.
+        static AnonymousObjectCreationExpressionSyntax CreateAnonObjectWithTokens(
+            SeparatedSyntaxList<AnonymousObjectMemberDeclaratorSyntax> members) =>
+            AnonymousObjectCreationExpression(
+                Token(SyntaxKind.NewKeyword),
+                Token(SyntaxKind.OpenBraceToken),
+                members,
+                Token(SyntaxKind.CloseBraceToken));
+
         return (spreads.Length, named.Length) switch
         {
             // {}  →  new { }
-            (0, 0) => AnonymousObjectCreationExpression(
-                           SeparatedList<AnonymousObjectMemberDeclaratorSyntax>()),
+            (0, 0) => CreateAnonObjectWithTokens(
+                        SeparatedList<AnonymousObjectMemberDeclaratorSyntax>()),
 
             // { ...foo }  →  foo
             (1, 0) => EmitExpression(spreads[0].Value!),
 
             // { a, b: expr }  →  new { a, b = expr }
-            (0, _) => AnonymousObjectCreationExpression(
-                           SeparatedList(named.Select(EmitNamedMember))),
+            (0, _) => CreateAnonObjectWithTokens(
+                        SeparatedList(named.Select(EmitNamedMember))),
 
             // multi-spread / mixed: SpreadMerge.Merge(a, b, …) — last value wins,
             // null sources silently skipped.  SpreadMerge.cs is auto-emitted into the output.
@@ -1036,10 +1046,15 @@ internal sealed partial class CsEmitter
         IEnumerable<ExpressionSyntax> spreadArgs = spreads.Select(p => EmitExpression(p.Value!));
 
         // Named props, if any, become a trailing anonymous-object argument.
+        // Use explicit token construction to ensure 'new' keyword is always present in nested objects.
         IEnumerable<ExpressionSyntax> args = named.Length == 0
             ? spreadArgs
-            : spreadArgs.Append(AnonymousObjectCreationExpression(
-                  SeparatedList(named.Select(EmitNamedMember))));
+            : spreadArgs.Append(
+                AnonymousObjectCreationExpression(
+                    Token(SyntaxKind.NewKeyword),
+                    Token(SyntaxKind.OpenBraceToken),
+                    SeparatedList(named.Select(EmitNamedMember)),
+                    Token(SyntaxKind.CloseBraceToken)));
 
         return InvocationExpression(
             MemberAccessExpression(
