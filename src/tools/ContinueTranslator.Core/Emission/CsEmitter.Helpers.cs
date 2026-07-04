@@ -563,7 +563,6 @@ internal sealed partial class CsEmitter
     /// Post-processes generated C# code to improve formatting of anonymous object literals.
     /// Fixes issues like:
     /// - Spaces before commas: "value , " → "value,"
-    /// - Incorrect colon syntax (colons should be converted to equals)
     /// - Excessive line breaks in nested objects
     /// - Missing 'new' keyword in nested anonymous object creations
     /// </summary>
@@ -580,12 +579,12 @@ internal sealed partial class CsEmitter
         // Collapse multiple blank lines into single blank lines
         code = System.Text.RegularExpressions.Regex.Replace(code, @"\n\s*\n\s*\n", "\n\n");
 
-        // Fix: Convert anonymous object member colons to equals when followed by a value
-        // Pattern: identifier followed by colon, convert to identifier =
-        code = System.Text.RegularExpressions.Regex.Replace(
-            code,
-            @"(\w+)\s*:\s*(?=\{|\w+|\(|new\s|"")",
-            "$1 = ");
+        // NOTE: A colon-to-equals conversion regex was previously present here to handle
+        // anonymous object member syntax. It was removed because:
+        // 1. EmitObjectLiteral already uses AnonymousObjectMemberDeclarator(NameEquals(...))
+        //    which causes Roslyn to emit '=' directly in the syntax tree.
+        // 2. The regex was incorrectly converting the false-branch ':' of ternary expressions
+        //    (e.g. "expr.text : otherExpr") into '=' assignment operators.
 
         // Fix: Inject 'new' keyword before opening braces in property assignments that are missing it.
         // This handles nested anonymous objects: "propertyName = {" → "propertyName = new {"
