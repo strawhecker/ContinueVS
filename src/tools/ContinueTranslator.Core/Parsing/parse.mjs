@@ -473,8 +473,12 @@ function walkExpression(expr) {
               // Spread: { ...expr } — walk the inner expression into the IR.
               return { name: "...", value: walkExprSafe(p.getExpression()) };
             }
+            // Extract property name
+            const fullText = p.getText();
+            const colonIdx = fullText.indexOf(':');
+            const propName = colonIdx >= 0 ? fullText.substring(0, colonIdx).trim() : fullText;
             return {
-              name: p.getName?.() ?? p.getText(),
+              name: propName,
               value: p.getInitializer ? walkExprSafe(p.getInitializer()) : null,
             };
           }),
@@ -660,6 +664,10 @@ function walkMethod(method) {
   let returnTypeText;
   try {
     returnTypeText = method.getReturnType().getText(method);
+    // Detect anonymous object literal return types and replace with "object"
+    if (isAnonymousObjectType(returnTypeText)) {
+      returnTypeText = "object";
+    }
   } catch {
     returnTypeText = "void";
   }
@@ -752,6 +760,13 @@ function walkFunction(fn) {
   let returnTypeText;
   try {
     returnTypeText = fn.getReturnType().getText(fn);
+    // Detect anonymous object literal return types (e.g., "{ foo: string; bar: number }")
+    // These contain colons and curly braces, which is invalid C# type syntax.
+    // Replace with "object" to allow the function to compile; the actual shape
+    // will come from the return statement(s).
+    if (isAnonymousObjectType(returnTypeText)) {
+      returnTypeText = "object";
+    }
   } catch {
     returnTypeText = "void";
   }
@@ -766,6 +781,24 @@ function walkFunction(fn) {
     body: walkBody(fn),
     cookies: extractCookies(fn),
   };
+}
+
+/**
+ * Detects if a type text represents an anonymous object literal.
+ * Examples: "{ foo: string; bar: number }", "{ x: number }"
+ * These contain colons for property declarations, which are invalid in C# type syntax.
+ * @param {string} typeText
+ * @returns {boolean}
+ */
+function isAnonymousObjectType(typeText) {
+  const trimmed = typeText.trim();
+  // Check if it starts with '{' and ends with '}'
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    return false;
+  }
+  // Check if it contains ':' (object property syntax) or ';' (property separator)
+  // This is a heuristic: object types have property syntax like "key: type"
+  return trimmed.includes(":") || trimmed.includes(";");
 }
 
 /**

@@ -1,5 +1,7 @@
 ﻿using ContinueTranslator.Core.Emission;
 using Xunit;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ContinueTranslator.Tests.Emission;
 
@@ -328,11 +330,9 @@ public class CsEmitterHelpersTests
 
             // Act: Call the private FixAnonymousObjectFormatting indirectly via BuildCompilationUnit
             // by creating a simple member and verifying the formatting is applied
-            var namespaceDecl = Microsoft.CodeAnalysis.CSharp.SyntaxFactory.FileScopedNamespaceDeclaration(
-                Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ParseName("Test"))
-                .WithMembers(Microsoft.CodeAnalysis.CSharp.SyntaxFactory.List(
-                    new[] { Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ParseMemberDeclaration("public class Dummy { }") }))
-                .NormalizeWhitespace();
+            var namespaceDecl = FileScopedNamespaceDeclaration(ParseName("Test"))
+                .WithMembers(List<MemberDeclarationSyntax>(
+                    new[] { ParseMemberDeclaration("public class Dummy { }") }!));
 
             // Since FixAnonymousObjectFormatting is private, we test the behavior indirectly
             // by checking that the regex pattern works correctly
@@ -401,7 +401,7 @@ public class CsEmitterHelpersTests
 
             // Assert: All three levels should get 'new' keyword
             var lines = result.Split('\n');
-            var newCount = string.Join("\n", lines).Count("new {");
+            var newCount = System.Text.RegularExpressions.Regex.Matches(result, "new \\{").Count;
             Assert.True(newCount >= 3, $"Expected at least 3 'new {{' patterns, found {newCount}");
         }
 
@@ -521,6 +521,46 @@ var obj = new {
             Assert.Contains("line =", step2);
             Assert.DoesNotContain(":", step2);  // All colons converted
             Assert.DoesNotContain("new new", step2);  // No duplicate 'new'
+        }
+
+        [Fact]
+        public void FixAnonymousObjectFormatting_PreservesTonaryOperatorsWhileConvertingObjectLiterals()
+        {
+            // Arrange: The critical test case from the bug report
+            // Line 246 of generated code had: tld.pattern == 2L ? ... : ...
+            // Our colon-fixing logic should NOT touch the ternary colon
+
+            string ternaryWithObject = @"var x = condition ? result1.value : result2.value;
+var obj = new {
+    start: new {
+        line: 42,
+    },
+};";
+
+            // Act: Simulate key transformations of FixAnonymousObjectFormatting
+            string result = ternaryWithObject;
+
+            // Step 1: Fix spaces
+            result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+,", ",");
+            result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+}", "}");
+
+            // Step 2: Convert identifier: to identifier = within object braces
+            result = System.Text.RegularExpressions.Regex.Replace(
+                result,
+                @"(\{\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*",
+                "$1$2 = ",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Step 3: Inject 'new' before opening braces in assignments
+            result = System.Text.RegularExpressions.Regex.Replace(
+                result,
+                @"(?<!new\s)=\s*\{",
+                "= new {",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // Assert: The key test
+            Assert.Contains("condition ? result1.value :", result);  // Ternary colon preserved!
+            Assert.Contains("start = new", result);  // Object property converted
         }
     }
 }

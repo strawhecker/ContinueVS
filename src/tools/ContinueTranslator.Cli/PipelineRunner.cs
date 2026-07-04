@@ -49,38 +49,56 @@ internal sealed class PipelineRunner
 
     /// <summary>
     /// Runs the full pipeline: checkout → scan → parse → map → emit → write.
+    /// In single-file mode, skips checkout/scan and processes only the specified file.
     /// </summary>
     /// <param name="options">Validated CLI arguments.</param>
     public void Run(TranslationOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        // 0. Clean output directories to ensure a fresh start.
-        CleanDirectory(options.OutDirectory);
-        if (options.GeneratedDirectory is not null)
-        {
-            CleanDirectory(options.GeneratedDirectory);
+        IReadOnlyList<string> tsPaths;
 
-            // If rejected directory is not explicitly provided, clean the auto-determined path.
-            if (options.RejectedDirectory is null)
+        // Single-file mode: skip cleanup and repo scanning
+        if (options.SingleFilePath is not null)
+        {
+            if (!File.Exists(options.SingleFilePath))
+                throw new InvalidOperationException($"Single-file path does not exist: {options.SingleFilePath}");
+
+            tsPaths = new[] { options.SingleFilePath };
+        }
+        else
+        {
+            // Standard mode: clean directories and scan repo
+            if (string.IsNullOrWhiteSpace(options.RepoPath) || string.IsNullOrWhiteSpace(options.Tag))
+                throw new InvalidOperationException("Standard mode requires --repo and --tag arguments.");
+
+            // 0. Clean output directories to ensure a fresh start.
+            CleanDirectory(options.OutDirectory);
+            if (options.GeneratedDirectory is not null)
             {
-                string autoRejectedDir = Path.Combine(
-                    Path.GetDirectoryName(options.GeneratedDirectory) ?? options.OutDirectory, "..", "rejected");
-                CleanDirectory(autoRejectedDir);
+                CleanDirectory(options.GeneratedDirectory);
+
+                // If rejected directory is not explicitly provided, clean the auto-determined path.
+                if (options.RejectedDirectory is null)
+                {
+                    string autoRejectedDir = Path.Combine(
+                        Path.GetDirectoryName(options.GeneratedDirectory) ?? options.OutDirectory, "..", "rejected");
+                    CleanDirectory(autoRejectedDir);
+                }
+                else
+                {
+                    CleanDirectory(options.RejectedDirectory);
+                }
             }
-            else
+            else if (options.RejectedDirectory is not null)
             {
                 CleanDirectory(options.RejectedDirectory);
             }
-        }
-        else if (options.RejectedDirectory is not null)
-        {
-            CleanDirectory(options.RejectedDirectory);
-        }
 
-        // 1. Checkout and scan.
-        var scanner = new RepoScanner();
-        IReadOnlyList<string> tsPaths = scanner.CheckoutAndScan(options.RepoPath, options.Tag);
+            // 1. Checkout and scan.
+            var scanner = new RepoScanner();
+            tsPaths = scanner.CheckoutAndScan(options.RepoPath, options.Tag);
+        }
 
         // 2. Parse.
         TsFile[] parsed = _tsParser.Parse(tsPaths);
@@ -110,8 +128,8 @@ internal sealed class PipelineRunner
 
         Console.WriteLine($"Wrote {files.Count} file(s) to '{options.OutDirectory}'.");
 
-        // 7. Optionally promote translated files to the Generated/ folder.
-        if (options.GeneratedDirectory is not null)
+        // 7. Optionally promote translated files to the Generated/ folder (skipped in single-file mode).
+        if (options.SingleFilePath is null && options.GeneratedDirectory is not null)
         {
             string rejectedDir = options.RejectedDirectory
                 ?? Path.Combine(Path.GetDirectoryName(options.GeneratedDirectory) ?? options.OutDirectory, "..", "rejected");

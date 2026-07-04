@@ -567,60 +567,95 @@ internal sealed partial class CsEmitter
     /// - Missing 'new' keyword in nested anonymous object creations
     /// </summary>
      private static string FixAnonymousObjectFormatting(string code)
-    {
-        // Fix spaces before commas and closing braces in object initializers
-        // Pattern: any whitespace (including newlines) followed by a comma
-        code = System.Text.RegularExpressions.Regex.Replace(code, @"\s+,", ",");
+     {
+         // Fix spaces before commas and closing braces in object initializers
+         // Pattern: any whitespace (including newlines) followed by a comma
+         code = System.Text.RegularExpressions.Regex.Replace(code, @"\s+,", ",");
 
-        // Fix spaces before closing braces in object initializers
-        // Pattern: any whitespace (including newlines) followed by }
-        code = System.Text.RegularExpressions.Regex.Replace(code, @"\s+}", "}");
+         // Fix spaces before closing braces in object initializers
+         // Pattern: any whitespace (including newlines) followed by }
+         code = System.Text.RegularExpressions.Regex.Replace(code, @"\s+}", "}");
 
-        // Collapse multiple blank lines into single blank lines
-        code = System.Text.RegularExpressions.Regex.Replace(code, @"\n\s*\n\s*\n", "\n\n");
+         // Collapse multiple blank lines into single blank lines
+         code = System.Text.RegularExpressions.Regex.Replace(code, @"\n\s*\n\s*\n", "\n\n");
 
-        // Convert colons to equals in anonymous object member syntax.
-        // This handles the case where EmitObjectLiteral's NameEquals() doesn't produce equals signs
-        // (likely due to Roslyn normalization or other post-processing).
-        // 
-        // Pattern: Match "identifier:" (with optional whitespace) but ONLY when:
-        // - The identifier is preceded by whitespace/newline (inside a block, not after operators)
-        // - The identifier is NOT part of a ternary expression (where ':' comes after '?')
-        // 
-        // The regex uses:
-        // - (?<!\?)  : Negative lookbehind to avoid matching ternary operator colons after '?'
-        // - \b       : Word boundary to match identifier boundaries  
-        // - (\w+)    : Capture the identifier name
-        // - \s*:     : Optional whitespace followed by colon
-        // 
-        // Since ternary operators have the pattern "expr ? true : false", and we're in an
-        // object literal context with identifiers at line start or after commas, the negative
-        // lookbehind for '?' correctly avoids ternary colons while matching object colons.
-        code = System.Text.RegularExpressions.Regex.Replace(
-            code,
-            @"(?<!\?)\b(\w+)\s*:\s*",
-            "$1 = ",
-            System.Text.RegularExpressions.RegexOptions.Multiline);
+         // CRITICAL FIX: Convert property colons to equals in object property context.
+         // Apply global regex-based conversion, being VERY careful about ternary operators.
+         // 
+         // Strategy: For each line, check if it contains a ternary operator (?...:)
+         // If it does, only convert colons that appear AFTER the ternary's colon
+         // If it doesn't, convert all identifier: patterns to identifier =
+         //
+         var lines = code.Split('\n');
+         var processedLines = new System.Collections.Generic.List<string>();
 
-        // Fix: Inject 'new' keyword before opening braces in property assignments that are missing it.
-        // This handles nested anonymous objects: "propertyName = {" → "propertyName = new {"
-        // We match "= " followed by optional whitespace and "{", but NOT if preceded by "new"
-        // RegexOptions.Multiline allows \s* to match newlines between = and {
-        code = System.Text.RegularExpressions.Regex.Replace(
-            code,
-            @"(?<!new\s)=\s*\{",
-            "= new {",
-            System.Text.RegularExpressions.RegexOptions.Multiline);
+         foreach (string line in lines)
+         {
+             string processedLine = line;
 
-        // Collapse redundant line breaks around single-line properties
-        // E.g., "line = \n node.startPosition.row," -> "line = node.startPosition.row,"
-        code = System.Text.RegularExpressions.Regex.Replace(
-            code,
-            @"(\s*=\s*)\n\s+([^\n{}\[\]]+,)",
-            "$1 $2");
+             // If the line contains a ternary operator, be VERY conservative
+             if (line.Contains("?"))
+             {
+                 // Find the position of the ? and the matching :
+                 int questionPos = line.IndexOf('?');
+                 int colonPos = line.IndexOf(':', questionPos);
 
-        return code;
-    }
+                 if (colonPos > questionPos)
+                 {
+                     // There's a ternary colon. Only process colons AFTER it.
+                     string beforeTernary = line.Substring(0, colonPos + 1);
+                     string afterTernary = line.Substring(colonPos + 1);
+
+                     // Convert colons in the after part
+                     afterTernary = System.Text.RegularExpressions.Regex.Replace(
+                         afterTernary,
+                         @"\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*",
+                         "$1 = ");
+
+                     processedLine = beforeTernary + afterTernary;
+                 }
+                 else
+                 {
+                     // Has ? but no : after it, safe to convert all
+                     processedLine = System.Text.RegularExpressions.Regex.Replace(
+                         line,
+                         @"\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*",
+                         "$1 = ");
+                 }
+             }
+             else
+             {
+                 // No ternary operator, safe to convert all identifier: patterns
+                 processedLine = System.Text.RegularExpressions.Regex.Replace(
+                     line,
+                     @"\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*",
+                     "$1 = ");
+             }
+
+             processedLines.Add(processedLine);
+         }
+
+         code = string.Join("\n", processedLines);
+
+         // Fix: Inject 'new' keyword before opening braces in property assignments that are missing it.
+         // This handles nested anonymous objects: "propertyName = {" → "propertyName = new {"
+         // We match "= " followed by optional whitespace and "{", but NOT if preceded by "new"
+         // RegexOptions.Multiline allows \s* to match newlines between = and {
+         code = System.Text.RegularExpressions.Regex.Replace(
+             code,
+             @"(?<!new\s)=\s*\{",
+             "= new {",
+             System.Text.RegularExpressions.RegexOptions.Multiline);
+
+         // Collapse redundant line breaks around single-line properties
+         // E.g., "line = \n node.startPosition.row," -> "line = node.startPosition.row,"
+         code = System.Text.RegularExpressions.Regex.Replace(
+             code,
+             @"(\s*=\s*)\n\s+([^\n{}\[\]]+,)",
+             "$1 $2");
+
+         return code;
+     }
 
     // -------------------------------------------------------------------------
     // Generator method name helpers
