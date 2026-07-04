@@ -99,32 +99,64 @@ public class ForOfDestructuringTests
         Assert.DoesNotContain("[item]", resultText);
     }
 
-    /// <summary>
-    /// Tests for-of with multiple destructured variables.
-    /// 
-    /// TypeScript: for (const [a, b, c] of items)
-    /// C#: foreach (var (a, b, c) in items)
-    /// </summary>
-    [Fact]
-    public void ForOfDestructuring_WithMultipleElements_EmitsCorrectParentheses()
-    {
-        // Arrange
-        var stmt = new TsForOfStatement(
-            Variable: "[a, b, c]",
-            Expression: new TsUnknownExpression("items"),
-            Statements: new TsStatement[] { });
+        /// <summary>
+        /// Tests for-of with multiple destructured variables.
+        /// 
+        /// TypeScript: for (const [a, b, c] of items)
+        /// C#: foreach (var (a, b, c) in items)
+        /// </summary>
+        [Fact]
+        public void ForOfDestructuring_WithMultipleElements_EmitsCorrectParentheses()
+        {
+            // Arrange
+            var stmt = new TsForOfStatement(
+                Variable: "[a, b, c]",
+                Expression: new TsUnknownExpression("items"),
+                Statements: new TsStatement[] { });
 
-        // Act
-        var result = CreateEmitter().EmitStatement(stmt) as ForEachStatementSyntax;
+            // Act
+            var result = CreateEmitter().EmitStatement(stmt) as ForEachStatementSyntax;
 
-        // Assert
-        Assert.NotNull(result);
-        var resultText = result.ToString();
+            // Assert
+            Assert.NotNull(result);
+            var resultText = result.ToString();
 
-        // Must contain the parenthesized tuple deconstruction
-        Assert.Contains("(a, b, c)", resultText);
+            // Must contain the parenthesized tuple deconstruction
+            Assert.Contains("(a, b, c)", resultText);
 
-        // Must NOT contain the invalid square bracket pattern
-        Assert.DoesNotContain("[a, b, c]", resultText);
+            // Must NOT contain the invalid square bracket pattern
+            Assert.DoesNotContain("[a, b, c]", resultText);
+        }
+
+        /// <summary>
+        /// Tests for-of with object destructuring pattern translates curly braces to parentheses.
+        /// 
+        /// TypeScript: for (const { name, node } of identifiers)
+        /// C#: foreach (var (name, node) in identifiers)
+        /// </summary>
+        [Fact]
+        public void ForOfDestructuring_WithObjectPattern_EmitsParenthesesNotBraces()
+        {
+            // Arrange
+            var stmt = new TsForOfStatement(
+                Variable: "{ name, node }",
+                Expression: new TsUnknownExpression("identifiers"),
+                Statements: new TsStatement[] { });
+
+            // Act
+            var result = CreateEmitter().EmitStatement(stmt) as ForEachStatementSyntax;
+
+            // Assert
+            Assert.NotNull(result);
+            var resultText = result.ToString();
+
+            // Must contain the parenthesized tuple deconstruction with extracted names
+            Assert.Contains("(", resultText);
+            Assert.Contains("name", resultText);
+            Assert.Contains("node", resultText);
+
+            // Must NOT contain the destructuring curly braces in the loop variable pattern
+            // (the block body will have {} but not the variable pattern)
+            Assert.DoesNotContain("{ name", resultText);
+        }
     }
-}
