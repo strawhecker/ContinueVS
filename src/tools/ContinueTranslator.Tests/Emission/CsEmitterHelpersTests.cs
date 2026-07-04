@@ -218,5 +218,85 @@ public class CsEmitterHelpersTests
             Assert.NotNull(result);
             Assert.Contains("Task", resultString);
         }
+
+        [Fact]
+        public void ParseTypeSyntax_WithObjectLiteralInsideGeneric_ConvertsToTupleInside()
+        {
+            // Arrange: This is the Docker.executeDockerCommand case
+            string promiseObjectLiteral = "Promise<{ stdout: string; stderr: string }>";
+
+            // Act
+            var result = CsEmitter.ParseTypeSyntax(promiseObjectLiteral);
+
+            // Assert
+            string resultString = result.ToString();
+            Assert.NotNull(result);
+            // Should convert the nested object literal to tuple syntax
+            // Promise → Task (via TypeMap), and { stdout: string; stderr: string } → (string stdout, string stderr)
+            Assert.Contains("stdout", resultString);
+            Assert.Contains("stderr", resultString);
+            // After TypeMap resolution, should have tuple parentheses
+            Assert.Contains("(", resultString);
+            Assert.Contains(")", resultString);
+        }
+
+        [Fact]
+        public void ParseTypeSyntax_WithMultiplePropertiesInsideGeneric_ConvertsAllToTuple()
+        {
+            // Arrange
+            string complexGeneric = "Promise<{ status: boolean; code: number; message: string }>";
+
+            // Act
+            var result = CsEmitter.ParseTypeSyntax(complexGeneric);
+
+            // Assert
+            string resultString = result.ToString();
+            Assert.NotNull(result);
+            Assert.Contains("status", resultString);
+            Assert.Contains("code", resultString);
+            Assert.Contains("message", resultString);
+            Assert.Contains("(", resultString);
+            Assert.Contains(")", resultString);
+        }
+
+        [Fact]
+        public void ParseTypeSyntax_WithMapTypeContainingObjectLiteral_ConvertsObjectToTuple()
+        {
+            // Arrange: Map with object literal as value type
+            string mapWithObjectValue = "Map<string, { enabled: boolean; count: number }>";
+
+            // Act
+            var result = CsEmitter.ParseTypeSyntax(mapWithObjectValue);
+
+            // Assert
+            string resultString = result.ToString();
+            Assert.NotNull(result);
+            // Should have the key type
+            Assert.Contains("string", resultString);
+            // Should have the object literal properties converted to tuple
+            Assert.Contains("enabled", resultString);
+            Assert.Contains("count", resultString);
+            Assert.Contains("(", resultString);
+            Assert.Contains(")", resultString);
+        }
+
+        [Fact]
+        public void ParseTypeSyntax_WithNestedObjectLiterals_ConvertsRecursively()
+        {
+            // Arrange: An object literal with a property whose type is also an object literal
+            string nestedObjectLiterals = "{ config: { enabled: boolean }; name: string }";
+
+            // Act
+            var result = CsEmitter.ParseTypeSyntax(nestedObjectLiterals);
+
+            // Assert
+            string resultString = result.ToString();
+            Assert.NotNull(result);
+            // Outer object should be converted to tuple
+            Assert.Contains("config", resultString);
+            Assert.Contains("name", resultString);
+            // Should have properties from both levels
+            Assert.Contains("enabled", resultString);
+        }
     }
 }

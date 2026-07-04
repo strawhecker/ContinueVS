@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Text;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ContinueTranslator.Core.IR;
@@ -280,44 +281,136 @@ internal sealed partial class CsEmitter
     }
 
     /// <summary>
-    /// Converts a TypeScript object literal type syntax (e.g., <c>{ prefix: string; suffix: string }</c>)
-    /// into a C# tuple syntax (e.g., <c>(string prefix, string suffix)</c>).
-    /// Returns the original text if it is not an object literal.
+    /// Converts TypeScript object literal type syntax (e.g., <c>{ prefix: string; suffix: string }</c>)
+    /// into C# tuple syntax (e.g., <c>(string prefix, string suffix)</c>).
+    /// Handles object literals at any nesting depth, including inside generic type arguments.
+    /// Returns the original text if it cannot be converted.
     /// </summary>
     /// <remarks>
-    /// Detects object literal patterns by:
-    /// 1. Trimming leading/trailing whitespace and checking for <c>{...}</c> braces
-    /// 2. Splitting properties by <c>;</c> while respecting generic nesting (angle brackets)
-    /// 3. Parsing each property as <c>name: type</c>
-    /// 4. Building the tuple format: <c>(type name, type name, ...)</c>
+    /// Processes object literals recursively:
+    /// 1. <c>{ prop: type; ... }</c> → <c>(type prop, ...)</c>
+    /// 2. <c>Promise&lt;{ prop: type }&gt;</c> → <c>Task&lt;(type prop)&gt;</c>
+    /// 3. <c>Map&lt;string, { prop: type }&gt;</c> → <c>Dictionary&lt;string, (type prop)&gt;</c>
     /// 
-    /// TODO: Future enhancements for more complex scenarios:
-    /// - Nested object literals: Currently only handles top-level properties. Nested objects
-    ///   (e.g., { config: { enabled: boolean } }) will not convert correctly.
-    /// - Union types: TypeScript union syntax (e.g., { a: string | number }) is not converted.
-    ///   The entire type falls back to 'object' if parsing fails.
-    /// - Index signatures: TypeScript index signatures (e.g., { [key: string]: any }) are not
-    ///   recognized as object literals and fall back to object.
-    /// - Optional properties: Optional fields (e.g., { optional?: string }) are preserved but
-    ///   may require additional handling if C# tuple nullability semantics differ.
+    /// Respects generic nesting (angle brackets) and converts all discovered object literals
+    /// at every nesting level within the type expression.
+    /// 
+    /// Known limitations:
+    /// - Union types: TypeScript union syntax (e.g., <c>{ a: string | number }</c>) is not converted.
+    /// - Index signatures: Index signatures (e.g., <c>{ [key: string]: any }</c>) are not recognized.
+    /// - Parsing failures: Falls back to 'object' if the final type cannot be parsed.
     /// </remarks>
-    private static string ConvertObjectLiteralToTuple(string text)
+    private static string ConvertObjectLiteralToTuple(string text) =>
+        ConvertObjectLiteralsRecursive(text.Trim());
+
+    /// <summary>
+    /// Recursively scans the type text for object literal patterns at any nesting depth
+    /// and converts each <c>{ prop: type; ... }</c> to tuple syntax <c>(type prop, ...)</c>.
+    /// Returns the fully converted type string.
+    /// </summary>
+    private static string ConvertObjectLiteralsRecursive(string text)
     {
-        // Quick check: must be wrapped in braces
-        string trimmed = text.Trim();
-        if (!trimmed.StartsWith('{') || !trimmed.EndsWith('}'))
+        if (string.IsNullOrEmpty(text))
             return text;
 
-        // Extract the content between braces
-        string content = trimmed[1..^1].Trim();
+        StringBuilder result = new(text.Length);
+        int i = 0;
+
+        while (i < text.Length)
+        {
+            // Look for opening brace that could be an object literal
+            if (text[i] == '{')
+            {
+                // Try to extract and convert the object literal
+                if (TryExtractAndConvertObjectLiteral(text, i, out string? converted, out int endPos))
+                {
+                    // Successfully converted: append the tuple syntax and continue after the brace
+                    result.Append(converted);
+                    i = endPos + 1; // Skip past the closing brace
+                    continue;
+                }
+            }
+
+            // Not an object literal or couldn't convert: copy character as-is
+            result.Append(text[i]);
+            i++;
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Attempts to extract and convert an object literal starting at position <paramref name="startPos"/>.
+    /// Returns <see langword="true"/> if a valid object literal was found and converted.
+    /// </summary>
+    private static bool TryExtractAndConvertObjectLiteral(
+        string text,
+        int startPos,
+        out string? converted,
+        out int endPos)
+    {
+        converted = null;
+        endPos = -1;
+
+        // Find the matching closing brace, respecting nested structures
+        int braceDepth = 0;
+        int angleDepth = 0;
+        int i = startPos;
+
+        while (i < text.Length)
+        {
+            char ch = text[i];
+
+            if (ch == '{')
+                braceDepth++;
+            else if (ch == '}')
+            {
+                braceDepth--;
+                if (braceDepth == 0)
+                {
+                    // Found the matching closing brace
+                    endPos = i;
+                    string objectLiteralContent = text[(startPos + 1)..i].Trim();
+
+                    // Attempt to parse as object literal
+                    if (TryConvertObjectLiteralContent(objectLiteralContent, out string? tuple))
+                    {
+                        converted = tuple;
+                        return true;
+                    }
+                    return false;
+                }
+            }
+            else if (ch == '<' && braceDepth == 1)
+            {
+                angleDepth++;
+            }
+            else if (ch == '>' && braceDepth == 1)
+            {
+                angleDepth--;
+            }
+
+            i++;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Converts the content of an object literal (text between braces) to tuple syntax.
+    /// </summary>
+    private static bool TryConvertObjectLiteralContent(string content, out string? tuple)
+    {
+        tuple = null;
+
         if (content.Length == 0)
-            return text; // Empty object literal {} → fallback
+            return false; // Empty object literal
 
         // Split on semicolons, respecting generic nesting
         List<string> properties = SplitPropertiesRespectingGenerics(content);
 
         if (properties.Count == 0)
-            return text; // No properties found; not a valid object literal
+            return false;
 
         // Parse each property as "name: type" and build tuple elements
         List<string> tupleElements = new();
@@ -330,24 +423,28 @@ internal sealed partial class CsEmitter
             // Split on the first ':' to separate name and type
             int colonIdx = trimmedProp.IndexOf(':');
             if (colonIdx <= 0)
-                return text; // Invalid property syntax; bail out
+                return false; // Invalid property syntax
 
             string name = trimmedProp[..colonIdx].Trim();
             string type = trimmedProp[(colonIdx + 1)..].Trim();
 
             // Validate: name should be a valid identifier
             if (!IsValidIdentifier(name) || type.Length == 0)
-                return text;
+                return false;
+
+            // Recursively convert any nested object literals in the type
+            type = ConvertObjectLiteralsRecursive(type);
 
             // Build tuple element: "type name"
             tupleElements.Add($"{type} {name}");
         }
 
         if (tupleElements.Count == 0)
-            return text;
+            return false;
 
         // Return the C# tuple syntax
-        return $"({string.Join(", ", tupleElements)})";
+        tuple = $"({string.Join(", ", tupleElements)})";
+        return true;
     }
 
     /// <summary>
