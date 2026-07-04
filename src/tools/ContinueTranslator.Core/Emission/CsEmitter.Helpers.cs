@@ -536,7 +536,7 @@ internal sealed partial class CsEmitter
 
     /// <summary>
     /// Wraps <paramref name="members"/> in a file-scoped namespace declaration and returns
-    /// the normalised source text.
+    /// the normalised source text with post-processing to improve formatting of anonymous object literals.
     /// </summary>
     internal static string BuildCompilationUnit(string ns, IEnumerable<MemberDeclarationSyntax> members)
     {
@@ -549,7 +549,52 @@ internal sealed partial class CsEmitter
             .WithMembers(SingletonList<MemberDeclarationSyntax>(nsDecl))
             .NormalizeWhitespace();
 
-        return cu.ToFullString();
+        string result = cu.ToFullString();
+
+        // Post-process to fix formatting issues with anonymous object literals:
+        // - Remove spaces before commas in object initializers ( , → ,)
+        // - Collapse excessive newlines in nested object initializers into single lines
+        result = FixAnonymousObjectFormatting(result);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Post-processes generated C# code to improve formatting of anonymous object literals.
+    /// Fixes issues like:
+    /// - Spaces before commas: "value , " → "value,"
+    /// - Incorrect colon syntax (colons should be converted to equals)
+    /// - Excessive line breaks in nested objects
+    /// - Collapses simple nested objects to more compact format
+    /// </summary>
+    private static string FixAnonymousObjectFormatting(string code)
+    {
+        // Fix spaces before commas and closing braces in object initializers
+        // Pattern: any whitespace (including newlines) followed by a comma
+        code = System.Text.RegularExpressions.Regex.Replace(code, @"\s+,", ",");
+
+        // Fix spaces before closing braces in object initializers
+        // Pattern: any whitespace (including newlines) followed by }
+        code = System.Text.RegularExpressions.Regex.Replace(code, @"\s+}", "}");
+
+        // Collapse multiple blank lines into single blank lines
+        code = System.Text.RegularExpressions.Regex.Replace(code, @"\n\s*\n\s*\n", "\n\n");
+
+        // Fix: Convert anonymous object member colons to equals when followed by a value
+        // Pattern: identifier followed by colon, convert to identifier =
+        code = System.Text.RegularExpressions.Regex.Replace(
+            code,
+            @"(\w+)\s*:\s*(?=\{|\w+|\(|new\s|"")",
+            "$1 = ");
+
+        // Collapse redundant line breaks around single-line properties
+        // E.g., "line = \n node.startPosition.row," -> "line = node.startPosition.row,"
+        code = System.Text.RegularExpressions.Regex.Replace(
+            code,
+            @"(\s*=\s*)\n\s+([^\n{}\[\]]+,)",
+            "$1 $2");
+
+        return code;
     }
 
     // -------------------------------------------------------------------------
