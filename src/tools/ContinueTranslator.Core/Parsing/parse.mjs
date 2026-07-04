@@ -329,6 +329,19 @@ function walkStatement(stmt) {
         return { kind: "Throw", expression: walkExprSafe(stmt.getExpression?.()) };
       case "FunctionDeclaration":
         return walkFunctionStatement(stmt);
+      case "SwitchStatement":
+        return {
+          kind: "Switch",
+          discriminant: walkExpression(stmt.getExpression()),
+          cases: stmt.getCaseBlock().getClauses().map(clause => ({
+            test: clause.getKindName() === "CaseClause" ? walkExpression(clause.getExpression()) : null,
+            statements: clause.getStatements().map(walkStatement),
+          })),
+        };
+      case "BreakStatement":
+        return { kind: "Break" };
+      case "ContinueStatement":
+        return { kind: "Continue" };
       default:
         return { kind: "Unknown", text: stmt.getText() };
     }

@@ -8,11 +8,14 @@ namespace ContinueTranslator.Core.IR;
 [JsonDerivedType(typeof(TsForStatement), "For")]
 [JsonDerivedType(typeof(TsForOfStatement), "ForOf")]
 [JsonDerivedType(typeof(TsWhileStatement), "While")]
+[JsonDerivedType(typeof(TsSwitchStatement), "Switch")]
 [JsonDerivedType(typeof(TsTryStatement), "Try")]
 [JsonDerivedType(typeof(TsVarStatement), "Var")]
 [JsonDerivedType(typeof(TsExpressionStatement), "ExpressionStatement")]
 [JsonDerivedType(typeof(TsThrowStatement), "Throw")]
 [JsonDerivedType(typeof(TsFunctionDeclarationStatement), "FunctionDeclaration")]
+[JsonDerivedType(typeof(TsBreakStatement), "Break")]
+[JsonDerivedType(typeof(TsContinueStatement), "Continue")]
 [JsonDerivedType(typeof(TsUnknownStatement), "Unknown")]
 internal abstract record TsStatement;
 
@@ -67,5 +70,20 @@ internal sealed record TsFunctionDeclarationStatement(
     bool IsAsync = false,
     bool IsGenerator = false,
     string[] TypeParameters = default!) : TsStatement;
+
+/// <summary>
+/// Represents one case/default clause within a switch statement.
+/// Test is null for default clause, otherwise it's the case expression.
+/// </summary>
+internal sealed record TsSwitchCase(TsExpression? Test, TsStatement[] Statements);
+
+/// <summary>
+/// Represents a switch statement: switch (discriminant) { case ... break; ... }
+/// </summary>
+internal sealed record TsSwitchStatement(TsExpression Discriminant, TsSwitchCase[] Cases) : TsStatement;
+
+internal sealed record TsBreakStatement() : TsStatement;
+
+internal sealed record TsContinueStatement() : TsStatement;
 
 internal sealed record TsUnknownStatement(string Text) : TsStatement;

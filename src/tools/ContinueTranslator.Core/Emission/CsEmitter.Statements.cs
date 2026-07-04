@@ -26,8 +26,11 @@ internal sealed partial class CsEmitter
             TsWhileStatement whileStmt     => EmitWhile(whileStmt, filePath),
             TsForStatement forStmt         => EmitFor(forStmt, filePath),
             TsForOfStatement forOfStmt     => EmitForOf(forOfStmt, filePath),
+            TsSwitchStatement switchStmt   => EmitSwitch(switchStmt, filePath),
             TsTryStatement tryStmt         => EmitTry(tryStmt, filePath),
             TsFunctionDeclarationStatement funcDecl => EmitFunctionDeclaration(funcDecl, filePath),
+            TsBreakStatement               => BreakStatement(),
+            TsContinueStatement            => ContinueStatement(),
             TsUnknownStatement unknown     => EmitUnknownStatement(unknown),
             _                              => ParseStatement($"// TODO: untranslatable — {filePath}\n"),
         };
@@ -304,6 +307,27 @@ internal sealed partial class CsEmitter
         }
 
         return ForEachStatement(typeSyntax, identifier, iterable, body);
+    }
+
+    private StatementSyntax EmitSwitch(TsSwitchStatement stmt, string filePath)
+    {
+        ExpressionSyntax discriminant = EmitExpression(stmt.Discriminant);
+
+        List<SwitchSectionSyntax> sections = new();
+        foreach (TsSwitchCase switchCase in stmt.Cases)
+        {
+            SwitchLabelSyntax label = switchCase.Test is not null
+                ? CaseSwitchLabel(EmitExpression(switchCase.Test))
+                : DefaultSwitchLabel();
+
+            List<StatementSyntax> caseStatements = new(switchCase.Statements.Select(s => EmitStatement(s, filePath)));
+
+            sections.Add(SwitchSection(
+                SingletonList(label),
+                List(caseStatements)));
+        }
+
+        return SwitchStatement(discriminant, List(sections));
     }
 
     private StatementSyntax EmitTry(TsTryStatement stmt, string filePath)
