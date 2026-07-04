@@ -731,6 +731,17 @@ internal sealed partial class CsEmitter
 
                 ExpressionSyntax obj = EmitExpression(memberExpr2.Obj);
 
+                // Special handling for array.join(separator) → string.Join(separator, array)
+                // C# string.Join(separator, collection): separator is first, collection is second.
+                if (methodName == "join" && dotNetArrayMethod == "string.Join")
+                {
+                    ExpressionSyntax callee = ParseExpression("string.Join");
+                    var newArgs = new List<ArgumentSyntax>();
+                    newArgs.AddRange(argList.Arguments); // separator first (original TS arg)
+                    newArgs.Add(Argument(obj));          // collection second
+                    return InvocationExpression(callee, ArgumentList(SeparatedList(newArgs)));
+                }
+
                 // If the mapping is a fully-qualified static method, use it directly
                 if (dotNetArrayMethod.Contains('.'))
                 {

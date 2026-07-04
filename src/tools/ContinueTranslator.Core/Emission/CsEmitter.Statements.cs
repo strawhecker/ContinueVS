@@ -290,7 +290,15 @@ internal sealed partial class CsEmitter
         // TsForOfStatement carries no declared type for the loop variable; always use var.
         TypeSyntax typeSyntax = IdentifierName("var");
 
-        SyntaxToken identifier = Identifier(stmt.Variable ?? "_");
+        // Handle destructuring patterns: convert [a, b] to (a, b) for C# tuple deconstruction
+        string varName = stmt.Variable ?? "_";
+        if (varName.StartsWith("[") && varName.EndsWith("]"))
+        {
+            // Array destructuring in for-of: [a, b] → (a, b) for C# tuple deconstruction
+            varName = "(" + varName[1..^1] + ")";
+        }
+
+        SyntaxToken identifier = Identifier(varName);
 
         ExpressionSyntax iterable = stmt.Expression is not null
             ? EmitExpression(stmt.Expression)

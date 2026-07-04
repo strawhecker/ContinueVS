@@ -24,6 +24,7 @@
   "Map.has":           "ContainsKey",
   "Map.get":           "TryGetValue",
   "Map.set":           "indexer",
+  "Map.entries":       "SelectMany",
   "Array.some":        "System.Linq.Enumerable.Any",
   "Array.every":       "System.Linq.Enumerable.All",
   "Array.find":        "System.Linq.Enumerable.FirstOrDefault",
@@ -31,7 +32,7 @@
   "Array.map":         "System.Linq.Enumerable.Select",
   "Array.push":        "Add",
   "Array.includes":    "System.Linq.Enumerable.Contains",
-  "Array.join":        "string.Join",
+  "Array.join":        "String.Join",
   "String.includes":   "Contains",
   "String.split":      "Split",
   "String.trim":       "Trim",
@@ -40,4 +41,3 @@
   "Date.now":          "System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds",
   "DateTimeOffset.toISOString": "ToString(\"O\")"
 }
-
