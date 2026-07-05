@@ -29,8 +29,16 @@ if (singleFile is not null && singleOutput is not null)
     }
     if (!Directory.Exists(singleOutput))
     {
-        Console.Error.WriteLine($"Error: --single-output directory does not exist: {singleOutput}");
-        return 1;
+        try
+        {
+            Directory.CreateDirectory(singleOutput);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: Failed to create --single-output directory: {singleOutput}");
+            Console.Error.WriteLine($"Details: {ex.Message}");
+            return 1;
+        }
     }
 
     var options = new ContinueTranslator.Cli.TranslationOptions(
