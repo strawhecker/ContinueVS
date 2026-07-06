@@ -12,7 +12,8 @@ internal sealed record TsMethod(
     bool IsAbstract,
     /// <summary>Visibility modifier: <c>"public"</c>, <c>"protected"</c>, or <c>"private"</c>.</summary>
     string Accessibility,
-    string[] Cookies)
+    string[] Cookies,
+    bool IsGenerator = false)
 {
     /// <summary>Method body statements. Empty when abstract or body not yet parsed.</summary>
     public TsStatement[] Body { get; init; } = [];

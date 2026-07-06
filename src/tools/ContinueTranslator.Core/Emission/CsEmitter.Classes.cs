@@ -204,13 +204,30 @@ internal sealed partial class CsEmitter
                 ? Block(ParseStatement($"{stubComment}\n"))
                 : Block(List(EmitStatementBlock(method.Body, filePath)));
 
+            // Determine the return type based on whether this is a generator
+            string returnTypeText = method.ReturnType.Text;
+            if (method.IsGenerator)
+            {
+                // For generator methods, wrap the return type in IAsyncEnumerable or IEnumerable
+                // Since we don't deeply analyze yields to determine the actual yield type,
+                // we default to object for simplicity.
+                returnTypeText = method.IsAsync
+                    ? "IAsyncEnumerable<object>"
+                    : "IEnumerable<object>";
+            }
+
             MethodDeclarationSyntax methodDecl = MethodDeclaration(
-                    ParseTypeSyntax(method.ReturnType.Text),
+                    ParseTypeSyntax(returnTypeText),
                     Identifier(EscapeKeywordIfNeeded(method.Name)))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
                 .WithParameterList(paramList)
                 .WithBody(methodBody);
 
+            // For async generators, we MUST apply the async keyword.
+            // C# syntax for async generators is: async IAsyncEnumerable<T> MethodName() { ... }
+            // This is required in .NET 6.0+ (C# 9.0+), but the IAsyncEnumerable<T> type
+            // has been available since .NET Framework 4.7.2 for other purposes.
+            // Apply async modifier for async methods (including async generators).
             if (method.IsAsync)
                 methodDecl = methodDecl.AddModifiers(Token(SyntaxKind.AsyncKeyword));
 

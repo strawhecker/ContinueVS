@@ -115,8 +115,18 @@ internal sealed partial class CsEmitter
     {
         ParameterListSyntax paramList = BuildParameterList(method.Parameters);
 
+        // Determine the return type based on whether this is a generator
+        string returnTypeText = method.ReturnType.Text;
+        if (method.IsGenerator)
+        {
+            // For generator methods, wrap the return type in IAsyncEnumerable or IEnumerable
+            returnTypeText = method.IsAsync
+                ? "IAsyncEnumerable<object>"
+                : "IEnumerable<object>";
+        }
+
         MethodDeclarationSyntax methodDecl = MethodDeclaration(
-                ParseTypeSyntax(method.ReturnType.Text),
+                ParseTypeSyntax(returnTypeText),
                 Identifier(method.Name))
             .WithParameterList(paramList)
             .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));

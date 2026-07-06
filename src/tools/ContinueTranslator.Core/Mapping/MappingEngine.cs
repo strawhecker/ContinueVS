@@ -197,11 +197,15 @@ internal sealed partial class MappingEngine
                 cookies = AppendTodoUnresolved(cookies);
         }
 
+        // Detect if the method is a generator by checking for yield statements in the body
+        bool isGenerator = ContainsYield(method.Body);
+
         return method with
         {
             ReturnType = returnType,
             Parameters = [.. method.Parameters.Select(ApplyParameter)],
             Cookies = cookies,
+            IsGenerator = isGenerator,
         };
     }
 
@@ -481,6 +485,76 @@ internal sealed partial class MappingEngine
             return cookies;
 
         return [.. cookies, TodoUnresolved];
+    }
+
+    /// <summary>
+    /// Recursively checks if a statement array contains any yield expressions.
+    /// </summary>
+    private static bool ContainsYield(TsStatement[] statements)
+    {
+        foreach (var stmt in statements)
+        {
+            if (ContainsYieldInStatement(stmt))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Recursively checks if a statement contains any yield expressions.
+    /// </summary>
+    private static bool ContainsYieldInStatement(TsStatement stmt)
+    {
+        // Check if the statement is an expression statement containing a yield
+        if (stmt is TsExpressionStatement exprStmt && exprStmt.Expression is TsYieldExpression)
+            return true;
+
+        // Recursively check nested statements in various statement types
+        if (stmt is TsIfStatement ifStmt)
+        {
+            if (ContainsYield(ifStmt.ThenStatements))
+                return true;
+            if (ContainsYield(ifStmt.ElseStatements))
+                return true;
+            return false;
+        }
+
+        if (stmt is TsForStatement forStmt)
+            return ContainsYield(forStmt.Statements);
+
+        if (stmt is TsForOfStatement forOfStmt)
+            return ContainsYield(forOfStmt.Statements);
+
+        if (stmt is TsWhileStatement whileStmt)
+            return ContainsYield(whileStmt.Statements);
+
+        if (stmt is TsTryStatement tryStmt)
+        {
+            if (ContainsYield(tryStmt.TryStatements))
+                return true;
+            if (ContainsYield(tryStmt.CatchStatements))
+                return true;
+            if (tryStmt.FinallyStatements != null && ContainsYield(tryStmt.FinallyStatements))
+                return true;
+            return false;
+        }
+
+        if (stmt is TsSwitchStatement switchStmt)
+        {
+            foreach (var caseStmt in switchStmt.Cases)
+            {
+                if (ContainsYield(caseStmt.Statements))
+                    return true;
+            }
+            return false;
+        }
+
+        if (stmt is TsFunctionDeclarationStatement funcStmt)
+        {
+            return ContainsYield(funcStmt.Body);
+        }
+
+        return false;
     }
 }
 
