@@ -124,7 +124,7 @@ internal sealed partial class CsEmitter
             if (stmt.PatternKind == "Array")
             {
                 // Array destructuring: const [a, b] = expr → var (a, b) = expr;
-                string varNames = string.Join(", ", stmt.Names);
+                string varNames = string.Join(", ", stmt.Names.Select(EscapeKeywordIfNeeded));
                 string initText = EmitExpression(stmt.Initializer).NormalizeWhitespace().ToFullString();
                 return ParseStatement($"var ({varNames}) = {initText};\n");
             }
@@ -145,7 +145,8 @@ internal sealed partial class CsEmitter
 
                     // Convert property name from camelCase to PascalCase for C# convention
                     string csPropertyName = ToPascalCase(propName);
-                    return ParseStatement($"var {propName} = {initText}.{csPropertyName};\n");
+                    string escapedPropName = EscapeKeywordIfNeeded(propName);
+                    return ParseStatement($"var {escapedPropName} = {initText}.{csPropertyName};\n");
                 }
                 else
                 {
@@ -199,7 +200,7 @@ internal sealed partial class CsEmitter
             }
         }
 
-        VariableDeclaratorSyntax declarator = VariableDeclarator(Identifier(stmt.Name ?? "_"));
+        VariableDeclaratorSyntax declarator = VariableDeclarator(Identifier(EscapeKeywordIfNeeded(stmt.Name ?? "_")));
         if (initExpr is not null)
             declarator = declarator.WithInitializer(
                 EqualsValueClause(initExpr));

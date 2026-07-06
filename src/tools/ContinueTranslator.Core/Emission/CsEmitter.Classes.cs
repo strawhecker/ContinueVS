@@ -167,7 +167,7 @@ internal sealed partial class CsEmitter
 
             PropertyDeclarationSyntax propDecl = PropertyDeclaration(
                     ParseTypeSyntax(typeText),
-                    Identifier(prop.Name))
+                    Identifier(EscapeKeywordIfNeeded(prop.Name)))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
                 .WithAccessorList(AccessorList(List(new[]
                 {
@@ -201,7 +201,7 @@ internal sealed partial class CsEmitter
 
             MethodDeclarationSyntax methodDecl = MethodDeclaration(
                     ParseTypeSyntax(method.ReturnType.Text),
-                    Identifier(method.Name))
+                    Identifier(EscapeKeywordIfNeeded(method.Name)))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
                 .WithParameterList(paramList)
                 .WithBody(methodBody);

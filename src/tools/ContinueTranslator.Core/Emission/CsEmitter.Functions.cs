@@ -26,7 +26,7 @@ internal sealed partial class CsEmitter
                 // A block comment (/* ... */) is used so that multi-line TypeText values
                 // (e.g. TS object literal type bodies) do not leak as bare invalid tokens.
                 ClassDeclarationSyntax placeholder = ClassDeclaration(
-                        Identifier(alias.Name + "Alias"))
+                        Identifier(EscapeKeywordIfNeeded(alias.Name) + "Alias"))
                     .AddModifiers(
                         Token(SyntaxKind.PublicKeyword),
                         Token(SyntaxKind.StaticKeyword));
@@ -121,7 +121,7 @@ internal sealed partial class CsEmitter
 
         MethodDeclarationSyntax methodDecl = MethodDeclaration(
                 ParseTypeSyntax(returnTypeText),
-                Identifier(methodName))
+                Identifier(EscapeKeywordIfNeeded(methodName)))
             .AddModifiers(
                 Token(SyntaxKind.PublicKeyword),
                 Token(SyntaxKind.StaticKeyword))

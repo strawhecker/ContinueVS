@@ -64,7 +64,7 @@ internal sealed partial class CsEmitter
         if (id.Name == "undefined")
             return LiteralExpression(SyntaxKind.NullLiteralExpression);
 
-        return IdentifierName(id.Name);
+        return IdentifierName(EscapeKeywordIfNeeded(id.Name));
     }
 
     // -------------------------------------------------------------------------

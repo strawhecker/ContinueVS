@@ -162,7 +162,7 @@ internal sealed partial class CsEmitter
                 typeText = $"Dictionary<string, {valueType}>";
             }
 
-            ParameterSyntax paramSyntax = Parameter(Identifier(p.Name))
+            ParameterSyntax paramSyntax = Parameter(Identifier(EscapeKeywordIfNeeded(p.Name)))
                 .WithType(ParseTypeSyntax(typeText));
 
             // Add TODO comment if union type or index signature
