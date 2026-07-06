@@ -1,4 +1,5 @@
 ﻿using ContinueTranslator.Core.IR;
+using ContinueTranslator.Core.Sync;
 
 namespace ContinueTranslator.Core.Mapping;
 
@@ -73,13 +74,64 @@ internal sealed partial class MappingEngine
         return local;
     }
 
-    private TsFile ApplyFile(TsFile file) => file with
+    private TsFile ApplyFile(TsFile file)
     {
-        Imports = [.. file.Imports.Select(ApplyImport)],
-        Classes = [.. file.Classes.Select(ApplyClass)],
-        Interfaces = [.. file.Interfaces.Select(ApplyInterface)],
-        Functions = [.. file.Functions.Select(ApplyFunction)],
-    };
+        // Preserve rejection reasons from earlier filters (e.g., whitelist filtering)
+        var rejectionReasons = new List<RejectionReason>(file.RejectionReasons);
+
+        // If file is already rejected, skip additional checks
+        if (rejectionReasons.Count > 0)
+        {
+            return file with { Imports = [.. file.Imports.Select(ApplyImport)] };
+        }
+
+        TsImport[] mappedImports = [.. file.Imports.Select(ApplyImport)];
+
+        // Skip unmapped npm import check for whitelisted files.
+        // If a file is whitelisted (e.g., core/node_modules/@types/node/**),
+        // we trust that unmapped imports are acceptable and won't reject the file for them.
+        if (!file.IsWhitelisted)
+        {
+            // Check for unmapped npm imports (imports that are not relative and not in npm-packages.json).
+            var unmappedPackages = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var import in mappedImports)
+            {
+                // Skip relative imports and empty module specifiers.
+                if (string.IsNullOrWhiteSpace(import.ModuleSpecifier))
+                    continue;
+
+                string moduleSpec = import.ModuleSpecifier.Trim();
+
+                // Skip relative imports (start with . or /)
+                if (moduleSpec.StartsWith('.') || moduleSpec.StartsWith('/'))
+                    continue;
+
+                // Check if this import is still unmapped (i.e., it's a plain npm package name).
+                // Mapped imports will have been replaced with their C# namespace equivalents,
+                // typically containing dots or starting with uppercase (System, ContinueCore, etc.).
+                // Unmapped npm packages typically start with lowercase and don't contain dots.
+                if (char.IsLower(moduleSpec[0]) && !moduleSpec.Contains('.'))
+                {
+                    unmappedPackages.Add(moduleSpec);
+                }
+            }
+
+            if (unmappedPackages.Count > 0)
+            {
+                rejectionReasons.Add(RejectionReason.UnmappedNpmImport);
+            }
+        }
+
+        return file with
+        {
+            Imports = mappedImports,
+            Classes = [.. file.Classes.Select(ApplyClass)],
+            Interfaces = [.. file.Interfaces.Select(ApplyInterface)],
+            Functions = [.. file.Functions.Select(ApplyFunction)],
+            RejectionReasons = rejectionReasons
+        };
+    }
 
     private TsImport ApplyImport(TsImport import)
     {

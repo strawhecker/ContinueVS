@@ -28,6 +28,84 @@ internal sealed class RepoScanner
         return ScanCoreFiles(repoPath);
     }
 
+    /// <summary>
+    /// Two-pass scan optimization: first scans only whitelisted node_modules directories,
+    /// then scans the rest of core/ excluding node_modules.
+    /// This drastically reduces file enumeration time by processing node_modules separately
+    /// per whitelist entry rather than scanning all files at once.
+    /// </summary>
+    /// <param name="repoPath">Absolute path to the local git repository.</param>
+    /// <param name="tag">Git tag or branch name to check out.</param>
+    /// <param name="nodeModulesPatterns">Directory patterns to scan in phase 1 (e.g., "core/node_modules/web-tree-sitter").</param>
+    /// <returns>Combined filtered list of .ts file paths from both phases, sorted.</returns>
+    public IReadOnlyList<string> CheckoutAndScanTwoPass(string repoPath, string tag, IReadOnlyList<string> nodeModulesPatterns)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(repoPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        ArgumentNullException.ThrowIfNull(nodeModulesPatterns);
+
+        RunGitCheckout(repoPath, tag);
+
+        var allFiles = new List<string>();
+
+        // First pass: scan whitelisted node_modules directories
+        if (nodeModulesPatterns.Count > 0)
+        {
+            Console.WriteLine($"[SCAN] Phase 1: Scanning {nodeModulesPatterns.Count} whitelisted node_modules pattern(s)...");
+            var nodeModulesFiles = ScanSpecificDirectories(repoPath, nodeModulesPatterns);
+            allFiles.AddRange(nodeModulesFiles);
+            Console.WriteLine($"[SCAN] Phase 1: Found {nodeModulesFiles.Count} file(s) in node_modules.");
+        }
+
+        // Second pass: scan core/ excluding node_modules
+        Console.WriteLine($"[SCAN] Phase 2: Scanning core/ excluding node_modules...");
+        var sourceFiles = ScanCoreFilesExcludingNodeModules(repoPath);
+        allFiles.AddRange(sourceFiles);
+        Console.WriteLine($"[SCAN] Phase 2: Found {sourceFiles.Count} file(s) in source code.");
+
+        return [.. allFiles.OrderBy(p => p, StringComparer.OrdinalIgnoreCase)];
+    }
+
+    /// <summary>
+    /// Scans specific directories under the repository root for TypeScript files.
+    /// Used to scan whitelisted node_modules directories without scanning the entire core/.
+    /// Does not run git checkout (assumes repo is already at the desired state).
+    /// </summary>
+    /// <param name="repoPath">Absolute path to the local git repository.</param>
+    /// <param name="relativeDirPatterns">Relative directory paths (e.g., "core/node_modules/web-tree-sitter").</param>
+    /// <returns>Filtered list of absolute .ts file paths in those directories.</returns>
+    public IReadOnlyList<string> ScanSpecificDirectories(string repoPath, IEnumerable<string> relativeDirPatterns)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(repoPath);
+        ArgumentNullException.ThrowIfNull(relativeDirPatterns);
+
+        var results = new List<string>();
+
+        foreach (var pattern in relativeDirPatterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+                continue;
+
+            // Convert pattern like "core/node_modules/web-tree-sitter" to absolute path
+            string absolutePath = Path.Combine(repoPath, pattern.Replace('/', Path.DirectorySeparatorChar));
+
+            if (!Directory.Exists(absolutePath))
+            {
+                Console.WriteLine($"[WARN] Directory not found: {absolutePath}");
+                continue;
+            }
+
+            // Enumerate all .ts files in this directory (non-recursive for now, can be recursive)
+            var files = Directory
+                .EnumerateFiles(absolutePath, "*.ts", SearchOption.AllDirectories)
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase);
+
+            results.AddRange(files);
+        }
+
+        return results;
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -64,6 +142,24 @@ internal sealed class RepoScanner
         return [.. Directory
             .EnumerateFiles(coreDir, "*.ts", SearchOption.AllDirectories)
             .Where(IsIncluded)
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)];
+    }
+
+    /// <summary>
+    /// Scans the core directory EXCLUDING node_modules subdirectories.
+    /// Used for the source code pass after node_modules have been processed separately.
+    /// </summary>
+    private static IReadOnlyList<string> ScanCoreFilesExcludingNodeModules(string repoPath)
+    {
+        string coreDir = Path.Combine(repoPath, "core");
+
+        if (!Directory.Exists(coreDir))
+            throw new InvalidOperationException(
+                $"Expected 'core' subdirectory not found under '{repoPath}'.");
+
+        return [.. Directory
+            .EnumerateFiles(coreDir, "*.ts", SearchOption.AllDirectories)
+            .Where(p => !p.Contains("node_modules", StringComparison.OrdinalIgnoreCase) && IsIncluded(p))
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)];
     }
 

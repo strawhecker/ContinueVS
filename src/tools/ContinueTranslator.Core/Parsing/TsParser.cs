@@ -19,6 +19,7 @@ internal sealed partial class TsParser
     {
         PropertyNameCaseInsensitive = true,
         AllowOutOfOrderMetadataProperties = true,
+        MaxDepth = 256,  // Increased from default 64 to handle deeply nested method bodies
     };
 
     /// <summary>

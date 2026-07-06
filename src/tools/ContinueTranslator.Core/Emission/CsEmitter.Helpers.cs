@@ -553,6 +553,8 @@ internal sealed partial class CsEmitter
     internal static string BuildCompilationUnit(string ns, IEnumerable<MemberDeclarationSyntax> members, TsImport[] imports)
     {
         // Extract unique using directives from imports.
+        // Note: Files with unmapped npm imports are filtered out by CsEmitter before emission,
+        // so all imports here should be either relative paths or mapped to .NET namespaces.
         var usingNamespaces = new SortedSet<string>(StringComparer.Ordinal);
 
         foreach (var import in imports)
@@ -566,10 +568,10 @@ internal sealed partial class CsEmitter
             if (moduleSpec.StartsWith('.') || moduleSpec.StartsWith('/'))
                 continue;
 
-            // Skip unmapped npm packages: these are lowercase identifiers without dots
-            // (should have been mapped by MappingEngine to a .NET namespace).
-            // Accept: "System.IO" (contains dot), "TreeSitter" (uppercase start), "System" (uppercase start)
-            // Reject: "path", "uuid", "axios" (lowercase, no dot → unmapped)
+            // At this point, moduleSpec should be a mapped .NET namespace or type.
+            // Unmapped npm packages (lowercase, no dot) should never reach here because
+            // files with unmapped imports are rejected during mapping phase.
+            // As a safety measure, we still skip them, but this should be rare.
             if (char.IsLower(moduleSpec[0]) && !moduleSpec.Contains('.'))
                 continue;
 

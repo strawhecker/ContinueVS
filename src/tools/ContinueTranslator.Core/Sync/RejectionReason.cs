@@ -16,6 +16,12 @@ internal enum RejectionReason
 
     /// <summary>File contains bare <c>undefined</c> identifier (likely raw TypeScript type leak).</summary>
     HasUndefinedType,
+
+    /// <summary>File imports npm packages with no C# mapping in <c>npm-packages.json</c> (e.g., <c>web-tree-sitter</c>).</summary>
+    UnmappedNpmImport,
+
+    /// <summary>File path is not in the whitelist (<c>whitelist.json</c>). Only whitelisted files are emitted.</summary>
+    NotWhitelisted,
 }
 
 /// <summary>
@@ -32,6 +38,8 @@ internal static class RejectionReasonExtensions
         RejectionReason.HasGenericTsTypes => "Contains raw TypeScript generic types (Promise<, Observable<, etc.)",
         RejectionReason.HasAnyType => "Contains bare 'any' identifier",
         RejectionReason.HasUndefinedType => "Contains bare 'undefined' identifier",
+        RejectionReason.UnmappedNpmImport => "Imports npm packages with no C# mapping",
+        RejectionReason.NotWhitelisted => "File path not in whitelist",
         _ => "Unknown rejection reason"
     };
 
@@ -44,6 +52,8 @@ internal static class RejectionReasonExtensions
         RejectionReason.HasGenericTsTypes => "TS generic types",
         RejectionReason.HasAnyType => "any type",
         RejectionReason.HasUndefinedType => "undefined type",
+        RejectionReason.UnmappedNpmImport => "Unmapped npm import",
+        RejectionReason.NotWhitelisted => "Not whitelisted",
         _ => "unknown"
     };
 }

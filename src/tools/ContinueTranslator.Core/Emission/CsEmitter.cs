@@ -23,6 +23,7 @@ internal sealed partial class CsEmitter
 
     /// <summary>
     /// Emits C# source files for all IR nodes in <paramref name="files"/>.
+    /// Files with rejection reasons (e.g., unmapped npm imports) are skipped.
     /// </summary>
     /// <param name="files">Mapped IR nodes (MappingEngine must have already run).</param>
     /// <param name="outputDirectory">
@@ -34,14 +35,17 @@ internal sealed partial class CsEmitter
         ArgumentNullException.ThrowIfNull(files);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
-        string commonRoot = ResolveCommonRoot(files);
+        // Filter out files that have been marked for rejection (e.g., due to unmapped imports).
+        TsFile[] acceptedFiles = files.Where(f => f.RejectionReasons.Count == 0).ToArray();
+
+        string commonRoot = ResolveCommonRoot(acceptedFiles);
         var results = new List<EmittedFile>();
 
-        EmitEnums(files, commonRoot, results);
-        EmitInterfaces(files, commonRoot, results);
-        EmitTypeAliases(files, commonRoot, results);
-        EmitFunctions(files, commonRoot, results);
-        EmitClasses(files, commonRoot, results);
+        EmitEnums(acceptedFiles, commonRoot, results);
+        EmitInterfaces(acceptedFiles, commonRoot, results);
+        EmitTypeAliases(acceptedFiles, commonRoot, results);
+        EmitFunctions(acceptedFiles, commonRoot, results);
+        EmitClasses(acceptedFiles, commonRoot, results);
         CollectResults(results);
 
         return results.AsReadOnly();

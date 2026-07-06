@@ -703,11 +703,19 @@ function walkMethod(method) {
  * @returns {object}
  */
 function walkClass(cls) {
-  const baseExpr = cls.getBaseClass?.();
+  let baseClassName = null;
+  try {
+    const baseExpr = cls.getBaseClass?.();
+    baseClassName = baseExpr?.getName() ?? null;
+  } catch (e) {
+    // If we can't resolve the base class (e.g., due to missing imports), skip it
+    // The file will be rejected later if it has unmapped imports
+  }
+
   return {
     name: cls.getName() ?? "(anonymous)",
     typeParameters: cls.getTypeParameters().map(tp => tp.getName()),
-    baseClass: baseExpr?.getName() ?? null,
+    baseClass: baseClassName,
     implements: cls.getImplements().map(i => i.getText()),
     properties: cls.getProperties().map(walkProperty),
     methods: cls.getMethods().map(walkMethod),
@@ -722,10 +730,17 @@ function walkClass(cls) {
  * @returns {object}
  */
 function walkInterface(iface) {
+  let extendsList = [];
+  try {
+    extendsList = iface.getExtends().map(e => e.getText());
+  } catch (e) {
+    // If we can't resolve extends (e.g., due to missing imports), skip them
+  }
+
   return {
     name: iface.getName(),
     typeParameters: iface.getTypeParameters().map(tp => tp.getName()),
-    extends: iface.getExtends().map(e => e.getText()),
+    extends: extendsList,
     properties: iface.getProperties().map(walkProperty),
     methods: iface.getMethods().map(walkMethod),
     isExported: iface.isExported(),
