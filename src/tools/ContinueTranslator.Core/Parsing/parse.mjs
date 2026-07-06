@@ -354,10 +354,22 @@ function walkStatement(stmt) {
         return {
           kind: "Switch",
           discriminant: walkExpression(stmt.getExpression()),
-          cases: stmt.getCaseBlock().getClauses().map(clause => ({
-            test: clause.getKindName() === "CaseClause" ? walkExpression(clause.getExpression()) : null,
-            statements: clause.getStatements().map(walkStatement),
-          })),
+          cases: stmt.getCaseBlock().getClauses().map(clause => {
+            // Get statements from the clause
+            // In TypeScript, a case can contain multiple statements without an explicit block
+            let caseStatements = clause.getStatements();
+
+            // If there's a single statement and it's a Block statement,
+            // extract the statements from inside the block
+            if (caseStatements.length === 1 && caseStatements[0].getKindName?.() === "Block") {
+              caseStatements = caseStatements[0].getStatements?.() ?? caseStatements;
+            }
+
+            return {
+              test: clause.getKindName() === "CaseClause" ? walkExpression(clause.getExpression()) : null,
+              statements: caseStatements.map(walkStatement),
+            };
+          }),
         };
       case "BreakStatement":
         return { kind: "Break" };
