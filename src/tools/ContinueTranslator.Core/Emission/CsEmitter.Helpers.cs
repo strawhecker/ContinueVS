@@ -623,6 +623,9 @@ internal sealed partial class CsEmitter
         // - Collapse excessive newlines in nested object initializers into single lines
         result = FixAnonymousObjectFormatting(result);
 
+        // Format closing braces on their own lines
+        result = FormatClosingBraces(result);
+
         return result;
     }
 
@@ -733,6 +736,91 @@ internal sealed partial class CsEmitter
 
          return code;
      }
+
+    /// <summary>
+    /// Formats closing braces to appear on their own line.
+    /// Converts code like "{ statement }" to "{\n  statement\n}" and similar patterns.
+    /// This ensures proper C# formatting with closing braces on separate lines.
+    /// 
+    /// Special handling:
+    /// - Do NOT split closing braces that are part of inline lambdas or delegates
+    /// - Closing braces followed by ; are still split (they typically mark the end of a block)
+    /// - Only skip splitting for property getters/setters that are inline
+    /// </summary>
+    private static string FormatClosingBraces(string code)
+    {
+        var lines = code.Split('\n');
+        var result = new System.Collections.Generic.List<string>();
+
+        foreach (var line in lines)
+        {
+            string trimmed = line.TrimEnd();
+
+            // Only process lines that end with } and are not already just whitespace and }
+            if (!trimmed.EndsWith("}") || trimmed.TrimStart().StartsWith("}"))
+            {
+                result.Add(line);
+                continue;
+            }
+
+            // Find the position of the last closing brace
+            int lastBracePos = trimmed.LastIndexOf('}');
+            if (lastBracePos <= 0)
+            {
+                result.Add(line);
+                continue;
+            }
+
+            // Check what comes before the last closing brace
+            string beforeBrace = trimmed.Substring(0, lastBracePos).TrimEnd();
+
+            // Skip if nothing before the brace (already on its own line)
+            if (string.IsNullOrWhiteSpace(beforeBrace))
+            {
+                result.Add(line);
+                continue;
+            }
+
+            // Check for patterns we should NOT split:
+            // 1. Inline property getter/setter: { get; } or { get; init; } or { set; }
+            if (beforeBrace.EndsWith("get") || beforeBrace.EndsWith("set") || beforeBrace.EndsWith("init"))
+            {
+                // This is a property accessor, keep inline
+                result.Add(line);
+                continue;
+            }
+
+            // 2. Single-expression lambda or delegate that should stay inline
+            // Look for => pattern indicating a lambda
+            if (beforeBrace.Contains("=>") && !beforeBrace.Contains("\n"))
+            {
+                // For now, keep lambdas inline - they're usually short expressions
+                // But only if they're truly one-liners
+                var statementCount = beforeBrace.Split(';').Length - 1;
+                if (statementCount == 0)
+                {
+                    result.Add(line);
+                    continue;
+                }
+            }
+
+            // We have a case where code precedes the closing brace and it's not a special case
+            // Extract indentation of the original line
+            int indentLength = line.Length - trimmed.Length;
+            string indent = line.Substring(0, indentLength);
+
+            // Split: put the code on this line and the closing brace(s) on the next
+            string afterBrace = trimmed.Substring(lastBracePos + 1);
+            string codePart = beforeBrace + afterBrace;
+            string braces = trimmed.Substring(lastBracePos);
+
+            result.Add(indent + codePart);
+            result.Add(indent + braces);
+        }
+
+        return string.Join("\n", result);
+    }
+
 
     // -------------------------------------------------------------------------
     // Generator method name helpers
