@@ -10,11 +10,14 @@ namespace ContinueTranslator.Core.Emission;
 internal sealed partial class CsEmitter
 {
     private readonly CallSiteMap _callSiteMap;
+    private readonly UsingsMap _usingsMap;
 
-    internal CsEmitter(CallSiteMap callSiteMap)
+    internal CsEmitter(CallSiteMap callSiteMap, UsingsMap usingsMap)
     {
         ArgumentNullException.ThrowIfNull(callSiteMap);
+        ArgumentNullException.ThrowIfNull(usingsMap);
         _callSiteMap = callSiteMap;
+        _usingsMap = usingsMap;
     }
 
     // -------------------------------------------------------------------------

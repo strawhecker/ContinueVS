@@ -35,7 +35,8 @@ internal sealed partial class CsEmitter
             string fileName = Path.GetFileNameWithoutExtension(file.FilePath) + ".Interfaces.cs";
             string relativePath = relDir.Length > 0 ? $"{relDir}/{fileName}" : fileName;
 
-            string content = BuildCompilationUnit(ns, members, file.Imports);
+            var standardUsings = CollectRequiredUsings(members, _usingsMap);
+            string content = BuildCompilationUnit(ns, members, file.Imports, standardUsings);
             results.Add(new EmittedFile(relativePath, content));
         }
     }

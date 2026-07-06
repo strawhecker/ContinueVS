@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using ContinueTranslator.Core.IR;
+using ContinueTranslator.Core.Mapping;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ContinueTranslator.Core.Emission;
@@ -552,10 +553,30 @@ internal sealed partial class CsEmitter
     /// <param name="imports">TypeScript imports that may contain .NET namespace references; using directives will be extracted from these.</param>
     internal static string BuildCompilationUnit(string ns, IEnumerable<MemberDeclarationSyntax> members, TsImport[] imports)
     {
+        return BuildCompilationUnit(ns, members, imports, []);
+    }
+
+    /// <summary>
+    /// Wraps <paramref name="members"/> in a file-scoped namespace declaration with using directives
+    /// and returns the normalised source text with post-processing to improve formatting of anonymous object literals.
+    /// </summary>
+    /// <param name="ns">The namespace name (e.g., <c>"ContinueCore"</c>).</param>
+    /// <param name="members">The member declarations (classes, enums, etc.) to include in the namespace.</param>
+    /// <param name="imports">TypeScript imports that may contain .NET namespace references; using directives will be extracted from these.</param>
+    /// <param name="standardUsings">Standard using namespaces (e.g., from System.Collections.Generic) to include unconditionally.</param>
+    internal static string BuildCompilationUnit(string ns, IEnumerable<MemberDeclarationSyntax> members, TsImport[] imports, IEnumerable<string> standardUsings)
+    {
         // Extract unique using directives from imports.
         // Note: Files with unmapped npm imports are filtered out by CsEmitter before emission,
         // so all imports here should be either relative paths or mapped to .NET namespaces.
         var usingNamespaces = new SortedSet<string>(StringComparer.Ordinal);
+
+        // Add standard using statements (from collections, tasks, etc.)
+        foreach (var standardUsing in standardUsings)
+        {
+            if (!string.IsNullOrWhiteSpace(standardUsing))
+                usingNamespaces.Add(standardUsing);
+        }
 
         foreach (var import in imports)
         {
@@ -728,5 +749,49 @@ internal sealed partial class CsEmitter
 
         // Capitalize the first character
         return char.ToUpperInvariant(varName[0]) + varName[1..];
+    }
+
+    /// <summary>
+    /// Collects required using statements based on the types found in the generated syntax members.
+    /// This method walks the syntax tree to find type references and resolves their required namespaces.
+    /// </summary>
+    /// <param name="members">The member declarations to scan for type references.</param>
+    /// <param name="usingsMap">The mapping from C# types to their required using statements.</param>
+    /// <returns>A collection of required using namespace names (deduplicated).</returns>
+    internal static IEnumerable<string> CollectRequiredUsings(IEnumerable<MemberDeclarationSyntax> members, UsingsMap usingsMap)
+    {
+        var requiredUsings = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var member in members)
+        {
+            CollectUsingsFromNode(member, usingsMap, requiredUsings);
+        }
+
+        return requiredUsings;
+    }
+
+    /// <summary>
+    /// Recursively walks a syntax node and collects required using statements for all types found.
+    /// </summary>
+    private static void CollectUsingsFromNode(SyntaxNode node, UsingsMap usingsMap, HashSet<string> requiredUsings)
+    {
+        if (node is TypeSyntax typeSyntax)
+        {
+            string typeText = typeSyntax.ToFullString().Trim();
+            if (!string.IsNullOrWhiteSpace(typeText))
+            {
+                var usings = usingsMap.Resolve(typeText);
+                foreach (var @using in usings)
+                {
+                    requiredUsings.Add(@using);
+                }
+            }
+        }
+
+        // Recursively process all child nodes
+        foreach (var child in node.ChildNodes())
+        {
+            CollectUsingsFromNode(child, usingsMap, requiredUsings);
+        }
     }
 }

@@ -42,17 +42,19 @@ internal sealed class PipelineRunner
         string typesPath = Path.GetFullPath(Path.Combine(mappingsDir, "types.json"));
         string callSitesPath = Path.GetFullPath(Path.Combine(mappingsDir, "callsites.json"));
         string whitelistPath = Path.GetFullPath(Path.Combine(mappingsDir, "whitelist.json"));
+        string usingsPath = Path.GetFullPath(Path.Combine(mappingsDir, "usings.json"));
 
         var nodeApiMap = new NodeApiMap(nodeApiPath);
         var npmPackageMap = new NpmPackageMap(npmPackagesPath);
         var typeMap = new TypeMap(typesPath);
         var callSiteMap = new CallSiteMap(callSitesPath);
+        var usingsMap = new UsingsMap(usingsPath);
         _whitelist = new WhitelistMap(whitelistPath);
 
         _mappingEngine = new MappingEngine(nodeApiMap, npmPackageMap, typeMap, callSiteMap);
         _nugetResolver = new NuGetPackageResolver(npmPackageMap);
         _tsParser = new TsParser();
-        _csEmitter = new CsEmitter(callSiteMap);
+        _csEmitter = new CsEmitter(callSiteMap, usingsMap);
         _projectEmitter = new ProjectEmitter(_nugetResolver);
     }
 

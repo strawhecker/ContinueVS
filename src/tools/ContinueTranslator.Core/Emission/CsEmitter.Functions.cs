@@ -48,7 +48,8 @@ internal sealed partial class CsEmitter
             string fileName = Path.GetFileNameWithoutExtension(file.FilePath) + ".TypeAliases.cs";
             string relativePath = relDir.Length > 0 ? $"{relDir}/{fileName}" : fileName;
 
-            string content = BuildCompilationUnit(ns, members, file.Imports);
+            var standardUsings = CollectRequiredUsings(members, _usingsMap);
+            string content = BuildCompilationUnit(ns, members, file.Imports, standardUsings);
             results.Add(new EmittedFile(relativePath, content));
         }
     }
@@ -93,12 +94,11 @@ internal sealed partial class CsEmitter
             string fileName = className + ".cs";
             string relativePath = relDir.Length > 0 ? $"{relDir}/{fileName}" : fileName;
 
-            string content = BuildCompilationUnit(ns, [classDecl], file.Imports);
+            var standardUsings = CollectRequiredUsings([classDecl], _usingsMap);
+            string content = BuildCompilationUnit(ns, [classDecl], file.Imports, standardUsings);
             results.Add(new EmittedFile(relativePath, content));
         }
-    }
-
-    private MethodDeclarationSyntax BuildFunctionStub(TsFunction func, string methodName, string filePath, string className)
+    }    private MethodDeclarationSyntax BuildFunctionStub(TsFunction func, string methodName, string filePath, string className)
     {
         ParameterListSyntax paramList = BuildParameterList(func.Parameters);
 
