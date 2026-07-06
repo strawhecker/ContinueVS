@@ -35,7 +35,7 @@ internal sealed class WhitelistMap
 
     /// <summary>
     /// Extracts node_modules directory patterns from the whitelist.
-    /// Returns patterns like "core/node_modules/web-tree-sitter" (without the /**)
+    /// Returns patterns like "core/node_modules/web-tree-sitter" (without the /** or /* suffix)
     /// for use in directory scanning.
     /// </summary>
     public IReadOnlyList<string> GetNodeModulesDirectoryPatterns()
@@ -46,10 +46,16 @@ internal sealed class WhitelistMap
         {
             if (pattern.Contains("node_modules", StringComparison.OrdinalIgnoreCase))
             {
-                // Remove /** suffix if present
-                string dirPattern = pattern.EndsWith("/**", StringComparison.Ordinal)
-                    ? pattern.Substring(0, pattern.Length - 3)
-                    : pattern;
+                // Remove /** or /* suffix if present
+                string dirPattern = pattern;
+                if (pattern.EndsWith("/**", StringComparison.Ordinal))
+                {
+                    dirPattern = pattern.Substring(0, pattern.Length - 3);
+                }
+                else if (pattern.EndsWith("/*", StringComparison.Ordinal))
+                {
+                    dirPattern = pattern.Substring(0, pattern.Length - 2);
+                }
 
                 nodeModulesPatterns.Add(dirPattern);
             }
@@ -86,7 +92,7 @@ internal sealed class WhitelistMap
 
     /// <summary>
     /// Matches a file path against a glob pattern.
-    /// Supports ** for matching any number of directory levels.
+    /// Supports * for matching files in a directory and ** for matching any number of directory levels.
     /// </summary>
     private static bool MatchesPattern(string path, string pattern)
     {
@@ -96,22 +102,7 @@ internal sealed class WhitelistMap
         // Normalize pattern to forward slashes
         pattern = pattern.Replace('\\', '/');
 
-        // If pattern doesn't contain **, do simple prefix matching
-        if (!pattern.Contains("**"))
-        {
-            // Exact match or pattern without wildcards
-            if (path.Equals(pattern, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            // If pattern ends with /, treat as directory prefix match
-            if (pattern.EndsWith("/", StringComparison.Ordinal))
-                return path.StartsWith(pattern, StringComparison.OrdinalIgnoreCase);
-
-            return false;
-        }
-
         // Handle ** pattern (e.g., "core/node_modules/web-tree-sitter/**")
-        // Remove the /** suffix from the pattern
         if (pattern.EndsWith("/**", StringComparison.Ordinal))
         {
             string prefix = pattern.Substring(0, pattern.Length - 3); // Remove "/**"
@@ -123,6 +114,44 @@ internal sealed class WhitelistMap
             {
                 return true;
             }
+        }
+
+        // Handle * pattern (e.g., "core/node_modules/web-tree-sitter/*")
+        // This matches files directly in the specified directory, not in subdirectories.
+        if (pattern.EndsWith("/*", StringComparison.Ordinal))
+        {
+            string dirPrefix = pattern.Substring(0, pattern.Length - 2); // Remove "/*"
+
+            // The path must start with the directory prefix and have a file name after it (no subdirs).
+            // Check: path starts with "core/node_modules/web-tree-sitter/" and has no more "/" after that.
+            if (path.StartsWith(dirPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                // Ensure the character after the prefix is "/" and there are no more "/" after that.
+                if (path.Length > dirPrefix.Length && path[dirPrefix.Length] == '/')
+                {
+                    string afterPrefix = path.Substring(dirPrefix.Length + 1);
+                    // If there's no "/" in the remainder, it's a direct file in this directory.
+                    if (!afterPrefix.Contains("/"))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Handle non-wildcard patterns (exact match or directory prefix)
+        // If pattern doesn't contain *, do simple prefix matching
+        if (!pattern.Contains("*"))
+        {
+            // Exact match or pattern without wildcards
+            if (path.Equals(pattern, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // If pattern ends with /, treat as directory prefix match
+            if (pattern.EndsWith("/", StringComparison.Ordinal))
+                return path.StartsWith(pattern, StringComparison.OrdinalIgnoreCase);
+
+            return false;
         }
 
         return false;

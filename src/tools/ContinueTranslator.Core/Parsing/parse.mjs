@@ -897,18 +897,80 @@ function walkImport(imp) {
 }
 
 /**
+ * Recursively extracts declarations from a ModuleDeclaration body.
+ * Handles nested modules and declarations within declare module blocks.
+ * @param {import("ts-morph").ModuleDeclaration} module
+ * @returns {{ classes: object[], interfaces: object[], enums: object[], functions: object[], typeAliases: object[] }}
+ */
+function extractDeclarationsFromModule(module) {
+  const body = module.getBody?.();
+  if (!body) {
+    return { classes: [], interfaces: [], enums: [], functions: [], typeAliases: [] };
+  }
+
+  const classes = [];
+  const interfaces = [];
+  const enums = [];
+  const functions = [];
+  const typeAliases = [];
+
+  // For ModuleBlock (most common case), iterate its statements
+  if (body.getKindName?.() === "ModuleBlock") {
+    for (const stmt of body.getStatements?.() ?? []) {
+      const kind = stmt.getKindName?.();
+      if (kind === "ClassDeclaration") classes.push(walkClass(stmt));
+      else if (kind === "InterfaceDeclaration") interfaces.push(walkInterface(stmt));
+      else if (kind === "EnumDeclaration") enums.push(walkEnum(stmt));
+      else if (kind === "FunctionDeclaration") functions.push(walkFunction(stmt));
+      else if (kind === "TypeAliasDeclaration") typeAliases.push(walkTypeAlias(stmt));
+      else if (kind === "ModuleDeclaration") {
+        // Recursively handle nested modules
+        const nested = extractDeclarationsFromModule(stmt);
+        classes.push(...nested.classes);
+        interfaces.push(...nested.interfaces);
+        enums.push(...nested.enums);
+        functions.push(...nested.functions);
+        typeAliases.push(...nested.typeAliases);
+      }
+    }
+  } else if (body.getKindName?.() === "Identifier") {
+    // ModuleDeclaration with Identifier body (for namespace aliasing, e.g., `module Foo = Bar`)
+    // These typically don't contain nested declarations; skip for now
+  }
+
+  return { classes, interfaces, enums, functions, typeAliases };
+}
+
+/**
  * @param {import("ts-morph").SourceFile} sourceFile
  * @returns {object}
  */
 function walkSourceFile(sourceFile) {
+  // Collect top-level declarations
+  let classes = sourceFile.getClasses().map(walkClass);
+  let interfaces = sourceFile.getInterfaces().map(walkInterface);
+  let enums = sourceFile.getEnums().map(walkEnum);
+  let functions = sourceFile.getFunctions().map(walkFunction);
+  let typeAliases = sourceFile.getTypeAliases().map(walkTypeAlias);
+
+  // Also extract declarations from module blocks (e.g., "declare module '...'")
+  for (const mod of sourceFile.getModules?.() ?? []) {
+    const nested = extractDeclarationsFromModule(mod);
+    classes.push(...nested.classes);
+    interfaces.push(...nested.interfaces);
+    enums.push(...nested.enums);
+    functions.push(...nested.functions);
+    typeAliases.push(...nested.typeAliases);
+  }
+
   return {
     filePath: sourceFile.getFilePath(),
     imports: sourceFile.getImportDeclarations().map(walkImport),
-    classes: sourceFile.getClasses().map(walkClass),
-    interfaces: sourceFile.getInterfaces().map(walkInterface),
-    enums: sourceFile.getEnums().map(walkEnum),
-    functions: sourceFile.getFunctions().map(walkFunction),
-    typeAliases: sourceFile.getTypeAliases().map(walkTypeAlias),
+    classes,
+    interfaces,
+    enums,
+    functions,
+    typeAliases,
     cookies: [],
   };
 }
