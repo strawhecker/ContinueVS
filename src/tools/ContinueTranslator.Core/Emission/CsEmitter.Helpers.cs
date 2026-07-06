@@ -540,12 +540,56 @@ internal sealed partial class CsEmitter
     /// </summary>
     internal static string BuildCompilationUnit(string ns, IEnumerable<MemberDeclarationSyntax> members)
     {
+        return BuildCompilationUnit(ns, members, []);
+    }
+
+    /// <summary>
+    /// Wraps <paramref name="members"/> in a file-scoped namespace declaration with using directives
+    /// and returns the normalised source text with post-processing to improve formatting of anonymous object literals.
+    /// </summary>
+    /// <param name="ns">The namespace name (e.g., <c>"ContinueCore"</c>).</param>
+    /// <param name="members">The member declarations (classes, enums, etc.) to include in the namespace.</param>
+    /// <param name="imports">TypeScript imports that may contain .NET namespace references; using directives will be extracted from these.</param>
+    internal static string BuildCompilationUnit(string ns, IEnumerable<MemberDeclarationSyntax> members, TsImport[] imports)
+    {
+        // Extract unique using directives from imports.
+        var usingNamespaces = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach (var import in imports)
+        {
+            // Skip empty or whitespace-only module specifiers
+            if (string.IsNullOrWhiteSpace(import.ModuleSpecifier))
+                continue;
+
+            // Skip relative imports (start with . or / after trimming)
+            string moduleSpec = import.ModuleSpecifier.Trim();
+            if (moduleSpec.StartsWith('.') || moduleSpec.StartsWith('/'))
+                continue;
+
+            // Skip unmapped npm packages: these are lowercase identifiers without dots
+            // (should have been mapped by MappingEngine to a .NET namespace).
+            // Accept: "System.IO" (contains dot), "TreeSitter" (uppercase start), "System" (uppercase start)
+            // Reject: "path", "uuid", "axios" (lowercase, no dot → unmapped)
+            if (char.IsLower(moduleSpec[0]) && !moduleSpec.Contains('.'))
+                continue;
+
+            // Add the module specifier as a using namespace (de-duplicated by SortedSet)
+            usingNamespaces.Add(moduleSpec);
+        }
+
+        // Build using directives
+        var usingDirectives = usingNamespaces
+            .Select(ns => UsingDirective(ParseName(ns)))
+            .Cast<UsingDirectiveSyntax>()
+            .ToList();
+
         FileScopedNamespaceDeclarationSyntax nsDecl =
             FileScopedNamespaceDeclaration(ParseName(ns))
                 .WithMembers(List(members))
                 .NormalizeWhitespace();
 
         CompilationUnitSyntax cu = CompilationUnit()
+            .WithUsings(List(usingDirectives))
             .WithMembers(SingletonList<MemberDeclarationSyntax>(nsDecl))
             .NormalizeWhitespace();
 

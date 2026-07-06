@@ -31,7 +31,7 @@ internal sealed partial class CsEmitter
                     ? renamed
                     : tsClass.Name;
 
-                EmitClassFiles(file.FilePath, tsClass, className, ns, relDir, results);
+                EmitClassFiles(file.FilePath, tsClass, className, ns, relDir, results, file.Imports);
             }
         }
     }
@@ -42,7 +42,8 @@ internal sealed partial class CsEmitter
         string className,
         string ns,
         string relDir,
-        List<EmittedFile> results)
+        List<EmittedFile> results,
+        TsImport[] imports)
     {
         // Build all property members first.
         List<MemberDeclarationSyntax> properties = BuildClassProperties(tsClass.Properties);
@@ -52,7 +53,7 @@ internal sealed partial class CsEmitter
 
         // Measure the full class to decide whether splitting is needed.
         List<MemberDeclarationSyntax> allMembers = [.. properties, .. methods];
-        string primaryText = RenderClass(className, tsClass, allMembers, ns);
+        string primaryText = RenderClass(className, tsClass, allMembers, ns, imports);
         int primaryLines = CountLines(primaryText);
 
         if (primaryLines <= LineBudget)
@@ -65,7 +66,7 @@ internal sealed partial class CsEmitter
         }
 
         // Split: keep properties + as many methods as fit in the primary file.
-        SplitClassFiles(className, tsClass, ns, relDir, properties, methods, results);
+        SplitClassFiles(className, tsClass, ns, relDir, properties, methods, results, imports);
     }
 
     private static void SplitClassFiles(
@@ -75,7 +76,8 @@ internal sealed partial class CsEmitter
         string relDir,
         List<MemberDeclarationSyntax> properties,
         List<MemberDeclarationSyntax> methods,
-        List<EmittedFile> results)
+        List<EmittedFile> results,
+        TsImport[] imports)
     {
         // Primary file: all properties + fill with methods until budget is reached.
         var primaryMembers = new List<MemberDeclarationSyntax>(properties);
@@ -84,7 +86,7 @@ internal sealed partial class CsEmitter
         foreach (MemberDeclarationSyntax method in methods)
         {
             primaryMembers.Add(method);
-            string probe = RenderClass(className, tsClass, primaryMembers, ns);
+            string probe = RenderClass(className, tsClass, primaryMembers, ns, imports);
             if (CountLines(probe) > LineBudget)
             {
                 primaryMembers.RemoveAt(primaryMembers.Count - 1);
@@ -92,7 +94,7 @@ internal sealed partial class CsEmitter
             }
         }
 
-        EmitPartFile(className, tsClass, ns, relDir, primaryMembers, 1, results);
+        EmitPartFile(className, tsClass, ns, relDir, primaryMembers, 1, results, imports);
 
         // Overflow files: ClassName.Part2.cs, ClassName.Part3.cs, …
         int partNumber = 2;
@@ -104,7 +106,7 @@ internal sealed partial class CsEmitter
             foreach (MemberDeclarationSyntax method in overflow)
             {
                 chunk.Add(method);
-                string probe = RenderPartialClass(className, chunk, ns);
+                string probe = RenderPartialClass(className, chunk, ns, imports);
                 if (CountLines(probe) > LineBudget)
                 {
                     chunk.RemoveAt(chunk.Count - 1);
@@ -119,7 +121,7 @@ internal sealed partial class CsEmitter
                 remaining.RemoveAt(0);
             }
 
-            EmitPartFile(className, tsClass, ns, relDir, chunk, partNumber, results);
+            EmitPartFile(className, tsClass, ns, relDir, chunk, partNumber, results, imports);
             overflow = remaining;
             partNumber++;
         }
@@ -132,11 +134,12 @@ internal sealed partial class CsEmitter
         string relDir,
         List<MemberDeclarationSyntax> members,
         int partNumber,
-        List<EmittedFile> results)
+        List<EmittedFile> results,
+        TsImport[] imports)
     {
         string text = partNumber == 1
-            ? RenderClass(className, tsClass, members, ns)
-            : RenderPartialClass(className, members, ns);
+            ? RenderClass(className, tsClass, members, ns, imports)
+            : RenderPartialClass(className, members, ns, imports);
 
         string fileSuffix = partNumber == 1 ? ".cs" : $".Part{partNumber}.cs";
         string fileName = className + fileSuffix;
@@ -223,7 +226,8 @@ internal sealed partial class CsEmitter
         string className,
         TsClass tsClass,
         List<MemberDeclarationSyntax> members,
-        string ns)
+        string ns,
+        TsImport[] imports)
     {
         ClassDeclarationSyntax classDecl = ClassDeclaration(Identifier(className))
             .AddModifiers(
@@ -238,13 +242,14 @@ internal sealed partial class CsEmitter
                     SimpleBaseType(ParseTypeName(tsClass.BaseClass)))));
         }
 
-        return BuildCompilationUnit(ns, [classDecl]);
+        return BuildCompilationUnit(ns, [classDecl], imports);
     }
 
     private static string RenderPartialClass(
         string className,
         List<MemberDeclarationSyntax> members,
-        string ns)
+        string ns,
+        TsImport[] imports)
     {
         ClassDeclarationSyntax classDecl = ClassDeclaration(Identifier(className))
             .AddModifiers(
@@ -252,7 +257,7 @@ internal sealed partial class CsEmitter
                 Token(SyntaxKind.PartialKeyword))
             .WithMembers(List(members));
 
-        return BuildCompilationUnit(ns, [classDecl]);
+        return BuildCompilationUnit(ns, [classDecl], imports);
     }
 
     private static int CountLines(string text) =>

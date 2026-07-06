@@ -48,7 +48,7 @@ internal sealed partial class CsEmitter
             string fileName = Path.GetFileNameWithoutExtension(file.FilePath) + ".TypeAliases.cs";
             string relativePath = relDir.Length > 0 ? $"{relDir}/{fileName}" : fileName;
 
-            string content = BuildCompilationUnit(ns, members);
+            string content = BuildCompilationUnit(ns, members, file.Imports);
             results.Add(new EmittedFile(relativePath, content));
         }
     }
@@ -93,7 +93,7 @@ internal sealed partial class CsEmitter
             string fileName = className + ".cs";
             string relativePath = relDir.Length > 0 ? $"{relDir}/{fileName}" : fileName;
 
-            string content = BuildCompilationUnit(ns, [classDecl]);
+            string content = BuildCompilationUnit(ns, [classDecl], file.Imports);
             results.Add(new EmittedFile(relativePath, content));
         }
     }

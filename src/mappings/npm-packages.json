@@ -1,7 +1,10 @@
 {
-  "axios":         "System.Net.Http.HttpClient",
-  "node-fetch":    "System.Net.Http.HttpClient",
-  "ws":            "System.Net.WebSockets.ClientWebSocket",
-  "uuid":          "System.Guid",
-  "events":        "System.EventHandler"
+  "axios":              "System.Net.Http",
+  "node-fetch":        "System.Net.Http",
+  "ws":                 "System.Net.WebSockets",
+  "uuid":               "System",
+  "events":             "System",
+  "web-tree-sitter":    "TreeSitter",
+  "path":               "System.IO",
+  "url":                "System"
 }

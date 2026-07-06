@@ -1,0 +1,15 @@
+{
+  "string":              "string",
+  "number":              "double",
+  "boolean":             "bool",
+  "any":                 "object",
+  "unknown":             "object",
+  "void":                "void",
+  "Function":            "Delegate",
+  "Promise<T>":          "Task<T>",
+  "AsyncGenerator<T>":   "IAsyncEnumerable<T>",
+  "Array<T>":            "List<T>",
+  "Record<K,V>":         "Dictionary<K,V>",
+  "Set<T>":              "HashSet<T>",
+  "Map<K,V>":            "Dictionary<K,V>"
+}
