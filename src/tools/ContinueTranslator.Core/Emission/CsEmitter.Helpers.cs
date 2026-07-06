@@ -905,15 +905,26 @@ internal sealed partial class CsEmitter
 
     /// <summary>
     /// Recursively walks a syntax node and collects required using statements for all types found.
+    /// This function only examines TypeSyntax nodes in contexts where they represent actual type declarations
+    /// (properties, parameters, return types) rather than identifier usage.
     /// </summary>
     private static void CollectUsingsFromNode(SyntaxNode node, UsingsMap usingsMap, HashSet<string> requiredUsings)
     {
-        if (node is TypeSyntax typeSyntax)
+        // Process TypeSyntax, but ONLY if it's not a simple IdentifierNameSyntax 
+        // (which would be a variable/parameter name reference, not a type declaration)
+        // We include more complex types like GenericNameSyntax, QualifiedNameSyntax, etc.
+        if (node is TypeSyntax typeSyntax && !(node is IdentifierNameSyntax))
         {
             string typeText = typeSyntax.ToFullString().Trim();
             if (!string.IsNullOrWhiteSpace(typeText))
             {
-                var usings = usingsMap.Resolve(typeText);
+                // CRITICAL FIX: Roslyn's ToFullString() may include formatting spaces around angle brackets.
+                // For example, ParseTypeSyntax("List<string>") produces a TypeSyntax that when converted 
+                // to string may become "List < string >" with spaces.
+                // Removing spaces ensures our type names match the keys in usings.json (e.g., "List<T>").
+                string normalizedType = typeText.Replace(" ", string.Empty);
+
+                var usings = usingsMap.Resolve(normalizedType);
                 foreach (var @using in usings)
                 {
                     requiredUsings.Add(@using);
