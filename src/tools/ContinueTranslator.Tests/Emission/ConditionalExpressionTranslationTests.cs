@@ -16,15 +16,20 @@ public class ConditionalExpressionTranslationTests
 {
     private CsEmitter CreateEmitter()
     {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"test_callsites_{Guid.NewGuid():N}.json");
-        File.WriteAllText(tempPath, "{}");
+        var callSitesPath = Path.Combine(Path.GetTempPath(), $"test_callsites_{Guid.NewGuid():N}.json");
+        var usingsPath = Path.Combine(Path.GetTempPath(), $"test_usings_{Guid.NewGuid():N}.json");
+
+        File.WriteAllText(callSitesPath, "{}");
+        File.WriteAllText(usingsPath, """{"Task":["System.Threading.Tasks"]}""");
+
         try
         {
-            return new CsEmitter(new CallSiteMap(tempPath));
+            return new CsEmitter(new CallSiteMap(callSitesPath), new UsingsMap(usingsPath));
         }
         finally
         {
-            File.Delete(tempPath);
+            File.Delete(callSitesPath);
+            File.Delete(usingsPath);
         }
     }
 

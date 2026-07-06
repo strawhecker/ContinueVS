@@ -590,10 +590,14 @@ internal sealed partial class CsEmitter
                 continue;
 
             // At this point, moduleSpec should be a mapped .NET namespace or type.
-            // Unmapped npm packages (lowercase, no dot) should never reach here because
-            // files with unmapped imports are rejected during mapping phase.
-            // As a safety measure, we still skip them, but this should be rare.
-            if (char.IsLower(moduleSpec[0]) && !moduleSpec.Contains('.'))
+            // Unmapped npm packages should never reach here because files with unmapped imports 
+            // are rejected during mapping phase. As a safety measure, we skip them:
+            // - Plain lowercase packages without dots (e.g., "fs", "path")
+            // - Scoped packages starting with @ (e.g., "@anthropic-ai/sdk", "@continuedev/config-yaml")
+            // - Any package containing slashes (which are invalid in C# namespaces)
+            if ((char.IsLower(moduleSpec[0]) && !moduleSpec.Contains('.')) ||
+                moduleSpec.StartsWith('@') ||
+                moduleSpec.Contains('/'))
                 continue;
 
             // Add the module specifier as a using namespace (de-duplicated by SortedSet)

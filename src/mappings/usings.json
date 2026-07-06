@@ -1,0 +1,11 @@
+{
+  "Task": ["System.Threading.Tasks"],
+  "Task<T>": ["System.Threading.Tasks"],
+  "List<T>": ["System.Collections.Generic"],
+  "Dictionary<K,V>": ["System.Collections.Generic"],
+  "Dictionary": ["System.Collections.Generic"],
+  "HashSet<T>": ["System.Collections.Generic"],
+  "HashSet": ["System.Collections.Generic"],
+  "IAsyncEnumerable<T>": ["System.Collections.Generic"],
+  "Delegate": []
+}

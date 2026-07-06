@@ -29,17 +29,24 @@ public class ArrayJoinTranslationTests
 {
     private CsEmitter CreateEmitter()
     {
-        // Create a minimal CallSiteMap with just the Array.join mapping for testing
-        var tempPath = Path.Combine(Path.GetTempPath(), $"test_callsites_{Guid.NewGuid():N}.json");
+        // Create minimal mapping files for testing
+        var callSitesPath = Path.Combine(Path.GetTempPath(), $"test_callsites_{Guid.NewGuid():N}.json");
+        var usingsPath = Path.Combine(Path.GetTempPath(), $"test_usings_{Guid.NewGuid():N}.json");
+
         var callSitesJson = """{"Array.join":"string.Join"}""";
-        File.WriteAllText(tempPath, callSitesJson);
+        var usingsJson = """{"Task":["System.Threading.Tasks"],"Task<T>":["System.Threading.Tasks"]}""";
+
+        File.WriteAllText(callSitesPath, callSitesJson);
+        File.WriteAllText(usingsPath, usingsJson);
+
         try
         {
-            return new CsEmitter(new CallSiteMap(tempPath));
+            return new CsEmitter(new CallSiteMap(callSitesPath), new UsingsMap(usingsPath));
         }
         finally
         {
-            File.Delete(tempPath);
+            File.Delete(callSitesPath);
+            File.Delete(usingsPath);
         }
     }
 
