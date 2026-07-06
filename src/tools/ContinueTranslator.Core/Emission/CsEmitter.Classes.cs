@@ -160,9 +160,12 @@ internal sealed partial class CsEmitter
 
         foreach (TsProperty prop in props)
         {
-            string typeText = prop.IsOptional && !prop.Type.Text.EndsWith('?')
-                ? prop.Type.Text + "?"
-                : prop.Type.Text;
+            // FIX: Do NOT use nullable reference types (C# 8.0+) for .NET Framework 4.7.2 (C# 7.3).
+            // Remove any trailing '?' that may have been added during TypeScript type parsing.
+            // This ensures properties remain non-nullable in the generated C# code.
+            string typeText = prop.Type.Text;
+            if (typeText.EndsWith('?'))
+                typeText = typeText[..^1];  // Remove trailing '?'
             if (typeText.Contains("=>")) typeText = ConvertArrowToDelegate(typeText);
 
             PropertyDeclarationSyntax propDecl = PropertyDeclaration(
@@ -173,7 +176,9 @@ internal sealed partial class CsEmitter
                 {
                     AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                         .WithSemicolonToken(Token(SyntaxKind.SemicolonToken)),
-                    AccessorDeclaration(SyntaxKind.InitAccessorDeclaration)
+                    // FIX: Use 'set' instead of 'init' for .NET Framework 4.7.2 compatibility.
+                    // The 'init' accessor (C# 9.0+) is not supported in .NET Framework 4.7.2 (C# 7.3).
+                    AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
                         .WithSemicolonToken(Token(SyntaxKind.SemicolonToken)),
                 })));
 
