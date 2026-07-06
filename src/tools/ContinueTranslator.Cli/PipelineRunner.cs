@@ -19,6 +19,7 @@ internal sealed class PipelineRunner
     private readonly CsEmitter _csEmitter;
     private readonly ProjectEmitter _projectEmitter;
     private readonly WhitelistMap _whitelist;
+    private readonly BlacklistMap _blacklist;
 
     /// <summary>
     /// Initialises all pipeline components. The mappings folder is resolved relative to the running assembly.
@@ -42,6 +43,7 @@ internal sealed class PipelineRunner
         string typesPath = Path.GetFullPath(Path.Combine(mappingsDir, "types.json"));
         string callSitesPath = Path.GetFullPath(Path.Combine(mappingsDir, "callsites.json"));
         string whitelistPath = Path.GetFullPath(Path.Combine(mappingsDir, "whitelist.json"));
+        string blacklistPath = Path.GetFullPath(Path.Combine(mappingsDir, "blacklist.json"));
         string usingsPath = Path.GetFullPath(Path.Combine(mappingsDir, "usings.json"));
 
         var nodeApiMap = new NodeApiMap(nodeApiPath);
@@ -50,6 +52,7 @@ internal sealed class PipelineRunner
         var callSiteMap = new CallSiteMap(callSitesPath);
         var usingsMap = new UsingsMap(usingsPath);
         _whitelist = new WhitelistMap(whitelistPath);
+        _blacklist = new BlacklistMap(blacklistPath);
 
         _mappingEngine = new MappingEngine(nodeApiMap, npmPackageMap, typeMap, callSiteMap);
         _nugetResolver = new NuGetPackageResolver(npmPackageMap);
@@ -339,24 +342,33 @@ public static class RequireShim
     private TsFile[] FilterByWhitelist(TsFile[] parsed, string repoPath, IReadOnlySet<string> phase1Files)
     {
         var result = new List<TsFile>();
-        int acceptedCount = 0, rejectedCount = 0;
+        int acceptedCount = 0, rejectedCount = 0, blacklistedCount = 0;
 
         foreach (var file in parsed)
         {
             string relativePath = ComputeRelativePath(file.FilePath, repoPath);
+
+            // BLACKLIST CHECK: Files matching blacklist are always rejected (has precedence over whitelist)
+            if (_blacklist.IsBlacklisted(relativePath))
+            {
+                result.Add(file with { RejectionReasons = [RejectionReason.NotWhitelisted] });
+                blacklistedCount++;
+                rejectedCount++;
+                continue;
+            }
 
             // If phase1Files is provided, only filter Phase 1 files. Accept all Phase 2 files (source code).
             bool isPhase1File = phase1Files.Contains(file.FilePath);
 
             if (phase1Files.Count > 0 && !isPhase1File)
             {
-                // Phase 2 file (source code): accept without whitelist filtering
+                // Phase 2 file (source code): accept without whitelist filtering (unless blacklisted, which we already checked)
                 result.Add(file with { IsWhitelisted = true });
                 acceptedCount++;
             }
-            else if (_whitelist.IsWhitelisted(relativePath))
+            else if (_whitelist.IsWhitelisted(relativePath) || _whitelist.IsEmpty())
             {
-                // File matches whitelist; mark as whitelisted and include as-is
+                // File matches whitelist or whitelist is empty; mark as whitelisted and include as-is
                 result.Add(file with { IsWhitelisted = true });
                 acceptedCount++;
             }
@@ -368,7 +380,8 @@ public static class RequireShim
             }
         }
 
-        Console.WriteLine($"[WHITELIST FILTER] Accepted: {acceptedCount}, Rejected: {rejectedCount}");
+        Console.WriteLine($"[WHITELIST FILTER] Accepted: {acceptedCount}, Rejected: {rejectedCount} (Blacklisted: {blacklistedCount})");
+
 
         return result.ToArray();
     }

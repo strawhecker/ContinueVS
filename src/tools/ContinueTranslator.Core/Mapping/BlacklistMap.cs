@@ -4,76 +4,45 @@ using System.Text.Json.Serialization;
 namespace ContinueTranslator.Core.Mapping;
 
 /// <summary>
-/// Loads and manages a whitelist of TypeScript file paths that should be translated.
-/// Files not in the whitelist are rejected during translation.
+/// Loads and manages a blacklist of TypeScript file paths that should NOT be translated.
+/// Files matching blacklist patterns are rejected during translation.
 /// Supports glob patterns with ** for matching directories.
 /// </summary>
-internal sealed class WhitelistMap
+internal sealed class BlacklistMap
 {
-    private readonly List<string> _whitelistPatterns;
+    private readonly List<string> _blacklistPatterns;
 
     /// <summary>
-    /// Initializes a new instance by loading the whitelist from a JSON file.
+    /// Initializes a new instance by loading the blacklist from a JSON file.
     /// </summary>
-    /// <param name="whitelistPath">Absolute path to the <c>whitelist.json</c> file.</param>
-    /// <exception cref="FileNotFoundException">The whitelist file does not exist.</exception>
-    /// <exception cref="JsonException">The whitelist JSON is malformed.</exception>
-    public WhitelistMap(string whitelistPath)
+    /// <param name="blacklistPath">Absolute path to the <c>blacklist.json</c> file.</param>
+    /// <exception cref="FileNotFoundException">The blacklist file does not exist.</exception>
+    /// <exception cref="JsonException">The blacklist JSON is malformed.</exception>
+    public BlacklistMap(string blacklistPath)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(whitelistPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(blacklistPath);
 
-        if (!File.Exists(whitelistPath))
-            throw new FileNotFoundException($"Whitelist file not found: {whitelistPath}");
+        if (!File.Exists(blacklistPath))
+            throw new FileNotFoundException($"Blacklist file not found: {blacklistPath}");
 
-        string json = File.ReadAllText(whitelistPath);
+        string json = File.ReadAllText(blacklistPath);
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var root = JsonSerializer.Deserialize<WhitelistRoot>(json, options)
-            ?? throw new JsonException("Whitelist JSON is empty or malformed");
+        var root = JsonSerializer.Deserialize<BlacklistRoot>(json, options)
+            ?? throw new JsonException("Blacklist JSON is empty or malformed");
 
-        _whitelistPatterns = new List<string>(root.Files ?? []);
+        _blacklistPatterns = new List<string>(root.Files ?? []);
     }
 
     /// <summary>
-    /// Extracts node_modules directory patterns from the whitelist.
-    /// Returns patterns like "core/node_modules/web-tree-sitter" (without the /** or /* suffix)
-    /// for use in directory scanning.
-    /// </summary>
-    public IReadOnlyList<string> GetNodeModulesDirectoryPatterns()
-    {
-        var nodeModulesPatterns = new List<string>();
-
-        foreach (var pattern in _whitelistPatterns)
-        {
-            if (pattern.Contains("node_modules", StringComparison.OrdinalIgnoreCase))
-            {
-                // Remove /** or /* suffix if present
-                string dirPattern = pattern;
-                if (pattern.EndsWith("/**", StringComparison.Ordinal))
-                {
-                    dirPattern = pattern.Substring(0, pattern.Length - 3);
-                }
-                else if (pattern.EndsWith("/*", StringComparison.Ordinal))
-                {
-                    dirPattern = pattern.Substring(0, pattern.Length - 2);
-                }
-
-                nodeModulesPatterns.Add(dirPattern);
-            }
-        }
-
-        return nodeModulesPatterns;
-    }
-
-    /// <summary>
-    /// Determines whether the given relative file path is whitelisted.
+    /// Determines whether the given relative file path is blacklisted.
     /// Paths are normalized to forward slashes and matched against glob patterns.
     /// Supports:
     /// - Exact paths: "core/node_modules/web-tree-sitter/index.d.ts"
     /// - Directory globs: "core/node_modules/web-tree-sitter/**" (matches all files in the directory)
     /// </summary>
     /// <param name="relativePath">Relative path from repo root (e.g., "core/node_modules/web-tree-sitter/index.d.ts").</param>
-    /// <returns>True if the file matches the whitelist; false otherwise.</returns>
-    public bool IsWhitelisted(string relativePath)
+    /// <returns>True if the file matches the blacklist; false otherwise.</returns>
+    public bool IsBlacklisted(string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath))
             return false;
@@ -81,7 +50,7 @@ internal sealed class WhitelistMap
         // Normalize path separators to forward slashes for consistent matching
         string normalized = relativePath.Replace('\\', '/');
 
-        foreach (var pattern in _whitelistPatterns)
+        foreach (var pattern in _blacklistPatterns)
         {
             if (MatchesPattern(normalized, pattern))
                 return true;
@@ -89,13 +58,6 @@ internal sealed class WhitelistMap
 
         return false;
     }
-
-    /// <summary>
-    /// Determines whether the whitelist is empty (no patterns defined).
-    /// When empty, all files are considered whitelisted (unless blacklisted).
-    /// </summary>
-    public bool IsEmpty() => _whitelistPatterns.Count == 0;
-
 
     /// <summary>
     /// Matches a file path against a glob pattern.
@@ -165,9 +127,9 @@ internal sealed class WhitelistMap
     }
 
     /// <summary>
-    /// Root structure for whitelist.json deserialization.
+    /// Root structure for blacklist.json deserialization.
     /// </summary>
-    private sealed class WhitelistRoot
+    private sealed class BlacklistRoot
     {
         [JsonPropertyName("description")]
         public string? Description { get; set; }

@@ -1,0 +1,6 @@
+{
+  "description": "Blacklist of TypeScript files that should NOT be translated. These files have fundamental incompatibilities with .NET (e.g., Node.js/WebAssembly bindings, runtime-only code). Supports glob patterns with ** for matching directories.",
+    "files": [
+        "core/autocomplete/context/static-context/*"
+    ]
+}
