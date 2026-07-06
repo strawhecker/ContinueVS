@@ -1,7 +1,7 @@
 {
   "description": "Whitelist of TypeScript files to include in translation. Paths are relative to the repository root. Only files matching these patterns are emitted to C#; all others are rejected.",
   "files": [
-    "core/node_modules/web-tree-sitter/**",
+    "core/node_modules/web-tree-sitter/*",
     "core/node_modules/@types/node/**"
   ]
 }
