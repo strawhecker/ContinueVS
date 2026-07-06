@@ -593,9 +593,19 @@ internal sealed partial class CsEmitter
          {
              string processedLine = line;
 
-             // If the line contains a ternary operator, be VERY conservative
-             if (line.Contains("?"))
+             // Check if this line is a switch case label (default or case statement)
+             // Switch labels must start at the beginning of the line (after whitespace)
+             bool isSwitchLabel = System.Text.RegularExpressions.Regex.IsMatch(
+                 line, @"^\s*(?:default|case\b.*?)\s*:\s*(?://.*)?$");
+
+             if (isSwitchLabel)
              {
+                 // Preserve switch case labels — do not convert the colon
+                 processedLine = line;
+             }
+             else if (line.Contains("?"))
+             {
+                 // If the line contains a ternary operator, be VERY conservative
                  // Find the position of the ? and the matching :
                  int questionPos = line.IndexOf('?');
                  int colonPos = line.IndexOf(':', questionPos);
@@ -625,7 +635,7 @@ internal sealed partial class CsEmitter
              }
              else
              {
-                 // No ternary operator, safe to convert all identifier: patterns
+                 // No ternary operator and not a switch label — safe to convert all identifier: patterns
                  processedLine = System.Text.RegularExpressions.Regex.Replace(
                      line,
                      @"\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*",
