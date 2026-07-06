@@ -66,6 +66,7 @@ internal sealed class PipelineRunner
         ArgumentNullException.ThrowIfNull(options);
 
         IReadOnlyList<string> tsPaths;
+        IReadOnlySet<string> phase1Files = new HashSet<string>();
 
         // Single-file mode: skip cleanup and repo scanning
         if (options.SingleFilePath is not null)
@@ -111,7 +112,7 @@ internal sealed class PipelineRunner
             if (nodeModulesPatterns.Count > 0)
             {
                 // Use two-pass scan: whitelisted node_modules first, then source excluding node_modules
-                tsPaths = scanner.CheckoutAndScanTwoPass(options.RepoPath, options.Tag, nodeModulesPatterns);
+                (tsPaths, phase1Files) = scanner.CheckoutAndScanTwoPass(options.RepoPath, options.Tag, nodeModulesPatterns);
             }
             else
             {
@@ -126,7 +127,7 @@ internal sealed class PipelineRunner
         // 2a. Filter by whitelist: files not in the whitelist are rejected immediately.
         // In single-file mode, use the file's directory as the base; in standard mode, use the repo path.
         string basePathForWhitelist = options.RepoPath ?? Path.GetDirectoryName(options.SingleFilePath) ?? Directory.GetCurrentDirectory();
-        TsFile[] whitelistedFiles = FilterByWhitelist(parsed, basePathForWhitelist);
+        TsFile[] whitelistedFiles = FilterByWhitelist(parsed, basePathForWhitelist, phase1Files);
 
         // 3. Apply mappings.
         TsFile[] mapped = _mappingEngine.Apply(whitelistedFiles);
@@ -324,11 +325,16 @@ public static class RequireShim
     /// Filters parsed files against the whitelist.
     /// Only files matching whitelist patterns are accepted; all others are rejected.
     /// The whitelist typically contains patterns like "core/node_modules/package-name/**"
+    /// 
+    /// When two-pass scanning is used (phase1Files is provided), only Phase 1 files (from node_modules)
+    /// are filtered by whitelist. Phase 2 files (source code) are accepted without filtering.
+    /// In single-file mode (phase1Files is null), all files are filtered by whitelist as before.
     /// </summary>
     /// <param name="parsed">All parsed TypeScript files.</param>
     /// <param name="repoPath">Repository root path (used to compute relative paths for whitelist matching).</param>
+    /// <param name="phase1Files">Set of files from Phase 1 (node_modules). If null, all files are whitelist-filtered.</param>
     /// <returns>Array of files (both accepted and rejected, with rejection reason set on rejected ones).</returns>
-    private TsFile[] FilterByWhitelist(TsFile[] parsed, string repoPath)
+    private TsFile[] FilterByWhitelist(TsFile[] parsed, string repoPath, IReadOnlySet<string> phase1Files)
     {
         var result = new List<TsFile>();
         int acceptedCount = 0, rejectedCount = 0;
@@ -337,7 +343,16 @@ public static class RequireShim
         {
             string relativePath = ComputeRelativePath(file.FilePath, repoPath);
 
-            if (_whitelist.IsWhitelisted(relativePath))
+            // If phase1Files is provided, only filter Phase 1 files. Accept all Phase 2 files (source code).
+            bool isPhase1File = phase1Files.Contains(file.FilePath);
+
+            if (phase1Files.Count > 0 && !isPhase1File)
+            {
+                // Phase 2 file (source code): accept without whitelist filtering
+                result.Add(file with { IsWhitelisted = true });
+                acceptedCount++;
+            }
+            else if (_whitelist.IsWhitelisted(relativePath))
             {
                 // File matches whitelist; mark as whitelisted and include as-is
                 result.Add(file with { IsWhitelisted = true });

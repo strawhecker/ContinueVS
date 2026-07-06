@@ -37,8 +37,8 @@ internal sealed class RepoScanner
     /// <param name="repoPath">Absolute path to the local git repository.</param>
     /// <param name="tag">Git tag or branch name to check out.</param>
     /// <param name="nodeModulesPatterns">Directory patterns to scan in phase 1 (e.g., "core/node_modules/web-tree-sitter").</param>
-    /// <returns>Combined filtered list of .ts file paths from both phases, sorted.</returns>
-    public IReadOnlyList<string> CheckoutAndScanTwoPass(string repoPath, string tag, IReadOnlyList<string> nodeModulesPatterns)
+    /// <returns>Tuple of (combined filtered list of .ts file paths from both phases sorted, set of Phase 1 file paths).</returns>
+    public (IReadOnlyList<string> allFiles, IReadOnlySet<string> phase1Files) CheckoutAndScanTwoPass(string repoPath, string tag, IReadOnlyList<string> nodeModulesPatterns)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repoPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
@@ -47,6 +47,7 @@ internal sealed class RepoScanner
         RunGitCheckout(repoPath, tag);
 
         var allFiles = new List<string>();
+        var phase1FilesSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // First pass: scan whitelisted node_modules directories
         if (nodeModulesPatterns.Count > 0)
@@ -54,6 +55,10 @@ internal sealed class RepoScanner
             Console.WriteLine($"[SCAN] Phase 1: Scanning {nodeModulesPatterns.Count} whitelisted node_modules pattern(s)...");
             var nodeModulesFiles = ScanSpecificDirectories(repoPath, nodeModulesPatterns);
             allFiles.AddRange(nodeModulesFiles);
+            foreach (var file in nodeModulesFiles)
+            {
+                phase1FilesSet.Add(file);
+            }
             Console.WriteLine($"[SCAN] Phase 1: Found {nodeModulesFiles.Count} file(s) in node_modules.");
         }
 
@@ -63,7 +68,7 @@ internal sealed class RepoScanner
         allFiles.AddRange(sourceFiles);
         Console.WriteLine($"[SCAN] Phase 2: Found {sourceFiles.Count} file(s) in source code.");
 
-        return [.. allFiles.OrderBy(p => p, StringComparer.OrdinalIgnoreCase)];
+        return ([.. allFiles.OrderBy(p => p, StringComparer.OrdinalIgnoreCase)], phase1FilesSet);
     }
 
     /// <summary>
