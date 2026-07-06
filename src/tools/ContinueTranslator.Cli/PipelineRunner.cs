@@ -205,7 +205,9 @@ internal sealed class PipelineRunner
     /// </summary>
     private static EmittedFile GenerateRequireShim()
     {
-        const string shimContent = @"namespace ContinueTranslator.Generated;
+        const string shimContent = @"using System.IO;
+
+namespace ContinueTranslator.Generated;
 
 /// <summary>
 /// Shim for Node.js require/CommonJS patterns translated to C#.

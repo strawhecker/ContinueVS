@@ -9,5 +9,7 @@
   "HashSet": ["System.Collections.Generic"],
   "IAsyncEnumerable": ["System.Collections.Generic"],
   "IAsyncEnumerable<T>": ["System.Collections.Generic"],
+  "File": ["System.IO"],
+  "Path": ["System.IO"],
   "Delegate": []
 }
