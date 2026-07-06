@@ -265,8 +265,8 @@ function walkStatement(stmt) {
         return {
           kind: "If",
           condition: walkExprSafe(stmt.getExpression?.()),
-          thenStatements: stmt.getThenStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
-          elseStatements: stmt.getElseStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          thenStatements: (stmt.getThenStatement?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null),
+          elseStatements: (stmt.getElseStatement?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null),
         };
       case "ForStatement":
         return {
@@ -274,7 +274,7 @@ function walkStatement(stmt) {
           initializer: stmt.getInitializer?.()?.getText() ?? null,
           condition: walkExprSafe(stmt.getCondition?.()),
           incrementor: walkExprSafe(stmt.getIncrementor?.()),
-          statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          statements: (stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null),
         };
       case "ForOfStatement":
         // Extract variable name from initializer, stripping the declaration keyword if present
@@ -287,22 +287,22 @@ function walkStatement(stmt) {
           kind: "ForOf",
           variable: varName,
           expression: walkExprSafe(stmt.getExpression?.()),
-          statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          statements: (stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null),
           isAwait: stmt.getAwaitKeyword?.() != null,
         };
       case "WhileStatement":
         return {
           kind: "While",
           condition: walkExprSafe(stmt.getExpression?.()),
-          statements: stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          statements: (stmt.getStatement?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null),
         };
       case "TryStatement":
         return {
           kind: "Try",
-          tryStatements: stmt.getTryBlock?.()?.getStatements?.()?.map(walkStatement) ?? [],
-          catchStatements: stmt.getCatchClause?.()?.getBlock?.()?.getStatements?.()?.map(walkStatement) ?? [],
+          tryStatements: (stmt.getTryBlock?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null),
+          catchStatements: (stmt.getCatchClause?.()?.getBlock?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null),
           catchVariableName: stmt.getCatchClause?.()?.getParameter?.()?.getName?.() ?? null,
-          finallyStatements: stmt.getFinallyBlock?.()?.getStatements?.()?.map(walkStatement) ?? null,
+          finallyStatements: (stmt.getFinallyBlock?.()?.getStatements?.()?.map(walkStatement) ?? []).filter(s => s !== null) || null,
         };
       case "VariableStatement": {
         const decls = stmt.getDeclarations?.() ?? [];
@@ -367,7 +367,7 @@ function walkStatement(stmt) {
 
             return {
               test: clause.getKindName() === "CaseClause" ? walkExpression(clause.getExpression()) : null,
-              statements: caseStatements.map(walkStatement),
+              statements: caseStatements.map(walkStatement).filter(s => s !== null),
             };
           }),
         };
@@ -375,6 +375,10 @@ function walkStatement(stmt) {
         return { kind: "Break" };
       case "ContinueStatement":
         return { kind: "Continue" };
+      case "ImportDeclaration":
+        // Import declarations are handled separately at the file level (walkSourceFile)
+        // Skip them here to avoid emitting them as statements in the method body
+        return null;
       default:
         return { kind: "Unknown", text: stmt.getText() };
     }
@@ -397,7 +401,7 @@ function walkBody(node) {
       // Wrap in a synthetic Return so the emitter sees a single-expression body.
       return [{ kind: "Return", expression: walkExprSafe(body) }];
     }
-    return stmts.map(walkStatement);
+    return stmts.map(walkStatement).filter(s => s !== null);
   } catch {
     return [];
   }
