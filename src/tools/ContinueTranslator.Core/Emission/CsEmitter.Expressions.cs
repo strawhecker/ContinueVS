@@ -295,10 +295,33 @@ internal sealed partial class CsEmitter
             ["??="] = SyntaxKind.CoalesceAssignmentExpression,
         };
 
-    private ExpressionSyntax EmitBinaryExpression(TsBinaryExpression bin)
+     private ExpressionSyntax EmitBinaryExpression(TsBinaryExpression bin)
     {
         if (s_assignmentOpMap.TryGetValue(bin.Op, out SyntaxKind assignKind))
+        {
+            // Special handling for empty array assignments: infer element type from target property
+            if (bin.Right is TsArrayLiteralExpression { Elements.Length: 0 } &&
+                assignKind == SyntaxKind.SimpleAssignmentExpression)
+            {
+                ExpressionSyntax targetExpr = EmitExpression(bin.Left);
+
+                // Try to infer the element type from the assignment target
+                string elementType = InferArrayElementTypeFromTarget(bin.Left);
+
+                // Emit: new ElementType[0] with the inferred or default type
+                ExpressionSyntax emptyArray = ArrayCreationExpression(
+                    ArrayType(
+                        ParseTypeSyntax(elementType),
+                        SingletonList(
+                            ArrayRankSpecifier(
+                                SingletonSeparatedList<ExpressionSyntax>(
+                                    LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0)))))));
+
+                return AssignmentExpression(assignKind, targetExpr, emptyArray);
+            }
+
             return AssignmentExpression(assignKind, EmitExpression(bin.Left), EmitExpression(bin.Right));
+        }
 
         // TS `typeof x === "typename"` → C# `x is TypeName`
         if ((bin.Op is "===" or "==") &&
@@ -1073,12 +1096,16 @@ internal sealed partial class CsEmitter
         // Array literal: [a, b, c] → new[] { a, b, c }
         if (arrLit.Elements.Length == 0)
         {
-            // Empty array: [] → Array.Empty<T>() or new T[0]
-            // We'll use explicit array initializer syntax for simplicity
-            return ImplicitArrayCreationExpression(
-                InitializerExpression(
-                    SyntaxKind.ArrayInitializerExpression,
-                    SeparatedList<ExpressionSyntax>()));
+            // Empty array: [] → new char[0]
+            // Use char as a neutral type since we have no type context at the expression level.
+            // This avoids C# type inference failures on empty implicit array creation (new[]{}).
+            return ArrayCreationExpression(
+                ArrayType(
+                    PredefinedType(Token(SyntaxKind.CharKeyword)),
+                    SingletonList(
+                        ArrayRankSpecifier(
+                            SingletonSeparatedList<ExpressionSyntax>(
+                                LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0)))))));
         }
 
         return ImplicitArrayCreationExpression(
@@ -1163,4 +1190,56 @@ internal sealed partial class CsEmitter
         LiteralExpression(
             SyntaxKind.StringLiteralExpression,
             Literal(comment));
+
+    /// <summary>
+    /// Infers the array element type from the assignment target expression.
+    /// Uses heuristics based on property/variable names to determine the likely element type.
+    /// For example: "brackets" → "string", "count" → "int", etc.
+    /// Falls back to "object" if no pattern matches.
+    /// </summary>
+    private static string InferArrayElementTypeFromTarget(TsExpression target)
+    {
+        string? propName = null;
+
+        // Extract property name from member expressions (e.g., this.propertyName)
+        if (target is TsMemberExpression mem)
+        {
+            propName = mem.Property;
+        }
+        // Extract variable name from identifiers
+        else if (target is TsIdentifierExpression id)
+        {
+            propName = id.Name;
+        }
+
+        if (string.IsNullOrEmpty(propName))
+            return "object";
+
+        string lowerProp = propName.ToLowerInvariant();
+
+        // Patterns that strongly indicate string arrays
+        if (lowerProp.Contains("bracket") || lowerProp.Contains("name") || 
+            lowerProp.Contains("key") || lowerProp.Contains("text") ||
+            lowerProp.Contains("item") || lowerProp.Contains("element") ||
+            lowerProp.Contains("line") || lowerProp.Contains("word") ||
+            lowerProp.Contains("token") || lowerProp.Contains("chunk"))
+        {
+            return "string";
+        }
+
+        // Patterns that indicate numeric arrays
+        if (lowerProp.Contains("count") || lowerProp.Contains("number") || 
+            lowerProp.Contains("index") || lowerProp.Contains("id") ||
+            lowerProp.Contains("size") || lowerProp.Contains("length") ||
+            lowerProp.Contains("offset"))
+        {
+            return "int";
+        }
+
+        // Default to object for safety when unable to infer
+        return "object";
+    }
 }
+
+
+
