@@ -612,6 +612,11 @@ internal sealed partial class CsEmitter
         // so all imports here should be either relative paths or mapped to .NET namespaces.
         var usingNamespaces = new SortedSet<string>(StringComparer.Ordinal);
 
+        // Add default using statements that should be in every generated file
+        usingNamespaces.Add("System");
+        usingNamespaces.Add("System.Collections.Generic");
+        usingNamespaces.Add("System.Linq");
+
         // Add standard using statements (from collections, tasks, etc.)
         foreach (var standardUsing in standardUsings)
         {
