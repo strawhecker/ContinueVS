@@ -384,7 +384,42 @@ internal sealed partial class CsEmitter
                 return AssignmentExpression(assignKind, targetExpr, emptyArray);
             }
 
-            return AssignmentExpression(assignKind, EmitExpression(bin.Left), EmitExpression(bin.Right));
+            // Handle List<T> → T[] conversion for non-empty assignments
+            // 
+            // Problem: TypeScript arrays are dynamically typed; in translated C#, they become List<T>.
+            // When assigning List<T> to a T[] property, C# requires an explicit .ToArray() conversion.
+            //
+            // Example:
+            //   TypeScript:  const stack = [];  // Then stack.push(...) operations
+            //                this.brackets = stack;  // Array assignment in TypeScript
+            //   
+            //   Generated C# (BEFORE FIX):
+            //     var stack = new List<string>();  // stack.Add(...) operations
+            //     openingBracketsFromLastCompletion = stack;  // ERROR CS0029!
+            //   
+            //   Generated C# (AFTER FIX):
+            //     var stack = new List<string>();
+            //     openingBracketsFromLastCompletion = stack.ToArray();  // ✅ Compiles!
+            //
+            // Detection heuristic:
+            //   - Target property name infers array element type (e.g., "brackets" → "string")
+            //   - RHS is simple identifier/member (not function call or literal)
+            //   - Only non-numeric types (avoids converting to int[], which isn't an array assignment)
+            ExpressionSyntax rightExpr = EmitExpression(bin.Right);
+            if (assignKind == SyntaxKind.SimpleAssignmentExpression && 
+                NeedsList2ArrayConversion(bin.Left, bin.Right))
+            {
+                // Wrap RHS with .ToArray() conversion: stack → stack.ToArray()
+                // This ensures List<T> variables can be assigned to T[] properties.
+                rightExpr = InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        rightExpr,
+                        IdentifierName("ToArray")),
+                    ArgumentList());
+            }
+
+            return AssignmentExpression(assignKind, EmitExpression(bin.Left), rightExpr);
         }
 
         // TS `typeof x === "typename"` → C# `x is TypeName`
@@ -1340,6 +1375,116 @@ internal sealed partial class CsEmitter
 
         // Default to object for safety when unable to infer
         return "object";
+    }
+
+    /// <summary>
+    /// Detects if an assignment needs List<T> → T[] conversion.
+    /// 
+    /// Returns true if:
+    /// 1. Assignment target is a member or identifier (property/field access)
+    /// 2. Target infers to an array element type (e.g., "string"), NOT a scalar (e.g., "int")
+    /// 3. Right-hand side is a simple identifier or member expression (not a literal or function call)
+    /// 
+    /// Rationale:
+    /// - TypeScript arrays are the primary collection type and can be reassigned freely.
+    /// - In C#, TypeScript arrays become List<T>. Assigning List<T> to T[] properties requires .ToArray().
+    /// - We use property name heuristics to detect array-typed properties (see InferArrayElementTypeFromTarget).
+    /// - We exclude numeric types (int, long, etc.) because properties like "count" infer to "int" 
+    ///   but are NOT arrays—they're scalar values.
+    /// - We exclude function calls because they might already return the correct type.
+    /// - We exclude literals because they're unlikely to be List<T> instances.
+    /// 
+    /// Examples:
+    ///   ✅ stack (identifier) → brackets property (string element type) = CONVERT
+    ///   ✅ this.items (member) → names property (string) = CONVERT
+    ///   ❌ getSomeValue() (call expression) = DO NOT CONVERT (exclude calls)
+    ///   ❌ stack → count property (int element type) = DO NOT CONVERT (numeric type)
+    ///   ❌ "literal" (literal) = DO NOT CONVERT (not a variable)
+    ///   ❌ += operator (compound assignment) = DO NOT CONVERT (only simple = affected)
+    /// </summary>
+    private static bool NeedsList2ArrayConversion(TsExpression target, TsExpression rightHandSide)
+    {
+        // Only convert simple identifiers and member expressions on the RHS
+        // Exclude literals, calls, new expressions, etc.
+        if (rightHandSide is not (TsIdentifierExpression or TsMemberExpression))
+            return false;
+
+        // Check if target is a property/field that infers to an array type
+        string elementType = InferArrayElementTypeFromTarget(target);
+
+        // Only convert for string, char, object, and other non-numeric types
+        // Avoid converting to numeric array properties (int[], long[], etc.) because
+        // "count" infers to "int" but that property is NOT an array (it's a count value)
+        if (elementType is "int" or "long" or "double" or "float" or "decimal" or "uint" or "ulong")
+            return false;
+
+        // If we inferred a specific non-numeric type, assume it's an array property
+        return !string.IsNullOrEmpty(elementType) && elementType != "object";
+    }
+
+    /// <summary>
+    /// Infers the likely element type of a variable reference based on naming heuristics.
+    /// This complements NeedsList2ArrayConversion by helping detect if the RHS variable
+    /// is likely a List<T> based on its name patterns.
+    /// Returns the inferred element type or null if no pattern matches.
+    /// </summary>
+    private static string? InferVariableListElementType(TsExpression expr)
+    {
+        string? varName = null;
+
+        // Extract variable name from the RHS expression
+        if (expr is TsIdentifierExpression id)
+        {
+            varName = id.Name;
+        }
+        else if (expr is TsMemberExpression mem)
+        {
+            varName = mem.Property;
+        }
+
+        if (string.IsNullOrEmpty(varName))
+            return null;
+
+        string lowerName = varName.ToLowerInvariant();
+
+        // Heuristic: common collection variable names like "stack", "queue", "list", "items", "elements"
+        // typically use List<T> in JavaScript/TypeScript (since arrays are the primary collection type)
+        // but could be converted to arrays in C#
+        if (lowerName is "stack" or "queue" or "items" or "elements" or 
+                        "collection" or "list" or "buffer" or "batch" or "chunk" or "data")
+        {
+            // These are likely List<T> variables, but we can't know the element type
+            // The conversion will happen only if the target property type inference succeeds
+            return string.Empty; // Empty string indicates "likely a list, but type unknown"
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to infer if an expression is a List<T> based on AST patterns.
+    /// Returns the element type (e.g., "string", "int") if detected as List<T>,
+    /// or null if the type cannot be inferred.
+    /// </summary>
+    private static string? InferListElementTypeFromExpression(TsExpression expr)
+    {
+        // Pattern: new List<ElementType>()
+        if (expr is TsNewExpression newExpr)
+        {
+            if (newExpr.Type is TsIdentifierExpression { Name: "List" })
+            {
+                // Cannot infer element type from new List without explicit generic args
+                // Would require semantic analysis of the type parameter
+                return null;
+            }
+
+            // For other new expressions (e.g., new string[], new int[]), not a List
+            return null;
+        }
+
+        // Cannot infer from identifiers or other expressions at compile-time
+        // Would require persistent symbol table (not available in current architecture)
+        return null;
     }
 }
 
