@@ -641,6 +641,44 @@ internal sealed partial class CsEmitter
                 resolveArgList);
         }
 
+        // Special handling for Object.keys() → obj.Keys (for Dictionary) or reflection-based approach
+        // TypeScript: Object.keys(obj)
+        // C#: obj.Keys (if obj is Dictionary-like) 
+        if (call.Callee is TsMemberExpression objKeysMem &&
+            objKeysMem.Obj is TsIdentifierExpression objId &&
+            objId.Name == "Object" &&
+            objKeysMem.Property == "keys" &&
+            call.Args.Length == 1)
+        {
+            ExpressionSyntax objArg = EmitExpression(call.Args[0]);
+
+            // Try to access .Keys property for Dictionary-like objects
+            // This works for Dictionary<K, V> and similar key-value collections
+            return MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                objArg,
+                IdentifierName("Keys"));
+        }
+
+        // Special handling for Object.values() → obj.Values (for Dictionary) or reflection-based approach
+        // TypeScript: Object.values(obj)
+        // C#: obj.Values (if obj is Dictionary-like)
+        if (call.Callee is TsMemberExpression objValuesMem &&
+            objValuesMem.Obj is TsIdentifierExpression objId2 &&
+            objId2.Name == "Object" &&
+            objValuesMem.Property == "values" &&
+            call.Args.Length == 1)
+        {
+            ExpressionSyntax objArg = EmitExpression(call.Args[0]);
+
+            // Try to access .Values property for Dictionary-like objects
+            // This works for Dictionary<K, V> and similar key-value collections
+            return MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                objArg,
+                IdentifierName("Values"));
+        }
+
         // Special handling for Promise.catch() → ContinueWith() with exception handling
         // TypeScript: promise.catch(e => handler(e))
         // C#: promise.ContinueWith(t => { if (t.IsFaulted) handler(...); }, TaskScheduler.Default)
