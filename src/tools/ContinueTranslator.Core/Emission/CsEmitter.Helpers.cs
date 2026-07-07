@@ -885,6 +885,33 @@ internal sealed partial class CsEmitter
     }
 
     /// <summary>
+    /// Normalizes TypeScript property names to C# conventions, capitalizing only the most essential
+    /// built-in properties that are guaranteed to be PascalCase across all .NET types:
+    /// - length (arrays, strings, lists) → Length
+    /// 
+    /// For most other properties, we preserve the original case because:
+    /// 1. Anonymous types created with lowercase names keep those lowercase property names
+    /// 2. User-defined classes may have lowercase properties
+    /// 3. The reflection-based HasProperty helper already uses IgnoreCase, so at runtime
+    ///    the case mismatch is handled gracefully for legitimate use cases.
+    /// </summary>
+    private static string NormalizePropertyName(string? propertyName)
+    {
+        if (string.IsNullOrEmpty(propertyName))
+            return propertyName ?? "__property";
+
+        // Only capitalize "length" - it's universally PascalCase across built-in types:
+        // string.Length, T[].Length, List<T>.Count (this one maps to Count in callsites)
+        // All other common properties may vary depending on type, so we preserve case
+        if (propertyName.Equals("length", StringComparison.OrdinalIgnoreCase))
+            return "Length";
+
+        // Preserve original case for all other properties
+        return propertyName;
+    }
+
+
+    /// <summary>
     /// Collects required using statements based on the types found in the generated syntax members.
     /// This method walks the syntax tree to find type references and resolves their required namespaces.
     /// </summary>

@@ -175,8 +175,9 @@ internal sealed partial class CsEmitter
     {
         // TypeScript `this` has no dedicated IR node and arrives as TsUnknownExpression("this").
         // Strip it so `this.foo` emits as just `foo`.
+        // Capitalize well-known property names to match C# PascalCase conventions.
         if (mem.Obj is TsUnknownExpression { Text: "this" })
-            return IdentifierName(mem.Property);
+            return IdentifierName(NormalizePropertyName(mem.Property));
 
         // Special handling for import.meta.url: translate to assembly location path
         // In TypeScript's AST, import.meta is a MetaProperty with property="meta", and
@@ -196,10 +197,12 @@ internal sealed partial class CsEmitter
                 IdentifierName("Location"));
         }
 
+        // Capitalize well-known property names to match C# conventions (e.g., "length" → "Length").
+        // Built-in properties like string.Length, List<T>.Count, etc. are always PascalCase in C#.
         return MemberAccessExpression(
             SyntaxKind.SimpleMemberAccessExpression,
             EmitExpression(mem.Obj),
-            IdentifierName(mem.Property));
+            IdentifierName(NormalizePropertyName(mem.Property)));
     }
 
     // -------------------------------------------------------------------------
