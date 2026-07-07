@@ -897,6 +897,51 @@ function walkImport(imp) {
 }
 
 /**
+ * Walks a top-level variable declaration.
+ * @param {import("ts-morph").VariableDeclaration} decl
+ * @returns {object}
+ */
+function walkVariable(decl) {
+  const name = decl.getName();
+  let typeText;
+  try {
+    const typeNode = decl.getTypeNode?.();
+    typeText = typeNode ? typeNode.getText() : decl.getType().getText(decl);
+  } catch {
+    typeText = "unknown";
+  }
+
+  const initializer = decl.getInitializer?.();
+  const initExpr = initializer ? walkExprSafe(initializer) : null;
+
+  // Get the parent VariableStatement to determine declaration kind (const, let, var)
+  const parent = decl.getParent?.();
+  let declarationKind = "const";
+  if (parent?.getKindName?.() === "VariableStatement") {
+    const firstDecl = parent.getDeclarations?.()?.[0];
+    if (firstDecl === decl) {
+      // Check if it's let or var by looking at parent's get-child order
+      const kindToken = parent.getFirstChild();
+      if (kindToken?.getText?.() === "let") declarationKind = "let";
+      else if (kindToken?.getText?.() === "var") declarationKind = "var";
+    }
+  }
+
+  // Get export status from parent VariableStatement
+  const parentStmt = decl.getParent?.();
+  const isExported = parentStmt?.isExported?.() ?? false;
+
+  return {
+    name,
+    type: buildTypeRef(typeText),
+    initializer: initExpr,
+    isExported,
+    declarationKind,
+    cookies: extractCookies(decl),
+  };
+}
+
+/**
  * Recursively extracts declarations from a ModuleDeclaration body.
  * Handles nested modules and declarations within declare module blocks.
  * @param {import("ts-morph").ModuleDeclaration} module
@@ -953,6 +998,17 @@ function walkSourceFile(sourceFile) {
   let functions = sourceFile.getFunctions().map(walkFunction);
   let typeAliases = sourceFile.getTypeAliases().map(walkTypeAlias);
 
+  // Extract top-level variable declarations (const, let, var)
+  let variables = [];
+  for (const stmt of sourceFile.getStatements() ?? []) {
+    if (stmt.getKindName?.() === "VariableStatement") {
+      const decls = stmt.getDeclarations?.() ?? [];
+      for (const decl of decls) {
+        variables.push(walkVariable(decl));
+      }
+    }
+  }
+
   // Also extract declarations from module blocks (e.g., "declare module '...'")
   for (const mod of sourceFile.getModules?.() ?? []) {
     const nested = extractDeclarationsFromModule(mod);
@@ -963,6 +1019,9 @@ function walkSourceFile(sourceFile) {
     typeAliases.push(...nested.typeAliases);
   }
 
+  // Identify the primary class (first exported class, or first class if none exported)
+  let primaryClassName = classes.find(c => c.isExported)?.name ?? classes[0]?.name ?? null;
+
   return {
     filePath: sourceFile.getFilePath(),
     imports: sourceFile.getImportDeclarations().map(walkImport),
@@ -971,6 +1030,8 @@ function walkSourceFile(sourceFile) {
     enums,
     functions,
     typeAliases,
+    variables,
+    primaryClassName,
     cookies: [],
   };
 }

@@ -114,6 +114,8 @@ public class FunctionTypeResolutionTests
             Enums: [],
             Functions: [],
             TypeAliases: [],
+            Variables: [],
+            PrimaryClassName: null,
             Cookies: []
         );
 
@@ -197,6 +199,8 @@ public class FunctionTypeResolutionTests
             Enums: [],
             Functions: [],
             TypeAliases: [],
+            Variables: [],
+            PrimaryClassName: null,
             Cookies: []
         );
 

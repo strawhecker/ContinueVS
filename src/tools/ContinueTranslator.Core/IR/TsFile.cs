@@ -12,6 +12,8 @@ internal sealed record TsFile(
     TsEnum[] Enums,
     TsFunction[] Functions,
     TsTypeAlias[] TypeAliases,
+    TsVariable[] Variables,
+    string? PrimaryClassName,
     string[] Cookies)
 {
     /// <summary>Rejection reasons indicating why this file cannot be translated to C#.</summary>

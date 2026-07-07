@@ -48,6 +48,7 @@ internal sealed partial class CsEmitter
         EmitInterfaces(acceptedFiles, commonRoot, results);
         EmitTypeAliases(acceptedFiles, commonRoot, results);
         EmitFunctions(acceptedFiles, commonRoot, results);
+        EmitVariables(acceptedFiles, commonRoot, results);
         EmitClasses(acceptedFiles, commonRoot, results);
         CollectResults(results);
 
@@ -63,6 +64,7 @@ internal sealed partial class CsEmitter
     partial void EmitTypeAliases(TsFile[] files, string commonRoot, List<EmittedFile> results);
     partial void EmitFunctions(TsFile[] files, string commonRoot, List<EmittedFile> results);
     partial void EmitClasses(TsFile[] files, string commonRoot, List<EmittedFile> results);
+    partial void EmitVariables(TsFile[] files, string commonRoot, List<EmittedFile> results);
 
     /// <summary>Post-processes <paramref name="results"/> in-place (sorting, de-dup, etc.).</summary>
     partial void CollectResults(List<EmittedFile> results);
