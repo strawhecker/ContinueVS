@@ -236,12 +236,73 @@ internal sealed partial class CsEmitter
     // Element access (arr[i])
     // -------------------------------------------------------------------------
 
-    private ExpressionSyntax EmitElementAccess(TsElementAccessExpression elemAccess) =>
-        ElementAccessExpression(
-            EmitExpression(elemAccess.Obj),
+    private ExpressionSyntax EmitElementAccess(TsElementAccessExpression elemAccess)
+    {
+        ExpressionSyntax obj = EmitExpression(elemAccess.Obj);
+
+        // Create the element access expression: obj[index]
+        ElementAccessExpressionSyntax elementAccess = ElementAccessExpression(
+            obj,
             BracketedArgumentList(
                 SingletonSeparatedList(
                     Argument(EmitExpression(elemAccess.Index)))));
+
+        // TypeScript string[i] returns string, but C# string[i] returns char.
+        // Wrap with .ToString() to preserve TypeScript semantics.
+        if (IsLikelyStringType(obj))
+        {
+            return InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    elementAccess,
+                    IdentifierName("ToString")),
+                ArgumentList());
+        }
+
+        return elementAccess;
+    }
+
+    /// <summary>
+    /// Determines if the given expression is likely a string type.
+    /// This is a heuristic check to avoid CS1503 errors when indexing strings in C#.
+    /// 
+    /// TypeScript: string[index] → string
+    /// C#: string[index] → char
+    /// 
+    /// When we index a string in C#, we get a char, but TypeScript returns a string.
+    /// To match TypeScript semantics, we wrap string element access with .ToString().
+    /// </summary>
+    private static bool IsLikelyStringType(ExpressionSyntax expr)
+    {
+        return expr switch
+        {
+            // Simple identifiers that typically hold strings (conservative approach)
+            IdentifierNameSyntax id => 
+                id.Identifier.Text.Contains("str", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("text", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("content", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("completion", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("message", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("data", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("prefix", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("suffix", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("line", StringComparison.OrdinalIgnoreCase) ||
+                id.Identifier.Text.Contains("input", StringComparison.OrdinalIgnoreCase),
+
+            // Member access to common string properties (e.g., obj.Text, obj.Content)
+            MemberAccessExpressionSyntax memberAccess =>
+                memberAccess.Name.Identifier.Text switch
+                {
+                    "Text" or "Content" or "Value" or "String" => true,
+                    _ => false
+                },
+
+            // Invocation results (conservative: assume string-returning methods)
+            InvocationExpressionSyntax => true,
+
+            _ => false
+        };
+    }
 
     // -------------------------------------------------------------------------
     // Await
