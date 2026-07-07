@@ -294,6 +294,11 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# ContinueVS Bridge npm package cache
+# Downloaded packages and checksums (Steps 35–37)
+.cache/
+.cache/**
+
 # Visual Studio 6 build log
 *.plg
 
