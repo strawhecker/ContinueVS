@@ -141,6 +141,7 @@ internal sealed partial class CsEmitter
             TsCallExpression call => ConvertCallExpression(call),
             TsMemberExpression member => ConvertMemberExpression(member),
             TsArrayLiteralExpression arr => ConvertArrayLiteral(arr),
+            TsSpreadElement spread => ConvertExpression(spread.Expression),
             _ => LiteralExpression(
                 SyntaxKind.StringLiteralExpression,
                 Literal($"TODO: {expr.GetType().Name}"))
@@ -207,6 +208,7 @@ internal sealed partial class CsEmitter
 
     /// <summary>
     /// Converts a TsArrayLiteralExpression to C# array initializer syntax.
+    /// Handles both regular elements and spread elements (e.g., [...array]).
     /// </summary>
     private ExpressionSyntax ConvertArrayLiteral(TsArrayLiteralExpression arr)
     {
@@ -218,14 +220,125 @@ internal sealed partial class CsEmitter
                 .WithInitializer(InitializerExpression(SyntaxKind.ArrayInitializerExpression));
         }
 
-        var elements = arr.Elements.Select(ConvertExpression).ToArray();
-        return ArrayCreationExpression(
-            ArrayType(ParseTypeName("string"),
-                SingletonList(ArrayRankSpecifier())))
-            .WithInitializer(
-                InitializerExpression(
-                    SyntaxKind.ArrayInitializerExpression,
-                    SeparatedList(elements)));
+        // Check if any elements are spread elements
+        bool hasSpreadElements = arr.Elements.Any(e => e is TsSpreadElement);
+
+        if (!hasSpreadElements)
+        {
+            // Simple case: no spreads, just convert all elements normally
+            var elements = arr.Elements.Select(ConvertExpression).ToArray();
+            return ArrayCreationExpression(
+                ArrayType(ParseTypeName("string"),
+                    SingletonList(ArrayRankSpecifier())))
+                .WithInitializer(
+                    InitializerExpression(
+                        SyntaxKind.ArrayInitializerExpression,
+                        SeparatedList(elements)));
+        }
+
+        // Complex case: has spread elements
+        // We need to use .SelectMany() or .Concat() to flatten arrays
+        // Build a chain of Concat() calls: new[] { ... }.Concat(spread1).Concat(spread2).ToArray()
+        ExpressionSyntax result = null;
+        var regularElements = new List<ExpressionSyntax>();
+
+        foreach (var element in arr.Elements)
+        {
+            if (element is TsSpreadElement spread)
+            {
+                // If we have accumulated regular elements, create an array from them
+                if (regularElements.Count > 0)
+                {
+                    var arrayExpr = ArrayCreationExpression(
+                        ArrayType(ParseTypeName("string"),
+                            SingletonList(ArrayRankSpecifier())))
+                        .WithInitializer(
+                            InitializerExpression(
+                                SyntaxKind.ArrayInitializerExpression,
+                                SeparatedList(regularElements)));
+
+                    if (result == null)
+                    {
+                        result = arrayExpr;
+                    }
+                    else
+                    {
+                        result = InvocationExpression(
+                            MemberAccessExpression(
+                                SyntaxKind.SimpleMemberAccessExpression,
+                                result,
+                                IdentifierName("Concat")))
+                            .WithArgumentList(
+                                ArgumentList(
+                                    SingletonSeparatedList(
+                                        Argument(arrayExpr))));
+                    }
+
+                    regularElements.Clear();
+                }
+
+                // Add the spread element via Concat()
+                var spreadExpr = ConvertExpression(spread.Expression);
+                if (result == null)
+                {
+                    result = spreadExpr;
+                }
+                else
+                {
+                    result = InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            result,
+                            IdentifierName("Concat")))
+                        .WithArgumentList(
+                            ArgumentList(
+                                SingletonSeparatedList(
+                                    Argument(spreadExpr))));
+                }
+            }
+            else
+            {
+                // Regular element
+                regularElements.Add(ConvertExpression(element));
+            }
+        }
+
+        // Handle any remaining regular elements
+        if (regularElements.Count > 0)
+        {
+            var arrayExpr = ArrayCreationExpression(
+                ArrayType(ParseTypeName("string"),
+                    SingletonList(ArrayRankSpecifier())))
+                .WithInitializer(
+                    InitializerExpression(
+                        SyntaxKind.ArrayInitializerExpression,
+                        SeparatedList(regularElements)));
+
+            if (result == null)
+            {
+                result = arrayExpr;
+            }
+            else
+            {
+                result = InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        result,
+                        IdentifierName("Concat")))
+                    .WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(arrayExpr))));
+            }
+        }
+
+        // Add .ToList() at the end to convert IEnumerable back to List<string>
+        return InvocationExpression(
+            MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                result,
+                IdentifierName("ToList")))
+            .WithArgumentList(ArgumentList());
     }
 
     /// <summary>
