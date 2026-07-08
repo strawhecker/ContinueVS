@@ -296,8 +296,10 @@ node_modules/
 
 # ContinueVS Bridge npm package cache
 # Downloaded packages and checksums (Steps 35–37)
-.cache/
-.cache/**
+# Keep directory structure and metadata, ignore binary packages
+*.tgz
+*.tgz.sha256
+*.tgz.sha512
 
 # Visual Studio 6 build log
 *.plg
