@@ -23,5 +23,11 @@ namespace ContinueVS.Settings
         [DisplayName("Disable anonymous telemetry")]
         [Description("Opt out of anonymous usage analytics sent to Continue Dev, Inc.")]
         public bool DisableTelemetry { get; set; } = false;
+
+        [Category("Bridge")]
+        [DisplayName("Continue Bridge Version")]
+        [Description("Currently active npm-based Continue bridge version. Version changes require extension restart.")]
+        [ReadOnly(true)]
+        public string ActiveBridgeVersion { get; set; } = "2.0.0";
     }
 }

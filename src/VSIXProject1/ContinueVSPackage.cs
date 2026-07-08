@@ -1,4 +1,5 @@
 ﻿using ContinueVS.Commands;
+using ContinueVS.Services;
 using ContinueVS.Settings;
 using ContinueVS.UI;
 using Microsoft.VisualStudio.Shell;
@@ -25,12 +26,26 @@ namespace ContinueVS
         /// <summary>Singleton reference set during InitializeAsync, cleared on Dispose.</summary>
         public static ContinueVSPackage? Instance { get; private set; }
 
+        /// <summary>Version manager service instance.</summary>
+        public static VersionManager? VersionManager { get; private set; }
+
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
         {
             await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             Instance = this;
+
+            // Initialize version manager and selector services
+            var versionSelector = new VersionSelectorService();
+            VersionManager = new VersionManager(versionSelector);
+
+            // Ensure the options page is initialized with the active version
+            var optionsPage = GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage;
+            if (optionsPage != null)
+            {
+                optionsPage.ActiveBridgeVersion = VersionManager.GetActiveVersion();
+            }
 
             await ShowContinuePanelCommand.InitializeAsync(this);
             await AskContinueCommand.InitializeAsync(this);
@@ -44,6 +59,7 @@ namespace ContinueVS
             if (disposing)
             {
                 Instance = null;
+                VersionManager = null;
             }
 
             base.Dispose(disposing);
