@@ -272,7 +272,7 @@ function validateManifestStructure(manifest, expectedVersion) {
  *   console.error(`❌ ${result.error}`);
  * }
  */
-export async function validatePackageChecksum(packagePath, checksumPath) {
+async function validatePackageChecksum(packagePath, checksumPath) {
   const result = {
     valid: false,
     packagePath,
@@ -429,7 +429,7 @@ export async function validateManifest(manifestPath, expectedVersion) {
  *   result.errors.forEach(err => console.error(`   - ${err}`));
  * }
  */
-export async function validatePackageIntegrity(versionDir, version) {
+async function validatePackageIntegrity(versionDir, version) {
   // Normalize version (remove leading 'v')
   const versionNum = version.toString().replace(/^v/, '');
   const versionTag = version.toString().startsWith('v') ? version : `v${version}`;
@@ -481,7 +481,17 @@ export async function validatePackageIntegrity(versionDir, version) {
 }
 
 // -------------------------------------------------------
-// Error Export (for test access)
+// Exports (for test and external access)
 // -------------------------------------------------------
 
-export { IntegrityError, ChecksumError, ManifestError };
+export {
+  computeSHA256,
+  validateChecksumFormat,
+  parseChecksumFile,
+  validateManifestStructure,
+  validatePackageChecksum,
+  validatePackageIntegrity,
+  IntegrityError,
+  ChecksumError,
+  ManifestError
+};

@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "ts-morph": "^28.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^11.7.6"
   }
 }
