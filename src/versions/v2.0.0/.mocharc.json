@@ -1,0 +1,11 @@
+{
+  "timeout": 5000,
+  "reporter": "spec",
+  "spec": "test/**/*.test.mjs",
+  "require-module": [],
+  "node-option": [
+    "experimental-loader=./test/esm-loader.mjs"
+  ],
+  "check-leaks": false,
+  "exit": true
+}
