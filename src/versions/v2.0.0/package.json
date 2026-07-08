@@ -12,7 +12,7 @@
     "validate": "node --input-type=module --eval \"import('./lib/npm-validate.mjs').then(m => m.validateIntegrity()).catch(e => { console.error('Validation failed:', e); process.exit(1); })\"",
     "check-integrity": "node --input-type=module --eval \"import('./lib/npm-validate.mjs').then(m => m.checkPackageIntegrity()).catch(e => { console.error('Integrity check failed:', e); process.exit(1); })\"",
     "start": "node core-server.js",
-    "health-check": "node --input-type=module --eval \"import('./lib/health-check.mjs').then(m => m.performHealthCheck()).catch(e => { console.error('Health check failed:', e); process.exit(1); })\""
+    "health-check": "node --input-type=module --eval \"import('./lib/npm-validate.mjs').then(m => m.performHealthCheck()).catch(e => { console.error('Health check failed:', e); process.exit(1); })\""
   },
   "dependencies": {
     "continue": "2.0.5"
@@ -42,11 +42,11 @@
     "name": "Package configuration for Continue bridge v2.0.0",
     "type": "Defines ESM (ES Modules) support for Node.js import/export syntax",
     "engines": "Enforces Node.js 18+ for async/await, ESM, and modern JavaScript features",
-    "scripts.initialize": "First-time setup: downloads npm packages, validates checksums, creates cache structure",
-    "scripts.validate": "Post-download validation: verifies package integrity against checksums",
-    "scripts.check-integrity": "Scheduled integrity check: ensures cached packages remain uncorrupted",
+    "scripts.initialize": "First-time setup: downloads npm packages, validates checksums, creates cache structure (Step 11)",
+    "scripts.validate": "Startup validation: verifies package integrity against checksums (Step 12: validateIntegrity)",
+    "scripts.check-integrity": "Quick integrity check: ensures cached packages are valid (Step 12: checkPackageIntegrity)",
     "scripts.start": "Bridge server entry point (Step 13: core-server.js)",
-    "scripts.health-check": "Runtime diagnostics: validates bridge health and connection status",
+    "scripts.health-check": "Runtime diagnostics: validates bridge health and connection status (Step 12: performHealthCheck)",
     "dependencies.continue": "Pinned version of Continue package (reproducible builds, security tracking)"
   }
 }
