@@ -48,7 +48,7 @@
 | 34 | Create npm dependency documentation | None | None | ✅ COMPLETE |
 | 35 | Download & verify Continue npm package v2.0.0 | 2 | 36,37 |
 | 36 | Verify Continue npm package contents | 35 | None | ✅ COMPLETE |
-| 37 | Generate checksums for npm packages | 35 | 4 |
+| 37 | Generate checksums for npm packages | 35 | 4 | ✅ COMPLETE |
 | 38 | Create .gitignore for node_modules | 35 | None |
 | 39 | Create npm update guide | None | None |
 | 40 | Add feature flag for bridge mode | None | None |
@@ -348,6 +348,140 @@ Version Upgrade Validation Module (Step 32)
 **Last Verified**: Step 32 completed with 26/26 tests passing  
 **Plan Version**: v2.1 (npm-based, Complete 155-Step Master Plan)  
 **Format**: Markdown (offline reference, single source of truth)  
+
+---
+
+## Step 37 Completion Record
+
+**Title**: Generate Checksums for npm Packages  
+**Status**: ✅ COMPLETE  
+**Dependencies**: Step 35 (package download), Step 36 (package validation)  
+**Blocking**: None (Step 38 can proceed in parallel)  
+**Test Coverage**: 23/23 passing (100%)  
+
+### Deliverables
+
+1. **ESM Module**: `src/versions/v2.0.0/lib/generate-checksums.mjs` (399 lines)
+   - 8 core functions: generateChecksums, writeChecksumsFile, updateManifestChecksums, verifyChecksumsMatch, validateChecksumsFile, orchestrateChecksumGeneration, plus ChecksumGenerationError
+   - Async/await throughout, zero external npm dependencies
+   - Full error handling and context propagation
+
+2. **Test Suite**: `src/versions/v2.0.0/tests/generate-checksums.test.mjs` (492 lines)
+   - 23 comprehensive test cases across 6 test suites
+   - All tests passing (120ms execution)
+   - Covers: hash computation (5), file I/O (5), manifest updates (4), verification (3), validation (3), orchestration (3)
+   - 100% success rate, zero failures
+
+3. **Generated Artifacts**:
+   - `CHECKSUMS.txt`: `.cache/npm-packages/v2.0.0/CHECKSUMS.txt` (234 bytes)
+     - Format: `<hash>  <filename>` (2-space separator, Unix standard)
+     - SHA256: 706c205d23ac76046ca51d3e38de6df08afae48c13349ccda8f5ae26c4449ae2
+     - SHA512: 0dc1833c6738edacb2a9c75c01293bed16a1e7e275614ac626a7df95d98add108f2702d66d629e9ca5148c5adb7c473761a3ed4d63e909cf80b84ffa14087f84
+
+   - `manifest.json`: Updated with real checksums
+     - SHA256: 706c205d23ac76046ca51d3e38de6df08afae48c13349ccda8f5ae26c4449ae2 (64 hex chars)
+     - SHA512: 0dc1833c6738edacb2a9c75c01293bed16a1e7e275614ac626a7df95d98add108f2702d66d629e9ca5148c5adb7c473761a3ed4d63e909cf80b84ffa14087f84 (128 hex chars)
+     - Structure preserved with 2-space indentation
+     - All other manifest properties intact
+
+### Test Results
+
+```
+generateChecksums() — 5 tests passing
+  ✓ Hash computation correctness
+  ✓ Idempotent hashing (multiple runs produce identical results)
+  ✓ Missing file error handling
+  ✓ Directory path rejection
+  ✓ Large file efficiency
+
+writeChecksumsFile() — 5 tests passing
+  ✓ Correct sha256sum/sha512sum format
+  ✓ Custom filename support
+  ✓ Invalid SHA256 rejection
+  ✓ Invalid SHA512 rejection
+  ✓ Auto-create parent directories
+
+updateManifestChecksums() — 4 tests passing
+  ✓ Checksum update accuracy
+  ✓ Auto-create checksums object
+  ✓ Missing manifest error handling
+  ✓ 2-space indentation preservation
+
+verifyChecksumsMatch() — 3 tests passing
+  ✓ Successful match verification
+  ✓ Mismatch detection
+  ✓ Null input error handling
+
+validateChecksumsFile() — 3 tests passing
+  ✓ Format validation (2-space separator)
+  ✓ Incomplete file rejection
+  ✓ Missing file graceful handling
+
+orchestrateChecksumGeneration() — 3 tests passing
+  ✓ Full integration flow (compute → write → update → validate)
+  ✓ Conditional manifest update
+  ✓ Error propagation
+
+TOTAL: 23 passing, 0 failing (120ms)
+```
+
+### Capabilities
+
+- ✅ Computes SHA256 and SHA512 hashes from .tgz files
+- ✅ Writes CHECKSUMS.txt in Unix sha256sum/sha512sum standard format
+- ✅ Updates manifest.json with computed hashes
+- ✅ Validates CHECKSUMS.txt format compliance
+- ✅ Preserves manifest JSON structure and indentation
+- ✅ Handles errors gracefully with context propagation
+- ✅ Zero external dependencies (Node.js built-ins only)
+- ✅ Fully async/await implementation
+- ✅ Comprehensive error classes (ChecksumGenerationError, operation tracking)
+- ✅ Idempotent (multiple runs produce identical hashes)
+
+### Usage
+
+```bash
+# Run tests
+npx mocha src/versions/v2.0.0/tests/generate-checksums.test.mjs --timeout 10000
+
+# Generate checksums (via runner script or direct invocation)
+node -e "
+import('./src/versions/v2.0.0/lib/generate-checksums.mjs').then(async (m) => {
+  const result = await m.orchestrateChecksumGeneration({
+    packagePath: './.cache/npm-packages/v2.0.0/continue-2.0.0.tgz',
+    checksumsOutputPath: './.cache/npm-packages/v2.0.0/CHECKSUMS.txt',
+    manifestPath: './src/versions/v2.0.0/manifest.json',
+    updateManifest: true,
+    validate: true
+  });
+  console.log(JSON.stringify(result, null, 2));
+});
+"
+```
+
+### Related Steps Enabled
+
+- **Step 12** (startup validation): Uses checksums from manifest for package verification
+- **Step 38** (create .gitignore): Can now ignore cached checksums
+- **Step 45** (lifecycle manager): References checksums for integrity verification
+- **Step 4** (manifest schema): Checksums field now populated with real values
+
+### Verification Checklist
+
+- ✅ CHECKSUMS.txt created with valid format
+- ✅ SHA256 hash: correct length (64) and format (lowercase hex)
+- ✅ SHA512 hash: correct length (128) and format (lowercase hex)
+- ✅ manifest.json updated with real (non-placeholder) hashes
+- ✅ manifest.json structure preserved
+- ✅ All 23 test cases passing
+- ✅ No build warnings or errors
+- ✅ Both files are consistent (CHECKSUMS.txt and manifest.json have same hashes)
+
+---
+
+**Last Verified**: Step 37 completed with 23/23 tests passing, checksums generated and validated  
+**Plan Version**: v2.1 (npm-based, Complete 155-Step Master Plan)  
+**Format**: Markdown (offline reference, single source of truth)
 
 ---
 

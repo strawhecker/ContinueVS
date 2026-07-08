@@ -8,8 +8,8 @@
     "registry": "https://registry.npmjs.org"
   },
   "checksums": {
-    "sha256": "2adfbe837cd70bc0c428fe6c0dce52a08c6ea19c0534234a72ae8ce0a528b87a",
-    "sha512": "1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f"
+    "sha256": "706c205d23ac76046ca51d3e38de6df08afae48c13349ccda8f5ae26c4449ae2",
+    "sha512": "0dc1833c6738edacb2a9c75c01293bed16a1e7e275614ac626a7df95d98add108f2702d66d629e9ca5148c5adb7c473761a3ed4d63e909cf80b84ffa14087f84"
   },
   "compatibility": {
     "vsCodeVersions": [
