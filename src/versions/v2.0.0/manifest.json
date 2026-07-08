@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "releaseDate": "2024-01-15T10:30:00Z",
+  "npmPackage": {
+    "name": "continue",
+    "version": "2.0.0",
+    "tarballUrl": "https://registry.npmjs.org/continue/-/continue-2.0.0.tgz",
+    "registry": "https://registry.npmjs.org"
+  },
+  "checksums": {
+    "sha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+    "sha512": "1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f"
+  },
+  "compatibility": {
+    "vsCodeVersions": [
+      "1.80.0",
+      "1.81.0",
+      "1.82.0",
+      "1.83.0",
+      "1.84.0"
+    ],
+    "nodeVersions": [
+      "18.0.0",
+      "20.0.0"
+    ],
+    "platforms": [
+      "win32"
+    ]
+  },
+  "features": {
+    "stable": [
+      "coreEditorIntegration",
+      "diagnosticsCollection",
+      "goToDefinition",
+      "findReferences",
+      "codeCompletion",
+      "search"
+    ],
+    "experimental": [
+      "advancedSymbolSearch",
+      "webviewMessaging"
+    ],
+    "deprecated": []
+  },
+  "dependencies": {
+    "minBridgeVersion": "1.0.0",
+    "previousVersions": []
+  }
+}
