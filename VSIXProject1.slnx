@@ -11,4 +11,5 @@
       <Build Solution="Debug|*" Project="false" />
     </Project>
   </Folder>
+  <Project Path="src/VSIXProject1.Tests/VSIXProject1.Tests.csproj" />
 </Solution>

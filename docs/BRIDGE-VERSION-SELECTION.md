@@ -153,25 +153,68 @@ Version switching is only safe when:
 
 ### Step 10: Version Downgrade Warning
 
-**Triggering condition**: User requests to switch to an older version
+**Status**: ✅ Implemented  
+**Location**: `src/VSIXProject1/Services/DowngradeWarningService.cs`  
+**Documentation**: [`step-10-downgrade-warning.md`](adr/step-10-downgrade-warning.md)
 
-**Implementation**:
+**Triggering condition**: Installer (Step 35) requests version switch to older version
+
+**Architecture**:
+- `IVersionComparator` — Interface for version comparison (testability)
+- `VersionComparator` — Semantic version comparison using `System.Version`
+- `DowngradeWarningService` — Detects downgrades + shows warning dialog
+- `DowngradeWarningException` — Thrown if user cancels downgrade
+
+**Implementation in installer (Step 35)**:
 ```csharp
-// In BridgeConfiguration (Step 18):
-var currentVersion = VersionManager.GetActiveVersion();
-var requestedVersion = /* from installer */;
+// In Step 35 (npm installer):
+using ContinueVS.Services;
+using ContinueVS.Exceptions;
 
-if (CompareVersions(requestedVersion, currentVersion) < 0)
+var currentVersion = ContinueVSPackage.VersionManager?.GetActiveVersion();
+var targetVersion = "2.0.0"; // Version being installed
+
+// Check for downgrade warning
+var downgradeWarning = ContinueVSPackage.DowngradeWarningService;
+bool userConfirmed = await downgradeWarning.CheckDowngradeAsync(
+    currentVersion: currentVersion,
+    targetVersion: targetVersion);
+
+if (!userConfirmed)
 {
-    // Show downgrade warning dialog
-    // Only allow if user confirms
+    // User cancelled the downgrade
+    throw new DowngradeWarningException(currentVersion, targetVersion);
 }
+
+// Proceed with version switch
+ContinueVSPackage.VersionManager?.SetActiveVersion(targetVersion);
+ShowRestartPrompt();
 ```
+
+**Semantic version comparison**:
+- Uses `System.Version` for comparison
+- Strips pre-release suffixes: `"2.1.0-beta"` → `"2.1.0"`
+- Handles invalid formats gracefully (treats as equal, no warning)
+- Examples: `2.1.0 > 2.0.0` (downgrade), `2.0.0 < 2.1.0` (upgrade)
 
 **User experience**:
 1. User clicks "Install v2.0.0" while on v2.1.0
-2. Downgrade warning appears: "This version has fewer features. Continue?"
-3. If confirmed, version is switched after restart
+2. Installer calls `DowngradeWarningService.CheckDowngradeAsync("2.1.0", "2.0.0")`
+3. Warning dialog: "Downgrade from v2.1.0 to v2.0.0? Fewer features. Restart required. Continue?"
+4. User clicks [Yes] → Proceeds with version switch + restart
+5. User clicks [No] → Throws `DowngradeWarningException`, version unchanged
+
+**Testing**:
+- 14 `VersionComparatorTests` — Standard/pre-release versions, edge cases
+- 8 `DowngradeWarningServiceTests` — Upgrade/downgrade detection, null handling
+- Run: `dotnet test src/VSIXProject1.Tests/Services/VersionComparatorTests.cs`
+- Run: `dotnet test src/VSIXProject1.Tests/Services/DowngradeWarningServiceTests.cs`
+
+**Singleton access** (initialized in `ContinueVSPackage.InitializeAsync`):
+```csharp
+var service = ContinueVSPackage.DowngradeWarningService;
+bool userConfirmed = await service.CheckDowngradeAsync("2.1.0", "2.0.0");
+```
 
 ### Step 35: Installer & Downloader
 
