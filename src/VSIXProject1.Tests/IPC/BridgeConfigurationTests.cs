@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Xunit;
 using ContinueVS.IPC;
 using ContinueVS.Services;
+using ContinueVS.Tests.Infrastructure;
 
 namespace ContinueVS.Tests.IPC
 {
@@ -20,12 +21,12 @@ namespace ContinueVS.Tests.IPC
     /// </summary>
     public class BridgeConfigurationTests
     {
-        private readonly MockVersionSelectorService _mockVersionSelector;
+        private readonly VersionSelectorService _mockVersionSelector;
 
         public BridgeConfigurationTests()
         {
             // Setup mock version selector that accepts all versions
-            _mockVersionSelector = new MockVersionSelectorService();
+            _mockVersionSelector = MockFactory.CreateMockVersionSelectorServiceConcrete();
         }
 
         // === Constructor Tests ===
@@ -512,25 +513,6 @@ namespace ContinueVS.Tests.IPC
             Assert.True(config.IsDebugMode);
             Assert.False(config.EnableTelemetry);
             Assert.Equal("trace", config.LogLevel);
-        }
-
-        }
-
-        /// <summary>
-        /// Mock implementation of <see cref="VersionSelectorService"/> for testing.
-        /// Accepts all version strings for testing without filesystem dependencies.
-        /// </summary>
-    internal class MockVersionSelectorService : VersionSelectorService
-    {
-        public override List<string> GetAvailableVersions()
-        {
-            return new List<string> { "2.0.0" };
-        }
-
-        public override bool IsVersionAvailable(string version)
-        {
-            // For testing, accept any version string
-            return !string.IsNullOrWhiteSpace(version);
         }
     }
 }
