@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://continuevs.dev/schemas/version-manifest.schema.json",
+  "title": "ContinueVS Version Manifest",
+  "description": "Schema for Continue npm package version metadata, integrity, and compatibility information",
+  "type": "object",
+  "required": [
+    "version",
+    "releaseDate",
+    "npmPackage",
+    "checksums",
+    "compatibility"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version in X.Y.Z format (no pre-release or build metadata)"
+    },
+    "releaseDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of package release (e.g., 2024-01-15T12:00:00Z)"
+    },
+    "npmPackage": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "tarballUrl"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[@\\w-]+(/[@\\w-]+)?$",
+          "description": "NPM package name (e.g., 'continue' or '@org/continue')"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version of the npm package"
+        },
+        "tarballUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL to the package tarball (.tgz file)"
+        },
+        "registry": {
+          "type": "string",
+          "format": "uri",
+          "default": "https://registry.npmjs.org",
+          "description": "NPM registry URL (defaults to official npmjs.org registry)"
+        }
+      }
+    },
+    "checksums": {
+      "type": "object",
+      "required": [
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hash of the tarball (64 hex characters, lowercase)"
+        },
+        "sha512": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{128}$",
+          "description": "SHA-512 hash of the tarball (128 hex characters, lowercase, optional)"
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vsCodeVersions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          },
+          "description": "Array of VS Code versions this package is compatible with (e.g., ['1.80.0', '1.81.0'])"
+        },
+        "nodeVersions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(v)?\\d+(\\.\\d+)?(\\.\\d+)?$"
+          },
+          "description": "Array of Node.js versions this package requires (e.g., ['16.0.0', '18.0.0', '20.0.0'])"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "win32",
+              "darwin",
+              "linux"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "Supported platforms: 'win32' (Windows), 'darwin' (macOS), 'linux' (Linux)"
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature flags, stability markers, and capability indicators",
+      "additionalProperties": false,
+      "properties": {
+        "experimental": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Experimental features (subject to breaking changes)"
+        },
+        "deprecated": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Deprecated features (will be removed in a future version)"
+        },
+        "stable": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Stable, production-ready features"
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Version dependency and compatibility rules",
+      "additionalProperties": false,
+      "properties": {
+        "minBridgeVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Minimum ContinueVS Bridge version required to use this package"
+        },
+        "previousVersions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          },
+          "description": "Array of previous version identifiers that can be migrated to this version"
+        }
+      }
+    }
+  }
+}
