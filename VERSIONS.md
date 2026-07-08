@@ -114,6 +114,36 @@ E:\GitRepos\ContinueVS\
 
 ---
 
+## npm Dependency Cache Strategy
+
+All Continue npm packages are cached locally and validated at startup:
+
+**Key Principles**:
+- ✅ **Cache-first**: Local cache checked before npm registry
+- ✅ **Validated**: SHA256 checksums verified at startup (Step 12)
+- ✅ **Offline-capable**: Works without internet in air-gapped environments
+- ✅ **Multi-version**: Supports coexisting versions for downgrades
+
+**Architecture**:
+```
+.cache/npm-packages/vX.Y.Z/
+├── continue-vX.Y.Z.tgz              # Binary package (ignored in git)
+├── continue-vX.Y.Z.tgz.sha256       # Checksum file (ignored in git)
+└── .metadata/
+    └── cache-manifest.json          # Status tracking (git-tracked)
+```
+
+**Download Flow**:
+1. **Step 5**: Directory structure created
+2. **Step 11**: Download on first use (cache-first strategy)
+3. **Step 12**: Validate checksums on startup
+4. **Step 35**: Download & verify from npm registry
+5. **Step 37**: Generate SHA256 checksums
+
+**For Details**: See `docs/npm-cache-strategy.md` and `docs/npm-dependency-matrix.md`
+
+---
+
 ## Compatibility Matrix
 
 | Bridge Ver | Continue | Node | npm | VS | Status |
