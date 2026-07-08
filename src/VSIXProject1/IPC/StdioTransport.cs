@@ -23,17 +23,17 @@ namespace ContinueVS.IPC
     internal sealed class StdioTransport : IBridgeTransport
     {
         private readonly IBridgeConfiguration _configuration;
-        private ProcessManager _processManager;
-        private MessageBufferer _messageBufferer;
-        private Task _receiveLoopTask;
+        private ProcessManager? _processManager;
+        private MessageBufferer? _messageBufferer;
+        private Task? _receiveLoopTask;
         private volatile bool _isRunning;
         private bool _isDisposed;
         private readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
 
         // Events
-        public event EventHandler<MessageReceivedEventArgs> OnMessageReceived;
-        public event EventHandler<BridgeErrorEventArgs> OnError;
-        public event EventHandler OnClosed;
+        public event EventHandler<MessageReceivedEventArgs>? OnMessageReceived;
+        public event EventHandler<BridgeErrorEventArgs>? OnError;
+        public event EventHandler? OnClosed;
 
         public bool IsRunning => _isRunning;
 
@@ -46,45 +46,46 @@ namespace ContinueVS.IPC
         /// <summary>
         /// Starts the Continue process and initializes communication channels.
         /// </summary>
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             if (_isRunning)
-                return Task.CompletedTask; // Idempotent
+                return; // Idempotent
 
-            return Task.Run(async () =>
+            try
             {
-                try
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
 
-                    _processManager = new ProcessManager(_configuration);
-                    var process = _processManager.Start();
+                _processManager = new ProcessManager(_configuration);
+                var process = _processManager.Start();
 
-                    // Initialize message bufferer
-                    _messageBufferer = new MessageBufferer(_processManager.StdoutReader);
-                    _messageBufferer.StartBuffering();
+                // Initialize message bufferer
+                var stdoutReader = _processManager.StdoutReader;
+                if (stdoutReader == null)
+                    throw new InvalidOperationException("Failed to obtain stdout reader from process.");
 
-                    _isRunning = true;
+                _messageBufferer = new MessageBufferer(stdoutReader);
+                _messageBufferer.StartBuffering();
 
-                    // Wait for the process to be ready (with timeout)
-                    // The core-server.js (Step 13) will signal readiness
-                    await Task.Delay((int)_configuration.ProcessStartupTimeoutMs, cancellationToken);
+                _isRunning = true;
 
-                    // Start the receive loop on a background thread
-                    _receiveLoopTask = Task.Run(() => ReceiveLoop(cancellationToken), cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    _isRunning = false;
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    _isRunning = false;
-                    RaiseError(ex, isFatal: true);
-                    throw new InvalidOperationException($"Failed to start bridge transport: {ex.Message}", ex);
-                }
-            }, cancellationToken);
+                // Wait for the process to be ready (with timeout)
+                // The core-server.js (Step 13) will signal readiness
+                await Task.Delay((int)_configuration.ProcessStartupTimeoutMs, cancellationToken);
+
+                // Start the receive loop on a background thread
+                _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(cancellationToken));
+            }
+            catch (OperationCanceledException)
+            {
+                _isRunning = false;
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _isRunning = false;
+                RaiseError(ex, isFatal: true);
+                throw new InvalidOperationException($"Failed to start bridge transport: {ex.Message}", ex);
+            }
         }
 
         /// <summary>
@@ -109,7 +110,9 @@ namespace ContinueVS.IPC
                 {
                     try
                     {
+#pragma warning disable VSTHRD003 // Avoid awaiting or returning a Task representing work that was not started within your context
                         await _receiveLoopTask.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
                     }
                     catch (OperationCanceledException)
                     {
@@ -129,8 +132,6 @@ namespace ContinueVS.IPC
             {
                 _messageBufferer?.Dispose();
                 _processManager?.Dispose();
-                _messageBufferer = null;
-                _processManager = null;
             }
         }
 
@@ -191,7 +192,7 @@ namespace ContinueVS.IPC
         /// <summary>
         /// Receives the next message from the Continue process via stdout.
         /// </summary>
-        public async Task<Message> ReceiveMessageAsync(CancellationToken cancellationToken)
+        public async Task<Message?> ReceiveMessageAsync(CancellationToken cancellationToken)
         {
             if (!_isRunning)
                 throw new InvalidOperationException("Transport is not running.");
@@ -199,7 +200,10 @@ namespace ContinueVS.IPC
             try
             {
                 // Dequeue with timeout from the bufferer
-                Message message = await Task.Run(() =>
+                if (_messageBufferer == null)
+                    throw new InvalidOperationException("MessageBufferer is not initialized.");
+
+                Message? message = await Task.Run(() =>
                     _messageBufferer.Dequeue((int)_configuration.RpcTimeoutMs), cancellationToken);
 
                 if (message == null)
@@ -232,7 +236,7 @@ namespace ContinueVS.IPC
         /// Background loop that continuously receives messages and dispatches them.
         /// Runs until the process closes or an error occurs.
         /// </summary>
-        private async void ReceiveLoop(CancellationToken cancellationToken)
+        private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -252,7 +256,7 @@ namespace ContinueVS.IPC
                         var handler = OnMessageReceived;
                         if (handler != null)
                         {
-                            Task.Run(() =>
+                            _ = Task.Run(() =>
                             {
                                 try
                                 {
@@ -296,7 +300,7 @@ namespace ContinueVS.IPC
             var handler = OnError;
             if (handler != null)
             {
-                Task.Run(() =>
+                _ = Task.Run(() =>
                 {
                     try
                     {
@@ -318,7 +322,7 @@ namespace ContinueVS.IPC
             var handler = OnClosed;
             if (handler != null)
             {
-                Task.Run(() =>
+                _ = Task.Run(() =>
                 {
                     try
                     {

@@ -24,9 +24,9 @@ namespace ContinueVS.IPC
     {
         private readonly IBridgeConfiguration _configuration;
         private readonly ProcessStartInfo _startInfo;
-        private Process _process;
-        private StreamWriter _stdinWriter;
-        private StreamReader _stdoutReader;
+        private Process? _process;
+        private StreamWriter? _stdinWriter;
+        private StreamReader? _stdoutReader;
         private bool _isDisposed;
 
         /// <summary>
@@ -37,17 +37,17 @@ namespace ContinueVS.IPC
         /// <summary>
         /// Gets the underlying Process object, or null if not started.
         /// </summary>
-        public Process Process => _process;
+        public Process? Process => _process;
 
         /// <summary>
         /// Gets the stdin writer stream, or null if not started.
         /// </summary>
-        public StreamWriter StdinWriter => _stdinWriter;
+        public StreamWriter? StdinWriter => _stdinWriter;
 
         /// <summary>
         /// Gets the stdout reader stream, or null if not started.
         /// </summary>
-        public StreamReader StdoutReader => _stdoutReader;
+        public StreamReader? StdoutReader => _stdoutReader;
 
         public ProcessManager(IBridgeConfiguration configuration)
         {
@@ -123,7 +123,7 @@ namespace ContinueVS.IPC
                 _stdoutReader?.Close();
 
                 // Attempt graceful shutdown
-                if (!_process.HasExited)
+                if (_process != null && !_process.HasExited)
                 {
                     try
                     {
@@ -138,17 +138,20 @@ namespace ContinueVS.IPC
                 }
 
                 // Wait for process to exit with timeout
-                bool exited = await Task.Run(() => _process.WaitForExit((int)shutdownTimeoutMs));
-
-                if (!exited && !_process.HasExited)
+                if (_process != null)
                 {
-                    // Force kill if still alive
-                    try
+                    bool exited = await Task.Run(() => _process.WaitForExit((int)shutdownTimeoutMs));
+
+                    if (!exited && !_process.HasExited)
                     {
-                        _process.Kill();
-                        _process.WaitForExit(1000); // Give it 1 second to clean up
+                        // Force kill if still alive
+                        try
+                        {
+                            _process.Kill();
+                            _process.WaitForExit(1000); // Give it 1 second to clean up
+                        }
+                        catch { /* Already dead or permission issue */ }
                     }
-                    catch { /* Already dead or permission issue */ }
                 }
             }
             catch (Exception ex)

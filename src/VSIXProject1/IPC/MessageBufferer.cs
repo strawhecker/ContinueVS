@@ -44,13 +44,13 @@ namespace ContinueVS.IPC
         /// </summary>
         public void StartBuffering()
         {
-            Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 try
                 {
                     while (!_isDisposed)
                     {
-                        string line = null;
+                        string? line = null;
 
                         try
                         {
@@ -110,7 +110,7 @@ namespace ContinueVS.IPC
         /// </summary>
         /// <param name="timeoutMs">Maximum time to wait for a message. -1 = infinite.</param>
         /// <returns>The next Message, or null if stream closed or timeout elapsed.</returns>
-        public Message Dequeue(int timeoutMs = -1)
+        public Message? Dequeue(int timeoutMs = -1)
         {
             while (true)
             {
