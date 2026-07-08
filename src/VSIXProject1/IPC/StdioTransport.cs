@@ -19,6 +19,13 @@ namespace ContinueVS.IPC
     /// - SendMessageAsync can be called from multiple threads (serialized by _sendSemaphore)
     /// - ReceiveMessageAsync can be called from multiple threads (queued via MessageBufferer)
     /// - Events fire on background threads; subscribers must not block
+    /// 
+    /// JSON-RPC Protocol Integration (Step 21):
+    /// - SendMessageAsync/ReceiveMessageAsync work with Message envelopes (messageType, messageId, data)
+    /// - JsonRpcProtocol wraps payloads into Message objects for RPC semantics
+    /// - Handlers (Step 50+) use JsonRpcProtocol.CreateRequest/CreateResponse for dispatch
+    /// - No modifications to core-server.js required; Node relay is pass-through
+    /// - Message validation via JsonRpcProtocol.ValidateMessage() recommended before sending
     /// </summary>
     internal sealed class StdioTransport : IBridgeTransport
     {

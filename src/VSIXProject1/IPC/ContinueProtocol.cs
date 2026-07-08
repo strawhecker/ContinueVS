@@ -154,4 +154,23 @@ namespace ContinueVS.IPC
     {
         [JsonProperty("filepath")] public string Filepath { get; set; } = "";
     }
+
+    // -------------------------------------------------------------------------
+    // JSON-RPC Error Object (Step 21)
+    // Used in error responses when messageType == "rpc:error"
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Represents a JSON-RPC error object nested in the Message.data field.
+    /// Standard structure: { code: int, message: string, data?: any }
+    /// 
+    /// Created via JsonRpcProtocol.CreateError() and extracted via
+    /// JsonRpcProtocol.ExtractErrorCode/ExtractErrorMessage.
+    /// </summary>
+    internal sealed class RpcError
+    {
+        [JsonProperty("code")]    public int     Code    { get; set; }
+        [JsonProperty("message")] public string  Message { get; set; } = "";
+        [JsonProperty("data")]    public JToken? Data    { get; set; }
+    }
 }
