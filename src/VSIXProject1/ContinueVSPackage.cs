@@ -32,6 +32,9 @@ namespace ContinueVS
         /// <summary>Downgrade warning service instance (Step 10).</summary>
         public static DowngradeWarningService? DowngradeWarningService { get; private set; }
 
+        /// <summary>Bridge logger facade instance (Step 25).</summary>
+        public static IBridgeLogger? Logger { get; private set; }
+
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
@@ -45,6 +48,9 @@ namespace ContinueVS
 
             // Initialize downgrade warning service (Step 10)
             DowngradeWarningService = new Services.DowngradeWarningService();
+
+            // Initialize bridge logger (Step 25)
+            Logger = new BridgeLogger(this);
 
             // Ensure the options page is initialized with the active version
             var optionsPage = GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage;
@@ -67,6 +73,7 @@ namespace ContinueVS
                 Instance = null;
                 VersionManager = null;
                 DowngradeWarningService = null;
+                Logger = null;
             }
 
             base.Dispose(disposing);
