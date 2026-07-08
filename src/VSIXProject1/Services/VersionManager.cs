@@ -14,9 +14,9 @@ namespace ContinueVS.Services
         private const string DefaultVersion = "2.0.0";
 
         private readonly VersionSelectorService _versionSelector;
-        private string _cachedVersion;
+        private string? _cachedVersion;
 
-        public VersionManager(VersionSelectorService versionSelector = null)
+        public VersionManager(VersionSelectorService? versionSelector = null)
         {
             _versionSelector = versionSelector ?? new VersionSelectorService();
             _cachedVersion = null;
@@ -32,16 +32,16 @@ namespace ContinueVS.Services
             // Return cached version if already loaded
             if (!string.IsNullOrEmpty(_cachedVersion))
             {
-                return _cachedVersion;
+                return _cachedVersion!;
             }
 
             // Try to load from registry
             var registryVersion = LoadVersionFromRegistry();
 
-            if (!string.IsNullOrEmpty(registryVersion) && _versionSelector.IsVersionAvailable(registryVersion))
+            if (!string.IsNullOrEmpty(registryVersion) && _versionSelector.IsVersionAvailable(registryVersion!))
             {
                 _cachedVersion = registryVersion;
-                return _cachedVersion;
+                return _cachedVersion!;
             }
 
             // If registry version is invalid or missing, validate and use default
@@ -111,7 +111,7 @@ namespace ContinueVS.Services
         /// Loads the version string from the Visual Studio registry.
         /// Returns null if the registry key doesn't exist or can't be read.
         /// </summary>
-        private string LoadVersionFromRegistry()
+        private string? LoadVersionFromRegistry()
         {
             try
             {

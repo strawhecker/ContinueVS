@@ -24,9 +24,9 @@ namespace ContinueVS.Handlers.Ide
             var dte = Package.GetGlobalService(typeof(DTE)) as DTE;
             string[] dirs;
 
-            if (dte != null && !string.IsNullOrEmpty(dte.Solution?.FullName))
+            if (dte?.Solution?.FullName != null && !string.IsNullOrEmpty(dte.Solution.FullName))
             {
-                dirs = new[] { Path.GetDirectoryName(dte.Solution.FullName) };
+                dirs = new[] { Path.GetDirectoryName(dte.Solution.FullName)! };
             }
             else
             {

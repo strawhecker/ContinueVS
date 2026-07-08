@@ -17,7 +17,7 @@ namespace ContinueVS.Services
         /// Initializes a new instance of the DowngradeWarningService.
         /// </summary>
         /// <param name="versionComparator">Version comparator implementation. If null, uses VersionComparator.</param>
-        public DowngradeWarningService(IVersionComparator versionComparator = null)
+        public DowngradeWarningService(IVersionComparator? versionComparator = null)
         {
             _versionComparator = versionComparator ?? new VersionComparator();
         }

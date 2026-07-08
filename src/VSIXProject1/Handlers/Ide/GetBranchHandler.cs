@@ -26,7 +26,7 @@ namespace ContinueVS.Handlers.Ide
                 return;
             }
 
-            var branch = await Task.Run(() => RunGitBranch(dir), cancellationToken);
+            var branch = await Task.Run(() => RunGitBranch(dir!), cancellationToken);
             _control.SendReplyToGui(message.MessageType, message.MessageId, branch);
         }
 

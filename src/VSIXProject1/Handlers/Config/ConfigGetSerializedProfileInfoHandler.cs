@@ -17,7 +17,7 @@ namespace ContinueVS.Handlers.Config
         public Task HandleAsync(Message message, CancellationToken cancellationToken)
         {
             _control.SendReplyToGui(message.MessageType, message.MessageId,
-                new { result = (object)null, profileId = (string)null, profiles = new object[0] });
+                new { result = (object?)null, profileId = (string?)null, profiles = new object[0] });
             return Task.CompletedTask;
         }
     }

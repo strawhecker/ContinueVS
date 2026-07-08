@@ -15,7 +15,7 @@ namespace ContinueVS.Services
     {
         private readonly string _versionsBasePath;
 
-        public VersionSelectorService(string versionsBasePath = null)
+        public VersionSelectorService(string? versionsBasePath = null)
         {
             if (versionsBasePath != null)
             {
@@ -26,7 +26,7 @@ namespace ContinueVS.Services
                 // Default: derive from extension assembly location
                 var assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
                 var extensionDir = Path.GetDirectoryName(assemblyPath);
-                _versionsBasePath = Path.Combine(extensionDir, "..\\..\\..\\versions");
+                _versionsBasePath = Path.Combine(extensionDir ?? "", "..\\..\\..\\versions");
             }
         }
 
@@ -105,7 +105,7 @@ namespace ContinueVS.Services
         /// <summary>
         /// Reads the manifest.json for a specific version and returns the parsed content.
         /// </summary>
-        public JObject GetVersionManifest(string version)
+        public JObject? GetVersionManifest(string version)
         {
             if (!IsVersionAvailable(version))
                 return null;
@@ -126,7 +126,7 @@ namespace ContinueVS.Services
         /// <summary>
         /// Gets metadata about a specific version from its manifest.
         /// </summary>
-        public VersionMetadata GetVersionMetadata(string version)
+        public VersionMetadata? GetVersionMetadata(string version)
         {
             var manifest = GetVersionManifest(version);
             if (manifest == null)
@@ -191,10 +191,10 @@ namespace ContinueVS.Services
     /// </summary>
     public class VersionMetadata
     {
-        public string Version { get; set; }
-        public string ContinueVersion { get; set; }
-        public string ReleaseDate { get; set; }
-        public string Status { get; set; }
+        public string? Version { get; set; }
+        public string? ContinueVersion { get; set; }
+        public string? ReleaseDate { get; set; }
+        public string? Status { get; set; }
         public bool IsStable { get; set; }
 
         public override string ToString()

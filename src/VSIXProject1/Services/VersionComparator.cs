@@ -49,7 +49,7 @@ namespace ContinueVS.Services
         /// "2.0.0" → "2.0.0"
         /// Returns null if parsing fails.
         /// </summary>
-        private Version ParseVersion(string versionString)
+        private Version? ParseVersion(string versionString)
         {
             if (string.IsNullOrWhiteSpace(versionString))
                 return null;

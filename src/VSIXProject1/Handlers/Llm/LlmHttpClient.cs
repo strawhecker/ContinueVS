@@ -130,7 +130,7 @@ namespace ContinueVS.Handlers.Llm
                             var jObj = JObject.Parse(data);
                             var chunk = jObj["choices"]?[0]?["delta"]?["content"]?.Value<string>();
                             if (!string.IsNullOrEmpty(chunk))
-                                onChunk(chunk);
+                                onChunk(chunk!);
                         }
                         catch (Exception) { }
                     }
@@ -183,7 +183,7 @@ namespace ContinueVS.Handlers.Llm
                             {
                                 var chunk = jObj["delta"]?["text"]?.Value<string>();
                                 if (!string.IsNullOrEmpty(chunk))
-                                    onChunk(chunk);
+                                    onChunk(chunk!);
                             }
                             else if (type == "message_stop")
                             {

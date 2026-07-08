@@ -32,10 +32,10 @@ namespace ContinueVS.UI
         private bool _webViewInitialized;
         private bool _disposed;
         private readonly MessageDispatcher _dispatcher = new MessageDispatcher();
-        private readonly ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken>> _pendingReplies = new ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken>>();
+        private readonly ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken?>> _pendingReplies = new ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken?>>();
         private readonly WebviewPusher _pusher;
-        private WorkspaceConfigWatcher _configWatcher;
-        private EditorContextProvider _editorContextProvider;
+        private WorkspaceConfigWatcher? _configWatcher;
+        private EditorContextProvider? _editorContextProvider;
 
         public ContinueToolWindowControl()
         {
@@ -97,11 +97,13 @@ namespace ContinueVS.UI
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
+#pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await GuiExtractor.EnsureExtractedAsync();
                 await NavigateAsync();
             }).FileAndForget("vs/continuevs/loaded");
+#pragma warning restore VSSDK007
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
@@ -130,8 +132,8 @@ namespace ContinueVS.UI
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
                 _webViewInitialized = true;
                 _pusher.Subscribe();
-                await _editorContextProvider.RegisterAsync();
-                _configWatcher.Start();
+                await _editorContextProvider?.RegisterAsync()!;
+                _configWatcher?.Start();
             }
 
             WebView.Source = new Uri("https://continue.local/index.html");
@@ -152,8 +154,12 @@ namespace ContinueVS.UI
         /// </summary>
         // VSTHRD100: replaced async void with sync wrapper + OnWebMessageReceivedAsync
         private void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
-            => ThreadHelper.JoinableTaskFactory.RunAsync(() => OnWebMessageReceivedAsync(sender, e))
+        {
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => OnWebMessageReceivedAsync(sender, e))
                            .FileAndForget("vs/continuevs/webmessage");  // VSSDK007
+#pragma warning restore VSSDK007
+        }
 
         private System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
@@ -164,7 +170,7 @@ namespace ContinueVS.UI
 
             if (_pendingReplies.TryRemove(message.MessageId, out var pendingTcs))
             {
-                pendingTcs.TrySetResult(message.Data);
+                pendingTcs.TrySetResult(message.Data ?? JToken.FromObject(""));
                 return System.Threading.Tasks.Task.CompletedTask;
             }
 
@@ -192,25 +198,27 @@ namespace ContinueVS.UI
             var json    = JsonConvert.SerializeObject(msg);
             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
 
+#pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
+#pragma warning restore VSSDK007
         }
 
         /// <summary>
         /// Sends a message to the GUI and waits asynchronously for a reply with the same messageId.
         /// </summary>
-        internal System.Threading.Tasks.Task<JToken> SendToGuiAndAwaitReplyAsync(
+        internal System.Threading.Tasks.Task<JToken?> SendToGuiAndAwaitReplyAsync(
             string messageType, object data, System.Threading.CancellationToken cancellationToken)
         {
             if (!_webViewInitialized || WebView.CoreWebView2 == null)
-                return System.Threading.Tasks.Task.FromResult<JToken>(null);
+                return System.Threading.Tasks.Task.FromResult<JToken?>(null);
 
             var messageId = Guid.NewGuid().ToString();
-            var tcs = new System.Threading.Tasks.TaskCompletionSource<JToken>();
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<JToken?>();
             _pendingReplies[messageId] = tcs;
             cancellationToken.Register(() =>
             {
@@ -227,12 +235,14 @@ namespace ContinueVS.UI
             var json    = JsonConvert.SerializeObject(msg);
             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
 
+#pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
             }).FileAndForget("vs/continuevs/sendtogui");
+#pragma warning restore VSSDK007
 
             return tcs.Task;
         }
@@ -250,12 +260,14 @@ namespace ContinueVS.UI
             var json    = JsonConvert.SerializeObject(msg);
             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
 
+#pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
+#pragma warning restore VSSDK007
         }
 
         // -----------------------------------------------------------------

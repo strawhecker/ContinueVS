@@ -139,10 +139,10 @@ namespace ContinueVS.Tests.Services
         }
 
         [Theory]
-        [InlineData("2.0.0", "2.1.0", false)]  // Upgrade
-        [InlineData("2.0.0", "2.0.0", false)]  // Same
+        [InlineData("2.0.0", "2.1.0")]  // Upgrade
+        [InlineData("2.0.0", "2.0.0")]  // Same
         public async Task CheckDowngradeAsync_WithDefaultComparator_CorrectlyDetectsNonDowngrade(
-            string current, string target, bool shouldShowDialog)
+            string current, string target)
         {
             // Arrange
             var service = new DowngradeWarningService();

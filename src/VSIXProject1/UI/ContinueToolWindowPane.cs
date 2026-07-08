@@ -32,16 +32,17 @@ namespace ContinueVS.UI
         }
 
         /// <summary>Sends a message to the GUI and awaits a reply with the matching messageId.</summary>
-        internal System.Threading.Tasks.Task<JToken> SendToGuiAndAwaitReplyAsync(
+        internal System.Threading.Tasks.Task<JToken?> SendToGuiAndAwaitReplyAsync(
             string messageType, object data, System.Threading.CancellationToken cancellationToken)
         {
             return _control != null
                 ? _control.SendToGuiAndAwaitReplyAsync(messageType, data, cancellationToken)
-                : System.Threading.Tasks.Task.FromResult<JToken>(null);
+                : System.Threading.Tasks.Task.FromResult<JToken?>(null);
         }
 
         protected override void Dispose(bool disposing)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (disposing)
                 _control?.Dispose();
 

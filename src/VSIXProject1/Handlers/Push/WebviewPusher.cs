@@ -9,9 +9,9 @@ namespace ContinueVS.Handlers.Push
     internal sealed class WebviewPusher : IVsRunningDocTableEvents3
     {
         private readonly ContinueToolWindowControl _control;
-        private IVsRunningDocumentTable _rdt;
+        private IVsRunningDocumentTable? _rdt;
         private uint _rdtCookie;
-        private WindowEvents _windowEvents;
+        private WindowEvents? _windowEvents;
 
         internal WebviewPusher(ContinueToolWindowControl control)
         {
@@ -27,7 +27,7 @@ namespace ContinueVS.Handlers.Push
             _control.SendToGui("configUpdate", new
             {
                 result    = new IdeSettings(),
-                profileId = (string)null,
+                profileId = (string?)null,
                 profiles  = new object[0],
             });
         }
@@ -62,7 +62,10 @@ namespace ContinueVS.Handlers.Push
             if (dte != null)
             {
                 _windowEvents = dte.Events.WindowEvents;
-                _windowEvents.WindowActivated += OnWindowActivated;
+                if (_windowEvents != null)
+                {
+                    _windowEvents.WindowActivated += OnWindowActivated;
+                }
             }
         }
 

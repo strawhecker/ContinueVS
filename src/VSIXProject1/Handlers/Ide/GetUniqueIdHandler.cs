@@ -11,7 +11,7 @@ namespace ContinueVS.Handlers.Ide
     {
         private readonly ContinueToolWindowControl _control;
 
-        private static string _cachedId = null;
+        private static string? _cachedId = null;
 
         public GetUniqueIdHandler(ContinueToolWindowControl control)
         {
@@ -46,7 +46,7 @@ namespace ContinueVS.Handlers.Ide
             }
 
             var newId = Guid.NewGuid().ToString();
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             global::System.IO.File.WriteAllText(filePath, newId);
             _cachedId = newId;
             return _cachedId;
