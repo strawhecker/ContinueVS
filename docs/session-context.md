@@ -47,7 +47,7 @@
 | 33 | Create bridge documentation | None | None |
 | 34 | Create npm dependency documentation | None | None | ✅ COMPLETE |
 | 35 | Download & verify Continue npm package v2.0.0 | 2 | 36,37 |
-| 36 | Verify Continue npm package contents | 35 | None |
+| 36 | Verify Continue npm package contents | 35 | None | ✅ COMPLETE |
 | 37 | Generate checksums for npm packages | 35 | 4 |
 | 38 | Create .gitignore for node_modules | 35 | None |
 | 39 | Create npm update guide | None | None |
@@ -270,7 +270,8 @@
 - ✅ **Plan Created**: All 155 steps defined with dependencies
 - ✅ **Step 31 Complete**: npm package integrity tests with 37 test cases (all passing)
 - ✅ **Step 32 Complete**: npm version upgrade test with 26 test cases (all passing)
-- ⏭️ **Ready for**: Step 33 (bridge documentation)
+- ✅ **Step 36 Complete**: npm package content validator with 15 test cases (all passing)
+- ⏭️ **Ready for**: Step 37 (checksum generation)
 
 ---
 
@@ -347,4 +348,59 @@ Version Upgrade Validation Module (Step 32)
 **Last Verified**: Step 32 completed with 26/26 tests passing  
 **Plan Version**: v2.1 (npm-based, Complete 155-Step Master Plan)  
 **Format**: Markdown (offline reference, single source of truth)  
-**Next Action**: Step 33 (bridge documentation)
+
+---
+
+## Step 36 Completion Record
+
+**Title**: Verify Continue npm Package Contents  
+**Status**: ✅ COMPLETE  
+**Dependencies**: Step 35 (package download)  
+**Blocking**: Step 37 (checksum generation)  
+**Test Coverage**: 15/15 passing (100%)  
+
+### Deliverables
+
+1. **Module**: `src/versions/v2.0.0/lib/npm-package-validator.mjs` (450+ lines)
+   - Validates .tgz archive integrity and internal structure
+   - Async/await throughout, zero external dependencies
+
+2. **Test Suite**: `src/versions/v2.0.0/test/npm-package-validator.test.mjs` (367 lines)
+   - 10 primary test cases + 5 bonus edge case tests (15 total)
+   - All tests passing (33ms execution)
+
+3. **Runner Script**: `scripts/run-step-36.ps1` (180+ lines)
+   - PowerShell orchestrator following Step 35 pattern
+   - Color-coded output, exit codes, structured result parsing
+
+4. **ESM Loader**: `src/versions/v2.0.0/test/esm-loader.mjs` (20+ lines)
+   - Required for Mocha ESM test support
+
+### Key Functions
+
+- `validatePackageContents()` — Orchestrator, performs complete validation
+- `readTarEntries()` — Extracts file list from .tgz without permanent extraction
+- `validatePackageJson()` — Verifies package.json structure
+- `validateEntryPoint()` — Confirms lib/core-server.js presence
+- `validateRequiredFiles()` — Checks mandatory files
+- `validateFeatureImplementations()` — Cross-references feature declarations
+- `generateValidationReport()` — Creates structured results
+- `quickValidatePackage()` — Boolean return for startup checks
+
+### Error Types
+
+- `PackageValidationError` (base)
+- `ArchiveError` (tar format issues)
+- `MetadataError` (missing/invalid files)
+
+### Test Execution Results
+
+✓ Total: 15 passing (33ms)  
+✓ Framework: Mocha  
+✓ Node.js: >=18.0.0 ESM  
+✓ Dependencies: None (built-ins only)  
+
+---
+
+**Next Action**: Step 37 (checksum generation)
+
