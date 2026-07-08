@@ -45,7 +45,7 @@
 | 31 | Create npm package integrity tests | 8,12 | None | ✅ COMPLETE |
 | 32 | Create npm version upgrade test | None | None | ✅ COMPLETE |
 | 33 | Create bridge documentation | None | None |
-| 34 | Create npm dependency documentation | None | None |
+| 34 | Create npm dependency documentation | None | None | ✅ COMPLETE |
 | 35 | Download & verify Continue npm package v2.0.0 | 2 | 36,37 |
 | 36 | Verify Continue npm package contents | 35 | None |
 | 37 | Generate checksums for npm packages | 35 | 4 |
