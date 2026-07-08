@@ -43,7 +43,7 @@
 | 29 | Create StdioTransport messaging tests | 20,21,27 | None |
 | 30 | Create bridge integration test | 19-29 | None |
 | 31 | Create npm package integrity tests | 8,12 | None | ✅ COMPLETE |
-| 32 | Create npm version upgrade test | None | None |
+| 32 | Create npm version upgrade test | None | None | ✅ COMPLETE |
 | 33 | Create bridge documentation | None | None |
 | 34 | Create npm dependency documentation | None | None |
 | 35 | Download & verify Continue npm package v2.0.0 | 2 | 36,37 |
@@ -269,11 +269,82 @@
 - ✅ **Architecture**: Bridge-only, out-of-process, npm-based Continue
 - ✅ **Plan Created**: All 155 steps defined with dependencies
 - ✅ **Step 31 Complete**: npm package integrity tests with 37 test cases (all passing)
-- ✅ **Ready for**: Step 32 (npm version upgrade test)
+- ✅ **Step 32 Complete**: npm version upgrade test with 26 test cases (all passing)
+- ⏭️ **Ready for**: Step 33 (bridge documentation)
 
 ---
 
-**Last Verified**: Step 31 completed with 37/37 tests passing  
+## Step 32 Completion Record
+
+**Title**: Create npm version upgrade test  
+**Status**: ✅ COMPLETE  
+**Dependencies**: None (standalone step)  
+**Test Coverage**: 26/26 passing (100%)  
+
+### Deliverables
+
+1. **Module**: `src/versions/v2.0.0/lib/version-upgrade.js` (397 lines)
+   - 8 core functions: validateUpgradePath, checkBreakingChanges, validateFeatureParity, getUpgradeRisks, shouldBlockDowngrade, generateUpgradeReport, simulateUpgrade
+   - 3 error classes: UpgradeError, DowngradeBlockedError, BreakingChangeError
+   - 2 helpers: parseVersion, compareVersions
+   - Full semantic version comparison and breaking change detection
+
+2. **Test Suite**: `src/versions/v2.0.0/tests/version-upgrade.test.mjs` (442 lines)
+   - 8 test suites, 26 test cases (23 planned + 3 bonus edge cases)
+   - Suite 1: validateUpgradePath() — 3 tests ✓
+   - Suite 2: checkBreakingChanges() — 4 tests ✓
+   - Suite 3: validateFeatureParity() — 3 tests ✓
+   - Suite 4: getUpgradeRisks() — 4 tests ✓
+   - Suite 5: shouldBlockDowngrade() — 3 tests ✓
+   - Suite 6: generateUpgradeReport() — 3 tests ✓
+   - Suite 7: simulateUpgrade() — 2 tests ✓
+   - Suite 8: Edge Cases — 4 tests ✓
+
+3. **Fixtures**: `src/versions/v2.0.0/tests/mocks/manifest-mock.mjs` (87 lines)
+   - getManifestV195() — v1.9.5 legacy version fixture
+   - getManifestV200() — v2.0.0 current version fixture
+   - getManifestV210() — v2.1.0 future version fixture
+   - getCorruptedManifest() — negative test fixture
+
+### Test Execution Results
+
+```
+Version Upgrade Validation Module (Step 32)
+  validateUpgradePath() — 3 passing
+  checkBreakingChanges() — 4 passing
+  validateFeatureParity() — 3 passing
+  getUpgradeRisks() — 4 passing
+  shouldBlockDowngrade() — 3 passing
+  generateUpgradeReport() — 3 passing
+  simulateUpgrade() — 2 passing
+  Edge Cases & Error Handling — 4 passing
+
+✓ Total: 26 passing (11ms)
+✓ Build: Success
+```
+
+### Capabilities
+
+- ✅ Validates upgrade paths (v1.9.5 → v2.0.0)
+- ✅ Detects breaking changes (feature removals, API incompatibilities)
+- ✅ Validates feature parity across versions
+- ✅ Identifies risks (experimental features, deprecations)
+- ✅ Prevents unsafe downgrades
+- ✅ Generates human-readable upgrade reports
+- ✅ Supports dry-run simulation
+- ✅ Handles version parsing and comparison
+- ✅ Recovers from errors gracefully
+- ✅ Validates manifest schemas
+
+### Related Steps Enabled
+
+- **Step 10**: Version downgrade warning (uses shouldBlockDowngrade)
+- **Step 35**: npm package download (upgrade path context)
+- **Step 120**: Upgrade path documentation (uses generateUpgradeReport)
+
+---
+
+**Last Verified**: Step 32 completed with 26/26 tests passing  
 **Plan Version**: v2.1 (npm-based, Complete 155-Step Master Plan)  
 **Format**: Markdown (offline reference, single source of truth)  
-**Next Action**: Step 32 (npm version upgrade test)
+**Next Action**: Step 33 (bridge documentation)
