@@ -362,17 +362,70 @@ describe('BridgeServer', () => {
 });
 ```
 
+## Integration Tests (Step 30)
+
+**Location:** `src/VSIXProject1.Tests/IPC/BridgeIntegrationTests.cs`
+
+End-to-end tests for the complete bridge communication stack. These tests exercise the interaction between:
+- `BridgeConfiguration` (settings)
+- `StdioTransport` (process + stdio I/O)  
+- `ProcessManager` (process lifecycle)
+- `MessageBufferer` (message queuing)
+- `JsonRpcProtocol` (JSON-RPC message wrapping)
+
+Without mocking internal components, allowing validation of real message flow.
+
+### Test Classes
+
+#### BridgeLifecycleIntegrationTests
+Tests full startup, shutdown, and health check cycle:
+- `WhenBridgeStartsWithValidConfig_ThenIsRunningBecomesTrue` - validates process spawn
+- `WhenBridgeStopsAfterStart_ThenIsRunningBecomesFalse` - validates graceful shutdown  
+- `WhenBridgeStartsMultipleTimes_ThenOnlyOneProcessCreated` - validates idempotence
+- `WhenBridgeStartIsCancel_ThenThrowsOperationCanceled` - validates cancellation
+
+#### BridgeRequestResponseIntegrationTests
+Tests JSON-RPC serialization, buffering, and round-trip flow:
+- `WhenSendingJsonRpcRequest_ThenMessageSerializedAndSent` - validates send path
+- `WhenSendingOnStoppedTransport_ThenThrowsInvalidOperationException` - validates state checks
+- `WhenSendingConcurrentMessages_ThenOrderPreservedBySemaphore` - validates send ordering
+
+#### BridgeErrorPropagationIntegrationTests
+Tests error handling and event propagation:
+- `WhenReceivingMalformedJson_ThenOnErrorEventFires` - validates error detection
+- `WhenProcessExits_ThenOnClosedEventFires` - validates process exit handling
+
+#### BridgeConcurrentOperationsIntegrationTests
+Tests concurrent operation handling without deadlock:
+- `WhenSending10MessagesInParallel_ThenAllCompleteWithoutDeadlock` - validates serialization
+- `WhenCancellingConcurrentSends_ThenAllThrowOperationCanceled` - validates cancellation propagation
+
+### Running Integration Tests
+
+**Note:** Integration tests require npm to be installed. They gracefully skip when npm is unavailable.
+
+```bash
+# Run only integration tests
+dotnet test --filter "ClassName~IntegrationTests"
+
+# Run specific integration test class
+dotnet test --filter "ClassName=BridgeLifecycleIntegrationTests"
+
+# Run with verbose output for diagnostics
+dotnet test --verbosity detailed --filter "ClassName~IntegrationTests"
+```
+
 ### Shared Test Patterns
 
 1. **Async Operations with Timeout**
-   ```csharp
+```csharp
    // C#
    await AsyncTestHelper.AssertCompletesAsync(operation(), timeoutMs: 1000);
-   ```
-   ```javascript
+```
+```javascript
    // Node.js
    await assertCompletes(operation(), { timeoutMs: 1000 });
-   ```
+```
 
 2. **Polling for Conditions**
    ```csharp
