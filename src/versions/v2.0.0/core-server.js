@@ -61,6 +61,9 @@ import { existsSync, mkdirSync } from 'fs';
 import process from 'process';
 import { randomUUID } from 'crypto';
 
+// Step 14: Handler Dispatcher for message routing
+import HandlerDispatcher from './lib/handler-dispatcher.js';
+
 // ============================================================================
 // Configuration & Constants
 // ============================================================================
@@ -194,6 +197,13 @@ class BridgeServer {
       restarts: 0,
       startTime: Date.now(),
     };
+
+    // Step 14: Initialize handler dispatcher for bridge message routing
+    this.dispatcher = new HandlerDispatcher({
+      logger: this.logger,
+      metrics: null, // Step 26 will inject metrics
+      server: this,
+    });
   }
 
   /**
@@ -307,6 +317,37 @@ class BridgeServer {
       ...this.healthCheck.getStatus(),
       metrics: this.getMetrics(),
     };
+  }
+
+  /**
+   * Register a handler with the dispatcher (used by Step 71).
+   * 
+   * @param {string} messageType - Message type to handle (e.g., "bridge:getEditorState")
+   * @param {Function} handler - Handler function (async)
+   * @throws {Error} If handler already registered for this type
+   */
+  registerHandler(messageType, handler) {
+    this.dispatcher.register(messageType, handler);
+  }
+
+  /**
+   * Get dispatcher diagnostics (for debugging/telemetry).
+   * 
+   * @returns {Object} Diagnostics including handler count and list
+   */
+  getDispatcherDiagnostics() {
+    return this.dispatcher.getDiagnostics();
+  }
+
+  /**
+   * Dispatch a message through the handler registry.
+   * Used by Step 15 (handler adapter) to route IDE input.
+   * 
+   * @param {Object} message - Message to dispatch
+   * @returns {Promise<Object>} Dispatch result with routing decision
+   */
+  async dispatchMessage(message) {
+    return this.dispatcher.dispatch(message);
   }
 
   // ========================================================================
