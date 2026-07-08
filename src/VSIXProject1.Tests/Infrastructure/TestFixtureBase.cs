@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Moq;
 using Xunit;
 
@@ -50,6 +51,30 @@ namespace ContinueVS.Tests.Infrastructure
             var mock = new Mock<T>(MockBehavior.Default);
             _mocks.Add(mock);
             return mock;
+        }
+
+        /// <summary>
+        /// Checks if npm is available in the current environment.
+        /// </summary>
+        /// <returns>true if npm --version succeeds; false otherwise</returns>
+        protected bool IsNpmAvailable()
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("npm", "--version")
+                {
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(1000);
+                return proc?.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>

@@ -59,31 +59,6 @@ namespace ContinueVS.Tests.IPC
         }
 
         /// <summary>
-        /// Helper: Gracefully skip test if npm is unavailable.
-        /// </summary>
-        private void SkipIfNpmUnavailable()
-        {
-            try
-            {
-                var psi = new ProcessStartInfo("npm", "--version")
-                {
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(1000);
-                if (proc?.ExitCode != 0)
-                    throw new InvalidOperationException("npm not available");
-            }
-            catch
-            {
-                // npm not available in this environment, skip test gracefully
-                throw new InvalidOperationException("npm is not available");
-            }
-        }
-
-        /// <summary>
         /// Helper: Get test version path (resolve from solution root).
         /// </summary>
         private string GetTestVersionPath()
@@ -113,7 +88,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenBridgeStartsWithValidConfig_ThenIsRunningBecomesTrue()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
@@ -160,7 +136,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenBridgeStopsAfterStart_ThenIsRunningBecomesFalse()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
@@ -197,7 +174,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenBridgeStartsMultipleTimes_ThenOnlyOneProcessCreated()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
@@ -240,6 +218,10 @@ namespace ContinueVS.Tests.IPC
         [Fact]
         public async Task WhenBridgeStartIsCancel_ThenThrowsOperationCanceled()
         {
+            // Skip if npm unavailable (required for process startup)
+            if (!IsNpmAvailable())
+                return;
+
             // Arrange
             var config = CreateTestBridgeConfiguration(startupTimeoutMs: 100);
             var transport = new StdioTransport(config);
@@ -291,30 +273,6 @@ namespace ContinueVS.Tests.IPC
         }
 
         /// <summary>
-        /// Helper: Gracefully skip if npm unavailable.
-        /// </summary>
-        private void SkipIfNpmUnavailable()
-        {
-            try
-            {
-                var psi = new ProcessStartInfo("npm", "--version")
-                {
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(1000);
-                if (proc?.ExitCode != 0)
-                    throw new InvalidOperationException("npm not available");
-            }
-            catch
-            {
-                throw new InvalidOperationException("npm is not available");
-            }
-        }
-
-        /// <summary>
         /// Integration test: SendMessageAsync serializes and sends JSON-RPC request.
         /// 
         /// This validates:
@@ -326,7 +284,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenSendingJsonRpcRequest_ThenMessageSerializedAndSent()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
@@ -395,7 +354,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenSendingConcurrentMessages_ThenOrderPreservedBySemaphore()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
@@ -470,30 +430,6 @@ namespace ContinueVS.Tests.IPC
         }
 
         /// <summary>
-        /// Helper: Gracefully skip if npm unavailable.
-        /// </summary>
-        private void SkipIfNpmUnavailable()
-        {
-            try
-            {
-                var psi = new ProcessStartInfo("npm", "--version")
-                {
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(1000);
-                if (proc?.ExitCode != 0)
-                    throw new InvalidOperationException("npm not available");
-            }
-            catch
-            {
-                throw new InvalidOperationException("npm is not available");
-            }
-        }
-
-        /// <summary>
         /// Integration test: Invalid message format triggers OnError event.
         /// 
         /// This validates:
@@ -540,7 +476,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenProcessExits_ThenOnClosedEventFires()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
@@ -610,28 +547,6 @@ namespace ContinueVS.Tests.IPC
         }
 
         /// <summary>
-        /// Helper: Gracefully skip if npm unavailable.
-        /// </summary>
-        private void SkipIfNpmUnavailable()
-        {
-            try
-            {
-                var psi = new ProcessStartInfo("npm", "--version")
-                {
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-                using var proc = Process.Start(psi);
-                proc?.WaitForExit(1000);
-                if (proc?.ExitCode != 0)
-                    throw new InvalidOperationException("npm not available");
-            }
-            catch
-            {
-                throw new InvalidOperationException("npm is not available");
-            }
-        }
 
         /// <summary>
         /// Integration test: Multiple send operations execute serially without deadlock.
@@ -644,7 +559,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenSending10MessagesInParallel_ThenAllCompleteWithoutDeadlock()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
@@ -705,7 +621,8 @@ namespace ContinueVS.Tests.IPC
         public async Task WhenCancellingConcurrentSends_ThenAllThrowOperationCanceled()
         {
             // Skip if npm unavailable
-            SkipIfNpmUnavailable();
+            if (!IsNpmAvailable())
+                return;
 
             // Arrange
             var config = CreateTestBridgeConfiguration();
