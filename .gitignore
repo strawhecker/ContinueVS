@@ -292,14 +292,34 @@ FakesAssemblies/
 
 # Node.js Tools for Visual Studio
 .ntvs_analysis.dat
-node_modules/
 
-# ContinueVS Bridge npm package cache
-# Downloaded packages and checksums (Steps 35–37)
-# Keep directory structure and metadata, ignore binary packages
-*.tgz
-*.tgz.sha256
-*.tgz.sha512
+# Node.js & npm package artifacts (Step 38: bridge npm cache strategy)
+node_modules/
+/.npm
+npm-debug.log*
+npm-error.log*
+/.npmrc
+/package-lock.json
+/pnpm-lock.yaml
+/yarn.lock
+
+# ContinueVS Bridge npm package cache (Steps 35–37)
+# Downloaded Continue npm packages and integrity validation files.
+# Directory structure preserved via .gitkeep files; binary artifacts ignored.
+# This strategy enables offline-capable deployments without committing large
+# .tgz binaries (~50MB+) to the repository.
+.cache/npm-packages/**/*.tgz
+.cache/npm-packages/**/*.tgz.sha256
+.cache/npm-packages/**/*.tgz.sha512
+.cache/npm-packages/**/.metadata/
+.cache/npm-packages/**/*.json.backup
+.cache/npm-packages/**/.etag
+.cache/npm-packages/**/.package-lock
+
+# npm cache and temp directories (if npm install used in future steps)
+~/.npm/
+.npm/
+dist/
 
 # Visual Studio 6 build log
 *.plg
