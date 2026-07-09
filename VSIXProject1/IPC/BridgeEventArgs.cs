@@ -307,4 +307,44 @@ namespace ContinueVS.IPC
             Context = context;
         }
     }
+
+    /// <summary>
+    /// Event arguments raised during bridge lifecycle transitions.
+    /// Used by IBridgeLifecycleManager for OnBridgeReady, OnBridgeDegraded, OnBridgeShutdown events.
+    /// </summary>
+    public sealed class BridgeLifecycleEventArgs : EventArgs
+    {
+        /// <summary>The current bridge lifecycle state.</summary>
+        public required BridgeLifecycleState State { get; set; }
+
+        /// <summary>Timestamp of the state transition.</summary>
+        public required DateTime Timestamp { get; set; }
+
+        /// <summary>Human-readable reason for the state transition.</summary>
+        public required string Reason { get; set; }
+
+        /// <summary>Optional error details if the transition was due to an error.</summary>
+        public Exception? Error { get; set; }
+    }
+
+    /// <summary>
+    /// Bridge lifecycle state enumeration (used by Step 45 BridgeLifecycleManager).
+    /// </summary>
+    public enum BridgeLifecycleState
+    {
+        /// <summary>Bridge not yet initialized.</summary>
+        NotInitialized,
+
+        /// <summary>Bridge initialization in progress.</summary>
+        Initializing,
+
+        /// <summary>Bridge ready and operational.</summary>
+        Ready,
+
+        /// <summary>Bridge experiencing issues; recovery in progress.</summary>
+        Degraded,
+
+        /// <summary>Bridge has been shut down.</summary>
+        Shutdown
+    }
 }
