@@ -129,6 +129,18 @@ namespace ContinueVS.UI
                     folderPath:        GuiExtractor.GuiRoot,
                     accessKind:        CoreWebView2HostResourceAccessKind.Allow);
 
+                // Inject the continueVS bridge (must happen before navigation)
+                var injector = new WebviewInjector();
+                var injectionResult = await injector.InjectBridgeAsync(
+                    WebView.CoreWebView2,
+                    System.Threading.CancellationToken.None);
+
+                if (!injectionResult.Success)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[ContinueVS] Webview bridge injection failed: {injectionResult.ErrorMessage}");
+                }
+
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
                 _webViewInitialized = true;
                 _pusher.Subscribe();
