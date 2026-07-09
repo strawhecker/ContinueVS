@@ -38,6 +38,9 @@ namespace ContinueVS
         /// <summary>Bridge telemetry collector instance (Step 26).</summary>
         public static IBridgeTelemetryCollector? TelemetryCollector { get; private set; }
 
+        /// <summary>Feature flag for bridge mode (Step 40). Set during InitializeAsync from ContinueOptionsPage.EnableBridgeMode.</summary>
+        public static bool EnableBridgeMode { get; private set; } = true;
+
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
@@ -68,6 +71,9 @@ namespace ContinueVS
             if (optionsPage != null)
             {
                 optionsPage.ActiveBridgeVersion = VersionManager.GetActiveVersion();
+
+                // Cache the EnableBridgeMode feature flag for access by BridgeLifecycleManager (Step 45)
+                EnableBridgeMode = optionsPage.EnableBridgeMode;
             }
 
             await ShowContinuePanelCommand.InitializeAsync(this);
@@ -86,6 +92,7 @@ namespace ContinueVS
                 DowngradeWarningService = null;
                 Logger = null;
                 TelemetryCollector = null;
+                EnableBridgeMode = true; // Reset to default
             }
 
             base.Dispose(disposing);

@@ -890,17 +890,34 @@ node core-server.js --log-level debug --log-dir ./logs
 
 **Step 40: Add feature flag for bridge mode**
 
-Flag: `bridge_mode`
-- `true` — Use npm-based bridge for all Continue communication
-- `false` — (Legacy) Use old binary-based IPC
+**Environment Variable:** `FEATURE_FLAG_BRIDGE_MODE`
 
-Checked at startup:
+- **Source:** `ContinueOptionsPage.EnableBridgeMode` (Tools → Options → Continue → Bridge)
+- **Exported by:** `BridgeConfigurationExtensions.ExportBridgeFlagsAsEnvironmentVariables()`
+- **Values:**
+  - `"true"` — Use npm-based bridge for all Continue communication (default)
+  - `"false"` — Fall back to legacy translator binary
+
+**Implementation Flow:**
+1. User sets `Enable bridge mode` toggle in Tools → Options → Continue → Bridge
+2. On extension startup, `ContinueVSPackage.InitializeAsync()` reads `ContinueOptionsPage.EnableBridgeMode`
+3. Flag value is cached in `ContinueVSPackage.EnableBridgeMode` static property
+4. During bridge lifecycle initialization (Step 45), `BridgeConfigurationExtensions.ExportBridgeFlagsAsEnvironmentVariables()` exports flag to environment
+5. npm server (core-server.js) checks `process.env.FEATURE_FLAG_BRIDGE_MODE` at startup
+
+**Usage in JavaScript (core-server.js):**
 ```javascript
 if (process.env.FEATURE_FLAG_BRIDGE_MODE === 'false') {
-  logger.warn('Bridge mode disabled; falling back to legacy IPC');
+  logger.warn('Bridge mode disabled; falling back to legacy translator');
   process.exit(1);
 }
 ```
+
+**Test Coverage:**
+- Property defaults to `true` (safe for users)
+- Property is readable/writable via VS Options UI
+- Environment variable correctly exported for both `true`/`false` states
+- Tests: `src/VSIXProject1.Tests/Settings/ContinueOptionsPageTests.cs`
 
 ---
 

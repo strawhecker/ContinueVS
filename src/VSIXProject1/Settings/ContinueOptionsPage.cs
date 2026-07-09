@@ -29,5 +29,10 @@ namespace ContinueVS.Settings
         [Description("Currently active npm-based Continue bridge version. Version changes require extension restart.")]
         [ReadOnly(true)]
         public string ActiveBridgeVersion { get; set; } = "2.0.0";
+
+        [Category("Bridge")]
+        [DisplayName("Enable bridge mode")]
+        [Description("Use npm-based Continue bridge for all operations. Disable to fall back to legacy translator. Takes effect on next extension startup.")]
+        public bool EnableBridgeMode { get; set; } = true;
     }
 }
