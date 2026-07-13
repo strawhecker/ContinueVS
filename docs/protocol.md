@@ -523,3 +523,79 @@ Emitter gaps have been fixed (TODO-025). context/, config/, and llm/ groups are 
 ### Messenger Implementation Classes
 `InProcessMessenger`, `MessageIde`, `ReverseMessageIde` â€” all methods are TODO stubs
 with unresolved TS type signatures. See `Protocol/Messenger/` for details.
+---
+
+## Document Lifecycle Messages (Step 52)
+
+Bridge v2.1 adds structured document lifecycle events for handler access via DocumentProvider.
+Direction: IDE (C#) ? Core (Node.js bridge).
+
+### openDocuments
+**Description:** Bulk load of all currently open documents (initial synchronization from IDE).
+**Payload:**
+\\\javascript
+{
+  documents: [
+    {
+      filepath: string,            // Absolute file path
+      contents: string,            // Full file contents
+      language: string,            // Programming language ('csharp', 'javascript', 'python', etc.)
+      isDirty: boolean,            // Whether document has unsaved changes
+      encoding?: string,           // Character encoding (default: 'utf-8')
+      metadata?: {                 // Optional metadata
+        projectPath?: string,
+        compiler?: string,
+        framework?: string
+      }
+    },
+    // ... more documents
+  ]
+}
+\\\
+**Response:** void
+**Consumer:** DocumentProvider (initializes cache with all open documents)
+
+### didOpenDocument
+**Description:** Single document opened in IDE.
+**Payload:**
+\\\javascript
+{
+  filepath: string,              // Absolute file path
+  contents: string,              // Full file contents
+  language: string,              // Programming language
+  isDirty: boolean,              // Whether document has unsaved changes
+  encoding?: string,             // Character encoding
+  metadata?: {                   // Optional metadata
+    projectPath?: string,
+    compiler?: string,
+    framework?: string
+  }
+}
+\\\
+**Response:** void
+**Consumer:** DocumentProvider.onDocumentOpen listeners; handlers (Steps 53�61)
+
+### didChangeDocument
+**Description:** Document modified (content or dirty flag changed).
+**Payload:**
+\\\javascript
+{
+  filepath: string,              // Absolute file path
+  contents: string,              // Updated file contents
+  isDirty: boolean,              // Updated dirty flag
+  encoding?: string              // Character encoding (if changed)
+}
+\\\
+**Response:** void
+**Consumer:** DocumentProvider.onDocumentChange listeners; diagnostics collector (Step 54)
+
+### didCloseDocument
+**Description:** Document closed in IDE.
+**Payload:**
+\\\javascript
+{
+  filepath: string               // Absolute file path of closed document
+}
+\\\
+**Response:** void
+**Consumer:** DocumentProvider (removes from cache); cleanup listeners

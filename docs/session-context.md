@@ -72,7 +72,7 @@
 | 49 | Create selection tracker | None | 51 |
 | 50 | Create getEditorState handler | 48,49 | 71 |
 | 51 | Create onEditorStateChange subscription | 49 | 71 |
-| 52 | Create document provider | None | 71 |
+| 52 | Create document provider | None | 71 | ✅ COMPLETE |
 | 53 | Create symbol extractor | None | 71 |
 | 54 | Create diagnostics collector | None | 71 |
 | 55 | Create search handler | None | 71 |

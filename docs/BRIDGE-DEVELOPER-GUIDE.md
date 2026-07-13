@@ -630,6 +630,263 @@ See `src/versions/v2.0.0/tests/selection-tracker.test.mjs` for comprehensive tes
 
 ---
 
+## Document Provider (Step 52)
+
+### Overview
+
+The **DocumentProvider** is a centralized cache for open documents in the IDE. It receives document lifecycle updates from the C# layer via message handlers and maintains normalized document state. Handlers (Steps 53–61) query this provider instead of re-fetching from the IDE, improving performance and reducing coupling to IDE services.
+
+**Module**: `src/versions/v2.0.0/lib/document-provider.mjs`
+**Message Types**: `openDocuments`, `didOpenDocument`, `didChangeDocument`, `didCloseDocument`
+**Export Classes**: `DocumentProvider`, `DocumentProviderError`, `DocumentValidationError`
+**Related Steps**: 46 (bootstrap), 53–61 (handlers), 67 (tests), 71 (registry)
+
+### Public API
+
+**Constructor**
+```javascript
+const provider = new DocumentProvider({
+  logger: LoggerInstance,          // optional; defaults to no-op
+  metrics: MetricsInstance         // optional; defaults to no-op
+});
+```
+
+**Message Handler Registration** (async)
+```javascript
+await provider.registerMessageHandlers(server);
+// Subscribe to openDocuments, didOpenDocument, didChangeDocument, didCloseDocument
+// Throws DocumentProviderError if server or messageHandler invalid
+```
+
+**Synchronous Getters** (thread-safe)
+```javascript
+provider.getDocument(filepath)               // → Document | null
+provider.getAllDocuments()                   // → Document[]
+provider.getDocumentByLanguage('csharp')    // → Document[]
+provider.getDocumentMetadata(filepath)       // → {filepath, language, isDirty, lines, metadata} | null
+provider.hasDocument(filepath)               // → boolean
+provider.getDocumentCount()                  // → number
+```
+
+**Subscriptions**
+```javascript
+const unsubscribe1 = provider.onDocumentChange((newDoc, oldDoc) => {
+  console.log(`Document changed: ${newDoc.filepath}`);
+});
+
+const unsubscribe2 = provider.onDocumentOpen((doc) => {
+  console.log(`Document opened: ${doc.filepath}`);
+});
+
+const unsubscribe3 = provider.onDocumentClose((filepath) => {
+  console.log(`Document closed: ${filepath}`);
+});
+
+// Later: stop listening
+unsubscribe1();
+unsubscribe2();
+unsubscribe3();
+```
+
+**Cleanup**
+```javascript
+provider.dispose();  // Clear cache and remove all listeners
+```
+
+### Document Typedef
+
+```javascript
+{
+  filepath: string,                // Absolute file path
+  contents: string,                // Full file contents
+  language: string,                // Programming language (e.g., 'csharp', 'javascript', 'python')
+  isDirty: boolean,                // Whether document has unsaved changes
+  encoding: string,                // Character encoding (default: 'utf-8')
+  lines: number,                   // Cached line count (calculated from contents)
+  lastModified: number,            // Unix timestamp of last modification
+  metadata: {                       // Additional metadata
+    projectPath?: string,
+    compiler?: string,
+    framework?: string,
+    customData?: any
+  }
+}
+```
+
+### Message Types
+
+**openDocuments** — Bulk load of all open documents (initial sync)
+```javascript
+// From IDE (C#)
+{
+  messageType: "openDocuments",
+  data: {
+    documents: [
+      { filepath, contents, language, isDirty, metadata, ... },
+      // ...
+    ]
+  }
+}
+
+// Effect: Clears cache, adds all documents, emits onDocumentOpen for each
+```
+
+**didOpenDocument** — Single document opened
+```javascript
+// From IDE (C#)
+{
+  messageType: "didOpenDocument",
+  data: { filepath, contents, language, isDirty, metadata }
+}
+
+// Effect: Adds document to cache, emits onDocumentOpen
+```
+
+**didChangeDocument** — Document modified (content or dirty flag)
+```javascript
+// From IDE (C#)
+{
+  messageType: "didChangeDocument",
+  data: { filepath, contents, isDirty }
+}
+
+// Effect: Updates document, emits onDocumentChange with old state
+```
+
+**didCloseDocument** — Document closed
+```javascript
+// From IDE (C#)
+{
+  messageType: "didCloseDocument",
+  data: { filepath }
+}
+
+// Effect: Removes document from cache, emits onDocumentClose
+```
+
+### Error Handling
+
+**DocumentProviderError** — Thrown during setup/registration failures:
+```javascript
+try {
+  await provider.registerMessageHandlers(invalidServer);
+} catch (error) {
+  if (error instanceof DocumentProviderError) {
+    console.error(`Setup failed: ${error.operationType}`);
+    // operationType: 'registration', 'initialization', etc.
+    if (error.originalError) {
+      console.error(`Original error: ${error.originalError.message}`);
+    }
+  }
+}
+```
+
+**DocumentValidationError** — Thrown when incoming data is malformed:
+```javascript
+// Validation happens internally; logged but not thrown externally
+// Handlers log errors and continue gracefully
+```
+
+### Usage in Handlers
+
+**Step 53: Symbol Extractor**
+```javascript
+// Query provider for document contents and language
+const doc = provider.getDocument(filepath);
+if (doc) {
+  const symbols = extractSymbols(doc.contents, doc.language);
+  return { symbols };
+}
+```
+
+**Step 54: Diagnostics Collector**
+```javascript
+// Monitor all documents for diagnostics
+provider.onDocumentChange((newDoc, oldDoc) => {
+  runDiagnosticsOnDocument(newDoc);
+});
+```
+
+**Step 55+: Search, Navigation, Completions, etc.**
+```javascript
+// All handlers follow similar pattern
+const docs = provider.getDocumentByLanguage('csharp');
+docs.forEach((doc) => {
+  // Process document
+});
+```
+
+### Performance Characteristics
+
+- **Getters**: O(1) synchronous — no await needed
+- **Message handling**: O(1) per message; O(n) for listeners where n = subscriber count
+- **Memory**: 100 bytes overhead per document + file content size
+- **Cache invalidation**: Automatic on close; update on change
+- **Listener isolation**: Exceptions in one listener do not affect others
+
+### Related Steps
+
+- **Step 46** — WebView bootstrap handler (instantiates provider)
+- **Step 48** — Editor context collector (parallel caching pattern)
+- **Step 49** — Selection tracker (parallel state tracking)
+- **Step 53–61** — Handler implementations (consume provider queries)
+- **Step 67** — Handler tests (test provider integration)
+- **Step 71** — Handler registration (handlers register dependencies on provider)
+
+### Testing
+
+```javascript
+import { describe, it } from 'mocha';
+import { DocumentProvider } from '../lib/document-provider.mjs';
+import { createMockServer, getMockCSharpDocument } from './mocks/document-mock.mjs';
+
+describe('Document Provider', () => {
+  it('should cache and retrieve documents', async () => {
+    const provider = new DocumentProvider();
+    const server = createMockServer();
+    await provider.registerMessageHandlers(server);
+
+    const doc = getMockCSharpDocument();
+    server.messageHandler.emit('openDocuments', {
+      data: { documents: [doc] }
+    });
+
+    const retrieved = provider.getDocument(doc.filepath);
+    expect(retrieved).to.exist;
+    expect(retrieved.filepath).to.equal(doc.filepath);
+    expect(retrieved.language).to.equal('csharp');
+  });
+
+  it('should notify listeners of changes', (done) => {
+    const provider = new DocumentProvider();
+    const server = createMockServer();
+    await provider.registerMessageHandlers(server);
+
+    const doc = getMockCSharpDocument();
+    server.messageHandler.emit('openDocuments', {
+      data: { documents: [doc] }
+    });
+
+    provider.onDocumentChange((newDoc, oldDoc) => {
+      expect(newDoc.isDirty).to.be.true;
+      done();
+    });
+
+    server.messageHandler.emit('didChangeDocument', {
+      data: {
+        filepath: doc.filepath,
+        contents: doc.contents + '\n// change',
+        isDirty: true
+      }
+    });
+  });
+});
+```
+
+See `src/versions/v2.0.0/tests/document-provider.test.mjs` for comprehensive test suite (31 tests, 100% coverage, 8 suites: initialization, registration, cache ops, queries, state tracking, listeners, disposal, edge cases).
+
+---
+
 ## Get Editor State Handler (Step 50)
 
 ### Overview
