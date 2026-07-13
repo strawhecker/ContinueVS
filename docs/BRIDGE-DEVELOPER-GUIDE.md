@@ -630,6 +630,190 @@ See `src/versions/v2.0.0/tests/selection-tracker.test.mjs` for comprehensive tes
 
 ---
 
+## Get Editor State Handler (Step 50)
+
+### Overview
+
+The **getEditorState handler** is a stateless query handler that returns a snapshot of the current editor state. It queries the `EditorContextCollector` (Step 48) and synthesizes a complete `EditorState` response containing file path, cursor position, selection, and diagnostics.
+
+**Message Type**: `bridge:getEditorState`
+**Input**: BridgeMessage (no parameters required)
+**Output**: BridgeResponse with EditorState data
+**Dependencies**: EditorContextCollector (Step 48)
+
+### Architecture
+
+```
+[Continue/IDE] sends bridge:getEditorState request
+  ↓
+[dispatcher] routes to getEditorStateHandler
+  ↓
+[handler] queries EditorContextCollector for:
+  • activeFile (filepath, contents, cursorLine, cursorColumn, language, projectPath, diagnosticsCount)
+  • cursorPosition (line, character)
+  • selection (text, start, end)
+  ↓
+[handler] assembles EditorState typedef
+  ↓
+[dispatcher] wraps in BridgeResponse { success: true, data: EditorState }
+  ↓
+[core-server] sends response via stdio
+```
+
+### EditorState Typedef
+
+```javascript
+{
+  activeFile: "/home/user/file.cs" | null,          // Current file path or null
+  cursorLine: 42,                                    // 0-based line number
+  cursorColumn: 10,                                  // 0-based column offset
+  selectedText: "foo",                               // Selected text or empty string
+  selectionStart: 100,                               // Selection start offset (0-based)
+  selectionEnd: 103,                                 // Selection end offset (0-based)
+  fileContent: "using System;\n...",                 // Full file contents
+  language: "csharp",                                // Language ID (e.g., "csharp", "python")
+  projectPath: "/home/user/project",                 // Workspace root path
+  diagnosticsCount: 3,                               // Number of diagnostics at cursor
+  lastUpdate: "2024-01-15T10:30:00.000Z"             // ISO timestamp (optional)
+}
+```
+
+### Usage
+
+```javascript
+import { getEditorStateHandler, createGetEditorStateHandler } from '../lib/get-editor-state-handler.mjs';
+
+// Option 1: Use handler directly (requires context.editorContextCollector)
+const response = await getEditorStateHandler(message, context);
+
+// Option 2: Create bound handler for dependency injection (Step 71)
+const boundHandler = createGetEditorStateHandler(editorContextCollector);
+dispatcher.registerHandler('bridge:getEditorState', boundHandler);
+
+// Expected response (success):
+{
+  success: true,
+  data: {
+    activeFile: "C:\\project\\Main.cs",
+    cursorLine: 5,
+    cursorColumn: 10,
+    selectedText: "Program",
+    selectionStart: 40,
+    selectionEnd: 47,
+    fileContent: "using System;\nclass Program {}",
+    language: "csharp",
+    projectPath: "C:\\project",
+    diagnosticsCount: 2,
+    lastUpdate: "2024-01-15T10:30:00.000Z"
+  }
+}
+
+// Expected response (no file open):
+{
+  success: true,
+  data: {
+    activeFile: null,
+    cursorLine: 0,
+    cursorColumn: 0,
+    selectedText: "",
+    selectionStart: -1,
+    selectionEnd: -1,
+    fileContent: "",
+    language: "unknown",
+    projectPath: "",
+    diagnosticsCount: 0,
+    lastUpdate: null
+  }
+}
+```
+
+### Error Handling
+
+**GetEditorStateError** — Thrown when collector is not available:
+```javascript
+try {
+  const response = await getEditorStateHandler(msg, { editorContextCollector: null });
+} catch (error) {
+  if (error instanceof GetEditorStateError) {
+    console.error(`Error: ${error.message}`);
+    console.error(`Operation: ${error.operationType}`);
+  }
+}
+
+// Returns:
+{
+  success: false,
+  error: {
+    code: "EDITOR_STATE_ERROR",
+    message: "EditorContextCollector not initialized in context",
+    details: { operationType: "init" }
+  }
+}
+```
+
+### Performance Characteristics
+
+- **Latency**: ~1–2 ms (synchronous collector queries)
+- **Memory**: No allocations (returns existing cached state)
+- **Throughput**: Can handle hundreds of concurrent requests
+- **Timestamp**: Generated at handler execution time (not collector cache time)
+
+### Related Steps
+
+- **Step 48** — EditorContextCollector (state source)
+- **Step 49** — SelectionTracker (parallel implementation)
+- **Step 51** — onEditorStateChange subscription (subscription variant)
+- **Step 62** — Handler type definitions (EditorState typedef)
+- **Step 67** — Handler tests (editor context) — includes tests for this handler
+- **Step 71** — Handler registration (registers this handler)
+
+### Testing
+
+```javascript
+import { describe, it } from 'mocha';
+import { getEditorStateHandler } from '../lib/get-editor-state-handler.mjs';
+import { createEditorContextCollectorMock } from './mocks/editor-context-collector-mock.mjs';
+
+describe('getEditorStateHandler', () => {
+  it('should return complete editor state', async () => {
+    // Arrange
+    const collector = createEditorContextCollectorMock({
+      activeFile: {
+        filepath: 'C:\\project\\Main.cs',
+        contents: 'code',
+        cursorLine: 5,
+        cursorColumn: 10,
+        language: 'csharp',
+        projectPath: 'C:\\project',
+        diagnosticsCount: 2
+      },
+      cursorPosition: { line: 5, character: 10 },
+      selection: { text: 'text', start: 40, end: 44 }
+    });
+    const context = { editorContextCollector: collector };
+
+    // Act
+    const response = await getEditorStateHandler({}, context);
+
+    // Assert
+    assert.strictEqual(response.success, true);
+    assert.strictEqual(response.data.activeFile, 'C:\\project\\Main.cs');
+    assert.strictEqual(response.data.cursorLine, 5);
+    assert.strictEqual(response.data.selectedText, 'text');
+  });
+
+  it('should handle missing collector gracefully', async () => {
+    const response = await getEditorStateHandler({}, { editorContextCollector: null });
+    assert.strictEqual(response.success, false);
+    assert.strictEqual(response.error.code, 'EDITOR_STATE_ERROR');
+  });
+});
+```
+
+See `src/versions/v2.0.0/tests/get-editor-state-handler.test.mjs` for comprehensive test suite (15 tests, covering happy path, errors, partial state, and edge cases).
+
+---
+
 ## Anatomy of a Handler
 
 ### Step 1: Define the Message Type
