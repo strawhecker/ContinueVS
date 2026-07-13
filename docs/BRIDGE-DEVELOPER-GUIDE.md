@@ -395,6 +395,241 @@ See `src/versions/v2.0.0/tests/editor-context-collector.test.mjs` for comprehens
 
 ---
 
+## SelectionTracker
+
+### Overview
+
+The **SelectionTracker** is a dedicated module that manages fine-grained text selection state within the active editor. It subscribes to "currentFile" messages from `EditorContextCollector`, extracts and caches selection data (start position, end position, selected text), and emits change events for handlers that need to react to selection changes.
+
+**Key benefits:**
+- ✅ **Separation of Concerns** — EditorContextCollector handles activeFile + cursor; SelectionTracker owns selection logic
+- ✅ **Specialized Query Methods** — `isMultilineSelection()`, `getSelectedRange()`, `getSelectionLength()` for easy analysis
+- ✅ **Change Notifications** — `onSelectionChange()` subscription for handlers like `onEditorStateChange` (Step 51)
+- ✅ **State Validation** — Normalizes positions, validates ranges, gracefully handles malformed data
+
+### Architecture
+
+```
+IDE (C#)
+  └─ EditorContextProvider sends:
+     • "currentFile" → {..., selection: {start, end, text}}
+
+     ↓ (line-delimited JSON)
+
+Bridge Node.js Server
+  └─ SelectionTracker (Step 49)
+     • Receives updates via messageHandler subscription
+     • Normalizes & caches selection state
+     • Exposes synchronous getters + subscriptions
+
+     ↓ (consumed by handlers)
+
+  Step 51: onEditorStateChange — subscribes via tracker.onSelectionChange()
+  Step 60+: Various handlers — query tracker.getSelection(), tracker.isMultilineSelection()
+```
+
+### Cached State Shape
+
+```javascript
+{
+  selection: {
+    start: { line: 0, character: 10 },    // 0-based position
+    end: { line: 0, character: 20 },      // 0-based position
+    text: "selectedText",                  // Actual selected text
+    isMultiline: false                     // Convenience flag
+  },
+  lastUpdate: "2024-01-15T14:30:00.123Z"  // ISO timestamp
+}
+```
+
+### Basic Usage
+
+```javascript
+import { SelectionTracker } from '../lib/selection-tracker.mjs';
+
+// Step 46: During bridge initialization
+const tracker = new SelectionTracker({ logger, metrics });
+await tracker.registerMessageHandlers(server);
+
+// Step 51: In onEditorStateChange subscription
+async function onEditorStateChangeHandler(message, context) {
+  tracker.onSelectionChange((newSelection, oldSelection) => {
+    console.log(`Selection changed to: "${newSelection?.text || '(cleared)'}"`);
+
+    // Notify Continue via webview
+    context.server.messageHandler.emit('editorStateChanged', {
+      hasSelection: tracker.hasSelection(),
+      isMultiline: tracker.isMultilineSelection(),
+      length: tracker.getSelectionLength(),
+      range: tracker.getSelectedRange()
+    });
+  });
+
+  return { subscribed: true };
+}
+
+// Step 76+: In refactor or code action handlers
+async function refactorHandler(message, context) {
+  if (!tracker.hasSelection()) {
+    return { error: 'No text selected' };
+  }
+
+  const range = tracker.getSelectedRange();
+  console.log(`Refactoring lines ${range.startLine}–${range.endLine}`);
+
+  if (tracker.isMultilineSelection()) {
+    console.log('User selected multiple lines — can apply block refactor');
+  }
+
+  return { success: true };
+}
+```
+
+### Public API
+
+**Constructor**
+```javascript
+const tracker = new SelectionTracker({
+  logger: LoggerInstance,        // optional
+  metrics: MetricsInstance       // optional
+});
+```
+
+**Message Handler Registration** (async)
+```javascript
+await tracker.registerMessageHandlers(server);
+// Subscribe to "currentFile" messages from EditorContextCollector
+```
+
+**Update Selection** (typically called internally via message handler)
+```javascript
+tracker.updateSelection(
+  { line: 0, character: 10 },    // start position
+  { line: 0, character: 20 },    // end position
+  'selectedText'                  // text content
+);
+```
+
+**Synchronous Getters**
+```javascript
+tracker.getSelection()            // → {start, end, text, isMultiline} | null
+tracker.hasSelection()            // → boolean
+tracker.isMultilineSelection()   // → boolean
+tracker.getSelectedRange()       // → {startLine, startChar, endLine, endChar} | null
+tracker.getSelectionLength()     // → number (character count)
+```
+
+**Subscription**
+```javascript
+tracker.onSelectionChange((newSelection, oldSelection) => {
+  // Invoked whenever selection changes
+  // newSelection and oldSelection available for diffing
+  // oldSelection is null on first change
+});
+```
+
+**Cleanup**
+```javascript
+tracker.dispose();  // Remove all listeners (for shutdown/test cleanup)
+```
+
+### Error Handling
+
+**SelectionTrackerError** — Thrown during setup/registration failures:
+```javascript
+try {
+  await tracker.registerMessageHandlers(invalidServer);
+} catch (error) {
+  if (error instanceof SelectionTrackerError) {
+    console.error(`Setup failed: ${error.operationType}`);
+  }
+}
+```
+
+**StateValidationError** — Thrown when incoming data is malformed:
+```javascript
+try {
+  tracker.updateSelection(
+    { line: 'invalid' },           // Invalid line number
+    { line: 0, character: 10 },
+    'text'
+  );
+} catch (error) {
+  if (error instanceof StateValidationError) {
+    console.error(`Validation failed in field: ${error.fieldName}`);
+  }
+}
+```
+
+### Performance Characteristics
+
+- **Getters**: O(1) synchronous — no await needed
+- **Message handling**: O(n) where n = number of listeners (typically 1–3)
+- **Memory**: ~1–5 KB per selection (very small; positions + text)
+- **Change detection**: Deep equality check (avoids spurious events)
+
+### Related Steps
+
+- **Step 48** — EditorContextCollector (provides "currentFile" messages)
+- **Step 51** — onEditorStateChange subscription (depends on Step 49; consumes tracker callbacks)
+- **Step 60+** — Various handlers (query tracker state for refactoring, code actions, etc.)
+- **Step 67** — Handler tests (validates SelectionTracker integration)
+
+### Testing
+
+```javascript
+import { describe, it } from 'mocha';
+import { SelectionTracker } from '../lib/selection-tracker.mjs';
+
+describe('Selection Tracking', () => {
+  it('should update selection and return it via getSelection()', () => {
+    const tracker = new SelectionTracker();
+    tracker.updateSelection(
+      { line: 0, character: 5 },
+      { line: 0, character: 10 },
+      'hello'
+    );
+
+    const selection = tracker.getSelection();
+    expect(selection.text).to.equal('hello');
+    expect(selection.isMultiline).to.be.false;
+  });
+
+  it('should detect multiline selections', () => {
+    const tracker = new SelectionTracker();
+    tracker.updateSelection(
+      { line: 0, character: 0 },
+      { line: 3, character: 10 },
+      'multi\nline\ntext'
+    );
+
+    expect(tracker.isMultilineSelection()).to.be.true;
+    const range = tracker.getSelectedRange();
+    expect(range.endLine).to.equal(3);
+  });
+
+  it('should invoke listener when selection changes', (done) => {
+    const tracker = new SelectionTracker();
+
+    tracker.onSelectionChange((newSel, oldSel) => {
+      expect(newSel.text).to.equal('test');
+      expect(oldSel).to.be.null;
+      done();
+    });
+
+    tracker.updateSelection(
+      { line: 0, character: 0 },
+      { line: 0, character: 4 },
+      'test'
+    );
+  });
+});
+```
+
+See `src/versions/v2.0.0/tests/selection-tracker.test.mjs` for comprehensive test suite (27 tests, covering all query methods, error handling, message integration, and edge cases).
+
+---
+
 ## Anatomy of a Handler
 
 ### Step 1: Define the Message Type
