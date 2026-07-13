@@ -1785,6 +1785,189 @@ See `src/versions/v2.0.0/tests/go-to-definition-handler.test.mjs` for comprehens
 
 ---
 
+## Find-References Handler (Step 57)
+
+The **Find-References Handler** locates all references to a symbol within IDE context. It complements Step 56 (go-to-definition) by providing reverse navigation: instead of "go to definition," this handler answers "show me all uses of this symbol." Returns rich reference metadata (location, kind: declaration/read/write/import) for refactoring tools and AI comprehension.
+
+### Architecture
+
+Find-references aggregates symbols across three scopes:
+
+| Scope | Behavior | Typical Performance |
+|-------|----------|---------------------|
+| **file** | Query current SymbolExtractor table only | <50ms |
+| **project** | Combine file scope + text search across open documents | <250ms |
+| **workspace** | Same as project (Continue has no boundary) | <750ms |
+
+**Aggregation Flow**:
+1. Extract symbol at cursor via SymbolExtractor
+2. Search SymbolExtractor table for all matching names → ReferenceLocation[]
+3. If project/workspace scope, query DocumentProvider for cross-file text matches
+4. Deduplicate locations, format with kind (declaration, read, write, import)
+5. Truncate if > 2000 references (set `truncated: true`)
+
+### Handler Signature
+
+```javascript
+import { createFindReferencesHandler } from './lib/find-references-handler.mjs';
+
+const handler = createFindReferencesHandler({
+  symbolExtractor,    // Required: SymbolExtractor (Step 53)
+  documentProvider,   // Optional: DocumentProvider (Step 52)
+  logger,             // Optional: Logger instance
+  metrics             // Optional: Metrics collector
+});
+
+// Invoke
+const response = await handler(
+  {
+    messageType: 'bridge:findReferences',
+    messageId: 'msg-1',
+    data: {
+      filepath: '/path/to/file.cs',
+      line: 5,
+      column: 10,
+      searchScope: 'project'  // 'file' | 'project' | 'workspace' (default: 'file')
+    }
+  },
+  { logger, metrics, server }  // Dispatch context
+);
+
+// Response
+// {
+//   success: true,
+//   data: {
+//     references: [
+//       { file: '/main.cs', line: 20, column: 5, text: 'MySymbol', kind: 'read' },
+//       { file: '/utils.cs', line: 15, column: 3, text: 'MySymbol', kind: 'write' },
+//       ...
+//     ],
+//     totalCount: 42,
+//     truncated: false  // undefined if not truncated
+//   }
+// }
+```
+
+### Error Handling
+
+The handler wraps errors into structured exceptions:
+
+**ReferenceValidationError**
+- Thrown when input fails validation (missing/invalid filepath, negative line/column, invalid scope)
+- Returns `{ success: false, error: 'Validation: fieldName – message' }`
+
+**ReferenceError**
+- Thrown when execution fails (symbol extraction, reference aggregation, I/O)
+- Returns `{ success: false, error: 'operationType: message' }`
+- operationType: 'extraction', 'aggregation', 'search', 'io'
+
+### Related Steps
+
+- **Step 14** — Handler Dispatcher (routes messages)
+- **Step 47** — Message Routing Middleware (integrates handler)
+- **Step 52** — Document Provider (fallback search for project/workspace scopes)
+- **Step 53** — Symbol Extractor (main reference source)
+- **Step 54** — Diagnostics Collector (parallel infrastructure)
+- **Step 55** — Search Handler (similar pattern)
+- **Step 56** — Go-To-Definition Handler (complementary navigation)
+- **Step 62** — Handler Type Definitions (ReferenceLocation typedef)
+- **Step 68** — Handler Tests (search/navigation) — integration tests
+- **Step 71** — Handler Registration (dispatcher registration)
+
+### Performance Characteristics
+
+| Operation | Scope | Typical Time | Notes |
+|-----------|-------|--------------|-------|
+| Symbol lookup | File | <50ms | Cache hit from SymbolExtractor |
+| Reference aggregation | File | <50ms | O(n) linear scan of symbol tree |
+| Cross-file search | Project | <200ms | Text-based search in open docs |
+| Deduplication | Project | <50ms | Set-based dedup by location |
+| Workspace scope | Workspace | <750ms | All open documents + symbol table |
+
+### Testing
+
+The find-references handler includes 28 comprehensive test cases (7 suites):
+
+```javascript
+import { describe, it } from 'vitest';
+import { createFindReferencesHandler } from '../lib/find-references-handler.mjs';
+
+describe('find-references-handler: Reference Aggregation', () => {
+  it('should aggregate references from file scope', async () => {
+    const symbolExtractor = {
+      extractSymbols: async () => ({
+        success: true,
+        data: {
+          symbols: [
+            {
+              name: 'MyFunc',
+              kind: 'method',
+              file: '/file.cs',
+              line: 0, column: 0,
+              endLine: 1, endColumn: 1,
+              children: []
+            },
+            {
+              name: 'MyFunc',
+              kind: 'reference',
+              file: '/file.cs',
+              line: 10, column: 2,
+              endLine: 10, endColumn: 8,
+              children: []
+            }
+          ]
+        }
+      })
+    };
+
+    const handler = createFindReferencesHandler({ symbolExtractor });
+    const response = await handler(
+      {
+        messageType: 'bridge:findReferences',
+        messageId: 'msg-1',
+        data: { filepath: '/file.cs', line: 0, column: 0, searchScope: 'file' }
+      },
+      {}
+    );
+
+    expect(response.success).toBe(true);
+    expect(response.data.references.length).toBeGreaterThanOrEqual(2);
+  });
+});
+```
+
+See `src/versions/v2.0.0/tests/find-references-handler.test.mjs` for full test suite (28 tests, 7 suites: validation, symbol extraction, aggregation, formatting, fallback logic, error handling, edge cases).
+
+### Reference Kind Classification
+
+The handler annotates each reference with a **kind** to help refactoring tools understand the usage:
+
+| Kind | Example | Notes |
+|------|---------|-------|
+| `declaration` | `class MyClass { }` | Symbol definition site |
+| `read` | `var x = myVar;` | Read-only usage |
+| `write` | `myVar = 5;` | Assignment or mutation |
+| `import` | `using MyNamespace;` | Import/using statement |
+
+### Integration Example
+
+```javascript
+// In core-server.js handler dispatcher (Step 71)
+import { createFindReferencesHandler } from './lib/find-references-handler.mjs';
+
+const findReferencesHandler = createFindReferencesHandler({
+  symbolExtractor: globalSymbolExtractor,     // Shared from Step 53
+  documentProvider: globalDocumentProvider,   // Shared from Step 52
+  logger: bridgeLogger,                       // Shared logger
+  metrics: bridgeMetrics                      // Shared metrics
+});
+
+// Register handler
+dispatcher.on('bridge:findReferences', findReferencesHandler);
+```
+
+---
+
 ## Anatomy of a Handler
 
 ### Step 1: Define the Message Type
