@@ -1785,6 +1785,186 @@ See `src/versions/v2.0.0/tests/go-to-definition-handler.test.mjs` for comprehens
 
 ---
 
+## Code-Completion Handler (Step 58)
+
+### Overview
+
+The **codeCompletion handler** is a stateless query handler that generates intelligent code completion suggestions at a cursor position. It queries the `DocumentProvider` (Step 52) for the active document and the `SymbolExtractor` (Step 53) to retrieve available symbols at the cursor position. Symbols are filtered by accessibility scope, ranked by relevance, and mapped to `CompletionItem[]` format.
+
+**Message Type**: `bridge:getCompletion`  
+**Input**: BridgeMessage with `{ file: string, line: number, column: number }`  
+**Output**: BridgeResponse with CompletionItem[] data  
+**Dependencies**: DocumentProvider (Step 52), SymbolExtractor (Step 53)
+
+### Architecture
+
+```
+[Continue/IDE] sends bridge:getCompletion request { file, line, column }
+  ↓
+[dispatcher] routes to codeCompletionHandler
+  ↓
+[handler] validates input (types, non-negative bounds)
+  ↓
+[handler] queries DocumentProvider for active document
+  ↓ (graceful if document missing — returns empty completion list)
+[handler] calls SymbolExtractor.extractSymbols(file, line, column)
+  ↓ (graceful if extraction fails — returns partial results)
+[handler] filters symbols by accessibility scope (public, imported, keywords)
+  ↓
+[handler] ranks by relevance (distance from cursor, type, alphabetical)
+  ↓
+[handler] maps each symbol to CompletionItem typedef
+  ↓
+[dispatcher] wraps in BridgeResponse { success: true, data: CompletionItem[] }
+  ↓
+[core-server] sends response via stdio
+```
+
+### CompletionItem Typedef
+
+```javascript
+{
+  label: "calculateSum",                             // Display text in UI
+  kind: "Function",                                  // Completion kind (Class, Method, Property, etc.)
+  detail: "(a: number, b: number) => number",        // Type signature or additional info (optional)
+  documentation: "Adds two numbers and returns sum", // Docstring/comment (optional)
+  insertText: "calculateSum($1, $2)",                // Text to insert (optional, default: label)
+  sortText: "Function_calculateSum"                  // Sort priority (optional)
+}
+```
+
+### Error Handling
+
+The handler implements graceful degradation:
+
+- **Missing document**: Returns empty `CompletionItem[]` (valid state, not an error)
+- **Symbol extraction error**: Returns partial results (available symbols only)
+- **No symbols at position**: Returns empty `CompletionItem[]` (valid state)
+- **Invalid input (missing file, negative line/column)**: Returns `{ success: false, error: message }`
+- **Missing provider/extractor in context**: Returns `{ success: false, error: message }`
+
+### Usage
+
+```javascript
+import { createCodeCompletionHandler } from '../lib/code-completion-handler.mjs';
+
+// Create handler with injected dependencies
+const handler = createCodeCompletionHandler(dispatcher, {
+  logger: bridgeLogger,
+  metrics: bridgeMetrics
+});
+
+// Register with dispatcher (Step 71)
+dispatcher.register('bridge:getCompletion', handler);
+
+// Handler receives message and context
+const message = {
+  messageType: 'bridge:getCompletion',
+  messageId: 'req-1',
+  data: {
+    file: '/home/user/src/main.js',
+    line: 10,
+    column: 5
+  }
+};
+
+const context = {
+  documentProvider: provider,
+  symbolExtractor: extractor,
+  logger: bridgeLogger,
+  metrics: bridgeMetrics
+};
+
+const response = await handler(message, context);
+
+// Expected response (success):
+{
+  success: true,
+  data: [
+    {
+      label: "calculateSum",
+      kind: "Function",
+      detail: "(a: number, b: number) => number",
+      documentation: "Adds two numbers",
+      insertText: "calculateSum($1, $2)",
+      sortText: "Function_calculateSum"
+    },
+    {
+      label: "config",
+      kind: "Variable",
+      detail: "Object",
+      documentation: "Global configuration",
+      insertText: "config",
+      sortText: "Variable_config"
+    }
+  ]
+}
+
+// Expected response (error):
+{
+  success: false,
+  error: "file must be a non-empty string"
+}
+```
+
+### Implementation Details
+
+#### Symbol Filtering
+
+Symbols are filtered by accessibility:
+- **Included**: Public symbols, imported modules, language keywords
+- **Excluded**: Private symbols (marked with `isPrivate` or kind `Private`)
+
+#### Symbol Ranking
+
+Symbols are ranked by relevance (in priority order):
+1. **Distance from cursor**: Symbols closer to cursor position rank higher (max 1000 points, −10 per line distance)
+2. **Type**: Locals > Imported > Keywords (500, 300, 100 points respectively)
+3. **Frequency**: Symbols used multiple times rank higher (50 points per use)
+4. **Alphabetical**: Secondary sort for equal scores
+
+Example ranking:
+```javascript
+// Given cursor at line 10:
+const localVar = 5;           // line 10, kind: Local       → score ~1500 (near + local)
+const importedFunc = import_1; // line 2, kind: Imported    → score ~1300 (far + imported)
+const keyword = 'async';       // kind: Keyword             → score ~100 (keyword)
+```
+
+#### Kind Mapping
+
+Symbols are mapped from internal kinds to CompletionItem kinds for UI:
+
+| Symbol Kind | CompletionItem Kind |
+|---|---|
+| Class | Class |
+| Method | Method |
+| Function | Function |
+| Property | Property |
+| Variable | Variable |
+| Local | Variable |
+| Keyword | Keyword |
+| Interface | Interface |
+| Enum | Enum |
+| Module, Namespace, Package, Import | Module |
+| Unknown | Text |
+
+### Testing
+
+See `src/versions/v2.0.0/tests/code-completion-handler.test.mjs` for comprehensive test suite (22 tests, 6 suites):
+
+| Suite | Tests | Coverage |
+|---|---|---|
+| Initialization | 3 | Valid/invalid dispatcher, dependency injection |
+| Document Query | 4 | Get active document, missing files, errors, metadata |
+| Symbol Extraction | 5 | Extract symbols, empty results, errors, options passing, missing properties |
+| Completion Filtering | 4 | Filter private symbols, include public, CompletionItem format, kind mapping |
+| Error Handling | 5 | Invalid file, negative line/column, missing provider/extractor, null data |
+| Edge Cases | 3 | Empty document, position out-of-bounds, ranking by relevance |
+| Metrics Recording | 2 | Record success/error metrics with latency |
+
+---
+
 ## Find-References Handler (Step 57)
 
 The **Find-References Handler** locates all references to a symbol within IDE context. It complements Step 56 (go-to-definition) by providing reverse navigation: instead of "go to definition," this handler answers "show me all uses of this symbol." Returns rich reference metadata (location, kind: declaration/read/write/import) for refactoring tools and AI comprehension.
