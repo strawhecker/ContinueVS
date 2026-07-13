@@ -16,6 +16,8 @@ namespace ContinueVS.Editor
     /// Tracks the active editor document and streams <c>currentFile</c> context
     /// updates to the Continue binary whenever the active document or cursor changes.
     ///
+    /// Also tracks debugger state and emits debug session change events via DebugSessionCollector.
+    ///
     /// Implements <see cref="IVsRunningDocTableEvents3"/> to receive document lifecycle
     /// events without polling.
     ///
@@ -34,6 +36,7 @@ namespace ContinueVS.Editor
         private DTE2?                     _dte;
         private Events2?                  _events;
         private SelectionEvents?          _selectionEvents;
+        private DebugSessionCollector?    _debugSessionCollector;
 
         private CancellationTokenSource? _debounceCts;
         private bool _disposed;
@@ -44,7 +47,7 @@ namespace ContinueVS.Editor
         }
 
         /// <summary>
-        /// Subscribes to VS document/selection events.  Must be called on the UI thread.
+        /// Subscribes to VS document/selection events and debugger state changes.  Must be called on the UI thread.
         /// </summary>
         internal async Task RegisterAsync()
         {
@@ -60,6 +63,10 @@ namespace ContinueVS.Editor
                 _selectionEvents = _events?.SelectionEvents;
                 if (_selectionEvents != null)
                     _selectionEvents.OnChange += OnSelectionChange;
+
+                // Register debug session collector to track debugger state changes (Step 61)
+                _debugSessionCollector = new DebugSessionCollector(_control);
+                await _debugSessionCollector.RegisterAsync();
             }
         }
 
@@ -174,6 +181,8 @@ namespace ContinueVS.Editor
 
                 if (_rdt != null && _rdtCookie != 0)
                     _rdt.UnadviseRunningDocTableEvents(_rdtCookie);
+
+                _debugSessionCollector?.Dispose();
             });
 
             _debounceCts?.Cancel();

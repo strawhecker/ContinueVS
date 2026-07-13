@@ -80,8 +80,8 @@
 | 57 | Create find-references handler | None | 71 | ✅ COMPLETE |
 | 58 | Create code-completion handler | None | 71 | ✅ COMPLETE |
 | 59 | Create hover-info handler | None | 71 | ✅ COMPLETE |
-| 60 | Create test-explorer handler | None | 71 |
-| 61 | Create debug-session handler | None | 71 |
+| 60 | Create test-explorer handler | None | 71 | ✅ COMPLETE |
+| 61 | Create debug-session handler | None | 71 | ✅ COMPLETE |
 | 62 | Create WebView message type definitions | None | None |
 | 63 | Create bridge protocol adapter | 50,52 | None |
 | 64 | Create timeout manager for RPC calls | None | None |

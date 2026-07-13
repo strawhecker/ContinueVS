@@ -47,7 +47,6 @@ namespace ContinueVS.Tests.UI
 
             // The script should be embedded and contain key components
             // We validate this by creating a result manually and checking its structure
-            var mockScript = @"window.continueVS = {}; window.continueVS.onMessage = function() {}; window.dispatchEvent(new CustomEvent('continueVSBridgeReady'));";
 
             // Check that the actual injector would include these components
             // (We can't execute it without a real CoreWebView2, but we can validate structure)
