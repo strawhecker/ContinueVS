@@ -75,11 +75,11 @@
 | 52 | Create document provider | None | 71 | ✅ COMPLETE |
 | 53 | Create symbol extractor | None | 71 | ✅ COMPLETE |
 | 54 | Create diagnostics collector | None | 71 | ✅ COMPLETE |
-| 55 | Create search handler | None | 71 |
-| 56 | Create go-to-definition handler | None | 71 |
-| 57 | Create find-references handler | None | 71 |
-| 58 | Create code-completion handler | None | 71 |
-| 59 | Create hover-info handler | None | 71 |
+| 55 | Create search handler | None | 71 | ✅ COMPLETE |
+| 56 | Create go-to-definition handler | None | 71 | ✅ COMPLETE |
+| 57 | Create find-references handler | None | 71 | ✅ COMPLETE |
+| 58 | Create code-completion handler | None | 71 | ✅ COMPLETE |
+| 59 | Create hover-info handler | None | 71 | ✅ COMPLETE |
 | 60 | Create test-explorer handler | None | 71 |
 | 61 | Create debug-session handler | None | 71 |
 | 62 | Create WebView message type definitions | None | None |
