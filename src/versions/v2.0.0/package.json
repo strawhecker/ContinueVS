@@ -19,9 +19,8 @@
     "continue": "^0.1.0"
   },
   "devDependencies": {
+    "chai": "^6.2.2",
     "mocha": "^10.2.0"
-  },
-  "optionalDependencies": {
   },
   "keywords": [
     "continue",
