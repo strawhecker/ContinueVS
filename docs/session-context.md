@@ -73,8 +73,8 @@
 | 50 | Create getEditorState handler | 48,49 | 71 | ✅ COMPLETE |
 | 51 | Create onEditorStateChange subscription | 49 | 71 | ✅ COMPLETE |
 | 52 | Create document provider | None | 71 | ✅ COMPLETE |
-| 53 | Create symbol extractor | None | 71 |
-| 54 | Create diagnostics collector | None | 71 |
+| 53 | Create symbol extractor | None | 71 | ✅ COMPLETE |
+| 54 | Create diagnostics collector | None | 71 | ✅ COMPLETE |
 | 55 | Create search handler | None | 71 |
 | 56 | Create go-to-definition handler | None | 71 |
 | 57 | Create find-references handler | None | 71 |

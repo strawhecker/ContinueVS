@@ -822,11 +822,77 @@ const matching = await extractor.extractSymbols('MyClass.cs', {
 
 **Step 54: Diagnostics Collector**
 ```javascript
-// Monitor all documents for diagnostics
-provider.onDocumentChange((newDoc, oldDoc) => {
-  runDiagnosticsOnDocument(newDoc);
+// Initialize and register diagnostics collector
+import { DiagnosticsCollector } from '../lib/diagnostics-collector.mjs';
+
+const collector = new DiagnosticsCollector({
+  logger: context.logger,
+  metrics: context.metrics
 });
+
+// Register to receive messages from C# IDE
+await collector.registerMessageHandlers(bridgeServer);
+
+// Query diagnostics for a file
+const allDiags = collector.getDiagnosticsForFile('src/main.cs');
+const errors = collector.getDiagnosticsForFile('src/main.cs', 'error');
+const warnings = collector.getDiagnosticsForFile('src/main.cs', 'warning');
+
+// Query diagnostics at a cursor position
+const diagnosticsAtCursor = collector.getDiagnosticsRange('src/main.cs', 10, 5);
+
+// Query diagnostics in a selection
+const diagnosticsInSelection = collector.getDiagnosticsRange(
+  'src/main.cs',
+  10, 5,  // startLine, startColumn
+  10, 20  // endLine, endColumn
+);
+
+// Get all diagnostics across all files
+const allByFile = collector.getAllDiagnostics(); // Map<filepath, Diagnostic[]>
+
+// Get all diagnostics filtered by severity
+const allErrors = collector.getDiagnosticsBySeverity('error');   // Map<filepath, Diagnostic[]>
+const allWarnings = collector.getDiagnosticsBySeverity('warning');
+const allInfos = collector.getDiagnosticsBySeverity('info');
+
+// Listen for diagnostics changes
+collector.onDiagnosticsChange((event) => {
+  console.log(`${event.filepath} diagnostics changed: ${event.diagnostics.length} issues`);
+  console.log(`Change type: ${event.changeType}`); // "open" | "update" | "close"
+});
+
+// Query diagnostic counts
+const count = collector.getDiagnosticsCount('src/main.cs');
+const totalCount = collector.getDiagnosticsCount();
+const hasIssues = collector.hasDiagnostics('src/main.cs');
+
+// Cleanup
+collector.dispose();
 ```
+
+**Diagnostic Structure** (from C# IDE):
+```javascript
+{
+  code: string,           // e.g., "CS0001", "IDE0001"
+  message: string,        // Human-readable description
+  severity: string,       // "error" | "warning" | "info"
+  line: number,           // 0-based line number
+  column: number,         // 0-based column offset
+  endLine?: number,       // 0-based end line (optional)
+  endColumn?: number,     // 0-based end column (optional)
+  file: string            // Absolute file path
+}
+```
+
+**Message Types** (sent by C# IDE):
+- `didOpenDiagnostics` — Initial diagnostics for a file that was opened
+- `didUpdateDiagnostics` — Updated diagnostics (file modified, re-analysis complete)
+- `didCloseDiagnostics` — Diagnostics for a file that was closed
+
+**Error Classes**:
+- `DiagnosticsCollectorError` — Registration or initialization failure
+- `DiagnosticsValidationError` — Invalid diagnostic data (missing required fields, invalid values)
 
 **Step 55+: Search, Navigation, Completions, etc.**
 ```javascript
