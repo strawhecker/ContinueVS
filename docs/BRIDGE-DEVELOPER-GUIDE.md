@@ -543,6 +543,193 @@ export async function onEditorStateChangeHandler(message, context) {
 
 ---
 
+## Message Routing Middleware (Step 47)
+
+### Purpose
+
+The **MiddlewareChain** system enables composable message routing between `core-server.js` and the handler dispatcher. Middleware functions can intercept messages in three phases:
+
+1. **Pre-dispatch**: Validate, transform, or log incoming messages
+2. **Dispatch**: Route to handler via the dispatcher
+3. **Post-dispatch**: Transform, log, or handle errors from responses
+
+### Architecture
+
+**Middleware Signature**:
+```javascript
+async function middleware(message, next, context) {
+  // Pre-dispatch phase
+  message.startTime = Date.now();
+
+  // Call next middleware or dispatcher
+  const result = await next();
+
+  // Post-dispatch phase
+  result.duration = Date.now() - message.startTime;
+  return result;
+}
+```
+
+**Execution Order**:
+```
+Message
+  ↓
+[Validation Hook] ← registered by Step 73
+  ↓
+[User Middleware 1] ← registered with chain.use()
+  ↓
+[User Middleware 2] ← registered with chain.use()
+  ↓
+[Logging Hook] ← registered by Step 72
+  ↓
+HandlerDispatcher.dispatch()
+```
+
+### Basic Usage
+
+**Setup in core-server.js**:
+```javascript
+import {
+  MiddlewareChain,
+  wrapDispatcher,
+  createMiddlewareChain
+} from './lib/message-routing-middleware.mjs';
+
+// Create middleware chain
+const chain = createMiddlewareChain({
+  logger: config.logger,
+  metrics: config.metrics,
+  server: coreServer
+});
+
+// Register custom middleware (Steps 72-74 will do this)
+chain.registerHook('validationHook', validationMiddleware);
+chain.registerHook('loggingHook', loggingMiddleware);
+chain.registerHook('errorRecoveryHook', errorRecoveryMiddleware);
+
+// Wrap dispatcher
+const wrappedDispatcher = wrapDispatcher(chain, dispatcher);
+
+// Use in message loop
+for await (const line of readline) {
+  const message = JSON.parse(line);
+  const result = await wrappedDispatcher.dispatch(message, context);
+  console.log(JSON.stringify(result.response || message));
+}
+```
+
+### Implementing Middleware
+
+**Example: Custom Timing Middleware**:
+```javascript
+const timingMiddleware = async (message, next, context) => {
+  const start = Date.now();
+
+  try {
+    const result = await next();
+    const duration = Date.now() - start;
+
+    context.metrics?.recordHandlerExecution?.(
+      message.messageType,
+      duration,
+      result.response?.success
+    );
+
+    return result;
+  } catch (err) {
+    const duration = Date.now() - start;
+    context.logger?.error(`Handler failed after ${duration}ms`, {
+      messageType: message.messageType,
+      error: err.message
+    });
+    throw err;
+  }
+};
+
+chain.use(timingMiddleware);
+```
+
+### Available Hooks
+
+**Three built-in hooks are available for Steps 72-74**:
+
+| Hook | Purpose | Injection Point | Example Use |
+|------|---------|-----------------|-------------|
+| `validationHook` | Pre-dispatch validation | First (before user middleware) | Check message schema, rate limiting |
+| `loggingHook` | Post-dispatch logging | Last (after user middleware) | Log request/response, audit trail |
+| `errorRecoveryHook` | Error handling | Wraps entire chain | Catch errors, send fallback responses |
+
+**Register a hook**:
+```javascript
+chain.registerHook('validationHook', async (message, next, context) => {
+  // Validate message before dispatch
+  if (!message.messageId) {
+    throw new Error('Missing messageId');
+  }
+  return next();
+});
+```
+
+### Error Handling
+
+**Middleware exceptions are wrapped and propagated**:
+```javascript
+import { MiddlewareExecutionError } from './lib/message-routing-middleware.mjs';
+
+try {
+  const result = await chain.execute(message, dispatcher, context);
+} catch (err) {
+  if (err instanceof MiddlewareExecutionError) {
+    console.error(`Middleware error in [${err.operation}]: ${err.message}`);
+    console.error('Original error:', err.originalError);
+  }
+}
+```
+
+### Testing Middleware
+
+**Mock-based testing pattern**:
+```javascript
+import { MiddlewareChain } from './lib/message-routing-middleware.mjs';
+
+// Test that middleware executes in correct order
+const chain = new MiddlewareChain();
+const execution = [];
+
+const mw1 = async (msg, next) => {
+  execution.push('mw1-pre');
+  const result = await next();
+  execution.push('mw1-post');
+  return result;
+};
+
+chain.use(mw1);
+
+// Mock dispatcher
+const dispatcher = {
+  async dispatch(msg, ctx) {
+    execution.push('dispatch');
+    return { response: { success: true } };
+  }
+};
+
+const message = { messageType: 'bridge:test', messageId: 'msg-1' };
+await chain.execute(message, dispatcher);
+
+assert.deepStrictEqual(
+  execution,
+  ['mw1-pre', 'dispatch', 'mw1-post']
+);
+```
+
+### Performance Considerations
+
+- **Middleware stacking**: Each middleware adds ~0.1–0.5ms overhead
+- **Hook order**: Validation hooks first (fail fast), logging hooks last
+- **Error recovery**: Keep try-catch blocks focused (don't catch and swallow validation errors)
+
+---
+
 ## Handler Registration
 
 ### Step 71: Register All Handlers

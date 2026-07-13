@@ -67,7 +67,7 @@
 | Step | Title | Blocking | Related |
 |---|---|---|---|
 | 46 | Create webview bootstrap handler | 45 | 50 |
-| 47 | Create message routing middleware | 14 | 71 |
+| 47 | Create message routing middleware | 14 | 71 | ✅ COMPLETE |
 | 48 | Create editor context collector | None | 50,51 |
 | 49 | Create selection tracker | None | 51 |
 | 50 | Create getEditorState handler | 48,49 | 71 |
@@ -482,6 +482,48 @@ import('./src/versions/v2.0.0/lib/generate-checksums.mjs').then(async (m) => {
 **Last Verified**: Step 37 completed with 23/23 tests passing, checksums generated and validated  
 **Plan Version**: v2.1 (npm-based, Complete 155-Step Master Plan)  
 **Format**: Markdown (offline reference, single source of truth)
+
+---
+
+## Step 47 Completion Record
+
+**Title**: Create Message Routing Middleware  
+**Status**: ✅ COMPLETE  
+**Dependencies**: Step 14 (HandlerDispatcher)  
+**Blocking**: None (Steps 72-74 now unblocked)  
+**Test Coverage**: 18/18 passing (100%)  
+
+### Deliverables
+
+1. **Module**: `src/versions/v2.0.0/lib/message-routing-middleware.mjs` (398 lines)
+   - MiddlewareChain class: use(), registerHook(), compose(), execute()
+   - MiddlewareExecutionError for error handling
+   - Factories: createMiddlewareChain(), wrapDispatcher()
+   - Three hook scaffolds for Steps 72-74
+
+2. **Tests**: `src/versions/v2.0.0/tests/message-routing-middleware.test.mjs` (495 lines)
+   - 18 comprehensive tests: 5 suites, 100% pass rate
+   - Covers: registration, execution order, error handling, hooks, compatibility
+   - MockLogger, MockMetrics, MockDispatcher helpers included
+
+3. **Documentation**: Integration section in BRIDGE-DEVELOPER-GUIDE.md (~180 lines)
+   - Architecture, usage patterns, examples, testing, performance
+
+### Test Results: 18/18 ✅
+
+- Suite 1: Middleware Registration (3/3)
+- Suite 2: Chain Execution Order (4/4)
+- Suite 3: Error Handling (4/4)
+- Suite 4: Hook Lifecycle (4/4)
+- Suite 5: Backward Compatibility (3/3)
+
+### Related Steps Enabled
+
+- Step 71: Handler registration
+- Step 72: Message logging middleware
+- Step 73: Request/response validation
+- Step 74: Error recovery middleware
+- Step 75: WebView integration tests
 
 ---
 
