@@ -1524,6 +1524,267 @@ See `src/versions/v2.0.0/tests/symbol-extractor.test.mjs` for comprehensive test
 
 ---
 
+## Go-To-Definition Handler (Step 56)
+
+### Overview
+
+The **Go-To-Definition Handler** implements IDE symbol navigation (Ctrl+Click, F12 equivalent). It resolves symbol definitions by cursor position, returning the file/line/column of the symbol's declaration. Supports hierarchical navigation via symbol tables and graceful fallback to text-based search.
+
+**Message Type**: `bridge:goToDefinition`  
+**Input**: BridgeMessage with { filepath, line, column, searchScope? }  
+**Output**: BridgeResponse with { location: DefinitionLocation|null, alternatives?: DefinitionLocation[] }  
+**Dependencies**: SymbolExtractor (Step 53) — required; DocumentProvider (Step 52) — optional  
+**Performance**: File-scoped <50ms; project-scoped <200ms; workspace-scoped <500ms  
+**Error Classes**: `DefinitionError`, `DefinitionValidationError`
+
+### Message Format
+
+```javascript
+// Request: IDE sends cursor position
+{
+  messageType: 'bridge:goToDefinition',
+  messageId: 'msg-uuid-1',
+  data: {
+    filepath: '/path/to/file.cs',
+    line: 10,                        // 0-based, cursor line
+    column: 15,                      // 0-based, cursor column
+    searchScope: 'file'              // optional: 'file' | 'project' | 'workspace'
+  }
+}
+
+// Response: Handler returns definition location
+{
+  success: true,
+  data: {
+    location: {
+      file: '/path/to/file.cs',
+      line: 5,
+      column: 0,
+      name: 'MyClass',               // Symbol name
+      kind: 'class'                  // Symbol kind
+    },
+    alternatives: [                  // optional: overloads, base implementations
+      { file: '...', line: 15, column: 4, name: 'MyClass', kind: 'class' },
+      { file: '...', line: 25, column: 4, name: 'MyClass', kind: 'class' }
+    ]
+  }
+}
+
+// Error response
+{
+  success: false,
+  error: 'Validation: filepath – must be a non-empty string'
+}
+```
+
+### Resolution Pipeline
+
+```
+IDE Cursor (filepath, line, column)
+    ↓
+[1] Validate input (bounds, types)
+    ↓
+[2] Query SymbolExtractor for symbol table
+    ↓
+[3] Binary search symbol tree for innermost symbol at cursor
+    ↓
+[4] If symbol found → resolve definition location
+    ↓
+[5] Find alternatives (overloads, base implementations)
+    ↓
+[6] Return location + alternatives
+    ↓
+[7] If not found & searchScope ≠ 'file' → fallback text search
+```
+
+### Input Validation
+
+- `filepath` (required): Non-empty string, must be valid path
+- `line` (required): Non-negative integer, 0-based
+- `column` (required): Non-negative integer, 0-based
+- `searchScope` (optional): 'file' | 'project' | 'workspace', default 'file'
+
+### Error Codes
+
+| Error | Cause | Example |
+|-------|-------|---------|
+| `Validation: filepath – ...` | Missing or invalid filepath | filepath is empty or null |
+| `Validation: line – ...` | Invalid line number | line < 0 |
+| `Validation: column – ...` | Invalid column number | column < 0 |
+| `Validation: searchScope – ...` | Invalid scope | searchScope = 'invalid' |
+| `extraction: Failed to extract symbols` | SymbolExtractor error | Corrupted symbol table JSON |
+| `Internal error: ...` | Unexpected exception | Uncaught error in handler |
+
+### Usage Example
+
+```javascript
+import { createGoToDefinitionHandler } from '../lib/go-to-definition-handler.mjs';
+import { SymbolExtractor } from '../lib/symbol-extractor.mjs';
+import { DocumentProvider } from '../lib/document-provider.mjs';
+
+// Initialize dependencies
+const symbolExtractor = new SymbolExtractor();
+const documentProvider = new DocumentProvider();
+
+// Create handler
+const handler = createGoToDefinitionHandler({
+  symbolExtractor,
+  documentProvider,
+  logger: logger,
+  metrics: metrics
+});
+
+// Register with dispatcher
+dispatcher.register('bridge:goToDefinition', handler);
+
+// IDE calls handler via stdio
+const message = {
+  messageType: 'bridge:goToDefinition',
+  messageId: 'msg-1',
+  data: { filepath: '/src/MyClass.cs', line: 10, column: 5 }
+};
+
+const response = await handler(message, context);
+console.log(response.data.location);
+// { file: '/src/MyClass.cs', line: 1, column: 0, name: 'MyClass', kind: 'class' }
+```
+
+### Architecture
+
+```
+┌──────────────────┐
+│ IDE Cursor Pos   │ (line, column in open file)
+└────────┬─────────┘
+         │
+         ↓
+┌──────────────────────────────────────┐
+│ Go-To-Definition Handler             │
+├──────────────────────────────────────┤
+│ 1. validateGoToDefinitionInput()     │ — Check bounds, types
+│ 2. SymbolExtractor.extractSymbols()  │ — Get symbol table
+│ 3. extractSymbolAtCursor()           │ — Binary search tree
+│ 4. resolveDefinitionLocation()       │ — Format response
+│ 5. findAlternativeDefinitions()      │ — Collect overloads
+└────────┬─────────────────────────────┘
+         │
+         ↓
+┌──────────────────┐
+│ Definition Loc   │ { file, line, col, name, kind }
+└──────────────────┘
+```
+
+### Related Steps
+
+- **Step 14** — Handler Dispatcher (routes messages)
+- **Step 47** — Message Routing Middleware (integrates handler)
+- **Step 52** — Document Provider (fallback search)
+- **Step 53** — Symbol Extractor (main source)
+- **Step 54** — Diagnostics Collector (parallel infrastructure)
+- **Step 55** — Search Handler (similar pattern)
+- **Step 57** — Find References Handler (complementary navigation)
+- **Step 62** — Handler Type Definitions (DefinitionLocation typedef)
+- **Step 68** — Handler Tests (search/navigation) — integration tests
+- **Step 71** — Handler Registration (dispatcher registration)
+
+### Performance Characteristics
+
+| Operation | Scope | Typical Time | Notes |
+|-----------|-------|--------------|-------|
+| Symbol lookup | File | <50ms | Cache hit from SymbolExtractor |
+| Definition resolve | File | <10ms | O(log n) binary search |
+| Alternatives (same file) | File | <20ms | O(n) linear scan of tree |
+| Cross-file fallback | Project | <200ms | Text-based search in open docs |
+| Workspace fallback | Workspace | <500ms | Search all open documents |
+
+### Testing
+
+```javascript
+import { describe, it } from 'vitest';
+import { createGoToDefinitionHandler } from '../lib/go-to-definition-handler.mjs';
+import {
+  getNestedSymbolTable,
+  getOverloadedMethodsTable,
+  getValidGoToDefinitionMessage
+} from './mocks/go-to-definition-fixtures.mjs';
+
+describe('Go-To-Definition Handler', () => {
+  it('should resolve nested method definition', async () => {
+    const symbolExtractor = {
+      extractSymbols: async () => ({
+        success: true,
+        data: getNestedSymbolTable()
+      })
+    };
+
+    const handler = createGoToDefinitionHandler({ symbolExtractor });
+    const message = {
+      messageType: 'bridge:goToDefinition',
+      messageId: 'msg-1',
+      data: { filepath: '/path/to/file.cs', line: 12, column: 5 }
+    };
+
+    const response = await handler(message, {});
+    expect(response.success).toBe(true);
+    expect(response.data.location.name).toBe('DoSomething');
+    expect(response.data.location.kind).toBe('method');
+  });
+
+  it('should collect overload alternatives', async () => {
+    const symbolExtractor = {
+      extractSymbols: async () => ({
+        success: true,
+        data: getOverloadedMethodsTable()
+      })
+    };
+
+    const handler = createGoToDefinitionHandler({ symbolExtractor });
+    const message = getValidGoToDefinitionMessage();
+
+    const response = await handler(message, {});
+    expect(response.success).toBe(true);
+    expect(response.data.alternatives).toBeDefined();
+    expect(response.data.alternatives.length).toBeGreaterThan(0);
+  });
+
+  it('should return null for symbol not at cursor', async () => {
+    const symbolExtractor = {
+      extractSymbols: async () => ({
+        success: true,
+        data: { symbols: [] }
+      })
+    };
+
+    const handler = createGoToDefinitionHandler({ symbolExtractor });
+    const message = getValidGoToDefinitionMessage();
+
+    const response = await handler(message, {});
+    expect(response.success).toBe(true);
+    expect(response.data.location).toBeNull();
+  });
+
+  it('should wrap validation errors', async () => {
+    const symbolExtractor = {
+      extractSymbols: async () => ({ success: true, data: {} })
+    };
+
+    const handler = createGoToDefinitionHandler({ symbolExtractor });
+    const message = {
+      messageType: 'bridge:goToDefinition',
+      messageId: 'msg-1',
+      data: { line: 5, column: 10 } // Missing filepath
+    };
+
+    const response = await handler(message, {});
+    expect(response.success).toBe(false);
+    expect(response.error).toMatch(/filepath/i);
+  });
+});
+```
+
+See `src/versions/v2.0.0/tests/go-to-definition-handler.test.mjs` for comprehensive test suite (20 tests, 6 suites: validation, symbol extraction, resolution, fallbacks, error handling, edge cases).
+
+---
+
 ## Anatomy of a Handler
 
 ### Step 1: Define the Message Type
