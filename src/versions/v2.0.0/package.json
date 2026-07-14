@@ -13,7 +13,7 @@
     "check-integrity": "node --input-type=module --eval \"import('./lib/npm-validate.mjs').then(m => m.checkPackageIntegrity()).catch(e => { console.error('Integrity check failed:', e); process.exit(1); })\"",
     "start": "node core-server.js",
     "health-check": "node --input-type=module --eval \"import('./lib/npm-validate.mjs').then(m => m.performHealthCheck()).catch(e => { console.error('Health check failed:', e); process.exit(1); })\"",
-    "test": "mocha test/**/*.test.mjs --timeout 5000 --require-module @babel/register 2>/dev/null || mocha test/**/*.test.mjs --timeout 5000"
+    "test": "mocha tests/**/*.test.mjs --timeout 5000 --require-module @babel/register 2>/dev/null || mocha tests/**/*.test.mjs --timeout 5000"
   },
   "dependencies": {
     "continue": "^0.1.0"

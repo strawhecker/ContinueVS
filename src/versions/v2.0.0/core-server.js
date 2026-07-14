@@ -67,6 +67,9 @@ import HandlerDispatcher from './lib/handler-dispatcher.js';
 // Step 71: Handler registration orchestrator
 import { registerAllHandlersWithDispatcher } from './lib/register-handlers.mjs';
 
+// Step 73: Validation hook for request/response validation
+import { createValidationHook } from './lib/validation-hook.mjs';
+
 // ============================================================================
 // Configuration & Constants
 // ============================================================================
@@ -207,6 +210,12 @@ class BridgeServer {
       metrics: null, // Step 26 will inject metrics
       server: this,
     });
+
+    // Step 73: Create validation hook for request/response validation
+    this.validationHook = createValidationHook({
+      logger: this.logger,
+      metrics: this.metrics,
+    });
   }
 
   /**
@@ -243,6 +252,10 @@ class BridgeServer {
           duration: registrationResult.duration,
         });
       }
+
+      // Step 73: Validation hook is initialized and ready to validate messages
+      // When MiddlewareChain is created, it will call registerHook('validationHook', this.validationHook)
+      this.logger.debug('Validation hook ready for message validation');
 
       // Spawn Continue process
       await this._spawnContinue();

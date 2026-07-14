@@ -1,6 +1,7 @@
 ﻿using ContinueVS.Exceptions;
 using ContinueVS.IPC;
 using ContinueVS.Services;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -229,33 +230,58 @@ namespace ContinueVS.Handlers
 
         /// <summary>
         /// Validates message envelope for null, empty type, and well-formed id.
+        /// Uses MessageValidator (Step 73) for comprehensive envelope and payload validation.
         /// </summary>
         /// <exception cref="ArgumentNullException">Thrown if message is null.</exception>
-        /// <exception cref="BridgeMessageDispatcherException">Thrown if type is empty or id is malformed.</exception>
+        /// <exception cref="BridgeMessageDispatcherException">Thrown if validation fails per JSON-RPC spec.</exception>
         private void ValidateMessage(Message message)
         {
             if (message == null)
                 throw new ArgumentNullException(nameof(message));
 
-            if (string.IsNullOrWhiteSpace(message.MessageType))
+            // Step 73: Use comprehensive MessageValidator for envelope validation
+            var (envelopeValid, envelopeError) = MessageValidator.ValidateEnvelope(message);
+            if (!envelopeValid)
             {
                 throw new BridgeMessageDispatcherException(
-                    "Message type is null or empty.",
+                    $"Message validation failed: {envelopeError}",
                     BridgeMessageDispatcherException.OperationType.ValidationFailed,
                     BridgeMessageDispatcherException.ErrorCodes.ValidationFailed,
-                    null,
-                    new Dictionary<string, string> { { "messageId", message.MessageId ?? "null" } });
+                    message?.MessageType,
+                    new Dictionary<string, string>
+                    {
+                        { "messageId", message?.MessageId ?? "null" },
+                        { "validationError", envelopeError ?? "unknown" }
+                    });
             }
 
-            // MessageId can be null for notifications, but must be valid string if present
-            if (!string.IsNullOrEmpty(message.MessageId) && message.MessageId.Length > 256)
+            // Step 73: Validate payload (request/response)
+            if (message.Data is not null)
             {
-                throw new BridgeMessageDispatcherException(
-                    "Message id exceeds maximum length of 256 characters.",
-                    BridgeMessageDispatcherException.OperationType.ValidationFailed,
-                    BridgeMessageDispatcherException.ErrorCodes.ValidationFailed,
-                    message.MessageType,
-                    new Dictionary<string, string> { { "idLength", message.MessageId.Length.ToString() } });
+                var dataObj = message.Data as JObject;
+                if (dataObj != null)
+                {
+                    // Detect if request or response based on method field presence
+                    bool isRequest = dataObj.ContainsKey("method");
+
+                    var (payloadValid, payloadError, errorCode) = 
+                        MessageValidator.ValidatePayload(dataObj, isRequest);
+
+                    if (!payloadValid)
+                    {
+                        throw new BridgeMessageDispatcherException(
+                            $"Payload validation failed: {payloadError}",
+                            BridgeMessageDispatcherException.OperationType.ValidationFailed,
+                            BridgeMessageDispatcherException.ErrorCodes.ValidationFailed,
+                            message.MessageType,
+                            new Dictionary<string, string>
+                            {
+                                { "messageId", message.MessageId ?? "null" },
+                                { "payloadError", payloadError ?? "unknown" },
+                                { "jsonRpcErrorCode", errorCode?.ToString() ?? "unknown" }
+                            });
+                    }
+                }
             }
         }
 
