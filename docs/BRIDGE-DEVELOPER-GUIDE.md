@@ -2964,6 +2964,274 @@ npx mocha src/versions/v2.0.0/tests/register-handlers.test.mjs --grep "less than
 
 ---
 
+## Message Logging Middleware (Step 72)
+
+### Problem
+
+Handler execution lacks structured logging and performance monitoring. Without message-level telemetry, debugging is difficult and performance bottlenecks are invisible. You need to capture inbound/outbound messages, track latency per message type, and record metrics for monitoring.
+
+### Solution
+
+Create a message logging middleware that wraps the MiddlewareChain (Step 47) to capture inbound/outbound messages, track latency per message type, and integrate with IBridgeLogger + IBridgeTelemetryCollector for structured logging and metrics aggregation.
+
+---
+
+### Architecture
+
+```
+WebView Message
+      ↓
+BridgeMessage (normalized by Step 63 Protocol Adapter)
+      ↓
+MessageLoggingMiddleware.executeWithLogging()
+  ├─ Log inbound: messageType, messageId, timestamp, size
+  ├─ MiddlewareChain.execute()
+  │   └─ Dispatcher → Handler
+  ├─ Log outbound: status, latency (ms), size, handler name
+  ├─ Update latency histogram (fast/normal/slow)
+  └─ Record metrics
+      ↓
+IBridgeLogger (structured log capture)
+IBridgeTelemetryCollector (metrics aggregation)
+```
+
+---
+
+### Core Responsibilities
+
+| Responsibility | Implementation | Details |
+|---|---|---|
+| **Inbound Logging** | Log message metadata on arrival | messageType, messageId, timestamp, payload size |
+| **Outbound Logging** | Log response status & latency | success/error status, latency (ms), response size, handler name |
+| **Latency Tracking** | Categorize per message type | fast (<50ms), normal (50-500ms), slow (>500ms) |
+| **Metrics Aggregation** | Compute performance statistics | Total messages, error rate, avg/p95/p99 latency |
+| **Error Logging** | Capture handler errors separately | Error type, context, frequency |
+| **Configuration** | Customizable logging behavior | Sample rate, detailed logging, payload inclusion |
+| **Graceful Degradation** | No-op if logger/telemetry null | Non-cascading failure when dependencies absent |
+
+---
+
+### Usage Example
+
+**Basic Initialization**:
+```javascript
+import { MessageLoggingMiddleware } from './lib/message-logging-middleware.mjs';
+import { IBridgeLogger } from './lib/logger.mjs';
+import { IBridgeTelemetryCollector } from './lib/telemetry.mjs';
+
+const logger = new IBridgeLogger();
+const metrics = new IBridgeTelemetryCollector();
+const middlewareChain = /* from Step 47 */;
+
+const logging = new MessageLoggingMiddleware({
+  middlewareChain,
+  logger,
+  metrics,
+  config: {
+    enableDetailedLogging: false,
+    includePayloads: false,
+    sampleRate: 1.0,      // Log 100% of messages
+    metricsWindow: 1000   // Track last 1000 messages for p95/p99
+  }
+});
+```
+
+**Execute Message**:
+```javascript
+const message = {
+  messageType: 'bridge:getEditorState',
+  messageId: 'msg-uuid',
+  data: { file: '/path/to/file.ts' }
+};
+
+try {
+  const result = await logging.executeWithLogging(
+    message,
+    dispatcher,
+    { logger, metrics }
+  );
+  console.log('Result:', result);
+} catch (err) {
+  console.error('Message failed:', err);
+}
+```
+
+**Query Metrics**:
+```javascript
+const snapshot = logging.getMetrics();
+console.log(`
+  Total messages: ${snapshot.inbound.total}
+  Success rate: ${100 - snapshot.summary.errorRate}%
+  Avg latency: ${snapshot.outbound.averageLatency}ms
+  p95 latency: ${snapshot.outbound.p95Latency}ms
+  p99 latency: ${snapshot.outbound.p99Latency}ms
+  Latency breakdown:
+    - Fast (<50ms): ${snapshot.latency.fast}
+    - Normal (50-500ms): ${snapshot.latency.normal}
+    - Slow (>500ms): ${snapshot.latency.slow}
+`);
+```
+
+---
+
+### Configuration Reference
+
+| Option | Type | Default | Purpose | Example |
+|--------|------|---------|---------|---------|
+| `enableDetailedLogging` | boolean | false | Log full payloads in all messages | `true` for debugging, `false` for production |
+| `includePayloads` | boolean | false | Include message data in structured logs | `true` to see request/response bodies |
+| `sampleRate` | 0-1 | 1.0 | Log every Nth message (0.1 = 10%) | `0.1` to reduce logging I/O in high-throughput |
+| `metricsWindow` | number | 1000 | Bounded history for p95/p99 calculation | `1000` = track last 1000 messages |
+
+---
+
+### Metrics Output Structure
+
+```javascript
+{
+  inbound: {
+    total: 150,
+    byType: {
+      'bridge:getEditorState': 50,
+      'bridge:search': 40,
+      'bridge:hover': 60
+    }
+  },
+  outbound: {
+    successCount: 148,
+    errorCount: 2,
+    averageLatency: 125.5,      // milliseconds
+    p95Latency: 450,            // 95th percentile
+    p99Latency: 580             // 99th percentile
+  },
+  latency: {
+    fast: 60,       // < 50ms
+    normal: 82,     // 50-500ms
+    slow: 8         // > 500ms
+  },
+  errors: {
+    total: 2,
+    byType: {
+      'TimeoutError': 1,
+      'ValidationError': 1
+    }
+  },
+  summary: {
+    errorRate: 1.33,             // percentage
+    avgLatencyCategory: 'normal'  // 'fast'|'normal'|'slow'
+  }
+}
+```
+
+---
+
+### Integration with Other Steps
+
+| Step | Relationship | Usage |
+|------|--------------|-------|
+| **Step 47** | MiddlewareChain foundation | `executeWithLogging()` wraps chain execution |
+| **Step 63** | BridgeProtocolAdapter | Logs normalized BridgeMessage contracts |
+| **Step 64** | TimeoutManager | Can consume latency metrics from getMetrics() |
+| **Step 71** | Handler registration (blocker consumer) | Dispatcher uses logging middleware for all message execution |
+| **Step 73** | Request/response validation | Validation middleware follows logging in chain |
+| **Step 74** | Error recovery middleware | Error recovery follows in chain |
+| **Step 75** | WebView integration tests | E2E tests verify logging + handler execution |
+
+---
+
+### Error Handling
+
+**LoggingMiddlewareError** — Custom exception with operation context:
+```javascript
+class LoggingMiddlewareError extends Error {
+  operationType: 'inboundLogging' | 'outboundLogging' | 'metricsAggregation';
+  originalError?: Error;  // Root cause
+}
+```
+
+**Graceful Degradation**:
+- If `logger` is null → no-op (no logs)
+- If `metrics` is null → no-op (no metrics)
+- If both null → middleware still executes chain unaffected
+- If logger.info() throws → caught, error logged to fallback
+
+**Example**:
+```javascript
+const middleware = new MessageLoggingMiddleware({
+  middlewareChain: chain,
+  logger: null,    // No logging
+  metrics: null    // No metrics
+});
+
+// Still executes chain normally
+const result = await middleware.executeWithLogging(message, dispatcher);
+```
+
+---
+
+### Performance Considerations
+
+| Aspect | Impact | Mitigation |
+|--------|--------|-----------|
+| **Latency overhead** | <1ms per message | Histogram calculation is O(1); logging is async-safe |
+| **Memory usage** | Bounded by metricsWindow | Default 1000 messages ≈ 50KB; configurable |
+| **Sampling** | Reduces logging I/O | `sampleRate: 0.1` → log 10% of messages |
+| **Detailed logging** | Increases I/O | Disabled by default; enable only for debugging |
+
+---
+
+### Testing
+
+**Test Suite**: `src/versions/v2.0.0/tests/message-logging-middleware.test.mjs` (22 tests)
+
+**Test Coverage**:
+- **Initialization** (3 tests) — With/without logger/metrics, config validation
+- **Inbound Logging** (4 tests) — Message metadata capture, graceful degradation
+- **Outbound Logging** (4 tests) — Success/error logging, latency capture
+- **Latency Tracking** (4 tests) — Histogram categorization, aggregation
+- **Error Logging** (4 tests) — Handler errors, error rate tracking
+- **Metrics & Cleanup** (3 tests) — Aggregation accuracy, metric reset
+
+**Running Tests**:
+```bash
+# All tests
+npx mocha src/versions/v2.0.0/tests/message-logging-middleware.test.mjs --timeout 10000
+
+# Specific suite
+npx mocha src/versions/v2.0.0/tests/message-logging-middleware.test.mjs --grep "Inbound Logging"
+
+# With reporter
+npx mocha src/versions/v2.0.0/tests/message-logging-middleware.test.mjs --reporter json --output test-results.json
+```
+
+**Expected Results**:
+- 22/22 tests passing
+- Execution time: ~500ms
+- No external npm dependencies
+
+---
+
+### Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| "middlewareChain is required" | Missing constructor param | Pass middlewareChain from Step 47 |
+| No logs appearing | Sample rate too low or logger null | Check sampleRate config, verify logger instance |
+| Metrics all zeros | executeWithLogging() not called | Verify middleware is used in message flow |
+| p95/p99 not changing | Not enough messages | Increase metricsWindow or run more tests |
+| Memory growing unbounded | metricsWindow too large | Reduce metricsWindow config value |
+| Errors not recorded | Logger failing silently | Add try-catch in _logError(); check logger implementation |
+
+---
+
+### File References
+
+- **Implementation**: `src/versions/v2.0.0/lib/message-logging-middleware.mjs` (~450 lines)
+- **Tests**: `src/versions/v2.0.0/tests/message-logging-middleware.test.mjs` (~550 lines)
+- **Related**: Step 47 (MiddlewareChain), Step 63 (Protocol Adapter), Step 64 (TimeoutManager)
+
+---
+
 ## Handler Registry (Step 66)
 
 ### Purpose
