@@ -107,7 +107,7 @@
 |---|---|---|---|
 | 76 | Create refactor handler | None | 71 | ✅ COMPLETE |
 | 77 | Create fix-suggestion handler | None | 71 | ✅ COMPLETE |
-| 78 | Create apply-edit handler | None | 71 |
+| 78 | Create apply-edit handler | None | 71 | ✅ COMPLETE |
 | 79 | Create format-document handler | None | 71 |
 | 80 | Create tree-sitter integration (optional) | None | None |
 | 81 | Create git-integration handler | None | 71 |

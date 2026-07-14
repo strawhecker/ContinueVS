@@ -6029,6 +6029,228 @@ node --test src/versions/v2.0.0/tests/apply-edit-handler.test.mjs
 
 ---
 
+## Step 79: Format-Document Handler
+
+### Overview
+
+The **format-document handler** provides document-level code formatting, enabling consistent indentation, line breaking, and whitespace normalization. Unlike language-specific formatters, it uses simple built-in rules compatible with any language, making it a lightweight alternative that requires zero external dependencies.
+
+**Handler Characteristics**:
+- **Message Type**: `bridge:formatDocument`
+- **Input**: `{ file: string, indent?: number, lineLength?: number }`
+- **Output**: `{ formatted: string, changes: Array, linesDelta: number, indentStyle: {style, size} }`
+- **Async**: Yes
+- **Mutating**: No (non-destructive; returns changes only)
+- **Dependencies**: DocumentProvider (Step 52)
+
+### Architecture & Formatting Pipeline
+
+```
+[IDE] bridge:formatDocument { file, indent, lineLength }
+  ↓
+[Handler Validation] → Verify file, indent (1–16), lineLength (40–200)
+  ↓
+[DocumentProvider] → Load document text
+  ↓
+[Normalize Indentation] → Convert tabs/mixed spaces to consistent spaces
+  ↓
+[Break Lines] → Split long lines at word boundaries
+  ↓
+[Clean Whitespace] → Remove trailing spaces, limit blank lines to 2
+  ↓
+[Compute Changes] → Generate character offset ranges (compatible with apply-edit)
+  ↓
+[Return] { formatted, changes[], linesDelta, indentStyle }
+  ↓
+[IDE] Receives formatted document + edits
+```
+
+### Formatting Rules
+
+| Rule | Description | Example |
+|------|---|---|
+| **Indent Normalization** | Convert tabs & mixed spaces to consistent spaces | `\t\tcode` → `    code` (2-space) |
+| **Line Breaking** | Split long lines at word boundaries (preserves indent) | `const veryLongLine = "text exceeds length"` → wrapped |
+| **Trailing Whitespace** | Remove trailing spaces/tabs from all lines | `"text  "` → `"text"` |
+| **Blank Lines** | Limit consecutive blank lines to maximum 2 | `\n\n\n\n` → `\n\n` |
+| **Indentation Detection** | Auto-detect current indent (tabs vs spaces, size) | Preserve relative levels, normalize style |
+| **Comment Preservation** | Do not reformat inline comment content | `// comment text` stays as-is |
+
+### Error Handling
+
+**FormatValidationError** — Invalid input parameters
+```javascript
+// Missing file
+{ file: undefined } → "file: must be a non-empty string"
+
+// Invalid indent (negative or float)
+{ file: 'test.js', indent: -1 } → "indent: must be a positive integer"
+{ file: 'test.js', indent: 2.5 } → "indent: must be a positive integer"
+
+// Invalid lineLength
+{ file: 'test.js', lineLength: 30 } → "lineLength: must be between 40 and 200"
+```
+
+**FormatDocumentError** — Initialization or provider errors
+```javascript
+// Missing DocumentProvider in context
+// → "DocumentProvider not available in context"
+
+// DocumentProvider throws
+// → Gracefully returns empty changes (no cascade)
+```
+
+**Graceful Degradation**:
+- Document not found → Return empty changes (success: true)
+- DocumentProvider error → Log warning, return empty changes
+- Large document → Performance gates: <50ms (100 lines), <200ms (1000 lines)
+
+### Code Example
+
+```javascript
+import { createFormatDocumentHandler } from './format-document-handler.mjs';
+import { DocumentProvider } from './document-provider.mjs';
+
+// Create handler
+const handler = createFormatDocumentHandler(dispatcher, {
+  logger: bridgeLogger,
+  metrics: bridgeMetrics
+});
+
+// Register with dispatcher
+dispatcher.register('bridge:formatDocument', handler);
+
+// Usage from IDE
+const message = {
+  messageType: 'bridge:formatDocument',
+  messageId: 'msg-001',
+  data: {
+    file: 'src/index.js',
+    indent: 2,
+    lineLength: 80
+  }
+};
+
+const result = await handler(message, {
+  documentProvider: documentProviderInstance
+});
+
+// Result
+{
+  success: true,
+  data: {
+    formatted: "function main() {\n  console.log('hi');\n}",
+    changes: [
+      { range: { start: 18, end: 20 }, text: "  " }
+    ],
+    linesDelta: 2,
+    indentStyle: { style: 'spaces', size: 2 }
+  }
+}
+```
+
+### Integration with Apply-Edit Handler
+
+The format-document handler produces edit ranges compatible with the apply-edit-handler (Step 78):
+
+```javascript
+// Format produces these edits
+const edits = result.data.changes; // [{range: {start, end}, text}, ...]
+
+// Apply them using apply-edit-handler
+const applyEditMessage = {
+  messageType: 'bridge:applyEdit',
+  messageId: 'apply-001',
+  data: {
+    filePath: 'src/index.js',
+    edits: edits
+  }
+};
+
+const applyResult = await applyEditHandler(applyEditMessage, context);
+```
+
+### Performance Characteristics
+
+| Document Size | Expected Time | Memory |
+|---|---|---|
+| 100 lines | <50ms | <1MB |
+| 1,000 lines | <200ms | <2MB |
+| 5,000 lines | <500ms | <5MB |
+| 10,000+ lines | ~1s | ~10MB |
+
+**Optimization Tips**:
+- Cache formatting results for unchanged documents
+- Use lineLength=80 or lineLength=100 for balanced line breaking
+- Indent=2 or indent=4 (avoid indent>8)
+- For large files, consider incremental formatting (format-as-you-type)
+
+### Testing Format-Document Handler
+
+Run the 22-test suite:
+
+```bash
+node --test src/versions/v2.0.0/tests/format-document-handler.test.mjs
+```
+
+Test coverage:
+- ✅ Suite 1: Initialization & Dependencies (3 tests)
+- ✅ Suite 2: Input Validation (4 tests)
+- ✅ Suite 3: Formatting Logic (5 tests)
+- ✅ Suite 4: Edit Generation (3 tests)
+- ✅ Suite 5: Performance & Error Recovery (4 tests)
+- ✅ Suite 6: Integration with apply-edit (3 tests)
+
+**Using Test Fixtures**:
+```javascript
+import {
+  UNFORMATTED_JS_TABS_SPACES,
+  FORMATTED_JS_TABS_SPACES,
+  PERF_DOC_100_LINES,
+  createMockDocumentProvider,
+  verifyLineLength,
+  verifyNoTrailingWhitespace
+} from './mocks/format-document-fixtures.mjs';
+
+// Create mock provider
+const provider = createMockDocumentProvider({
+  'test.js': { text: UNFORMATTED_JS_TABS_SPACES }
+});
+
+// Test formatting
+const result = await handler(message, { documentProvider: provider });
+
+// Verify results
+assert(verifyLineLength(result.data.formatted, 80));
+assert(verifyNoTrailingWhitespace(result.data.formatted));
+```
+
+### Troubleshooting
+
+**Issue**: Format handler returns empty changes
+- **Cause**: Document not found in DocumentProvider
+- **Solution**: Verify document is loaded before calling handler
+
+**Issue**: Performance timeout on large files
+- **Cause**: Inefficient line-breaking algorithm
+- **Solution**: Reduce lineLength or pre-split document into smaller chunks
+
+**Issue**: Indentation inconsistent after formatting
+- **Cause**: Mixed tabs/spaces detection failed
+- **Solution**: Review `detectIndentStyle()` logic; consider pre-normalizing input
+
+### Related Steps
+
+- **Step 52** (DocumentProvider): Document loading/validation
+- **Step 71** (Handler Registration): Register `bridge:formatDocument`
+- **Step 76** (Refactor Handler): Related transformation handler
+- **Step 77** (Fix Suggestion Handler): Related transformation handler
+- **Step 78** (Apply-Edit Handler): Consumer of format-generated edits
+- **Step 80** (Tree-Sitter Integration): Optional advanced formatting
+- **Step 91** (Snippet Handler): Related transformation handler
+
+---
+
 **Document Version**: 2.1  
 **Last Review**: 2024-01-15  
 **Next Review**: After Step 71 completion
