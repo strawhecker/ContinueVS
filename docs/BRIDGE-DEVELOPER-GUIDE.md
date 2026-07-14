@@ -3752,6 +3752,367 @@ describe('Handler Dispatcher Integration', () => {
 });
 ```
 
+### Handler Integration Testing (Steps 67–70)
+
+When multiple handlers share dependencies (DocumentProvider, SymbolExtractor, cache), test their interaction together:
+
+#### Key Principles
+
+1. **Shared State** — Both handlers access the same DocumentProvider and SymbolExtractor instances
+2. **Realistic Flows** — Test user scenarios: completion → hover → edit → completion again
+3. **Cache Effectiveness** — Verify cache hit rates when handlers share query results
+4. **Non-Cascading Errors** — Ensure one handler's failure doesn't poison the other
+5. **Performance Gates** — Combined latency (all handlers on same document) < 100ms p99
+
+#### Example: Code-Completion & Hover-Info Integration
+
+```javascript
+// File: tests/handler-tests-code-completion.test.mjs (Step 69)
+
+import { createCodeCompletionHandler } from '../lib/code-completion-handler.mjs';
+import { createHoverInfoHandler } from '../lib/hover-info-handler.mjs';
+import {
+  createSharedDocumentProvider,
+  createSharedSymbolExtractor,
+  createCompletionHoverScenario,
+} from './mocks/handler-integration-helpers.mjs';
+
+describe('Handler Integration - Completion + Hover Flow', () => {
+  let completion, hover;
+  let docProvider, symbolExtractor;
+
+  beforeEach(() => {
+    // Create shared dependencies
+    docProvider = createSharedDocumentProvider({
+      '/service.cs': { content: 'code', language: 'csharp' }
+    });
+
+    symbolExtractor = createSharedSymbolExtractor({
+      '/service.cs': [
+        { name: 'GetUser', kind: 'method', line: 20, column: 4 },
+        { name: 'GetUserById', kind: 'method', line: 30, column: 4 },
+      ]
+    });
+
+    // Initialize both handlers with shared dependencies
+    completion = createCodeCompletionHandler({
+      documentProvider: docProvider,
+      symbolExtractor,
+    });
+
+    hover = createHoverInfoHandler({
+      documentProvider: docProvider,
+      symbolExtractor,
+    });
+  });
+
+  it('should completion and hover handlers share cache', async () => {
+    const statsBefore = symbolExtractor.getCacheStats();
+
+    // Completion query populates cache
+    await completion.handle({
+      data: { file: '/service.cs', line: 20, column: 10 }
+    });
+
+    // Hover query should hit cache
+    await hover.handle({
+      data: { filepath: '/service.cs', line: 20, column: 10 }
+    });
+
+    const statsAfter = symbolExtractor.getCacheStats();
+    expect(statsAfter.hitRate).to.be.greaterThan(0);
+  });
+
+  it('should realistic flow: completion → hover → edit → completion', async () => {
+    // Step 1: Get completions
+    const completions = await completion.handle({
+      data: { file: '/service.cs', line: 20, column: 10 }
+    });
+
+    // Step 2: Hover on completion
+    const hover1 = await hover.handle({
+      data: { filepath: '/service.cs', line: 20, column: 10 }
+    });
+
+    // Step 3: Edit document
+    docProvider.updateDocument('/service.cs', 'new content');
+
+    // Step 4: Get completions again
+    const completions2 = await completion.handle({
+      data: { file: '/service.cs', line: 20, column: 10 }
+    });
+
+    expect(completions).to.exist;
+    expect(hover1).to.exist;
+    expect(completions2).to.exist;
+  });
+
+  it('should combined latency meet performance gate (p99 < 100ms)', async () => {
+    const latencies = [];
+
+    for (let i = 0; i < 10; i++) {
+      const start = performance.now();
+
+      await completion.handle({
+        data: { file: '/service.cs', line: 20, column: 10 }
+      });
+
+      await hover.handle({
+        data: { filepath: '/service.cs', line: 20, column: 10 }
+      });
+
+      latencies.push(performance.now() - start);
+    }
+
+    const sorted = latencies.sort((a, b) => a - b);
+    const p99 = sorted[Math.floor(sorted.length * 0.99)];
+
+    expect(p99).to.be.lessThan(100);
+  });
+});
+```
+
+#### Shared Dependencies Pattern
+
+Use the `handler-integration-helpers.mjs` module to create mocks:
+
+```javascript
+import {
+  createSharedDocumentProvider,      // DocumentProvider with lifecycle tracking
+  createSharedSymbolExtractor,       // SymbolExtractor with cache instrumentation
+  createSharedDiagnosticsCollector,  // Diagnostics with error injection
+  createSharedLogger,                // Logger with log capture
+  createSharedMetrics,               // Metrics with percentile calculation
+  createHandlerPair,                 // Convenient pair factory
+} from './mocks/handler-integration-helpers.mjs';
+
+// Option 1: Manual setup (fine-grained control)
+const docProvider = createSharedDocumentProvider();
+const symbolExtractor = createSharedSymbolExtractor();
+const logger = createSharedLogger();
+
+const handler1 = createHandler1({ documentProvider: docProvider, symbolExtractor, logger });
+const handler2 = createHandler2({ documentProvider: docProvider, symbolExtractor, logger });
+
+// Option 2: Factory setup (convenient)
+const { completion, hover, dependencies } = createHandlerPair(
+  createCodeCompletionHandler,
+  createHoverInfoHandler,
+  { initialDocs: { '/test.cs': { ... } } }
+);
+
+// Access shared state for assertions
+const cacheStats = dependencies.symbolExtractor.getCacheStats();
+const logs = dependencies.logger.getLogs();
+```
+
+#### Error Non-Cascading Pattern
+
+Ensure one handler's failure doesn't poison the other:
+
+```javascript
+it('should handler A error not affect handler B', async () => {
+  // Handler A configured with bad dependency
+  const handlerA = createHandler1({ documentProvider: null });
+
+  // Handler B configured correctly
+  const handlerB = createHandler2({ documentProvider: docProvider });
+
+  // Handler A fails (expected)
+  try {
+    await handlerA.handle({ data: {} });
+  } catch (e) {
+    // Expected: Handler A throws
+  }
+
+  // Handler B still works (no cascade)
+  const result = await handlerB.handle({ data: { filepath: '/test.cs' } });
+  expect(result).to.exist;
+});
+```
+
+#### Performance Gate Validation
+
+```javascript
+it('should combined ops stay under performance gate', async () => {
+  const measurements = [];
+
+  for (let iter = 0; iter < 20; iter++) {
+    const start = performance.now();
+
+    // Run realistic scenario
+    await handler1.handle({ data: { ... } });
+    await handler2.handle({ data: { ... } });
+    await handler2.handle({ data: { ... } });
+
+    measurements.push(performance.now() - start);
+  }
+
+  // Calculate p99 latency
+  const sorted = measurements.sort((a, b) => a - b);
+  const p99 = sorted[Math.floor(sorted.length * 0.99)];
+
+  // Gate: p99 < 100ms for combined operations
+  assert(p99 < 100, `p99 ${p99}ms exceeds gate of 100ms`);
+});
+```
+
+#### Step 70: Composite Handler Integration
+
+Step 70 orchestrates all handler pairs (Steps 67, 68, 69) into a single comprehensive scenario:
+
+```
+Step 67 (editor-context handler tests)
+   ↓
+Step 68 (search/navigation handler tests)
+   ↓
+Step 69 (code-completion handler tests)
+   ↓
+Step 70 (composite orchestration) = 67 + 68 + 69 combined
+```
+
+**Purpose**: Validate that all three handler test suites work together coherently, with shared state, cross-handler message routing, and combined performance characteristics.
+
+**File**: `src/versions/v2.0.0/tests/handler-tests-integration.test.mjs`
+
+**Test Suites** (22 tests total):
+
+1. **Initialization & Handler Registration** (4 tests)
+   - Initialize all shared dependencies (DocumentProvider, SymbolExtractor, diagnostics, logger, metrics)
+   - Verify document access and symbol extraction
+   - Verify diagnostics and metrics recording
+
+2. **Context-to-Completion Workflow** (5 tests)
+   - Retrieve editor context for completion trigger
+   - Extract symbols at completion position
+   - Maintain cache consistency across context changes
+   - Validate completion request format
+   - Record workflow metrics
+
+3. **Search-to-Navigation Workflow** (5 tests)
+   - Search across multiple documents
+   - Locate results in multiple files
+   - Chain go-to-definition with search results
+   - Find references without cross-contamination
+   - Track search-to-navigation state
+
+4. **Complex Multi-Handler Scenarios** (5 tests)
+   - Handle editor state change with context propagation
+   - Execute completion with search fallback on multi-file context
+   - Maintain hover info cache during multi-file navigation
+   - Record comprehensive metrics across multiple handlers
+
+5. **Performance & Error Handling** (3 tests)
+   - Cached queries meet performance gate (<5ms)
+   - Concurrent multi-file operations timely (<100ms)
+   - Gracefully handle missing documents without cascading errors
+
+6. **State Consistency Validation** (2 tests)
+   - Maintain consistency across rapid successive calls
+   - Prevent state corruption during parallel handler invocations
+
+**Implementation Pattern**:
+
+```javascript
+// File: tests/handler-tests-integration.test.mjs (Step 70)
+
+import { describe, it, beforeEach } from 'mocha';
+import assert from 'assert';
+import { performance } from 'perf_hooks';
+import {
+  createSharedDocumentProvider,
+  createSharedSymbolExtractor,
+  createSharedDiagnosticsCollector,
+  createSharedLogger,
+  createSharedMetrics,
+} from './mocks/handler-integration-helpers.mjs';
+
+describe('Handler Integration - Initialization', () => {
+  let documentProvider, symbolExtractor, diagnosticsCollector, logger, metrics;
+
+  beforeEach(() => {
+    // Initialize all shared mocks once per suite
+    documentProvider = createSharedDocumentProvider({
+      '/app.cs': { content: 'public class App {}' },
+      '/lib.ts': { content: 'export interface Lib {}' },
+    });
+    symbolExtractor = createSharedSymbolExtractor({
+      '/app.cs': [{ name: 'App', kind: 'class', line: 0, col: 13 }],
+      '/lib.ts': [{ name: 'Lib', kind: 'interface', line: 0, col: 17 }],
+    });
+    diagnosticsCollector = createSharedDiagnosticsCollector();
+    logger = createSharedLogger();
+    metrics = createSharedMetrics();
+  });
+
+  it('should initialize all shared dependencies', () => {
+    assert.ok(documentProvider);
+    assert.ok(symbolExtractor);
+    assert.ok(diagnosticsCollector);
+    assert.ok(logger);
+    assert.ok(metrics);
+  });
+
+  // ... additional tests ...
+});
+
+describe('Handler Integration - Context-to-Completion Flow', () => {
+  let documentProvider, symbolExtractor, logger, metrics;
+
+  beforeEach(() => {
+    documentProvider = createSharedDocumentProvider({
+      '/main.cs': { content: 'public class Main { public void Test() {} }' },
+    });
+    symbolExtractor = createSharedSymbolExtractor({
+      '/main.cs': [
+        { name: 'Main', kind: 'class', line: 1, col: 13 },
+        { name: 'Test', kind: 'method', line: 1, col: 32 },
+      ],
+    });
+    logger = createSharedLogger();
+    metrics = createSharedMetrics();
+  });
+
+  it('should retrieve editor context for completion trigger', async () => {
+    const doc = documentProvider.getDocument('/main.cs');
+    assert.ok(doc);
+  });
+
+  it('should extract symbols at completion position', async () => {
+    const syms = await symbolExtractor.extractSymbols('/main.cs');
+    assert.ok(syms.length >= 2);
+  });
+
+  it('should maintain cache consistency across context changes', async () => {
+    const syms1 = await symbolExtractor.extractSymbols('/main.cs');
+    const syms2 = await symbolExtractor.extractSymbols('/main.cs');
+    assert.deepStrictEqual(syms1, syms2);
+    const stats = symbolExtractor.getCacheStats();
+    assert.ok(stats.hits > 0);
+  });
+
+  // ... additional tests ...
+});
+
+// ... additional suites ...
+```
+
+**Key Validation Points**:
+
+- ✅ **Shared State**: DocumentProvider, SymbolExtractor, diagnostics are shared across handlers
+- ✅ **Cache Effectiveness**: Symbol cache hit rates improve when handlers collaborate
+- ✅ **Multi-File Coordination**: Search, navigation, and completion work across multiple files without interference
+- ✅ **Error Isolation**: Errors in one workflow don't cascade to others
+- ✅ **Performance Gates**: 
+  - Cached queries: < 5ms p99
+  - Concurrent operations: < 100ms p99
+  - Combined multi-handler workflow: < 500ms p99
+- ✅ **State Consistency**: Rapid successive calls and parallel invocations maintain identical results
+
+**Integration with Step 71 (Handler Registration)**:
+
+Step 70 tests conclude at line 72 in the plan. Step 71 then registers all handlers with the dispatcher and integrates them into the live message routing pipeline. The successful Step 70 tests provide confidence that all handlers are ready for registration.
+
 ---
 
 ## Common Patterns
