@@ -2690,12 +2690,277 @@ assert.deepStrictEqual(
 
 ## Handler Registration
 
-### Step 71: Register All Handlers
+### Step 71: Register All Handlers with Dispatcher
 
-All handlers are registered in a single location. This enables:
-- Central visibility (see all handlers at a glance)
-- Clear dependency order
-- Easy testing
+**Problem**: Handler registry exists but is not automatically integrated into bridge startup. Handlers need explicit registration during server initialization.
+
+**Solution**: Create a registration orchestrator that consumes the static registry and injects handler registration into the `BridgeServer.start()` lifecycle—after npm validation but before spawning Continue.
+
+---
+
+#### Architecture Flow
+
+```
+BridgeServer.start()
+    ↓
+  npm validation (Step 12) ✓
+    ↓
+  Handler registration (Step 71) ← NEW
+    ├─ Load HANDLER_REGISTRY
+    ├─ Validate all handlers
+    ├─ Instantiate factory handlers
+    ├─ Register with dispatcher
+    └─ Log & record metrics
+    ↓
+  Spawn Continue process
+    ↓
+  Setup signal handlers
+    ↓
+  Bridge ready for messages
+```
+
+---
+
+#### Registration Orchestrator
+
+**Location**: `src/versions/v2.0.0/lib/register-handlers.mjs`
+
+**Core Function**:
+```javascript
+/**
+ * Register all handlers with the dispatcher.
+ * Called during BridgeServer.start() after npm validation, before spawning Continue.
+ *
+ * @param {Object} server - BridgeServer instance (with registerHandler, logger, metrics)
+ * @param {Object} options - Optional configuration
+ *   @param {boolean} options.throwOnError - If true, throw on first error (default: false)
+ *   @param {boolean} options.silent - If true, suppress logging (default: false)
+ * @returns {Promise<RegistrationResult>} Result with count, success, errors, duration, details
+ */
+export async function registerAllHandlersWithDispatcher(server, options = {}) {
+  // 1. Validate server and registry
+  // 2. Import HANDLER_REGISTRY from handler-registry.mjs
+  // 3. For each handler:
+  //    a. Instantiate if factory (isFactory=true)
+  //    b. Register via server.registerHandler(messageType, handler)
+  //    c. Log at debug level
+  //    d. Track success/error
+  // 4. Log final result at info level
+  // 5. Record metrics (if available)
+  // 6. Return RegistrationResult
+}
+```
+
+**RegistrationResult Type**:
+```javascript
+{
+  count: number;              // Number of handlers successfully registered
+  success: boolean;           // Whether all handlers registered
+  errors: Error[];            // Non-fatal errors (logged only)
+  duration: number;           // Time in milliseconds
+  details: [
+    {
+      messageType: string;    // e.g., "bridge:bootstrap"
+      registered: boolean;    // Whether this handler registered
+      error: string | null;   // Error message (if registered=false)
+      isFactory: boolean;     // Whether handler was instantiated
+    }
+  ]
+}
+```
+
+---
+
+#### Handler Patterns: Static vs Factory
+
+**Static Handlers** (registered as-is):
+```javascript
+// bootstrap-handler.js
+export const bootstrapHandler = async (message, context) => ({
+  success: true,
+  data: { version: '2.0.0' }
+});
+
+// Registry entry:
+{
+  messageType: 'bridge:bootstrap',
+  handler: bootstrapHandler,
+  isFactory: false,  // Static
+  ...
+}
+```
+
+**Factory Handlers** (instantiated during registration):
+```javascript
+// go-to-definition-handler.mjs
+export function createGoToDefinitionHandler(context = {}) {
+  // Setup handler-specific state (collector, logger)
+  const { symbolExtractor, logger } = context;
+
+  return async (message, context) => ({
+    success: true,
+    data: { location: '...' }
+  });
+}
+
+// Registry entry:
+{
+  messageType: 'bridge:goToDefinition',
+  handler: createGoToDefinitionHandler,
+  isFactory: true,  // Factory
+  ...
+}
+```
+
+**Registration Process**:
+- **Static**: `register(messageType, handler)` → directly register
+- **Factory**: `register(messageType, handler())` → instantiate first, then register
+
+---
+
+#### Integration with BridgeServer
+
+**In `core-server.js` `start()` method**:
+```javascript
+// Step 71: Register all handlers with dispatcher (before spawning Continue)
+const registrationResult = await registerAllHandlersWithDispatcher(this);
+if (!registrationResult.success) {
+  this.logger.warn('Handler registration completed with errors', {
+    count: registrationResult.count,
+    errorCount: registrationResult.errors.length,
+    duration: registrationResult.duration,
+  });
+}
+```
+
+**Timing**:
+1. ✅ After: npm package validation (Step 12)
+2. ✅ Before: Continue process spawn
+3. ✅ Before: Signal handler setup
+
+**Error Handling**:
+- Validation errors (invalid server/registry) → throw, halt startup
+- Registration errors (duplicate handler) → log warning, continue (non-fatal)
+- Instantiation errors (factory fails) → log warning, continue (non-fatal)
+
+---
+
+#### Error Handling
+
+**HandlerRegistrationError** — Custom error with operation context:
+```javascript
+class HandlerRegistrationError extends Error {
+  name: 'HandlerRegistrationError';
+  operation: 'validation' | 'registry_load' | 'instantiation' | 'registration';
+  details: Object;  // Context-specific details
+  timestamp: string;  // ISO string
+}
+```
+
+**Operation Types**:
+- `validation`: Server or registry invalid (throws, halts startup)
+- `registry_load`: Failed to load HANDLER_REGISTRY (throws, halts startup)
+- `instantiation`: Factory handler call failed (logged, non-fatal)
+- `registration`: Duplicate handler or dispatcher error (logged, non-fatal)
+
+---
+
+#### Logging & Observability
+
+**Debug Level** (per handler):
+```
+[2024-01-15T10:30:45.123Z] [DEBUG] Registered handler: bridge:getEditorState {
+  "stabilityTier": "core",
+  "timeoutPolicy": "fast",
+  "isFactory": false
+}
+```
+
+**Info Level** (summary):
+```
+[2024-01-15T10:30:45.145Z] [INFO] Handler registration complete: 10/10 handlers registered in 22ms {
+  "success": true,
+  "errorCount": 0
+}
+```
+
+**Warn Level** (errors):
+```
+[2024-01-15T10:30:45.150Z] [WARN] Failed to register handler bridge:customHandler: Factory instantiation failed {
+  "operation": "instantiation",
+  "details": {
+    "messageType": "bridge:customHandler",
+    "originalError": "Context missing required field: symbolExtractor"
+  }
+}
+```
+
+---
+
+#### Metrics Recording
+
+**If metrics collector available**:
+```javascript
+server.metrics.record('handler_registration_count', 10);        // handlers registered
+server.metrics.record('handler_registration_duration', 22);     // milliseconds
+server.metrics.record('handler_registration_errors', 0);        // errors encountered
+```
+
+**Metrics are optional** — registration continues even if metrics.record() fails.
+
+---
+
+#### Testing
+
+**Test Suite**: `src/versions/v2.0.0/tests/register-handlers.test.mjs` (18+ tests)
+
+**Test Suites**:
+1. **Happy Path** (3 tests) — All 10 handlers register, logging works
+2. **Factory Instantiation** (3 tests) — Factories instantiated, static handlers as-is
+3. **Error Handling** (4 tests) — Invalid server, missing registry, duplicates
+4. **Logging & Metrics** (3 tests) — Debug/info logs, metrics recording
+5. **Performance** (2 tests) — Registration <50ms, non-blocking
+6. **Idempotency** (2 tests) — Duplicate detection, cleanup/re-register
+7. **Integration** (1+ tests) — BridgeServer lifecycle, handler diagnostics
+
+**Running Tests**:
+```bash
+# All tests
+npx mocha src/versions/v2.0.0/tests/register-handlers.test.mjs --timeout 15000
+
+# Specific suite
+npx mocha src/versions/v2.0.0/tests/register-handlers.test.mjs --grep "Happy Path"
+
+# Performance test
+npx mocha src/versions/v2.0.0/tests/register-handlers.test.mjs --grep "less than 50ms"
+```
+
+---
+
+#### Dependencies
+
+**Blocks**:
+- Steps 72–75 (middleware, integration tests) — require handlers registered
+
+**Enabled by**:
+- Steps 50–61 (all handlers implemented)
+- Step 66 (handler registry created)
+- Step 14 (dispatcher ready)
+- Step 45 (server lifecycle)
+
+**No new npm dependencies** — Uses only Node.js built-ins and existing imports.
+
+---
+
+#### Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| "Handler already registered" | Second registration attempt | Clear dispatcher and retry (testing only) |
+| "Server missing registerHandler" | Invalid server instance | Pass `BridgeServer` instance, not mock |
+| "Factory handler returns non-function" | Factory implementation error | Verify factory returns async function |
+| "Registration timeout" | Very slow factory | Check factory for blocking I/O |
+| Registration logs not showing | `silent: true` option set | Pass `silent: false` or omit option |
 
 ---
 

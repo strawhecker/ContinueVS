@@ -89,8 +89,8 @@
 | 66 | Create handler registry | 50,52,53,54 | None | ✅ COMPLETE |
 | 67 | Create handler tests (editor context) | 50,51 | None | ✅ COMPLETE |
 | 68 | Create handler tests (search/navigation) | 55,56,57 | None | ✅ COMPLETE |
-| 69 | Create handler tests (code completion) | 58,59 | None |
-| 70 | Create handler integration tests | 67,68,69 | None |
+| 69 | Create handler tests (code completion) | 58,59 | None | ✅ COMPLETE |
+| 70 | Create handler integration tests | 67,68,69 | None | ✅ COMPLETE |
 | 71 | Register all handlers with dispatcher | 50-61,66 | None |
 | 72 | Create message logging middleware | None | None |
 | 73 | Create request/response validation | None | None |

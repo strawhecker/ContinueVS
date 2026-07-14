@@ -64,6 +64,9 @@ import { randomUUID } from 'crypto';
 // Step 14: Handler Dispatcher for message routing
 import HandlerDispatcher from './lib/handler-dispatcher.js';
 
+// Step 71: Handler registration orchestrator
+import { registerAllHandlersWithDispatcher } from './lib/register-handlers.mjs';
+
 // ============================================================================
 // Configuration & Constants
 // ============================================================================
@@ -229,6 +232,16 @@ class BridgeServer {
       if (!existsSync(logsDir)) {
         mkdirSync(logsDir, { recursive: true });
         this.logger.info('Created logs directory', { path: logsDir });
+      }
+
+      // Step 71: Register all handlers with dispatcher (before spawning Continue)
+      const registrationResult = await registerAllHandlersWithDispatcher(this);
+      if (!registrationResult.success) {
+        this.logger.warn('Handler registration completed with errors', {
+          count: registrationResult.count,
+          errorCount: registrationResult.errors.length,
+          duration: registrationResult.duration,
+        });
       }
 
       // Spawn Continue process
