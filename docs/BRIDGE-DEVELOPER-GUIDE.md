@@ -2892,6 +2892,195 @@ npx mocha src/versions/v2.0.0/tests/handler-registry.test.mjs
 
 ---
 
+## Handler Tests: Editor Context Integration (Step 67)
+
+### Purpose
+
+**Step 67** creates integration tests validating the two editor context handlers (Steps 50–51) working together with their dependencies (EditorContextCollector, SelectionTracker). This bridges the gap between individual unit tests and end-to-end WebView integration tests (Step 75).
+
+### Architecture
+
+**Test Location**: `src/versions/v2.0.0/tests/editor-context-handler-integration.test.mjs`
+
+**Handlers Tested**:
+- **Step 50**: `getEditorStateHandler` — queries editor context and returns snapshot
+- **Step 51**: `onEditorStateChange` handler — subscribes to editor state changes
+
+**Dependencies Mocked**:
+- **Step 48**: EditorContextCollector — source of editor state
+- **Step 49**: SelectionTracker — manages selection subscriptions
+
+### Test Suites
+
+#### Suite 1: Handler Initialization & Dependency Injection (3 tests)
+
+Validates both handlers initialize correctly and reject invalid dependencies:
+
+```javascript
+✓ should initialize both handlers successfully with valid mocks
+✓ should reject getEditorStateHandler when collector is null
+✓ should reject getEditorStateHandler when context is undefined
+```
+
+**Purpose**: Ensure handlers fail fast with helpful errors when dependencies are missing.
+
+---
+
+#### Suite 2: getEditorState + onEditorStateChange Lifecycle (5 tests)
+
+Validates handler response schemas, state consistency, and state change propagation:
+
+```javascript
+✓ should call getEditorState and return editor state snapshot
+✓ should handle multiple rapid getEditorState calls returning consistent state
+✓ should reflect state change between getEditorState calls
+✓ should handle null selection gracefully
+✓ should maintain cursor position consistency after editor state queries
+```
+
+**Response Schema Tested**:
+```javascript
+{
+  success: true,
+  data: {
+    activeFile: '/path/to/file.js',           // From EditorContextCollector
+    cursorLine: 10,                           // From EditorContextCollector
+    cursorColumn: 5,                          // From EditorContextCollector
+    selectedText: 'selection',                // From EditorContextCollector
+    selectionStart: { line: 10, character: 5 },
+    selectionEnd: { line: 10, character: 15 },
+    fileContent: '...',                       // Optional
+    language: 'javascript',                   // Optional
+    diagnosticsCount: 0,                      // Optional
+    lastUpdate: '2024-01-15T12:34:56.789Z'    // ISO timestamp
+  }
+}
+```
+
+---
+
+#### Suite 3: State Consistency Across Handlers (4 tests)
+
+Validates that state changes in EditorContextCollector propagate correctly to handler responses:
+
+```javascript
+✓ should return consistent selection between getEditorState and SelectionTracker
+✓ should propagate EditorContextCollector state changes to getEditorState responses
+✓ should maintain active file consistency when collector state changes
+✓ should handle null/cleared selection consistently across handler calls
+```
+
+**Scenario**: 
+- Initial state: file.js with "consistent" selection
+- Mutate collector to: other.js with "propagated" selection
+- Verify: Next getEditorState call reflects new state
+
+---
+
+#### Suite 4: Error Recovery & Edge Cases (4 tests)
+
+Validates robustness with extreme conditions:
+
+```javascript
+✓ should gracefully handle collector returning all null values
+✓ should handle very rapid state changes without losing data
+✓ should handle formatter edge case: very long selection text
+✓ should recover from collector state listener errors
+```
+
+**Edge Cases Tested**:
+- All values null → returns safe defaults
+- 5 rapid state mutations → each query returns correct state
+- 10KB selection text → preserved and returned
+- Listener throw in collector → handler still succeeds
+
+### Test Execution
+
+**Command**:
+```bash
+cd src/versions/v2.0.0
+npx mocha tests/editor-context-handler-integration.test.mjs --timeout 5000
+```
+
+**Expected Output**:
+```
+Suite 1: Handler Initialization & Dependency Injection
+  ✓ should initialize both handlers successfully with valid mocks
+  ✓ should reject getEditorStateHandler when collector is null
+  ✓ should reject getEditorStateHandler when context is undefined
+
+Suite 2: getEditorState + onEditorStateChange Lifecycle
+  ✓ should call getEditorState and return editor state snapshot
+  ✓ should handle multiple rapid getEditorState calls returning consistent state
+  ✓ should reflect state change between getEditorState calls
+  ✓ should handle null selection gracefully
+  ✓ should maintain cursor position consistency after editor state queries
+
+Suite 3: State Consistency Across Handlers
+  ✓ should return consistent selection between getEditorState and SelectionTracker
+  ✓ should propagate EditorContextCollector state changes to getEditorState responses
+  ✓ should maintain active file consistency when collector state changes
+  ✓ should handle null/cleared selection consistently across handler calls
+
+Suite 4: Error Recovery & Edge Cases
+  ✓ should gracefully handle collector returning all null values
+  ✓ should handle very rapid state changes without losing data
+  ✓ should handle formatter edge case: very long selection text
+  ✓ should recover from collector state listener errors
+
+16 passing (120ms)
+```
+
+### Mock Factories
+
+The test suite provides reusable mock factories used by integration tests:
+
+#### `createMockEditorContextCollector(initialState)`
+
+Returns mock collector with:
+- `getActiveFile()` → file object with { filepath, contents }
+- `getCursorPosition()` → { line, character }
+- `getSelection()` → { start, end, text }
+- `setState(newState)` → updates state and notifies listeners
+- `onStateChange(callback)` → subscribe to mutations
+
+#### `createMockSelectionTracker(initialSelection)`
+
+Returns mock tracker with:
+- `hasSelection()` → boolean
+- `getSelection()` → selection object
+- `onSelectionChange(callback)` → subscribe to changes
+- `setSelection(newSelection)` → update and notify
+
+#### `createMockDispatcher()`
+
+Returns mock dispatcher for onEditorStateChange tests with:
+- `sendMessage(message)` → track dispatched messages
+- `getMessages()` → array of sent messages
+- `getLastMessage()` → most recent message
+
+### Integration Points
+
+**Upstream** (Dependencies):
+- Step 48: EditorContextCollector (mocked)
+- Step 49: SelectionTracker (mocked)
+
+**Downstream** (Uses):
+- Step 70: Handler integration tests — includes this suite pattern
+- Step 71: Handler registration — validates metadata
+- Step 75: WebView integration tests — end-to-end scenarios
+
+### Documentation
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `tests/editor-context-handler-integration.test.mjs` | Integration test suite | 646 |
+| `lib/get-editor-state-handler.mjs` | Handler under test | 319 |
+| `tests/get-editor-state-handler.test.mjs` | Unit tests (Step 50) | 552 |
+| `tests/onEditorStateChange-handler.test.mjs` | Unit tests (Step 51) | 435 |
+
+---
+
 ## Bridge Protocol Adapter (Step 63)
 
 ### Purpose
