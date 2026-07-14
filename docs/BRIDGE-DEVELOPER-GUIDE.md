@@ -2867,6 +2867,234 @@ node src/versions/v2.0.0/tests/bridge-protocol-adapter.test.mjs
 
 ---
 
+## Timeout Manager for RPC Calls (Step 64)
+
+### Purpose
+
+The **TimeoutManager** provides dedicated, reusable timeout lifecycle management for pending RPC requests. Extracted from inline timeout enforcement in Step 63, it offers:
+
+- **Policy-driven timeout configuration** — per-handler or global timeouts
+- **Metrics collection** — p99 latency, timeout rate, average wait time
+- **Graceful degradation** — optional logger/metrics (no-op if null)
+- **Request lifecycle tracking** — start → resolve/reject/timeout with cleanup
+
+### Architecture
+
+**Request Lifecycle**:
+```
+trackRequest(messageId, timeoutMs, messageType?)
+  ↓
+[Start: record timestamp]
+  ↓
+  ├─ resolveRequest(messageId, response) → cleanup + record latency
+  ├─ rejectRequest(messageId, error) → cleanup + record latency
+  └─ [setTimeout] → timeout fires → reject + cleanup + record latency + increment counter
+  ↓
+getMetrics() → {totalRequests, timeouts, averageWaitMs, p99WaitMs, requestsPerSecond}
+```
+
+### Core Responsibilities
+
+| Responsibility | Method | Returns |
+|---|---|---|
+| **Track Request** | `trackRequest(messageId, timeoutMs?, messageType?)` | `Promise<response>` |
+| **Resolve** | `resolveRequest(messageId, response)` | `boolean` |
+| **Reject** | `rejectRequest(messageId, error)` | `boolean` |
+| **Get Metrics** | `getMetrics()` | `{totalRequests, timeouts, averageWaitMs, p99WaitMs, requestsPerSecond, pendingRequests}` |
+| **Cleanup** | `clearExpired(maxAgeMs)` | `number` (cleaned count) |
+| **Dispose** | `dispose()` | `void` |
+| **Pending Count** | `getPendingCount()` | `number` |
+
+### TimeoutPolicy Configuration
+
+**Contract**:
+```javascript
+{
+  defaultTimeoutMs: 5000,                    // Fallback timeout (ms)
+  handlerTimeouts: Map<string, number>,      // Per-messageType overrides
+  retryOnTimeout: false,                     // (optional) enable retry
+  maxRetries: 0                              // (optional) max attempts
+}
+```
+
+**Timeout Hierarchy** (applied in order):
+1. Explicit `timeoutMs` parameter to `trackRequest()`
+2. Handler-specific from `handlerTimeouts.get(messageType)`
+3. Policy default `defaultTimeoutMs`
+
+### Example Usage
+
+**Instantiation**:
+```javascript
+import { createTimeoutManager, createDefaultPolicy } from './lib/timeout-manager.mjs';
+
+const policy = {
+  defaultTimeoutMs: 5000,
+  handlerTimeouts: new Map([
+    ['bridge:getEditorState', 2000],    // Fast
+    ['bridge:search', 30000],           // Slow
+    ['bridge:codeCompletion', 15000]    // Medium
+  ])
+};
+
+const manager = createTimeoutManager(policy, logger, metrics);
+
+// Or use factory for common defaults
+const defaultManager = createTimeoutManager(createDefaultPolicy(), logger);
+```
+
+**Track & Resolve Request**:
+```javascript
+// Outbound: Call handler with timeout
+const pendingResponse = manager.trackRequest(
+  'msg-uuid-1234',          // messageId
+  null,                      // use policy timeout
+  'bridge:getEditorState'   // handler-specific timeout
+);
+
+// Send to handler
+const request = {
+  messageType: 'bridge:getEditorState',
+  messageId: 'msg-uuid-1234',
+  data: {}
+};
+handlerDispatcher.dispatch(request);
+
+// Later: resolve when response arrives
+const response = await pendingResponse;
+manager.resolveRequest('msg-uuid-1234', response);
+
+console.log('Success:', response);
+```
+
+**Query Metrics**:
+```javascript
+const metrics = manager.getMetrics();
+console.log(`
+  Total Requests: ${metrics.totalRequests}
+  Timeouts: ${metrics.timeouts}
+  Average Wait: ${metrics.averageWaitMs}ms
+  P99 Latency: ${metrics.p99WaitMs}ms
+  Request Rate: ${metrics.requestsPerSecond}/sec
+  Pending: ${metrics.pendingRequests}
+`);
+
+// Use for monitoring (Step 72–74 middleware)
+if (metrics.timeouts / metrics.totalRequests > 0.05) {
+  logger.warn('High timeout rate detected');
+}
+```
+
+**Cleanup & Disposal**:
+```javascript
+// Remove requests older than 2 minutes
+const cleaned = manager.clearExpired(120000);
+console.log(`Cleaned up ${cleaned} expired requests`);
+
+// Full cleanup (usually called on shutdown)
+manager.dispose();
+```
+
+### Error Handling
+
+**Exception Hierarchy**:
+```
+TimeoutManagerError (base)
+  └─ TimeoutError (RPC timeout fired)
+```
+
+**Catching Errors**:
+```javascript
+import { TimeoutManager, TimeoutError, TimeoutManagerError } from './lib/timeout-manager.mjs';
+
+try {
+  const manager = new TimeoutManager(policy);
+  const response = await manager.trackRequest('msg-123', 1000);
+} catch (error) {
+  if (error instanceof TimeoutError) {
+    console.error(`Request timed out after ${error.timeoutMs}ms: ${error.messageId}`);
+  } else if (error instanceof TimeoutManagerError) {
+    console.error(`Manager error: ${error.message} (${error.operation})`);
+  }
+}
+```
+
+### Integration Points
+
+**Step 63: Protocol Adapter**  
+TimeoutManager can be used alongside (optional migration from inline timeouts):
+```javascript
+// Step 63 still owns RPC tracking, but could delegate to TimeoutManager
+const pendingResponse = timeoutManager.trackRequest(messageId, timeoutMs);
+adapter.setPendingRequest(messageId, pendingResponse);
+```
+
+**Step 71: Handler Registration**  
+Register handlers with per-type timeout policies:
+```javascript
+// Different timeouts for different handler classes
+const fastHandlers = new Map([
+  ['bridge:getEditorState', 2000],
+  ['bridge:onEditorStateChange', 2000]
+]);
+
+const slowHandlers = new Map([
+  ['bridge:search', 30000],
+  ['bridge:codeCompletion', 15000]
+]);
+
+const manager = createTimeoutManager({
+  defaultTimeoutMs: 5000,
+  handlerTimeouts: new Map([...fastHandlers, ...slowHandlers])
+}, logger);
+```
+
+**Step 72–74: Middleware**  
+Subscribe to metrics for monitoring/telemetry:
+```javascript
+// Step 72: Message Logging Middleware
+setInterval(() => {
+  const metrics = manager.getMetrics();
+  logger.info(`[RPC Metrics] Total: ${metrics.totalRequests}, Timeouts: ${metrics.timeouts}, P99: ${metrics.p99WaitMs}ms`);
+}, 60000);
+
+// Step 73: Validation Middleware
+const metrics = manager.getMetrics();
+if (metrics.p99WaitMs > 10000) {
+  logger.warn('P99 latency exceeds 10 seconds');
+}
+
+// Step 74: Error Recovery Middleware
+if (metrics.timeouts > 0.1 * metrics.totalRequests) {
+  logger.error('Timeout rate > 10%, consider increasing timeouts');
+}
+```
+
+### Testing
+
+**Test Coverage**: 33 comprehensive tests across 10 suites
+
+```bash
+# Run all timeout manager tests
+npx mocha src/versions/v2.0.0/tests/timeout-manager.test.mjs --timeout 10000
+
+# Expected output: ✅ ALL 33 TESTS PASSING
+```
+
+**Test Suites**:
+1. Initialization & Policy Validation (3 tests)
+2. Request Tracking (3 tests)
+3. Request Resolution & Rejection (3 tests)
+4. Timeout Enforcement (4 tests)
+5. Metrics Collection (4 tests)
+6. Cleanup & Disposal (3 tests)
+7. Edge Cases & Degradation (5 tests)
+8. Factory Functions (3 tests)
+9. Logger Integration (2 tests)
+10. Metrics Integration (2 tests)
+
+---
+
 **Location**: `src/versions/v2.0.0/core-server.js`, function `registerAllHandlers(dispatcher)`
 
 **Example Registration Block**:

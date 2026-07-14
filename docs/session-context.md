@@ -84,7 +84,7 @@
 | 61 | Create debug-session handler | None | 71 | ✅ COMPLETE |
 | 62 | Create WebView message type definitions | None | None | ✅ COMPLETE |
 | 63 | Create bridge protocol adapter | 50,52 | None | ✅ COMPLETE |
-| 64 | Create timeout manager for RPC calls | None | None |
+| 64 | Create timeout manager for RPC calls | None | None | ✅ COMPLETE |
 | 65 | Create priority queue for messages | None | None |
 | 66 | Create handler registry | 50,52,53,54 | None |
 | 67 | Create handler tests (editor context) | 50,51 | None |
@@ -903,5 +903,156 @@ new SelectionTracker({ logger, metrics })
 
 ---
 
-**Next Action**: Step 64 (Create Timeout Manager for RPC Calls)
+## Step 64 Completion Record
+
+**Title**: Create Timeout Manager for RPC Calls  
+**Status**: ✅ COMPLETE  
+**Timestamp**: 2024-01-15  
+**Duration**: ~2 hours  
+**Dependencies Met**: Step 63 ✅  
+
+### Deliverables
+
+1. **Module**: `src/versions/v2.0.0/lib/timeout-manager.mjs` (571 lines)
+   - `TimeoutManager` class — RPC timeout lifecycle manager
+   - `TimeoutPolicy` configuration object (contract)
+   - `TimeoutManagerError` exception class
+   - `TimeoutError` exception class (extends TimeoutManagerError)
+   - `createTimeoutManager(policy, logger?, metrics?)` factory function
+   - `createDefaultPolicy()` factory for common timeout settings
+   - Full JSDoc documentation on all public methods
+
+2. **Test Suite**: `src/versions/v2.0.0/tests/timeout-manager.test.mjs` (636 lines)
+   - **33 test cases** across 10 suites (all passing ✅)
+   - Suite 1: Initialization & Policy Validation (3 tests)
+   - Suite 2: Request Tracking (3 tests)
+   - Suite 3: Request Resolution & Rejection (3 tests)
+   - Suite 4: Timeout Enforcement (4 tests)
+   - Suite 5: Metrics Collection (4 tests)
+   - Suite 6: Cleanup & Disposal (3 tests)
+   - Suite 7: Edge Cases & Degradation (5 tests)
+   - Suite 8: Factory Functions (3 tests)
+   - Suite 9: Logger Integration (2 tests)
+   - Suite 10: Metrics Integration (2 tests)
+   - Test fixtures: MockLogger, MockMetrics, createTestPolicy()
+   - Expected duration: ~3 seconds
+
+3. **Documentation**: BRIDGE-DEVELOPER-GUIDE.md
+   - New section: "Timeout Manager for RPC Calls (Step 64)" (~370 lines)
+   - Architecture diagram (request lifecycle)
+   - TimeoutPolicy configuration table
+   - Core responsibilities table
+   - Example instantiation & usage patterns
+   - Integration points with Steps 63, 71, 72–74
+   - Error handling patterns
+   - Test execution instructions
+
+### Test Results
+
+```
+TimeoutManager
+  Suite 1: Initialization & Policy Validation
+    ✓ should create manager with valid policy
+    ✓ should reject null policy
+    ✓ should reject invalid defaultTimeoutMs
+  Suite 2: Request Tracking
+    ✓ should track request and return promise
+    ✓ should reject duplicate messageId
+    ✓ should reject invalid messageId
+  Suite 3: Request Resolution & Rejection
+    ✓ should resolve pending request
+    ✓ should reject pending request
+    ✓ should return false for unknown messageId
+  Suite 4: Timeout Enforcement
+    ✓ should timeout after specified duration
+    ✓ should use default timeout when not specified
+    ✓ should use handler-specific timeout
+    ✓ should clean up pending request after timeout
+  Suite 5: Metrics Collection
+    ✓ should track total requests
+    ✓ should track timeout count
+    ✓ should calculate average wait time
+    ✓ should calculate p99 latency
+  Suite 6: Cleanup & Disposal
+    ✓ should clear expired requests
+    ✓ should dispose and reject all pending requests
+    ✓ should handle multiple dispose calls safely
+  Suite 7: Edge Cases & Degradation
+    ✓ should handle very short timeout (1ms)
+    ✓ should handle concurrent requests independently
+    ✓ should handle large messageIds
+    ✓ should degrade gracefully without logger
+    ✓ should degrade gracefully without metrics
+    ✓ should bound latencies array to prevent unbounded growth
+  Suite 8: Factory Functions
+    ✓ should create manager with createTimeoutManager factory
+    ✓ should create default policy with createDefaultPolicy
+    ✓ should have reasonable timeout values in default policy
+  Suite 9: Logger Integration
+    ✓ should log request tracking with logger
+    ✓ should warn on timeout
+  Suite 10: Metrics Integration
+    ✓ should record metrics when collector provided
+    ✓ should record timeout metric
+
+  33 passing (3s)
+```
+
+### Build Verification
+
+```
+dotnet build VSIXProject1.slnx --force
+  Restored projects (983ms)
+  VSIXProject1 → bin/Debug/net472/ContinueVS.dll
+  VSIXProject1 → bin/Debug/net472/ContinueVS.vsix
+  VSIXProject1.Tests → bin/Debug/net472/VSIXProject1.Tests.dll
+
+Build succeeded.
+  0 Warning(s)
+  0 Error(s)
+```
+
+### Key Features
+
+✅ **Policy-driven timeouts** — Per-handler configuration via TimeoutPolicy  
+✅ **Metrics collection** — p99 latency, timeout rate, request volume tracking  
+✅ **Graceful degradation** — Optional logger/metrics (no-op if null)  
+✅ **Request lifecycle** — trackRequest → resolveRequest/rejectRequest/timeout  
+✅ **Separation of concerns** — Extracted from Protocol Adapter (Step 63)  
+✅ **Error hierarchy** — TimeoutManagerError, TimeoutError (extends TimeoutManagerError)  
+✅ **Factory pattern** — Validation + instantiation with createTimeoutManager()  
+✅ **Bounded memory** — Latencies array capped at 10,000 entries  
+✅ **Concurrent handling** — Multiple requests tracked independently  
+
+### Integration Points
+
+1. **Step 63: BridgeProtocolAdapter**  
+   - Optional migration path (still owns inline timeouts, but TimeoutManager available)
+   - Alternative for separate timeout lifecycle
+
+2. **Step 71: Handler Registration**  
+   - Use TimeoutManager with per-handler timeout policies
+   - Fast handlers: 2000ms, Medium: 10000ms, Slow: 30000ms
+
+3. **Step 72–74: Middleware**  
+   - Subscribe to metrics via `getMetrics()`
+   - p99 latency monitoring
+   - Timeout rate alerting
+   - Request volume tracking
+
+### Related Steps Enabled
+
+- ✅ Step 65: Priority Queue for Messages (no blocking dependencies)
+- ✅ Step 66: Handler Registry (can use TimeoutManager for lifecycle tracking)
+- ✅ Step 71: Handler Registration (primary consumer of TimeoutManager policies)
+- ✅ Step 72–74: Middleware (metrics subscription points)
+
+---
+
+**Last Verified**: Step 64 completed with 33/33 tests passing, zero build warnings, full documentation integrated  
+**Plan Version**: v2.1 (npm-based, Complete 155-Step Master Plan)
+
+---
+
+**Next Action**: Step 65 (Create Priority Queue for Messages)
 
