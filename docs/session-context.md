@@ -105,8 +105,8 @@
 
 | Step | Title | Blocking | Related |
 |---|---|---|---|
-| 76 | Create refactor handler | None | 71 |
-| 77 | Create fix-suggestion handler | None | 71 |
+| 76 | Create refactor handler | None | 71 | ✅ COMPLETE |
+| 77 | Create fix-suggestion handler | None | 71 | ✅ COMPLETE |
 | 78 | Create apply-edit handler | None | 71 |
 | 79 | Create format-document handler | None | 71 |
 | 80 | Create tree-sitter integration (optional) | None | None |

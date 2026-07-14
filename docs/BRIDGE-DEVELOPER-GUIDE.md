@@ -5679,6 +5679,356 @@ npx mocha src/versions/v2.0.0/tests/test-explorer-handler.test.mjs --timeout 500
 
 ---
 
+## Step 78: Apply-Edit Handler
+
+### Overview
+
+The **apply-edit handler** applies discrete text edits to documents, transforming code suggestions and refactorings into actual file changes. It bridges the gap between code analysis (Steps 76–77) and file persistence, supporting single edits, batch operations, and full undo/redo metadata.
+
+**Message Type**: `bridge:applyEdit`  
+**Timeout**: Fast (2000ms)  
+**Stability**: Experimental  
+**Dependencies**: Step 52 (DocumentProvider)
+
+### Request Schema
+
+```json
+{
+  "messageType": "bridge:applyEdit",
+  "messageId": "msg-unique-id",
+  "data": {
+    "filePath": "/path/to/file.js",
+    "edits": [
+      {
+        "range": {
+          "start": 10,
+          "end": 20
+        },
+        "text": "replacement text"
+      }
+    ]
+  }
+}
+```
+
+### Response Schema
+
+```json
+{
+  "success": true,
+  "applied": true,
+  "path": "/path/to/file.js",
+  "newText": "modified document text",
+  "editCount": 1,
+  "metadata": {
+    "messageId": "msg-unique-id",
+    "messageType": "bridge:applyEdit",
+    "timestamp": "2024-01-15T10:30:45.123Z",
+    "editCount": 1,
+    "lineDelta": 0,
+    "charDelta": 5,
+    "originalLength": 100,
+    "modifiedLength": 105,
+    "undoInfo": {
+      "originalText": "original document text",
+      "originalEdits": [
+        {
+          "range": { "start": 10, "end": 20 },
+          "text": "replacement text"
+        }
+      ]
+    },
+    "duration": 12
+  }
+}
+```
+
+### Edit Object Structure
+
+Each edit in the `edits` array must contain:
+
+```typescript
+interface TextEdit {
+  range: {
+    start: number;    // Character offset (inclusive)
+    end: number;      // Character offset (exclusive)
+  };
+  text: string;       // Replacement text (empty string = deletion)
+}
+```
+
+**Range Semantics**:
+- `start` and `end` are character offsets from the beginning of the file
+- `start === end` means insertion (no deletion)
+- `start < end` means replace the substring
+- `text === ""` with `start < end` means delete
+- Ranges must be non-overlapping when sorted ascending
+
+### Operations
+
+#### Single Insert
+
+```javascript
+// Insert "world" at position 5
+{
+  range: { start: 5, end: 5 },
+  text: "world"
+}
+```
+
+#### Replace Substring
+
+```javascript
+// Replace characters 10-20 with "new text"
+{
+  range: { start: 10, end: 20 },
+  text: "new text"
+}
+```
+
+#### Delete Range
+
+```javascript
+// Delete characters 15-30
+{
+  range: { start: 15, end: 30 },
+  text: ""
+}
+```
+
+#### Multi-Edit
+
+```javascript
+// Apply multiple non-overlapping edits
+[
+  { range: { start: 0, end: 5 }, text: "fn" },       // Rename "function"
+  { range: { start: 50, end: 55 }, text: "test" }    // Rename variable
+]
+```
+
+### Error Handling
+
+#### ApplyEditValidationError
+
+Thrown when the request structure is invalid:
+
+```javascript
+// Missing or invalid filePath
+{ filePath: null, edits: [...] }
+// → Error: filePath: must be a non-empty string
+
+// Invalid edits array
+{ filePath: "/test.js", edits: "not an array" }
+// → Error: edits: must be an array
+
+// Invalid edit range structure
+{ filePath: "/test.js", edits: [{ range: {}, text: "x" }] }
+// → Error: edits[0].range.start: must be a non-negative number
+```
+
+#### ApplyEditRangeError
+
+Thrown when edit ranges are invalid or conflicting:
+
+```javascript
+// Range.start > range.end
+{ range: { start: 20, end: 10 }, text: "x" }
+// → Error: range.start (20) > range.end (10)
+
+// Overlapping edits
+[
+  { range: { start: 0, end: 10 }, text: "x" },
+  { range: { start: 5, end: 15 }, text: "y" }  // Overlaps!
+]
+// → Error: Overlapping edits: [5, 15] overlaps with [0, 10]
+
+// Out-of-bounds range
+{ range: { start: 0, end: 1000 }, text: "x" }  // File only 100 chars
+// → Error: Range [0, 1000] out of bounds for text length 100
+```
+
+#### ApplyEditIOError
+
+Thrown when document access or file I/O fails:
+
+```javascript
+// Document not found
+documentProvider.getDocument("/nonexistent.js") → null
+// → Error: Document not found or invalid: /nonexistent.js
+
+// File system error
+fs.writeFile("/readonly/file.js") → EACCES
+// → Error: Failed to apply edits: EACCES: permission denied
+```
+
+### Usage Examples
+
+#### Example 1: Apply Single Rename
+
+```javascript
+const handler = await createApplyEditHandler({
+  documentProvider,
+  logger,
+  metrics
+});
+
+const message = {
+  messageType: 'bridge:applyEdit',
+  messageId: 'msg-001',
+  data: {
+    filePath: '/src/app.js',
+    edits: [
+      {
+        range: { start: 45, end: 52 },  // "myFunc"
+        text: 'newFunc'
+      }
+    ]
+  }
+};
+
+const result = await handler(message, {});
+console.log(result.newText);  // File with renamed function
+console.log(result.metadata.charDelta);  // +1 (7 - 6 chars)
+```
+
+#### Example 2: Apply Multiple Edits (Code Formatting)
+
+```javascript
+const message = {
+  messageType: 'bridge:applyEdit',
+  messageId: 'msg-002',
+  data: {
+    filePath: '/src/index.js',
+    edits: [
+      { range: { start: 10, end: 11 }, text: '' },   // Remove space
+      { range: { start: 25, end: 25 }, text: '\n' }, // Add newline
+      { range: { start: 50, end: 51 }, text: '  ' }  // Add indentation
+    ]
+  }
+};
+
+const result = await handler(message, {});
+console.log(result.editCount);  // 3
+console.log(result.metadata.lineDelta);  // +1 (added newline)
+```
+
+#### Example 3: Full Document Replacement
+
+```javascript
+const doc = await documentProvider.getDocument('/src/generated.js');
+const message = {
+  messageType: 'bridge:applyEdit',
+  messageId: 'msg-003',
+  data: {
+    filePath: '/src/generated.js',
+    edits: [
+      {
+        range: { start: 0, end: doc.text.length },
+        text: newGeneratedContent
+      }
+    ]
+  }
+};
+
+const result = await handler(message, {});
+console.log(result.newText === newGeneratedContent);  // true
+console.log(result.metadata.charDelta);  // May be positive or negative
+```
+
+#### Example 4: Undo Support (Using Undo Metadata)
+
+```javascript
+// Apply edits
+const result = await handler(message, {});
+
+// Later, if user requests undo:
+const undoMessage = {
+  messageType: 'bridge:applyEdit',
+  messageId: 'msg-undo',
+  data: {
+    filePath: result.path,
+    edits: result.metadata.undoInfo.originalEdits.map(edit => ({
+      range: edit.range,
+      text: '' // Clear the edit
+    }))
+    // Then re-apply original text
+  }
+};
+```
+
+### Integration Points
+
+**Producers** (Steps that generate edits):
+- **Step 76** (Refactor Handler): Generates `rename`, `extract`, `move` edits
+- **Step 77** (Fix Suggestion Handler): Generates fix application edits
+
+**Consumers** (Steps that use apply-edit):
+- **Step 79** (Format Document): Applies formatting edits
+- **Step 91** (Snippet Handler): Inserts code snippets via edits
+- **Step 92** (Diff Viewer): Applies diff hunks as edits
+
+### Testing Apply-Edit Handler
+
+**Test Suite**: 23 tests across 6 suites + 1 integration
+
+```bash
+cd E:\GitRepos\ContinueVS
+node --test src/versions/v2.0.0/tests/apply-edit-handler.test.mjs
+```
+
+**Coverage**:
+1. **Initialization** (3 tests): Required/optional dependencies, validation
+2. **Single Edits** (4 tests): Insert, replace, delete, append
+3. **Multiple Edits** (4 tests): Sequential, overlapping detection, sorting, batch
+4. **Edge Cases** (4 tests): Empty ranges, full document, EOL, unicode
+5. **Error Recovery** (4 tests): Invalid ranges, out-of-bounds, missing filepath, null doc
+6. **Metadata** (3 tests): Line delta, char shift, undo info
+7. **Integration** (1 test): Empty edits, graceful handling
+
+**Expected Output**:
+```
+✔ 23 tests pass in ~100ms
+✔ 0 failures
+✔ Coverage: 100% of core logic
+```
+
+### Performance Characteristics
+
+- **Single edit** (<10ms): Basic replace/insert/delete
+- **Batch edits** (50+ edits, <50ms): Large refactorings
+- **Large files** (10KB, <100ms): Full document operations
+- **Memory**: <10MB per request
+
+### Troubleshooting
+
+**Issue**: "Range [X, Y] out of bounds"
+- **Cause**: Edit range exceeds document length
+- **Fix**: Validate ranges against DocumentProvider response length
+
+**Issue**: "Overlapping edits: [A, B] overlaps with [C, D]"
+- **Cause**: Two edits have conflicting ranges
+- **Fix**: Sort edits, adjust ranges, or split into separate requests
+
+**Issue**: "Document not found or invalid"
+- **Cause**: DocumentProvider returned null or invalid document object
+- **Fix**: Verify file exists; check DocumentProvider implementation
+
+**Issue**: Handler timeout (>2000ms)
+- **Cause**: Very large files or DocumentProvider I/O delay
+- **Fix**: Split into smaller batch edits; optimize DocumentProvider
+
+### Related Steps
+
+- **Step 52** (DocumentProvider): Document loading/validation
+- **Step 71** (Handler Registration): Register `bridge:applyEdit`
+- **Step 76** (Refactor Handler): Producer of refactoring edits
+- **Step 77** (Fix Suggestion Handler): Producer of fix edits
+- **Step 79** (Format Document): Consumer of formatting edits
+- **Step 91** (Snippet Handler): Consumer of snippet edits
+- **Step 92** (Diff Viewer): Consumer of diff edits
+
+---
+
 **Document Version**: 2.1  
 **Last Review**: 2024-01-15  
 **Next Review**: After Step 71 completion

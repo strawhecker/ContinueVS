@@ -385,6 +385,21 @@ await test('Metadata schema extensible without breaking existing code', () => {
   assert.equal(typeof fresh.handler, 'function', 'Handler must still be callable');
 });
 
+await test('Apply-Edit handler registered and valid (Step 78)', () => {
+  // Verify bridge:applyEdit handler exists
+  const applyEditHandler = getHandlerMetadata('bridge:applyEdit');
+
+  assert(applyEditHandler, 'bridge:applyEdit handler must be registered');
+  assert.equal(applyEditHandler.messageType, 'bridge:applyEdit', 'Message type must match');
+  assert.equal(typeof applyEditHandler.handler, 'function', 'Handler must be callable');
+  assert.equal(applyEditHandler.timeoutPolicy, 'fast', 'Timeout policy must be fast');
+  assert.equal(applyEditHandler.stabilityTier, 'experimental', 'Stability tier must be experimental');
+  assert.equal(applyEditHandler.isFactory, true, 'Must be a factory function');
+  assert(applyEditHandler.relatedSteps.includes(78), 'Must reference Step 78');
+  assert(applyEditHandler.relatedSteps.includes(71), 'Must reference Step 71');
+  assert(applyEditHandler.dependencies.includes(52), 'Must depend on Step 52 (DocumentProvider)');
+});
+
 // ============================================================================
 // TEST SUMMARY
 // ============================================================================
