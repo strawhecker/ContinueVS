@@ -2697,6 +2697,176 @@ All handlers are registered in a single location. This enables:
 - Clear dependency order
 - Easy testing
 
+---
+
+## Bridge Protocol Adapter (Step 63)
+
+### Purpose
+
+The **Bridge Protocol Adapter** translates between two communication layers:
+
+- **Inbound**: C# transport `Message` objects (JSON-RPC envelope: `{messageType, messageId, data}`)
+- **Outbound**: Node handler results (`{success, data/error}`)
+
+The adapter normalizes protocol semantics, tracks RPC correlations by messageId, enforces timeouts, and provides middleware integration hooks for logging, validation, and error recovery.
+
+### Architecture
+
+**Message Flow**:
+```
+[Transport.SendMessage(Message)]
+           ↓
+[Adapter.translateInbound(Message)]
+           ↓
+[BridgeMessage + HandlerContext] → Handler
+           ↓
+[Handler returns HandlerResponse]
+           ↓
+[Adapter.translateOutbound(HandlerResponse)]
+           ↓
+[Message envelope] → Transport
+```
+
+### Core Responsibilities
+
+| Responsibility | Method | Returns |
+|---|---|---|
+| **Inbound Translation** | `translateInbound(message, context?)` | `{bridgeMessage, handlerContext}` |
+| **Outbound Translation** | `translateOutbound(response, messageId, messageType)` | `Message` envelope |
+| **RPC Correlation** | `trackPendingRequest(messageId, timeoutMs?)` | `Promise<response>` |
+| **RPC Resolution** | `resolvePendingRequest(messageId, response)` | `boolean` |
+| **RPC Rejection** | `rejectPendingRequest(messageId, error)` | `boolean` |
+| **Middleware Hooks** | `registerHook(hookName, handler)` | `void` |
+
+### Example Usage
+
+**Instantiation**:
+```javascript
+import { createBridgeProtocolAdapter } from './lib/bridge-protocol-adapter.mjs';
+
+const adapter = createBridgeProtocolAdapter({
+  logger: coreServer.logger,
+  metrics: coreServer.metrics,
+  defaultTimeoutMs: 30000,
+  enableTracing: false
+});
+```
+
+**Inbound Translation** (in core-server.js message loop):
+```javascript
+// Receive raw C# Message
+const rawMessage = JSON.parse(line); // {messageType, messageId, data}
+
+// Translate to handler contract
+const { bridgeMessage, handlerContext } = await adapter.translateInbound(
+  rawMessage,
+  { server: coreServer }
+);
+
+// Dispatch to handler
+const handlerResponse = await dispatcher.dispatch(bridgeMessage, handlerContext);
+
+// Translate back to C# format
+const responseMessage = await adapter.translateOutbound(
+  handlerResponse,
+  rawMessage.messageId,
+  rawMessage.messageType
+);
+
+// Send to IDE
+transport.sendMessage(responseMessage);
+```
+
+**RPC Correlation** (for async operations):
+```javascript
+// Track outbound RPC call
+const pendingResponse = adapter.trackPendingRequest(messageId, 5000);
+
+// Send request to Continue
+sendToIDE(requestMessage);
+
+// Later, when response arrives from Continue
+const response = await pendingResponse;
+console.log(response);
+```
+
+### Middleware Hooks
+
+Available hooks for Steps 72–74 integration:
+
+| Hook | Invocation | Purpose |
+|------|-----------|---------|
+| `pre-translate` | Before inbound translation | Log/validate raw message |
+| `post-translate` | After inbound translation | Inspect normalized message |
+| `pre-handler-response` | Before outbound translation | Transform/log response |
+| `post-handler-response` | After outbound translation | Finalize message envelope |
+
+**Example Hook**:
+```javascript
+// Step 72: Message Logging Middleware
+adapter.registerHook('pre-translate', async (message) => {
+  logger.debug(`[RPC IN] ${message.messageType} (${message.messageId})`);
+});
+
+// Step 73: Validation Middleware
+adapter.registerHook('pre-translate', async (message) => {
+  if (!message.messageType?.startsWith('bridge:')) {
+    throw new ValidationError('messageType', message.messageType, 'Must start with "bridge:"');
+  }
+});
+
+// Step 74: Error Recovery Middleware
+adapter.registerHook('post-handler-response', async (message) => {
+  if (!message.data.success) {
+    logger.error(`[RPC ERROR] ${message.messageType}: ${message.data.error}`);
+  }
+});
+```
+
+### Error Handling
+
+**Exception Hierarchy**:
+```
+ProtocolAdapterError (base)
+  ├─ TimeoutError          (RPC call exceeded timeout window)
+  ├─ ValidationError       (message field validation failed)
+  └─ (other ProtocolAdapterError instances with operationType)
+```
+
+**Catching Errors**:
+```javascript
+import {
+  ProtocolAdapterError,
+  TimeoutError,
+  ValidationError
+} from './lib/bridge-protocol-adapter.mjs';
+
+try {
+  const { bridgeMessage } = await adapter.translateInbound(message);
+} catch (error) {
+  if (error instanceof ValidationError) {
+    console.error(`Field validation failed: ${error.fieldName} = ${error.value}`);
+  } else if (error instanceof TimeoutError) {
+    console.error(`RPC timeout after ${error.timeoutMs}ms: ${error.messageId}`);
+  } else if (error instanceof ProtocolAdapterError) {
+    console.error(`Protocol adapter error [${error.operationType}]: ${error.message}`);
+  }
+}
+```
+
+### Testing
+
+**Test Coverage**: 27 comprehensive tests across 7 suites
+
+```bash
+# Run all protocol adapter tests
+node src/versions/v2.0.0/tests/bridge-protocol-adapter.test.mjs
+
+# Expected output: ✅ ALL 27 TESTS PASSING
+```
+
+---
+
 **Location**: `src/versions/v2.0.0/core-server.js`, function `registerAllHandlers(dispatcher)`
 
 **Example Registration Block**:
