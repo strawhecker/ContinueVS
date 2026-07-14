@@ -85,8 +85,8 @@
 | 62 | Create WebView message type definitions | None | None | ✅ COMPLETE |
 | 63 | Create bridge protocol adapter | 50,52 | None | ✅ COMPLETE |
 | 64 | Create timeout manager for RPC calls | None | None | ✅ COMPLETE |
-| 65 | Create priority queue for messages | None | None |
-| 66 | Create handler registry | 50,52,53,54 | None |
+| 65 | Create priority queue for messages | None | None | ✅ COMPLETE |
+| 66 | Create handler registry | 50,52,53,54 | None | ✅ COMPLETE |
 | 67 | Create handler tests (editor context) | 50,51 | None |
 | 68 | Create handler tests (search/navigation) | 55,56,57 | None |
 | 69 | Create handler tests (code completion) | 58,59 | None |

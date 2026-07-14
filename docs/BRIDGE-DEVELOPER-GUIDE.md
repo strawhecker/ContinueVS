@@ -2699,6 +2699,199 @@ All handlers are registered in a single location. This enables:
 
 ---
 
+## Handler Registry (Step 66)
+
+### Purpose
+
+The **Handler Registry** is a centralized catalog of all bridge handlers that enables:
+- **Single Source of Truth**: All handlers documented in one place
+- **Metadata-Driven Operations**: Step 71 (orchestration) and Steps 72–74 (middleware) query metadata without tight coupling
+- **Extensibility**: Steps 76–95 handlers added by editing registry entries only (no code changes)
+- **Observable**: Middleware can determine handler properties (timeout, stability) for logging, validation, error recovery
+
+### Architecture
+
+**Registry Location**: `src/versions/v2.0.0/lib/handler-registry.mjs`
+
+**Exports**:
+```javascript
+// Get all handlers in registration order (for Step 71)
+getAllHandlers() → Array<HandlerEntry>
+
+// Get metadata for specific handler (for Steps 72–74)
+getHandlerMetadata(messageType) → HandlerEntry | throws HandlerNotFoundError
+
+// Filter handlers by stability (experimental, core, deprecated)
+getHandlersByStabilityTier(tier) → Array<HandlerEntry>
+
+// Filter handlers by timeout policy (fast, medium, slow)
+getHandlersByTimeoutPolicy(policy) → Array<HandlerEntry>
+
+// Check if handler exists
+hasHandler(messageType) → boolean
+
+// Exception types
+HandlerRegistryError, HandlerNotFoundError
+```
+
+### Handler Metadata Schema
+
+```typescript
+interface HandlerEntry {
+  messageType: string;              // "bridge:getEditorState"
+  handler: Function;                // async (message, context) => Promise<HandlerResponse>
+  timeoutPolicy: "fast" | "medium" | "slow";  // 2s | 10s | 30s
+  stabilityTier: "core" | "experimental" | "deprecated";
+  description: string;              // Human-readable purpose
+  relatedSteps: number[];           // [50, 71, 63]
+  dependencies: (string|number)[];  // [48, 49, "EditorContextCollector"]
+}
+```
+
+### Timeout Policies
+
+| Policy | Duration | Use Case | Example |
+|--------|----------|----------|---------|
+| `fast` | 2s | Synchronous lookups, simple queries | editor state, symbol info |
+| `medium` | 10s | I/O operations, workspace scans | search, navigation |
+| `slow` | 30s | Long-running operations | debugging, testing |
+
+### Stability Tiers
+
+| Tier | Support | Behavior | Example |
+|------|---------|----------|---------|
+| `core` | Production | Fully supported, high reliability | bootstrap, getEditorState |
+| `experimental` | Community | Beta, API may change | testExplorer, debugSession |
+| `deprecated` | Maintenance | Plan to remove, use alternatives | (none yet) |
+
+### Usage Example: Step 71 Handler Registration
+
+```javascript
+import { getAllHandlers } from './lib/handler-registry.mjs';
+import { HandlerDispatcher } from './lib/handler-dispatcher.mjs';
+
+export function registerAllHandlers(dispatcher, context) {
+  const allHandlers = getAllHandlers();
+
+  // Handlers registered in order:
+  // 1. bootstrap (gateway)
+  // 2. editor context (Steps 50–51)
+  // 3. navigation (Steps 55–57)
+  // 4. code intelligence (Steps 58–59)
+  // 5. advanced (Steps 60–61, 76–95)
+
+  for (const entry of allHandlers) {
+    dispatcher.register(entry.messageType, entry.handler);
+    context.logger?.debug(`Registered handler: ${entry.messageType}`);
+  }
+}
+```
+
+### Usage Example: Step 72–74 Middleware Integration
+
+**Message Logging Middleware** (Step 72):
+```javascript
+import { getHandlerMetadata } from './lib/handler-registry.mjs';
+
+export function createLoggingMiddleware(logger) {
+  return async function loggingMiddleware(message, next) {
+    const meta = getHandlerMetadata(message.messageType);
+    const tier = meta.stabilityTier === 'core' ? '📌' : '⚠️';
+
+    logger.debug(`${tier} ${message.messageType} (timeout: ${meta.timeoutPolicy})`);
+    const startTime = Date.now();
+
+    try {
+      const result = await next();
+      const duration = Date.now() - startTime;
+      logger.debug(`✓ ${message.messageType} (${duration}ms)`);
+      return result;
+    } catch (err) {
+      logger.error(`✗ ${message.messageType}: ${err.message}`);
+      throw err;
+    }
+  };
+}
+```
+
+**Error Recovery Middleware** (Step 74):
+```javascript
+import { getHandlerMetadata } from './lib/handler-registry.mjs';
+
+export function createErrorRecoveryMiddleware(logger) {
+  return async function errorRecoveryMiddleware(message, next) {
+    const meta = getHandlerMetadata(message.messageType);
+
+    // Experimental handlers get graceful fallback
+    if (meta.stabilityTier === 'experimental') {
+      try {
+        return await next();
+      } catch (err) {
+        logger.warn(`Experimental handler failed, returning safe default: ${err.message}`);
+        return {
+          success: false,
+          error: 'Handler not available (experimental)',
+          retryable: true
+        };
+      }
+    }
+
+    // Core handlers: throw to caller
+    return next();
+  };
+}
+```
+
+### Adding New Handlers (Steps 76–95)
+
+1. **Implement handler** in `src/versions/v2.0.0/lib/` (e.g., `refactor-handler.mjs`)
+2. **Add registry entry** in `handler-registry.mjs`:
+
+```javascript
+{
+  messageType: 'bridge:refactor',
+  handler: createRefactorHandler(),
+  timeoutPolicy: 'medium',
+  stabilityTier: 'experimental',
+  description: 'Code refactoring operations',
+  relatedSteps: [76, 71],
+  dependencies: [50, 53, 54]
+}
+```
+
+3. **Update metadata table** in `HANDLER_REGISTRY_REFERENCE.md`
+4. **Run tests** to validate:
+
+```bash
+npx mocha src/versions/v2.0.0/tests/handler-registry.test.mjs --timeout 5000
+```
+
+### Testing
+
+**Test Coverage**: 22 tests across 6 suites
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| Module Load & Exports | 3 | Registry loads, exports functions, returns safe copies |
+| Metadata Completeness | 5 | Required fields, valid timeout/stability values |
+| Registration Order | 4 | Bootstrap first, context before navigation, no duplicates |
+| Lookup Functions | 4 | getHandlerMetadata(), getAllHandlers(), hasHandler() |
+| Stability & Timeout Filters | 4 | getHandlersByStabilityTier(), getHandlersByTimeoutPolicy() |
+| Extensibility | 3 | New handlers follow pattern, metadata schema extensible |
+
+**Run Tests**:
+```bash
+npx mocha src/versions/v2.0.0/tests/handler-registry.test.mjs
+```
+
+### Documentation
+
+- **Implementation**: `src/versions/v2.0.0/lib/handler-registry.mjs` (~500 lines)
+- **Tests**: `src/versions/v2.0.0/tests/handler-registry.test.mjs` (~520 lines)
+- **Reference**: `src/versions/v2.0.0/handlers/HANDLER_REGISTRY_REFERENCE.md` (metadata tables)
+
+---
+
 ## Bridge Protocol Adapter (Step 63)
 
 ### Purpose
