@@ -15,6 +15,7 @@ import { createGitIntegrationHandler } from './git-integration-handler.mjs';
 import { createTerminalHandler } from './terminal-handler.mjs';
 import { createFileSystemHandler } from './file-system-handler.mjs';
 import { createProjectInfoHandler } from './project-info-handler.mjs';
+import { createInlineMessageHandler } from './inline-message-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -256,17 +257,27 @@ const baseHandlers = [
     relatedSteps: [83, 71],
     dependencies: [71],
   },
-  {
-    messageType: 'bridge:getProjectInfo',
-    handler: createProjectInfoHandler,
-    isFactory: true,
-    timeoutPolicy: 'slow',
-    stabilityTier: 'core',
-    description: 'Get project/solution metadata from IDE',
-    relatedSteps: [84, 71],
-    dependencies: [71],
-  },
-];
+    {
+      messageType: 'bridge:getProjectInfo',
+      handler: createProjectInfoHandler,
+      isFactory: true,
+      timeoutPolicy: 'slow',
+      stabilityTier: 'core',
+      description: 'Get project/solution metadata from IDE',
+      relatedSteps: [84, 71],
+      dependencies: [71],
+    },
+    {
+      messageType: 'bridge:inlineMessage',
+      handler: createInlineMessageHandler,
+      isFactory: true,
+      timeoutPolicy: 'fast',
+      stabilityTier: 'core',
+      description: 'Inline message (decorator, code lens, suggestion)',
+      relatedSteps: [85, 71],
+      dependencies: [71],
+    },
+  ];
 
 // Add tree-sitter handler if feature flag enabled (Step 80)
 if (TREE_SITTER_ENABLED) {
