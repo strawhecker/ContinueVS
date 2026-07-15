@@ -1,9 +1,9 @@
-# Step 10: Version Downgrade Warning — Integration Guide
+# Version Downgrade Warning — Integration Guide
 
 **Location**: `src/VSIXProject1/Services/DowngradeWarningService.cs`  
-**Status**: Implemented (Step 10)  
+**Status**: Implemented  
 **Depends On**: None  
-**Used By**: Step 35 (npm installer)
+**Used By**: Version installer
 
 ---
 
@@ -31,7 +31,7 @@ The **downgrade warning service** detects when a user attempts to switch to an o
 ### Data Flow
 
 ```
-Installer requests version switch (Step 35)
+Installer requests version switch
     ↓
 DowngradeWarningService.CheckDowngradeAsync(currentVersion, targetVersion)
     ↓
@@ -46,7 +46,7 @@ Installer calls VersionManager.SetActiveVersion() or throws exception
 
 ---
 
-## Usage in Step 35 (Installer)
+## Usage in Version Installer
 
 ### Basic Integration
 
@@ -54,7 +54,7 @@ Installer calls VersionManager.SetActiveVersion() or throws exception
 using ContinueVS.Services;
 using ContinueVS.Exceptions;
 
-// In your installer Step 35 code:
+// In your installer code:
 var currentVersion = ContinueVSPackage.VersionManager?.GetActiveVersion();
 var targetVersion = "2.0.0"; // Version being installed
 
@@ -332,15 +332,15 @@ dotnet test src/VSIXProject1.Tests/Services/VersionComparatorTests.cs src/VSIXPr
 ### Current Limitations
 
 - Dialog is modal and blocks on main thread (by design for safety)
-- No logging of downgrade attempts (can add in Step 26: Telemetry)
-- Feature comparison link not included (defer to Step 115: Feature Parity Matrix)
+- No logging of downgrade attempts (can add in telemetry)
+- Feature comparison link not included
 
 ### Future Enhancements
 
-- **Step 115** (Feature Parity Matrix): Link to detailed feature comparison in warning message
-- **Step 103** (Crash Recovery): Auto-downgrade on persistent crashes across multiple sessions
-- **Step 26** (Telemetry): Track downgrade attempts and user confirmations
-- **Step 122** (Telemetry Dashboard): Visualize downgrade patterns
+- Link to detailed feature comparison in warning message
+- Auto-downgrade on persistent crashes across multiple sessions
+- Track downgrade attempts and user confirmations in telemetry
+- Visualize downgrade patterns in diagnostics dashboard
 
 ---
 
@@ -404,15 +404,14 @@ catch (Exception ex)
 ## Related Documents
 
 - [`BRIDGE-VERSION-SELECTION.md`](../BRIDGE-VERSION-SELECTION.md) — Version management overview
-- [Step 35: npm Installer](../adr/adr-step-35-npm-installer.md) — Installation workflow (creates usage)
-- [Step 18: BridgeConfiguration](../adr/adr-step-18-bridge-configuration.md) — Configuration usage
-- [Step 103: Crash Recovery](../adr/adr-step-103-crash-recovery.md) — Uses downgrade on crash
-- [Step 115: Feature Parity Matrix](../adr/adr-step-115-feature-parity.md) — Link to feature comparison
+- [Version Installer](../adr/version-installer.md) — Installation workflow (creates usage)
+- [BridgeConfiguration](../adr/bridge-configuration.md) — Configuration usage
+- [Crash Recovery](../adr/crash-recovery.md) — Uses downgrade on crash
+- [Feature Parity Matrix](../adr/feature-parity-matrix.md) — Link to feature comparison
 
 ---
 
 **Created**: 2024-01-15  
-**Phase**: Part I (Foundation & npm Setup)  
+**Phase**: Foundation & npm Setup  
 **Status**: ✅ Complete  
 **Tests**: 22 test cases (14 VersionComparator + 8 DowngradeWarningService)  
-**Next Step**: Step 11 (npm cache download on first use)

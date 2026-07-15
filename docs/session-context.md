@@ -110,7 +110,7 @@
 | 78 | Create apply-edit handler | None | 71 | ✅ COMPLETE |
 | 79 | Create format-document handler | None | 71 | ✅ COMPLETE |
 | 80 | Create tree-sitter integration (optional) | None | None | ✅ COMPLETE |
-| 81 | Create git-integration handler | None | 71 |
+| 81 | Create git-integration handler | None | 71 | ✅ COMPLETE |
 | 82 | Create terminal handler | None | 71 |
 | 83 | Create file-system handler | None | 71 |
 | 84 | Create project-info handler | None | 71 |
