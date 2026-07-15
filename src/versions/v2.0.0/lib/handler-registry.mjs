@@ -11,6 +11,7 @@ import { DebugSessionHandler } from './debug-session-handler.mjs';
 import { refactorHandler } from './refactor-handler.mjs';
 import { fixSuggestionHandler } from './fix-suggestion-handler.mjs';
 import createApplyEditHandler from './apply-edit-handler.mjs';
+import { createGitIntegrationHandler } from './git-integration-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -161,6 +162,16 @@ const baseHandlers = [
     description: 'Apply text edits to documents',
     relatedSteps: [78, 71],
     dependencies: [52],
+  },
+  {
+    messageType: 'bridge:gitStatus',
+    handler: createGitIntegrationHandler,
+    isFactory: true,
+    timeoutPolicy: 'medium',
+    stabilityTier: 'core',
+    description: 'Git repository status, log, branches, diff operations',
+    relatedSteps: [81, 71],
+    dependencies: [71],
   },
 ];
 
