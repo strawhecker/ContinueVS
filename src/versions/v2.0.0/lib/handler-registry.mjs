@@ -14,6 +14,7 @@ import createApplyEditHandler from './apply-edit-handler.mjs';
 import { createGitIntegrationHandler } from './git-integration-handler.mjs';
 import { createTerminalHandler } from './terminal-handler.mjs';
 import { createFileSystemHandler } from './file-system-handler.mjs';
+import { createProjectInfoHandler } from './project-info-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -253,6 +254,16 @@ const baseHandlers = [
     stabilityTier: 'core',
     description: 'Create directory with optional parent creation',
     relatedSteps: [83, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:getProjectInfo',
+    handler: createProjectInfoHandler,
+    isFactory: true,
+    timeoutPolicy: 'slow',
+    stabilityTier: 'core',
+    description: 'Get project/solution metadata from IDE',
+    relatedSteps: [84, 71],
     dependencies: [71],
   },
 ];
