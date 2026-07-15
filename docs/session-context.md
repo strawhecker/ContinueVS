@@ -112,7 +112,7 @@
 | 80 | Create tree-sitter integration (optional) | None | None | ✅ COMPLETE |
 | 81 | Create git-integration handler | None | 71 | ✅ COMPLETE |
 | 82 | Create terminal handler | None | 71 | ✅ COMPLETE |
-| 83 | Create file-system handler | None | 71 |
+| 83 | Create file-system handler | None | 71 | ✅ COMPLETE |
 | 84 | Create project-info handler | None | 71 |
 | 85 | Create inline message handler | None | 71 |
 | 86 | Create sidebar UI handler | None | 71 |

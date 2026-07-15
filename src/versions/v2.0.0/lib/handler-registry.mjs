@@ -13,6 +13,7 @@ import { fixSuggestionHandler } from './fix-suggestion-handler.mjs';
 import createApplyEditHandler from './apply-edit-handler.mjs';
 import { createGitIntegrationHandler } from './git-integration-handler.mjs';
 import { createTerminalHandler } from './terminal-handler.mjs';
+import { createFileSystemHandler } from './file-system-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -192,6 +193,66 @@ const baseHandlers = [
     stabilityTier: 'core',
     description: 'Subscribe to terminal output events',
     relatedSteps: [82, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:readFile',
+    handler: createFileSystemHandler,
+    isFactory: true,
+    timeoutPolicy: 'medium',
+    stabilityTier: 'core',
+    description: 'Read file contents (UTF-8)',
+    relatedSteps: [83, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:writeFile',
+    handler: createFileSystemHandler,
+    isFactory: true,
+    timeoutPolicy: 'medium',
+    stabilityTier: 'core',
+    description: 'Write/create file (UTF-8)',
+    relatedSteps: [83, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:deleteFile',
+    handler: createFileSystemHandler,
+    isFactory: true,
+    timeoutPolicy: 'medium',
+    stabilityTier: 'core',
+    description: 'Delete file safely',
+    relatedSteps: [83, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:listDirectory',
+    handler: createFileSystemHandler,
+    isFactory: true,
+    timeoutPolicy: 'medium',
+    stabilityTier: 'core',
+    description: 'List directory contents with metadata',
+    relatedSteps: [83, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:getFileStats',
+    handler: createFileSystemHandler,
+    isFactory: true,
+    timeoutPolicy: 'fast',
+    stabilityTier: 'core',
+    description: 'Query file/directory metadata',
+    relatedSteps: [83, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:createDirectory',
+    handler: createFileSystemHandler,
+    isFactory: true,
+    timeoutPolicy: 'medium',
+    stabilityTier: 'core',
+    description: 'Create directory with optional parent creation',
+    relatedSteps: [83, 71],
     dependencies: [71],
   },
 ];
