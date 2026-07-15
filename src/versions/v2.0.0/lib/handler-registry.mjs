@@ -12,6 +12,7 @@ import { refactorHandler } from './refactor-handler.mjs';
 import { fixSuggestionHandler } from './fix-suggestion-handler.mjs';
 import createApplyEditHandler from './apply-edit-handler.mjs';
 import { createGitIntegrationHandler } from './git-integration-handler.mjs';
+import { createTerminalHandler } from './terminal-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -171,6 +172,26 @@ const baseHandlers = [
     stabilityTier: 'core',
     description: 'Git repository status, log, branches, diff operations',
     relatedSteps: [81, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:executeTerminalCommand',
+    handler: createTerminalHandler,
+    isFactory: true,
+    timeoutPolicy: 'medium',
+    stabilityTier: 'core',
+    description: 'Execute terminal commands with output streaming',
+    relatedSteps: [82, 71],
+    dependencies: [71],
+  },
+  {
+    messageType: 'bridge:onTerminalOutput',
+    handler: async (m, c) => ({ success: true, data: { subscriptionId: 'sub' + Date.now() } }),
+    isFactory: false,
+    timeoutPolicy: 'fast',
+    stabilityTier: 'core',
+    description: 'Subscribe to terminal output events',
+    relatedSteps: [82, 71],
     dependencies: [71],
   },
 ];
