@@ -116,7 +116,7 @@
 | 84 | Create project-info handler | None | 71 | ✅ COMPLETE |
 | 85 | Create inline message handler | None | 71 | ✅ COMPLETE |
 | 86 | Create sidebar UI handler | None | 71 | ✅ COMPLETE |
-| 87 | Create context-window handler | None | 71 |
+| 87 | Create context-window handler | None | 71 | ✅ COMPLETE |
 | 88 | Create model-info handler | None | 71 |
 | 89 | Create streaming-response handler | None | 71 |
 | 90 | Create code-lens handler | None | 71 |

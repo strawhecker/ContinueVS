@@ -17,6 +17,7 @@ import { createFileSystemHandler } from './file-system-handler.mjs';
 import { createProjectInfoHandler } from './project-info-handler.mjs';
 import { createInlineMessageHandler } from './inline-message-handler.mjs';
 import { createSidebarUIHandler } from './sidebar-ui-handler.mjs';
+import { createContextWindowHandler } from './context-window-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -287,6 +288,16 @@ const baseHandlers = [
       description: 'Query sidebar UI tree state (documents, symbols, diagnostics)',
       relatedSteps: [86, 71, 52, 53, 54, 83],
       dependencies: [52, 53, 54, 83],
+    },
+    {
+      messageType: 'bridge:getContextWindow',
+      handler: createContextWindowHandler,
+      isFactory: true,
+      timeoutPolicy: 'medium',
+      stabilityTier: 'core',
+      description: 'Query LLM context window token budget and utilization',
+      relatedSteps: [87, 71, 88],
+      dependencies: [71],
     },
   ];
 
