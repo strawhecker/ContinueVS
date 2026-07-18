@@ -17,12 +17,10 @@ namespace ContinueVS.Tests.Handlers
     public class SidebarCollectorTests
     {
         private readonly Mock<IServiceProvider> _mockServiceProvider;
-        private readonly Mock<IDiagnosticsProvider> _mockDiagnosticsProvider;
 
         public SidebarCollectorTests()
         {
             _mockServiceProvider = new Mock<IServiceProvider>();
-            _mockDiagnosticsProvider = new Mock<IDiagnosticsProvider>();
         }
 
         // ====================================================================
@@ -33,7 +31,7 @@ namespace ContinueVS.Tests.Handlers
         public void Constructor_WithValidServiceProvider_Succeeds()
         {
             // Arrange & Act
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Assert
             Assert.NotNull(collector);
@@ -44,19 +42,9 @@ namespace ContinueVS.Tests.Handlers
         {
             // Act & Assert
             var ex = Assert.Throws<SidebarException>(
-                () => new SidebarCollector(null, _mockDiagnosticsProvider.Object)
+                () => new SidebarCollector(null)
             );
             Assert.Equal("MISSING_SERVICE_PROVIDER", ex.Code);
-        }
-
-        [Fact]
-        public void Constructor_WithNullDiagnosticsProvider_Succeeds()
-        {
-            // Arrange & Act
-            var collector = new SidebarCollector(_mockServiceProvider.Object, null);
-
-            // Assert
-            Assert.NotNull(collector);
         }
 
         // ====================================================================
@@ -67,7 +55,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_ReturnsValidSidebarState()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -86,7 +74,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_DocumentsCollectionIsPopulated()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -105,7 +93,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_DiagnosticsAreAggregatedByFile()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -126,7 +114,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_SymbolsAreExtracted()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -144,7 +132,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_WithFilepath_FiltersData()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
             var filepath = "/path/to/file.cs";
 
             // Act
@@ -159,7 +147,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_WithNonexistentFilepath_ReturnsEmptyDiagnostics()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync("/nonexistent/file.cs");
@@ -173,7 +161,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_WithNullFilepath_ReturnsFullState()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync(null);
@@ -191,7 +179,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_DocumentsContainExpectedFields()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -208,7 +196,7 @@ namespace ContinueVS.Tests.Handlers
         public void SidebarDocument_HasCorrectLanguageMapping()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act & Assert via reflection (testing language mapping)
             // Note: This test documents expected language mappings
@@ -229,7 +217,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_DocumentsLimitedToRelevantFileTypes()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -251,7 +239,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_ExcludesNodeModulesAndBuildDirectories()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -275,7 +263,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_WithNullDTE_ReturnsEmptyState()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, null);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -286,27 +274,10 @@ namespace ContinueVS.Tests.Handlers
         }
 
         [Fact]
-        public async Task GetSidebarStateAsync_HandlesDiagnosticsCollectorException()
-        {
-            // Arrange
-            _mockDiagnosticsProvider.Setup(d => d.GetDiagnosticsAsync())
-                .ThrowsAsync(new Exception("Diagnostics error"));
-
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
-
-            // Act
-            var state = await collector.GetSidebarStateAsync();
-
-            // Assert
-            Assert.NotNull(state);
-            // Should not crash; diagnostics may be empty or partial
-        }
-
-        [Fact]
         public async Task GetSidebarStateAsync_HandlesFileEnumerationErrors()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();
@@ -320,7 +291,7 @@ namespace ContinueVS.Tests.Handlers
         public async Task GetSidebarStateAsync_DoesNotThrowOnTaskTimeout()
         {
             // Arrange
-            var collector = new SidebarCollector(_mockServiceProvider.Object, _mockDiagnosticsProvider.Object);
+            var collector = new SidebarCollector(_mockServiceProvider.Object);
 
             // Act
             var state = await collector.GetSidebarStateAsync();

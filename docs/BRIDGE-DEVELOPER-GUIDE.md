@@ -6582,3 +6582,221 @@ Together, they enable Continue to:
 ✅ Latency < 10ms (p99)  
 ✅ No regressions in other handlers  
 ✅ Integration with Step 88 planned
+
+---
+
+## Step 88: Model-Info Handler
+
+The model-info handler provides Continue with information about available LLM models and the currently selected model. This enables the IDE to display a model selector UI and verify model capabilities (streaming, vision, context size) before executing operations.
+
+### Handler Overview
+
+**Message Type**: `bridge:getModelInfo`  
+**Pattern**: Factory (stateless)  
+**Timeout**: Fast (50ms p99)  
+**Tier**: Core (stability)
+
+**Provides**:
+```javascript
+{
+  currentModel: { provider, model, title, apiBase },
+  availableModels: [ { provider, model, title }, ... ],
+  modelCapabilities: { contextLength, supportsStreaming, supportsVision, ... },
+  tokenLimits: { maxInputTokens, maxOutputTokens, totalContextTokens }
+}
+```
+
+### Architecture
+
+```
+[Bridge Message] → model-info-handler (factory)
+                      ↓
+                  [Concurrent Calls]
+                  ├─ GetCurrentModelAsync()
+                  ├─ GetAvailableModelsAsync()
+                  └─ GetModelCapabilitiesAsync(provider)
+                      ↓
+                  [ModelInfoCollector.cs] reads ~/.continue/config.json
+                      ↓
+                  [Normalized Response]
+```
+
+### Implementation Files
+
+**Node.js (Handler)**:
+- `src/versions/v2.0.0/lib/model-info-handler.mjs` — Factory + message handler (350 lines)
+- `src/versions/v2.0.0/lib/model-info-collector-adapter.mjs` — C#/Node.js bridge (240 lines)
+- `src/versions/v2.0.0/tests/model-info-handler.test.mjs` — Integration tests (400 lines)
+- `src/versions/v2.0.0/tests/mocks/model-info-collector-mock.mjs` — Test fixtures (320 lines)
+
+**C# (Collector)**:
+- `src/VSIXProject1/Services/ModelInfoCollector.cs` — Service class (320 lines)
+- `src/VSIXProject1.Tests/Services/ModelInfoCollectorTests.cs` — Unit tests (430 lines)
+
+**Documentation**:
+- `docs/STEP88-MODEL-INFO-GUIDE.md` — Complete implementation guide (350 lines)
+
+### Key Concepts
+
+**Model Configuration Source**: Continue's `~/.continue/config.json` contains:
+```json
+{
+  "models": [
+    { "title": "OpenAI GPT-4", "provider": "openai", "model": "gpt-4" },
+    { "title": "Anthropic Claude", "provider": "anthropic", "model": "claude-3-opus" }
+  ]
+}
+```
+
+**Provider-Specific Capabilities**:
+- **OpenAI**: 8,192 token context, streaming, vision, 3,500 RPM limit
+- **Anthropic**: 100,000 token context, streaming, vision, 50 RPM limit
+- **Ollama**: 4,096 token context (model-dependent), streaming, no vision, unlimited local
+
+**Token Limit Calculation**: Different limits per model (e.g., GPT-4 vs GPT-4 Turbo):
+```javascript
+if (model === 'gpt-4-turbo')
+  return { maxInputTokens: 128000, maxOutputTokens: 4096, total: 128000 };
+else if (model === 'gpt-4')
+  return { maxInputTokens: 8192, maxOutputTokens: 2048, total: 8192 };
+```
+
+### Message Flow Example
+
+**Request**:
+```javascript
+{
+  messageType: 'bridge:getModelInfo',
+  messageId: 'uuid-123'
+}
+```
+
+**Handler Logic**:
+```javascript
+// 1. Validate message type
+if (bridgeMessage.messageType !== 'bridge:getModelInfo') throw Error;
+
+// 2. Call collector concurrently
+const [currentModel, availableModels] = await Promise.all([
+  collector.GetCurrentModelAsync(),
+  collector.GetAvailableModelsAsync()
+]);
+
+// 3. Get capabilities for current model's provider
+const capabilities = await collector.GetModelCapabilitiesAsync(
+  currentModel?.Provider
+);
+
+// 4. Get token limits for current model
+const tokenLimits = await collector.GetTokenLimitsAsync(
+  currentModel?.Provider,
+  currentModel?.Model
+);
+
+// 5. Return normalized response
+return {
+  success: true,
+  data: { currentModel, availableModels, modelCapabilities, tokenLimits }
+};
+```
+
+**Response**:
+```javascript
+{
+  success: true,
+  data: {
+    currentModel: {
+      provider: 'openai',
+      model: 'gpt-4',
+      title: 'OpenAI GPT-4',
+      apiBase: 'https://api.openai.com/v1'
+    },
+    availableModels: [
+      { provider: 'openai', model: 'gpt-4', title: 'OpenAI GPT-4' },
+      { provider: 'anthropic', model: 'claude-3-opus', title: 'Anthropic Claude 3' }
+    ],
+    modelCapabilities: {
+      contextLength: 8192,
+      supportsStreaming: true,
+      supportsVision: true,
+      maxRpm: 3500
+    },
+    tokenLimits: {
+      maxInputTokens: 8000,
+      maxOutputTokens: 2000,
+      totalContextTokens: 8192
+    }
+  }
+}
+```
+
+### Testing Strategy
+
+**C# Unit Tests** (27 tests):
+- ✓ Initialization with/without logger
+- ✓ Current model queries
+- ✓ Available models queries
+- ✓ Provider-specific capabilities (OpenAI, Anthropic, Ollama)
+- ✓ Token limits per model
+- ✓ Error handling and graceful degradation
+
+**Node.js Integration Tests** (27 tests):
+- ✓ Handler factory creation
+- ✓ Message validation (valid/invalid types)
+- ✓ Concurrent collector calls
+- ✓ Multiple models without cross-contamination
+- ✓ Error injection and recovery
+- ✓ Metrics recording (latency, event counts)
+- ✓ Performance (sub-50ms latency)
+- ✓ Collector integration (spy verification)
+
+**Run Tests**:
+```bash
+# C# tests
+dotnet test src/VSIXProject1.Tests/VSIXProject1.Tests.csproj --filter "ModelInfoCollectorTests"
+
+# Node.js tests
+npm test -- src/versions/v2.0.0/tests/model-info-handler.test.mjs
+```
+
+### Performance Tuning
+
+- **Latency Target**: <50ms (fast timeout policy)
+- **Memory**: ~3 KB per response (minimal allocation)
+- **Concurrency**: Unlimited (stateless handler, shared read-only cache)
+
+**Optimization Tips**:
+1. Cache collector instance (already done in adapter)
+2. Call `GetCurrentModelAsync` and `GetAvailableModelsAsync` concurrently
+3. Only query capabilities/limits for current model (not all available models)
+4. Avoid repeated config file reads (use singleton cache)
+
+### Related Steps
+
+- **Step 87** — Context-window handler (complementary LLM metadata)
+- **Step 89** — Streaming-response handler (uses model capabilities)
+- **Step 71** — Handler registration (registration mechanism)
+- **Step 52** — Document provider (alternative context source)
+
+### References
+
+- **Complete Guide**: `docs/STEP88-MODEL-INFO-GUIDE.md`
+- **Node.js Handler**: `src/versions/v2.0.0/lib/model-info-handler.mjs`
+- **C# Collector**: `src/VSIXProject1/Services/ModelInfoCollector.cs`
+- **Tests (Node.js)**: `src/versions/v2.0.0/tests/model-info-handler.test.mjs` (27 tests)
+- **Tests (C#)**: `src/VSIXProject1.Tests/Services/ModelInfoCollectorTests.cs` (27 tests)
+- **Handler Registry**: `src/versions/v2.0.0/lib/handler-registry.mjs`
+- **Provider Config**: `src/VSIXProject1/Handlers/Llm/LlmConfig.cs`
+
+### Success Criteria
+
+✅ Handler registered in dispatcher  
+✅ bridge:getModelInfo message type recognized  
+✅ Current model returned correctly  
+✅ Available models array populated  
+✅ Model capabilities per provider accurate  
+✅ Token limits correct (per OpenAI/Anthropic/Ollama specs)  
+✅ All 27 Node.js tests passing  
+✅ All 27 C# tests passing  
+✅ Performance <50ms p99  
+✅ Graceful degradation when config unavailable  

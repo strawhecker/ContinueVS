@@ -123,19 +123,16 @@ namespace ContinueVS.Handlers
     internal sealed class SidebarCollector
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly IDiagnosticsProvider _diagnosticsProvider;
         private DTE _dte;
 
         /// <summary>
         /// Initialize SidebarCollector with service provider
         /// </summary>
         /// <param name="serviceProvider">VS service provider for DTE access</param>
-        /// <param name="diagnosticsProvider">Optional diagnostics provider</param>
         /// <exception cref="SidebarException">If serviceProvider is null</exception>
-        public SidebarCollector(IServiceProvider serviceProvider, IDiagnosticsProvider diagnosticsProvider = null)
+        public SidebarCollector(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider ?? throw new SidebarException("ServiceProvider required", "MISSING_SERVICE_PROVIDER");
-            _diagnosticsProvider = diagnosticsProvider;
 
             ThreadHelper.ThrowIfNotOnUIThread();
             _dte = ServiceProvider.GlobalProvider.GetService(typeof(DTE)) as DTE;
@@ -149,7 +146,12 @@ namespace ContinueVS.Handlers
         /// <exception cref="SidebarException">If DTE is unavailable or operation fails</exception>
         public async Task<SidebarState> GetSidebarStateAsync(string filterFilepath = null)
         {
-            return await Task.Run(() => GetSidebarStateInternal(filterFilepath));
+            return await Task.Run(() =>
+            {
+                // Use ThreadHelper to switch to UI thread for DTE access
+                ThreadHelper.ThrowIfNotOnUIThread();
+                return GetSidebarStateInternal(filterFilepath);
+            });
         }
 
         /// <summary>
@@ -161,6 +163,8 @@ namespace ContinueVS.Handlers
 
             try
             {
+                ThreadHelper.ThrowIfNotOnUIThread();
+
                 // Enumerate open documents
                 state.Documents = GetOpenDocuments(filterFilepath);
 
@@ -244,7 +248,7 @@ namespace ContinueVS.Handlers
         }
 
         /// <summary>
-        /// Aggregate diagnostics from provider (errors and warnings by file)
+        /// Aggregate diagnostics (placeholder for future implementation)
         /// </summary>
         private Dictionary<string, SidebarDiagnostics> GetDiagnostics(string filterFilepath)
         {
@@ -252,15 +256,8 @@ namespace ContinueVS.Handlers
 
             try
             {
-                if (_diagnosticsProvider == null)
-                {
-                    return diagnostics;
-                }
-
-                // Query all diagnostics (if provider has sync method)
-                // For now, return empty to avoid blocking on async during sync context
-                // TODO: Implement diagnostics aggregation once async pattern is available
-
+                // TODO: Implement diagnostics aggregation from VS error list
+                // For now, return empty to avoid blocking
                 return diagnostics;
             }
             catch (Exception ex)
@@ -330,12 +327,20 @@ namespace ContinueVS.Handlers
             {
                 ThreadHelper.ThrowIfNotOnUIThread();
 
-                if (doc?.Object is not TextDocument textDoc)
+                // COM interop: Document.Object can be tricky to access
+                // Use reflection to safely get the TextDocument
+                var objProp = doc.GetType().GetProperty("Object");
+                if (objProp != null)
                 {
-                    return 0;
+                    var obj = objProp.GetValue(doc);
+                    var textDoc = obj as TextDocument;
+                    if (textDoc != null)
+                    {
+                        return textDoc.EndPoint.Line;
+                    }
                 }
 
-                return textDoc.EndPoint.Line;
+                return 0;
             }
             catch
             {

@@ -18,6 +18,7 @@ import { createProjectInfoHandler } from './project-info-handler.mjs';
 import { createInlineMessageHandler } from './inline-message-handler.mjs';
 import { createSidebarUIHandler } from './sidebar-ui-handler.mjs';
 import { createContextWindowHandler } from './context-window-handler.mjs';
+import { createModelInfoHandler } from './model-info-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -298,6 +299,16 @@ const baseHandlers = [
       description: 'Query LLM context window token budget and utilization',
       relatedSteps: [87, 71, 88],
       dependencies: [71],
+    },
+    {
+      messageType: 'bridge:getModelInfo',
+      handler: createModelInfoHandler,
+      isFactory: true,
+      timeoutPolicy: 'fast',
+      stabilityTier: 'core',
+      description: 'Queries available LLM models and current model info',
+      relatedSteps: [87, 88, 89],
+      dependencies: [84, 87],
     },
   ];
 
