@@ -20,6 +20,7 @@ import { createSidebarUIHandler } from './sidebar-ui-handler.mjs';
 import { createContextWindowHandler } from './context-window-handler.mjs';
 import { createModelInfoHandler } from './model-info-handler.mjs';
 import { createStreamingResponseHandler } from './streaming-response-handler.mjs';
+import { createCodeLensHandler } from './code-lens-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -320,6 +321,16 @@ const baseHandlers = [
       description: 'Streams LLM token responses in real-time with chunk collection',
       relatedSteps: [89, 71],
       dependencies: [88],
+    },
+    {
+      messageType: 'bridge:getCodeLenses',
+      handler: createCodeLensHandler,
+      isFactory: true,
+      timeoutPolicy: 'medium',
+      stabilityTier: 'core',
+      description: 'Generate inline code lenses for symbol navigation and testing',
+      relatedSteps: [90, 71],
+      dependencies: [53, 52],
     },
   ];
 

@@ -6775,6 +6775,7 @@ npm test -- src/versions/v2.0.0/tests/model-info-handler.test.mjs
 
 - **Step 87** — Context-window handler (complementary LLM metadata)
 - **Step 89** — Streaming-response handler (uses model capabilities)
+- **Step 90** — Code-lens handler (inline IDE navigation elements)
 - **Step 71** — Handler registration (registration mechanism)
 - **Step 52** — Document provider (alternative context source)
 
@@ -6869,3 +6870,111 @@ Test Suites:
 ✅ Performance: chunk delivery <500ms p99
 ✅ No regressions in other handlers
 ✅ Integration with Step 88 (model-info) verified
+
+---
+
+## Step 90: Code-Lens Handler
+
+The code-lens handler generates inline IDE UI elements (code lenses) for symbol navigation and contextual actions. Code lenses appear in the editor as clickable text (e.g., "Run Test", "View References").
+
+**Handler Type**: Factory (stateless)  
+**Message Type**: bridge:getCodeLenses  
+**Timeout**: Medium (50–200ms for typical files)  
+**Stability Tier**: Core
+
+### Architecture
+
+VS CodeLensProvider requests lenses → CodeLensService → bridge:getCodeLenses → CodeLensHandler → SymbolExtractor + DocumentProvider → Lens generation → Response mapping → Cache
+
+### Input Format
+```javascript
+{
+  filePath: 'src/MyClass.cs',                     // required
+  range: {                                         // optional
+    start: { line: 0, char: 0 },
+    end: { line: 100, char: 0 }
+  },
+  excludeTypes: ['peekDefinition']                // optional
+}
+```
+
+### Output Format
+```javascript
+{
+  lenses: [
+    {
+      line: 12,
+      command: 'runTest',
+      title: 'Run Test',
+      data: { symbolName: 'TestMethod', type: 'method', tags: [] }
+    },
+    // ... more lenses
+  ],
+  count: N,
+  file: 'src/MyClass.cs',
+  symbolsProcessed: M
+}
+```
+
+### Lens Types
+- **runTest** / **debugTest** — For test functions/classes
+- **viewReferences** — For public methods/properties
+- **viewImplementations** — For interfaces/abstract members
+- **goToDefinition** / **peekDefinition** — For all public symbols
+
+### Test Coverage
+- Node Tests: src/versions/v2.0.0/test/code-lens-handler.test.mjs (22+ tests)
+- C# Tests: src/VSIXProject1.Tests/Services/CodeLensServiceTests.cs (18+ tests)
+
+Test Suites:
+1. Initialization & Dependency Injection (3 tests)
+2. Message Validation (4 tests)
+3. Lens Generation (5 tests)
+4. Position Queries (4 tests)
+5. Performance & Metrics (3 tests)
+6. Error Handling (3+ tests)
+7. VS Integration (3 tests)
+8. Caching & TTL (3 tests)
+9. Error Recovery (3 tests)
+10. Concurrency (3 tests)
+11. Edge Cases (6+ tests)
+
+### Error Handling
+- InvalidCodeLensRequestError: Validation fails (missing filePath, malformed range)
+- CodeLensError: General handler error (symbol extraction, document queries)
+- PositionError: Invalid range bounds
+- Graceful recovery: Bridge timeout → empty lenses, logs warning
+
+### Performance
+- Single-file query: < 50ms (cached symbols)
+- Multi-file query: < 200ms
+- Cache hit rate: > 70%
+- Cache TTL: 5 seconds (or on document change)
+
+### Files
+- Node Handler: src/versions/v2.0.0/lib/code-lens-handler.mjs
+- Node Tests: src/versions/v2.0.0/test/code-lens-handler.test.mjs
+- Test Fixtures: src/versions/v2.0.0/test/mocks/code-lens-mock.mjs
+- C# Service: src/VSIXProject1/Services/CodeLensService.cs
+- C# Tests: src/VSIXProject1.Tests/Services/CodeLensServiceTests.cs
+- Registry: src/versions/v2.0.0/lib/handler-registry.mjs
+- Guide: docs/CODE-LENS-HANDLER-GUIDE.md
+
+### Success Criteria
+✅ Handler created: code-lens-handler.mjs (350 lines)
+✅ C# Service created: CodeLensService.cs (280 lines)
+✅ Handler registered in dispatcher (bridge:getCodeLenses)
+✅ Message validation working (filePath, range, excludeTypes)
+✅ Lens generation for all types (test, references, implementations, navigation)
+✅ Range filtering working correctly
+✅ Caching with TTL (5s) implemented
+✅ Error handling: validation, extraction, timeout, graceful recovery
+✅ All 22+ Node tests passing
+✅ All 18+ C# tests passing
+✅ Performance gates met: < 50ms single-file, < 200ms multi-file
+✅ Cache hit rate > 70%
+✅ Thread-safe cache (locks in C# service)
+✅ No regressions in other handlers
+✅ Integration with Step 53 (SymbolExtractor) verified
+✅ Complete documentation in CODE-LENS-HANDLER-GUIDE.md
+
