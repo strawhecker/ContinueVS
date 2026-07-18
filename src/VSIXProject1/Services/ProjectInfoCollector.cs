@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using EnvDTE;
+using Microsoft.VisualStudio.Shell;
 using Process = System.Diagnostics.Process;
 
 namespace ContinueVS.Services
@@ -59,12 +60,16 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Gets complete project and solution information.
+        /// 
+        /// IMPORTANT: This method must be called from the Visual Studio UI thread.
         /// </summary>
         /// <returns>Structured object containing solution, projects, workspace, and build status.</returns>
         /// <exception cref="ProjectInfoError">Thrown if solution is null or inaccessible.</exception>
         /// <exception cref="CollectionError">Thrown if project enumeration fails.</exception>
         public ProjectInfo GetProjectInfo()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 var solution = _dte.Solution;
@@ -103,6 +108,8 @@ namespace ContinueVS.Services
         /// <returns>SolutionInfo with name, path, and projectCount.</returns>
         private SolutionInfo GetSolutionInfo(Solution solution)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 var name = solution.FullName ?? "Unknown";
@@ -143,6 +150,8 @@ namespace ContinueVS.Services
         /// <returns>List of ProjectInfo objects; empty list if Projects collection is null or enumeration fails.</returns>
         private List<ProjectItemInfo> GetProjectsList(Solution solution)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             var projects = new List<ProjectItemInfo>();
 
             try
@@ -192,6 +201,8 @@ namespace ContinueVS.Services
         /// <returns>ProjectItemInfo for the project, or null if basic properties are missing.</returns>
         private ProjectItemInfo? GetSingleProjectInfo(Project project)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 // Guard against null project or missing Name
@@ -234,6 +245,8 @@ namespace ContinueVS.Services
         /// <returns>Target framework string (e.g., "net8.0", "net472") or null if unavailable.</returns>
         private string? GetTargetFramework(Project project)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 if (project.Properties == null)
@@ -324,6 +337,8 @@ namespace ContinueVS.Services
         /// <returns>Build status string (e.g., "Ready", "Building", "Error").</returns>
         private string GetProjectBuildStatus(Project project)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 // Check if project is currently building
@@ -361,6 +376,8 @@ namespace ContinueVS.Services
         /// <returns>WorkspaceInfo with rootPath and optional gitBranch.</returns>
         private WorkspaceInfo GetWorkspaceInfo()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 var rootPath = _dte.Solution?.FullName ?? string.Empty;
@@ -420,8 +437,7 @@ namespace ContinueVS.Services
                 {
                     if (process != null && process.WaitForExit(5000))
                     {
-                        var branchBytes = process.StandardOutput.ReadToEndAsync().Result;
-                        var branch = branchBytes.Trim();
+                        var branch = process.StandardOutput.ReadToEnd().Trim();
                         if (!string.IsNullOrEmpty(branch))
                         {
                             return branch;
@@ -447,6 +463,8 @@ namespace ContinueVS.Services
         /// <returns>BuildStatus with error/warning counts, lastBuild time, and isBuilding flag.</returns>
         private BuildStatus GetBuildStatus()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 // Get SolutionBuild if available; some Visual Studio configurations don't expose it

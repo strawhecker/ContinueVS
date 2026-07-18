@@ -27,9 +27,9 @@ namespace ContinueVS.Handlers
     /// </summary>
     public class SidebarMessage
     {
-        public string Id { get; set; }
-        public string Content { get; set; }
-        public string Author { get; set; }
+        public string? Id { get; set; }
+        public string? Content { get; set; }
+        public string? Author { get; set; }
         public long Timestamp { get; set; }
     }
 
@@ -38,8 +38,8 @@ namespace ContinueVS.Handlers
     /// </summary>
     public class SidebarDocument
     {
-        public string Filepath { get; set; }
-        public string Language { get; set; }
+        public string? Filepath { get; set; }
+        public string? Language { get; set; }
         public bool IsModified { get; set; }
         public int LineCount { get; set; }
     }
@@ -49,8 +49,8 @@ namespace ContinueVS.Handlers
     /// </summary>
     public class SidebarSymbol
     {
-        public string Name { get; set; }
-        public string Kind { get; set; }
+        public string? Name { get; set; }
+        public string? Kind { get; set; }
         public int Line { get; set; }
         public int Column { get; set; }
         public bool IsBookmarked { get; set; }
@@ -72,8 +72,8 @@ namespace ContinueVS.Handlers
     {
         public int Line { get; set; }
         public int Column { get; set; }
-        public string Message { get; set; }
-        public string Code { get; set; }
+        public string? Message { get; set; }
+        public string? Code { get; set; }
     }
 
     /// <summary>
@@ -81,9 +81,9 @@ namespace ContinueVS.Handlers
     /// </summary>
     public class SidebarAction
     {
-        public string Title { get; set; }
-        public string Type { get; set; }
-        public string Description { get; set; }
+        public string? Title { get; set; }
+        public string? Type { get; set; }
+        public string? Description { get; set; }
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ namespace ContinueVS.Handlers
     internal sealed class SidebarCollector
     {
         private readonly IServiceProvider _serviceProvider;
-        private DTE _dte;
+        private DTE? _dte;
 
         /// <summary>
         /// Initialize SidebarCollector with service provider
@@ -135,7 +135,8 @@ namespace ContinueVS.Handlers
             _serviceProvider = serviceProvider ?? throw new SidebarException("ServiceProvider required", "MISSING_SERVICE_PROVIDER");
 
             ThreadHelper.ThrowIfNotOnUIThread();
-            _dte = ServiceProvider.GlobalProvider.GetService(typeof(DTE)) as DTE;
+            var dteService = ServiceProvider.GlobalProvider.GetService(typeof(DTE));
+            _dte = dteService as DTE;
         }
 
         /// <summary>
@@ -144,7 +145,7 @@ namespace ContinueVS.Handlers
         /// <param name="filterFilepath">Optional: return only this file's diagnostics and symbols</param>
         /// <returns>SidebarState DTO</returns>
         /// <exception cref="SidebarException">If DTE is unavailable or operation fails</exception>
-        public async Task<SidebarState> GetSidebarStateAsync(string filterFilepath = null)
+        public async Task<SidebarState> GetSidebarStateAsync(string? filterFilepath = null)
         {
             return await Task.Run(() =>
             {
@@ -157,7 +158,7 @@ namespace ContinueVS.Handlers
         /// <summary>
         /// Internal synchronous implementation (runs on thread pool)
         /// </summary>
-        private SidebarState GetSidebarStateInternal(string filterFilepath)
+        private SidebarState GetSidebarStateInternal(string? filterFilepath)
         {
             var state = new SidebarState();
 
@@ -196,7 +197,7 @@ namespace ContinueVS.Handlers
         /// <summary>
         /// Enumerate open documents from DTE
         /// </summary>
-        private List<SidebarDocument> GetOpenDocuments(string filterFilepath)
+        private List<SidebarDocument> GetOpenDocuments(string? filterFilepath)
         {
             var documents = new List<SidebarDocument>();
 
@@ -250,7 +251,7 @@ namespace ContinueVS.Handlers
         /// <summary>
         /// Aggregate diagnostics (placeholder for future implementation)
         /// </summary>
-        private Dictionary<string, SidebarDiagnostics> GetDiagnostics(string filterFilepath)
+        private Dictionary<string, SidebarDiagnostics> GetDiagnostics(string? filterFilepath)
         {
             var diagnostics = new Dictionary<string, SidebarDiagnostics>();
 
@@ -270,7 +271,7 @@ namespace ContinueVS.Handlers
         /// <summary>
         /// Extract symbols from active editor context
         /// </summary>
-        private List<SidebarSymbol> GetSymbols(string filterFilepath)
+        private List<SidebarSymbol> GetSymbols(string? filterFilepath)
         {
             var symbols = new List<SidebarSymbol>();
 
