@@ -21,6 +21,7 @@ import { createContextWindowHandler } from './context-window-handler.mjs';
 import { createModelInfoHandler } from './model-info-handler.mjs';
 import { createStreamingResponseHandler } from './streaming-response-handler.mjs';
 import { createCodeLensHandler } from './code-lens-handler.mjs';
+import createDiffViewerHandler from './diff-viewer-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -331,6 +332,26 @@ const baseHandlers = [
       description: 'Generate inline code lenses for symbol navigation and testing',
       relatedSteps: [90, 71],
       dependencies: [53, 52],
+    },
+    {
+      messageType: 'bridge:getDiff',
+      handler: createDiffViewerHandler,
+      isFactory: true,
+      timeoutPolicy: 'medium',
+      stabilityTier: 'core',
+      description: 'Generate unified diff between file versions with hunk grouping',
+      relatedSteps: [92, 71],
+      dependencies: [52],
+    },
+    {
+      messageType: 'bridge:applyDiff',
+      handler: createDiffViewerHandler,
+      isFactory: true,
+      timeoutPolicy: 'medium',
+      stabilityTier: 'core',
+      description: 'Apply selected diff hunks as edits',
+      relatedSteps: [92, 71, 78],
+      dependencies: [52],
     },
   ];
 
