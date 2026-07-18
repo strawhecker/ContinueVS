@@ -19,6 +19,7 @@ import { createInlineMessageHandler } from './inline-message-handler.mjs';
 import { createSidebarUIHandler } from './sidebar-ui-handler.mjs';
 import { createContextWindowHandler } from './context-window-handler.mjs';
 import { createModelInfoHandler } from './model-info-handler.mjs';
+import { createStreamingResponseHandler } from './streaming-response-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -309,6 +310,16 @@ const baseHandlers = [
       description: 'Queries available LLM models and current model info',
       relatedSteps: [87, 88, 89],
       dependencies: [84, 87],
+    },
+    {
+      messageType: 'bridge:stream',
+      handler: createStreamingResponseHandler,
+      isFactory: true,
+      timeoutPolicy: 'slow',
+      stabilityTier: 'experimental',
+      description: 'Streams LLM token responses in real-time with chunk collection',
+      relatedSteps: [89, 71],
+      dependencies: [88],
     },
   ];
 
