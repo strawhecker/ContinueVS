@@ -26,8 +26,8 @@
 # Handler Registry Reference
 
 **Last Updated**: 2024-01-15  
-**Total Handlers**: 10 (Steps 46–61 implemented)  
-**Future Expansion**: Steps 76–95 (add entries below "Future Handlers" section)
+**Total Handlers**: 11 (Steps 46–61 + Step 91 implemented)  
+**Future Expansion**: Steps 76–90, 92–95 (add entries below "Future Handlers" section)
 
 ---
 
