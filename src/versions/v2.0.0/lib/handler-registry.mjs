@@ -22,6 +22,7 @@ import { createModelInfoHandler } from './model-info-handler.mjs';
 import { createStreamingResponseHandler } from './streaming-response-handler.mjs';
 import { createCodeLensHandler } from './code-lens-handler.mjs';
 import createDiffViewerHandler from './diff-viewer-handler.mjs';
+import createRefactorTestsHandler from './refactor-tests-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -352,6 +353,16 @@ const baseHandlers = [
       description: 'Apply selected diff hunks as edits',
       relatedSteps: [92, 71, 78],
       dependencies: [52],
+    },
+    {
+      messageType: 'bridge:refactorTests',
+      handler: createRefactorTestsHandler,
+      isFactory: true,
+      timeoutPolicy: 'slow',
+      stabilityTier: 'experimental',
+      description: 'Test generation and validation for refactored code',
+      relatedSteps: [93, 71],
+      dependencies: [76, 60],
     },
   ];
 

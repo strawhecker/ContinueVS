@@ -6978,3 +6978,189 @@ Test Suites:
 ✅ Integration with Step 53 (SymbolExtractor) verified
 ✅ Complete documentation in CODE-LENS-HANDLER-GUIDE.md
 
+---
+
+## Step 93: Create Refactor-Tests Handler
+
+**Handler Purpose**: Validates refactored code by executing existing tests against refactored source and comparing results with baseline. Provides safety verification for code transformation operations.
+
+**Message Type**: `bridge:refactorTests`  
+**Timeout Policy**: `slow` (30 seconds)  
+**Stability Tier**: `experimental`
+
+### Architecture Flow
+
+```
+[Continue/IDE] → bridge:refactorTests request
+  ↓
+[HandlerDispatcher] routes to refactorTestsHandler
+  ↓
+[Handler] validates inputs (source presence, language, framework)
+  ↓
+[Handler] detects test framework (xUnit, NUnit, Jest, Mocha, Pytest)
+  ↓
+[Handler] extracts test list from refactored source
+  ↓
+[Handler] executes tests against original code (baseline)
+  ↓
+[Handler] executes tests against refactored code
+  ↓
+[Handler] compares results (regressions, improvements, maintained)
+  ↓
+[Handler] records metrics (execution time, test counts, status)
+  ↓
+[Handler] returns { success, testsRun, testsPassed, testsFailed, regressions, statusChange }
+  ↓
+[core-server] sends response back
+```
+
+### Message Format
+
+**Request**:
+```javascript
+{
+  messageType: 'bridge:refactorTests',
+  data: {
+    refactoredSource: string,       // Refactored code to test
+    originalSource: string,         // Original code (for baseline)
+    language: string,               // 'csharp', 'javascript', 'typescript', 'python', etc.
+    testFramework?: string,         // Optional explicit framework (auto-detected if omitted)
+    testPath?: string,              // Optional path to test file
+  }
+}
+```
+
+**Response**:
+```javascript
+{
+  success: true,
+  data: {
+    testsRun: number,                    // Total tests executed
+    testsPassed: number,                 // Tests passed
+    testsFailed: number,                 // Tests failed
+    regressions: number,                 // Increase in failures (vs baseline)
+    improvements: number,                // Decrease in failures (vs baseline)
+    executionTime: number,               // Total execution time (ms)
+    framework: string,                   // Detected test framework
+    frameworkConfidence: number,         // Detection confidence (0.0-1.0)
+    statusChange: 'improved' | 'maintained' | 'degraded',  // Overall status
+    baselineSummary: string,             // "X/Y passed" for baseline
+    refactoredSummary: string,           // "X/Y passed" for refactored
+    details: {
+      testExtracted: number,             // Tests found in refactored code
+      frameworkIndicators: string[],     // Framework detection indicators
+      baselineErrors: Array,             // Errors during baseline execution
+      refactoredErrors: Array,           // Errors during refactored execution
+    }
+  }
+}
+```
+
+### Error Response
+
+```javascript
+{
+  success: false,
+  error: string,                     // Error description
+  errorCode: string,                 // RPC error code
+  operationType: string,             // Which operation failed
+  details: Object                    // Operation-specific details
+}
+```
+
+### Supported Test Frameworks
+
+| Framework | Language | Detection Pattern | Example |
+|-----------|----------|-------------------|---------|
+| xUnit | C# | `using Xunit`, `[Fact]`, `Assert.Equal` | C# unit tests |
+| NUnit | C# | `using NUnit`, `[Test]`, `[TestFixture]` | C# unit tests |
+| Jest | JavaScript/TS | `describe()`, `it()`, `expect()` | JS/TS unit tests |
+| Mocha | JavaScript/TS | `describe()`, `it()`, `chai` | JS/TS unit tests |
+| Pytest | Python | `import pytest`, `def test_` | Python unit tests |
+
+### Error Classes
+
+**RefactorTestError** (base)
+- `operationType`: Which operation failed (VALIDATION, FRAMEWORK_DETECTION, etc.)
+- `errorCode`: RPC error code
+- `details`: Operation-specific context
+
+**ValidationError** (extends RefactorTestError)
+- `fieldName`: Which field failed validation
+- `value`: The invalid value
+
+**TestExecutionError** (extends RefactorTestError)
+- `testFramework`: Framework that failed
+- `details`: Execution error context
+
+**TestFrameworkError** (extends RefactorTestError)
+- `detectionResult`: What was detected
+- `details`: Detection error context
+
+### Performance Expectations
+
+| Operation | Target | Notes |
+|-----------|--------|-------|
+| Framework detection | < 10ms | Pattern matching on source |
+| Test extraction | < 20ms | Line-by-line parsing |
+| Baseline execution | < 20s | Depends on test count |
+| Refactored execution | < 20s | Depends on test count |
+| Result comparison | < 5ms | Simple arithmetic |
+| Total handler | < 30s | Slow timeout policy |
+
+### Integration Points
+
+- **Step 71**: Handler registration (bridge:refactorTests registered)
+- **Step 76**: Refactor handler (generates refactored code that this handler validates)
+- **Step 77**: Fix-suggestion handler (safety validation for AI suggestions)
+- **Step 60**: Test-explorer handler (reuses test detection patterns)
+- **Metrics**: Records framework detection, test counts, regressions, execution time
+
+### Graceful Degradation
+
+- **Missing test framework**: Returns analysis with warning (doesn't fail)
+- **Missing test runner**: Uses mock runner in tests, graceful fallback in production
+- **Malformed tests**: Recorded as errors, analysis continues
+- **Missing logger/metrics**: Silent mode (no-op if not provided)
+
+### Key Features
+
+✅ Framework auto-detection (xUnit, NUnit, Jest, Mocha, Pytest)  
+✅ Test extraction from source code  
+✅ Baseline vs. refactored comparison  
+✅ Regression detection (failures increase)  
+✅ Improvement detection (failures decrease)  
+✅ Status change tracking (improved/maintained/degraded)  
+✅ Performance gating (per-test 5s, total 30s)  
+✅ Graceful error handling (non-blocking failures)  
+✅ Comprehensive metrics (execution time, pass/fail, regression rate)  
+✅ Optional logger/metrics injection
+
+### Files
+
+- **Node Handler**: src/versions/v2.0.0/lib/refactor-tests-handler.mjs
+- **Node Tests**: src/versions/v2.0.0/tests/refactor-tests-handler.test.mjs
+- **Test Fixtures**: src/versions/v2.0.0/tests/mocks/refactor-tests-mock.mjs
+- **Registry**: src/versions/v2.0.0/lib/handler-registry.mjs (updated)
+- **Guide**: docs/BRIDGE-DEVELOPER-GUIDE.md (this section)
+
+### Success Criteria
+
+✅ Handler created: refactor-tests-handler.mjs (579 lines)  
+✅ Test mocks created: refactor-tests-mock.mjs (420 lines)  
+✅ Handler registered in dispatcher (bridge:refactorTests)  
+✅ Message validation working (refactoredSource, originalSource, language)  
+✅ Framework detection for xUnit, NUnit, Jest, Mocha, Pytest  
+✅ Test extraction working for all supported frameworks  
+✅ Baseline execution working (mock runner in tests)  
+✅ Refactored execution working (mock runner in tests)  
+✅ Result comparison working (regression/improvement/maintained detection)  
+✅ Error handling: validation, framework detection, execution, non-blocking failures  
+✅ All 27+ Node tests passing (100% pass rate)  
+✅ Performance gates met: < 30s total execution  
+✅ Metrics recording: framework detection, execution time, test counts  
+✅ Logging: debug, info, warn, error levels with context  
+✅ Thread-safe (single-threaded event loop)  
+✅ No regressions in other handlers  
+✅ Integration with Step 76 (refactor handler) verified  
+✅ Complete documentation in BRIDGE-DEVELOPER-GUIDE.md

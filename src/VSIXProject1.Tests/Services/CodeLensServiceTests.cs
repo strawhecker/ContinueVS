@@ -1,4 +1,6 @@
-﻿using ContinueVS.IPC;
+﻿#nullable enable
+
+using ContinueVS.IPC;
 using ContinueVS.Services;
 using Newtonsoft.Json.Linq;
 using Xunit;
@@ -37,9 +39,9 @@ namespace ContinueVS.Tests.Services
             private Message? _responseToReturn;
 
 #pragma warning disable CS0067 // Event is never used
-            public event EventHandler<MessageReceivedEventArgs> OnMessageReceived;
-            public event EventHandler<BridgeErrorEventArgs> OnError;
-            public event EventHandler OnClosed;
+            public event EventHandler<MessageReceivedEventArgs>? OnMessageReceived;
+            public event EventHandler<BridgeErrorEventArgs>? OnError;
+            public event EventHandler? OnClosed;
 #pragma warning restore CS0067
 
             public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -108,7 +110,7 @@ namespace ContinueVS.Tests.Services
         public void CodeLensService_Constructor_ThrowsOnNullTransport()
         {
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => new CodeLensService(null));
+            Assert.Throws<ArgumentNullException>(() => new CodeLensService(null!));
         }
 
         [Fact]
@@ -130,7 +132,7 @@ namespace ContinueVS.Tests.Services
             var service = new CodeLensService(mockTransport);
 
             // Act & Assert (should not throw)
-            service.InvalidateCache(null);
+            service.InvalidateCache(null!);
         }
 
         [Fact]
@@ -152,7 +154,7 @@ namespace ContinueVS.Tests.Services
             var service = new CodeLensService(mockTransport);
 
             // Act
-            var result = await service.GetCodeLensesAsync(null);
+            var result = await service.GetCodeLensesAsync(null!);
 
             // Assert
             Assert.Empty(result);
@@ -414,6 +416,390 @@ namespace ContinueVS.Tests.Services
             Assert.NotEmpty(mockTransport.LastSentMessage.MessageId);
             Assert.True(Guid.TryParse(mockTransport.LastSentMessage.MessageId, out _),
                 "MessageId should be a valid GUID");
+        }
+
+        [Fact]
+        public async Task GetCodeLensesAsync_CacheTTLExpiry_FetchesNewResultsAfterExpiry()
+        {
+            // Arrange
+            var mockTransport = new TestBridgeTransport();
+            var service = new CodeLensService(mockTransport);
+
+            var initialResponse = new Message
+            {
+                MessageId = "",
+                MessageType = "response",
+                Data = new JObject
+                {
+                    { "success", true },
+                    { "data", new JObject 
+                    { 
+                        { "lenses", new JArray 
+                        { 
+                            new JObject 
+                            { 
+                                { "line", 1 }, 
+                                { "command", "test1" }, 
+                                { "title", "First Version" } 
+                            } 
+                        } } 
+                    } }
+                }
+            };
+
+            mockTransport.SetResponse(initialResponse);
+
+            // Act - First call
+            var result1 = await service.GetCodeLensesAsync("src/TTLTest.cs");
+            var firstSendCount = mockTransport.SendCount;
+            Assert.Single(result1);
+            Assert.Equal("First Version", result1[0].Title);
+
+            // Wait for cache to expire (cache TTL is 5000ms in CodeLensService)
+            // Use a shorter wait in tests by triggering cache invalidation behavior
+            await Task.Delay(5100); // Wait 5.1 seconds for TTL to expire
+
+            var expiredResponse = new Message
+            {
+                MessageId = "",
+                MessageType = "response",
+                Data = new JObject
+                {
+                    { "success", true },
+                    { "data", new JObject 
+                    { 
+                        { "lenses", new JArray 
+                        { 
+                            new JObject 
+                            { 
+                                { "line", 1 }, 
+                                { "command", "test2" }, 
+                                { "title", "Updated Version" } 
+                            } 
+                        } } 
+                    } }
+                }
+            };
+
+            mockTransport.SetResponse(expiredResponse);
+
+            // Act - Second call after TTL expiry
+            var result2 = await service.GetCodeLensesAsync("src/TTLTest.cs");
+            var secondSendCount = mockTransport.SendCount;
+
+            // Assert - Bridge should be called again after TTL expiry
+            Assert.Equal(1, firstSendCount);
+            Assert.Equal(2, secondSendCount); // Incremented after TTL expiry
+            Assert.Single(result2);
+            Assert.Equal("Updated Version", result2[0].Title); // New data should be returned
+        }
+
+        [Fact]
+        public async Task GetCodeLensesAsync_InvalidateCacheBeforeTTL_FetchesNewResults()
+        {
+            // Arrange
+            var mockTransport = new TestBridgeTransport();
+            var service = new CodeLensService(mockTransport);
+
+            var initialResponse = new Message
+            {
+                MessageId = "",
+                MessageType = "response",
+                Data = new JObject
+                {
+                    { "success", true },
+                    { "data", new JObject 
+                    { 
+                        { "lenses", new JArray 
+                        { 
+                            new JObject 
+                            { 
+                                { "line", 1 }, 
+                                { "command", "test" }, 
+                                { "title", "Initial" } 
+                            } 
+                        } } 
+                    } }
+                }
+            };
+
+            mockTransport.SetResponse(initialResponse);
+
+            // Act - First call
+            var result1 = await service.GetCodeLensesAsync("src/InvalidateTest.cs");
+            var sendCountBefore = mockTransport.SendCount;
+
+            // Manually invalidate cache (simulates document change)
+            service.InvalidateCache("src/InvalidateTest.cs");
+
+            var updatedResponse = new Message
+            {
+                MessageId = "",
+                MessageType = "response",
+                Data = new JObject
+                {
+                    { "success", true },
+                    { "data", new JObject 
+                    { 
+                        { "lenses", new JArray 
+                        { 
+                            new JObject 
+                            { 
+                                { "line", 2 }, 
+                                { "command", "test" }, 
+                                { "title", "Updated" } 
+                            } 
+                        } } 
+                    } }
+                }
+            };
+
+            mockTransport.SetResponse(updatedResponse);
+
+            // Act - Second call after cache invalidation
+            var result2 = await service.GetCodeLensesAsync("src/InvalidateTest.cs");
+            var sendCountAfter = mockTransport.SendCount;
+
+            // Assert - Bridge should be called again after cache invalidation
+            Assert.Equal(1, sendCountBefore);
+            Assert.Equal(2, sendCountAfter); // Called again after invalidation
+            Assert.Equal(1, result1[0].Line); // Original data
+            Assert.Equal(2, result2[0].Line); // Updated data
+        }
+
+        [Fact]
+        public async Task GetCodeLensesAsync_BridgeTimeout_ReturnsEmptyList()
+        {
+            // Arrange - Create a transport that simulates timeout
+            var timeoutTransport = new TestBridgeTransportWithDelay(delayMs: 4000); // Delay longer than timeout
+            var service = new CodeLensService(timeoutTransport);
+
+            // Act - Should handle timeout gracefully
+            var result = await service.GetCodeLensesAsync("src/TimeoutTest.cs");
+
+            // Assert - Should return empty list without throwing
+            Assert.NotNull(result);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetCodeLensesAsync_BridgeException_ReturnsEmptyListWithoutThrowing()
+        {
+            // Arrange - Create a transport that throws an exception
+            var faultyTransport = new TestBridgeTransportWithFault("Simulated bridge failure");
+            var service = new CodeLensService(faultyTransport);
+
+            // Act - Should handle exception gracefully
+            var result = await service.GetCodeLensesAsync("src/FaultyTest.cs");
+
+            // Assert - Should return empty list without throwing
+            Assert.NotNull(result);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetCodeLensesAsync_MalformedLensObject_SkipsMalformedAndReturnsValidLenses()
+        {
+            // Arrange
+            var mockTransport = new TestBridgeTransport();
+            var service = new CodeLensService(mockTransport);
+
+            var response = new Message
+            {
+                MessageId = "",
+                MessageType = "response",
+                Data = new JObject
+                {
+                    { "success", true },
+                    { "data", new JObject 
+                    { 
+                        { "lenses", new JArray 
+                        { 
+                            new JObject 
+                            { 
+                                { "line", 10 }, 
+                                { "command", "validCommand" }, 
+                                { "title", "Valid Lens" } 
+                            },
+                            new JObject 
+                            { 
+                                // Missing required fields
+                                { "data", new JObject() } 
+                            },
+                            new JObject 
+                            { 
+                                { "line", 20 }, 
+                                { "command", "anotherValid" }, 
+                                { "title", "Another Valid Lens" } 
+                            }
+                        } } 
+                    } }
+                }
+            };
+
+            mockTransport.SetResponse(response);
+
+            // Act
+            var result = await service.GetCodeLensesAsync("src/MalformedTest.cs");
+
+            // Assert - Should skip malformed object but still return valid lenses
+            Assert.NotNull(result);
+            Assert.Equal(2, result.Count); // Only valid lenses
+            Assert.Equal(10, result[0].Line);
+            Assert.Equal(20, result[1].Line);
+        }
+
+        [Fact]
+        public async Task GetCodeLensesAsync_WithoutRangeParameter_SendsMinimalPayload()
+        {
+            // Arrange
+            var mockTransport = new TestBridgeTransport();
+            var service = new CodeLensService(mockTransport);
+
+            var response = new Message
+            {
+                MessageId = "",
+                MessageType = "response",
+                Data = new JObject { { "success", true }, { "data", new JObject { { "lenses", new JArray() } } } }
+            };
+
+            mockTransport.SetResponse(response);
+
+            // Act
+            await service.GetCodeLensesAsync("src/MinimalPayload.cs");
+
+            // Assert - Verify minimal payload (no range)
+            Assert.NotNull(mockTransport.LastSentMessage);
+            var data = mockTransport.LastSentMessage.Data as JObject;
+            Assert.NotNull(data);
+            Assert.Equal("src/MinimalPayload.cs", data["filePath"]?.Value<string>());
+            Assert.Null(data["range"]); // No range field when not specified
+        }
+
+        [Fact]
+        public async Task ClearCache_RemovesAllCachedEntries()
+        {
+            // Arrange
+            var mockTransport = new TestBridgeTransport();
+            var service = new CodeLensService(mockTransport);
+
+            var response = new Message
+            {
+                MessageId = "",
+                MessageType = "response",
+                Data = new JObject
+                {
+                    { "success", true },
+                    { "data", new JObject { { "lenses", new JArray 
+                    { 
+                        new JObject { { "line", 1 }, { "command", "test" }, { "title", "Test" } } 
+                    } } } }
+                }
+            };
+
+            mockTransport.SetResponse(response);
+
+            // Act - Populate cache with multiple files
+            var result1 = await service.GetCodeLensesAsync("file1.cs");
+            var result2 = await service.GetCodeLensesAsync("file2.cs");
+            Assert.NotEmpty(result1);
+            Assert.NotEmpty(result2);
+
+            var sendCountBeforeClear = mockTransport.SendCount;
+
+            // Clear cache
+            service.ClearCache();
+
+            mockTransport.Reset();
+            mockTransport.SetResponse(response);
+
+            // Act - Request same files again
+            var result3 = await service.GetCodeLensesAsync("file1.cs");
+            var result4 = await service.GetCodeLensesAsync("file2.cs");
+            var sendCountAfterClear = mockTransport.SendCount;
+
+            // Assert - Should fetch from bridge again (cache was cleared)
+            Assert.Equal(2, sendCountBeforeClear); // Initial calls
+            Assert.Equal(2, sendCountAfterClear); // Calls after clear (cache was empty)
+        }
+
+        /// <summary>
+        /// Test transport that simulates delayed responses (for timeout testing).
+        /// </summary>
+        private class TestBridgeTransportWithDelay : IBridgeTransport
+        {
+            private readonly int _delayMs;
+
+            public bool IsRunning => true;
+
+#pragma warning disable CS0067 // Event is never used
+            public event EventHandler<MessageReceivedEventArgs>? OnMessageReceived;
+            public event EventHandler<BridgeErrorEventArgs>? OnError;
+            public event EventHandler? OnClosed;
+#pragma warning restore CS0067
+
+            public TestBridgeTransportWithDelay(int delayMs)
+            {
+                _delayMs = delayMs;
+            }
+
+            public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+            public Task StopAsync() => Task.CompletedTask;
+
+            public async Task SendMessageAsync(Message message, CancellationToken cancellationToken)
+            {
+                await Task.Delay(_delayMs, cancellationToken);
+            }
+
+            public async Task<Message?> ReceiveMessageAsync(CancellationToken cancellationToken)
+            {
+                await Task.Delay(_delayMs, cancellationToken);
+                return null; // Simulate timeout by returning nothing
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                await Task.CompletedTask;
+            }
+        }
+
+        /// <summary>
+        /// Test transport that simulates bridge faults.
+        /// </summary>
+        private class TestBridgeTransportWithFault : IBridgeTransport
+        {
+            private readonly string _faultMessage;
+
+            public bool IsRunning => true;
+
+#pragma warning disable CS0067 // Event is never used
+            public event EventHandler<MessageReceivedEventArgs>? OnMessageReceived;
+            public event EventHandler<BridgeErrorEventArgs>? OnError;
+            public event EventHandler? OnClosed;
+#pragma warning restore CS0067
+
+            public TestBridgeTransportWithFault(string faultMessage)
+            {
+                _faultMessage = faultMessage;
+            }
+
+            public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+            public Task StopAsync() => Task.CompletedTask;
+
+            public Task SendMessageAsync(Message message, CancellationToken cancellationToken)
+            {
+                throw new InvalidOperationException(_faultMessage);
+            }
+
+            public Task<Message?> ReceiveMessageAsync(CancellationToken cancellationToken)
+            {
+                throw new InvalidOperationException(_faultMessage);
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                await Task.CompletedTask;
+            }
         }
 
         public void Dispose()
