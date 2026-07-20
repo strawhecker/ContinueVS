@@ -26,8 +26,9 @@
 # Handler Registry Reference
 
 **Last Updated**: 2024-01-15  
-**Total Handlers**: 16 (Steps 46–61, 76–96 implemented)  
-**Future Expansion**: Steps 97+ (add entries below "Phase 10" section)
+**Total Handlers**: 20 (Steps 46–61, 76–95 implemented)  
+**Compliance Status**: Step 97 compliance tests prepared for all 20 handlers  
+**Future Expansion**: Steps 98–99 (perf/stress tests), Steps 100+ (additional handlers)
 
 ---
 
@@ -247,11 +248,51 @@ const telemetry = {
 
 ---
 
+## Compliance Test Coverage (Step 97)
+
+All 20 handlers (Steps 76–95) are validated against a unified compliance specification contract.
+
+**Compliance Contract Dimensions**:
+1. **Registration** — Handler registered in Step 71 HandlerRegistry
+2. **Message Acceptance** — Handler accepts valid JSON-RPC messages
+3. **Message Correlation** — Response messageId correlates to request
+4. **Response Schema** — Response matches expected schema
+5. **Error Codes** — Error codes conform to JSON-RPC standards
+6. **Timeout Policy** — Handler respects TimeoutManager policies
+7. **Middleware Integration** — Handler integrates with middleware chain
+8. **Graceful Degradation** — Handler null-checks optional dependencies
+9. **Metrics/Logging** — Metrics and logs recorded on all paths
+10. **Concurrency Safety** — Handler state is isolated, no race conditions
+
+**Test Infrastructure**:
+- Framework: `src/versions/v2.0.0/lib/handler-compliance-framework.mjs` (ComplianceValidator class)
+- Fixtures: `src/versions/v2.0.0/tests/mocks/handler-compliance-fixtures.mjs` (20 handlers)
+- Test Suite: `src/versions/v2.0.0/tests/handler-compliance.test.mjs` (120+ tests)
+- Report: `src/versions/v2.0.0/lib/handler-compliance-report.mjs` (JSON + Markdown reports)
+- Guide: `docs/HANDLER-COMPLIANCE-GUIDE.md` (Full specification)
+
+**Running Compliance Tests**:
+```bash
+npm test -- src/versions/v2.0.0/tests/handler-compliance.test.mjs
+```
+
+**Related Steps**:
+- Step 76–95: Handler implementations
+- Step 98: Performance tests
+- Step 99: Stress tests
+
+---
+
 ## Cross-References
 
 - **handler-registry.mjs**: Registry implementation with validation logic
 - **handler-registry.test.mjs**: Unit tests (22 tests, 100% coverage)
+- **handler-compliance-framework.mjs**: Step 97 compliance validation framework
+- **handler-compliance.test.mjs**: Step 97 compliance test suite (120+ tests)
+- **HANDLER-COMPLIANCE-GUIDE.md**: Step 97 compliance specification
 - **BRIDGE-DEVELOPER-GUIDE.md**: Extending the bridge with new handlers
 - **Step 71**: Handler registration orchestration
 - **Step 72–74**: Middleware using registry metadata
-- **Steps 76–95**: Future handler implementations
+- **Steps 76–95**: Handler implementations
+- **Step 97**: Compliance tests
+- **Steps 98–99**: Performance and stress tests
