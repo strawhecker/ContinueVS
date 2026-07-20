@@ -24,6 +24,7 @@ import { createCodeLensHandler } from './code-lens-handler.mjs';
 import createDiffViewerHandler from './diff-viewer-handler.mjs';
 import createRefactorTestsHandler from './refactor-tests-handler.mjs';
 import { createWorkspaceReloadHandler } from './workspace-reload-handler.mjs';
+import { createLoadSettingsHandler, createApplySettingsHandler } from './settings-sync-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -374,6 +375,26 @@ const baseHandlers = [
       description: 'Scoped or full workspace reload with cache invalidation',
       relatedSteps: [94, 71],
       dependencies: [52, 53, 54],
+    },
+    {
+      messageType: 'bridge:loadSettings',
+      handler: createLoadSettingsHandler,
+      isFactory: true,
+      timeoutPolicy: 'medium',
+      stabilityTier: 'core',
+      description: 'Load LLM settings (model, provider, temperature, context window, etc.)',
+      relatedSteps: [95, 71],
+      dependencies: [71],
+    },
+    {
+      messageType: 'bridge:applySettings',
+      handler: createApplySettingsHandler,
+      isFactory: true,
+      timeoutPolicy: 'medium',
+      stabilityTier: 'core',
+      description: 'Apply and persist LLM settings to Continue configuration',
+      relatedSteps: [95, 71],
+      dependencies: [71],
     },
   ];
 
