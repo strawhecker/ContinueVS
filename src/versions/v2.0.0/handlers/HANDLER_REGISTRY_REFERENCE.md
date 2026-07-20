@@ -26,8 +26,8 @@
 # Handler Registry Reference
 
 **Last Updated**: 2024-01-15  
-**Total Handlers**: 12 (Steps 46–61, 76–94 implemented)  
-**Future Expansion**: Steps 95+ (add entries below "Phase 10" section)
+**Total Handlers**: 16 (Steps 46–61, 76–96 implemented)  
+**Future Expansion**: Steps 97+ (add entries below "Phase 10" section)
 
 ---
 
@@ -135,12 +135,15 @@ Add new handlers following this template:
 | 25 | `bridge:snippet` | `createSnippetHandler()` | fast | experimental | Code snippet insertion | 91 | 52 |
 | 26 | `bridge:diffViewer` | `createDiffViewerHandler()` | medium | experimental | Diff viewing and navigation | 92 | 52 |
 
-### Phase 10: Testing, Refactoring & Workspace Management (Steps 93–95)
+### Phase 10: Testing, Refactoring, Workspace Management & Diagnostics (Steps 93–96)
 
 | # | Message Type | Handler Function | Timeout | Stability | Description | Step | Dependencies |
 |---|--------------|------------------|---------|-----------|-------------|------|--------------|
 | 27 | `bridge:refactorTests` | `createRefactorTestsHandler()` | slow | experimental | Test generation for refactored code | 93 | 93 |
 | 28 | `bridge:workspaceReload` | `createWorkspaceReloadHandler()` | medium | core | Scoped/full workspace reload with cache invalidation | 94 | 52, 53, 54 |
+| 29 | `bridge:loadSettings` | `createLoadSettingsHandler()` | medium | core | Load LLM settings (model, provider, temperature, etc.) | 95 | 95 |
+| 30 | `bridge:applySettings` | `createApplySettingsHandler()` | medium | core | Apply and persist LLM settings to Continue config | 95 | 95 |
+| 31 | `bridge:getProfilerData` | `createProfilerHandler()` | fast | core | Aggregates real-time metrics for handler health diagnostics (optional) | 96 | 64, 72, 74, 66 |
 
 ---
 

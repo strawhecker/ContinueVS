@@ -25,6 +25,7 @@ import createDiffViewerHandler from './diff-viewer-handler.mjs';
 import createRefactorTestsHandler from './refactor-tests-handler.mjs';
 import { createWorkspaceReloadHandler } from './workspace-reload-handler.mjs';
 import { createLoadSettingsHandler, createApplySettingsHandler } from './settings-sync-handler.mjs';
+import { createProfilerHandler } from './profiler-integration.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -395,6 +396,16 @@ const baseHandlers = [
       description: 'Apply and persist LLM settings to Continue configuration',
       relatedSteps: [95, 71],
       dependencies: [71],
+    },
+    {
+      messageType: 'bridge:getProfilerData',
+      handler: createProfilerHandler,
+      isFactory: true,
+      timeoutPolicy: 'fast',
+      stabilityTier: 'core',
+      description: 'Aggregates real-time metrics for handler health diagnostics (Step 96, optional)',
+      relatedSteps: [96, 71, 97],
+      dependencies: [64, 72, 74, 66],
     },
   ];
 
