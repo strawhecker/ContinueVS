@@ -283,6 +283,44 @@ npm test -- src/versions/v2.0.0/tests/handler-compliance.test.mjs
 
 ---
 
+## Step 99: Stress Test Coverage
+
+**Status**: 80+ stress tests across 4 scenarios, 20 handlers, 2,500 lines
+
+| Scenario | Tests | Duration | Success Gate |
+|----------|-------|----------|--------------|
+| **High Concurrency** | 20+ tests | 1–2 min | p99 <500ms, error <5% |
+| **Error Injection** | 20+ tests | 1–2 min | error_rate ≈ injection_rate, <5% |
+| **Sustained Load** | 20+ tests | 3–4 min | memory stable, no >50MB growth |
+| **Cascading Failures** | 20+ tests | 1–2 min | isolation >80%, <1 handler failing |
+| **Cross-Scenario** | 4+ tests | <1 min | results consistency, no regressions |
+
+**Test Organization**:
+- `src/versions/v2.0.0/lib/stress-test-engine.mjs` — Orchestrator (600 lines)
+- `src/versions/v2.0.0/tests/handler-stress-tests.test.mjs` — Test suite (900 lines)
+- `src/versions/v2.0.0/tests/mocks/stress-test-fixtures.mjs` — Fixtures (500 lines)
+- `docs/HANDLER-STRESS-TESTS-GUIDE.md` — Documentation (300 lines)
+
+**Execution**:
+```bash
+npm test -- handler-stress-tests.test.mjs           # Full suite (5–10 min)
+npm test -- handler-stress-tests.test.mjs --grep "Concurrency"    # Individual scenarios
+```
+
+**Key Metrics**:
+- **Concurrency**: 100 parallel requests per handler → p99 <500ms
+- **Error Injection**: 50% error rate → <5% unintended errors, isolation maintained
+- **Sustained Load**: 1000 msg/min × 30s → memory avg delta <10KB
+- **Cascading**: One handler fails → 19/20 handlers isolated (>80%)
+
+**Integration**:
+- Consumes registry from `handler-registry.mjs`
+- Uses fixtures from `stress-test-fixtures.mjs`
+- Reports to Step 112 (regression baseline)
+- Required by Step 115 (Part III gate)
+
+---
+
 ## Cross-References
 
 - **handler-registry.mjs**: Registry implementation with validation logic

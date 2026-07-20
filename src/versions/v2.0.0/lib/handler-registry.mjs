@@ -1,4 +1,34 @@
 #!/usr/bin/env node
+
+/**
+ * Handler Registry with Stress Test Integration (Step 99)
+ * 
+ * This registry maintains metadata for all 20 bridge handlers (Steps 76–95).
+ * 
+ * Step 99 Integration Notes:
+ * ??????????????????????????????
+ * - Stress tests (src/versions/v2.0.0/tests/handler-stress-tests.test.mjs) consume this registry
+ * - The registry exports handlers for concurrency, error injection, sustained load, and cascading tests
+ * - Handlers are tested under 4 stress scenarios:
+ *   1. High Concurrency: 50–100 parallel requests ? p99 <500ms
+ *   2. Error Injection: Timeout/protocol/dependency errors ? <5% error rate
+ *   3. Sustained Load: 1000 msg/min for 30s ? memory stable
+ *   4. Cascading Failures: One handler fails ? isolation >80%
+ * 
+ * Related Steps:
+ *   - Step 97: Compliance baseline (p99 <100ms baseline)
+ *   - Step 98: Performance tests (throughput baseline)
+ *   - Step 99: Stress tests (THIS integration)
+ *   - Step 110: E2E scenarios (uses stress fixtures)
+ *   - Step 112: Regression suite (compares vs Step 99 baseline)
+ *   - Step 115: Part III gate (stress report required)
+ * 
+ * Usage in Stress Tests:
+ *   const handlers = getAllHandlers();
+ *   const engine = createStressTestEngine({ handlers, logger, metrics });
+ *   const results = await engine.runConcurrencyScenario(config);
+ */
+
 import { bootstrapHandler } from '../handlers/bootstrap-handler.js';
 import { getEditorStateHandler } from './get-editor-state-handler.mjs';
 import { searchHandler } from './search-handler.mjs';
