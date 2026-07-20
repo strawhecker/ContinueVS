@@ -57,6 +57,7 @@ import { createWorkspaceReloadHandler } from './workspace-reload-handler.mjs';
 import { createLoadSettingsHandler, createApplySettingsHandler } from './settings-sync-handler.mjs';
 import { createProfilerHandler } from './profiler-integration.mjs';
 import { createMetricsStreamHandler } from './metrics-stream-handler.mjs';
+import { createDiagnosticPanelHandler } from './diagnostic-panel-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -447,6 +448,16 @@ const baseHandlers = [
       description: 'Subscription-based real-time metrics streaming for dashboard visualization (Step 101)',
       relatedSteps: [101, 96, 72, 74, 64, 66, 71],
       dependencies: [96],
+    },
+    {
+      messageType: 'bridge:getDiagnosticPanel',
+      handler: createDiagnosticPanelHandler,
+      isFactory: true,
+      timeoutPolicy: 'fast',
+      stabilityTier: 'utility',
+      description: 'On-demand health snapshot and diagnostics aggregation (Step 102)',
+      relatedSteps: [102, 101, 96, 72, 74, 24, 25, 71],
+      dependencies: [24, 25],
     },
   ];
 
