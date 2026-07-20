@@ -23,6 +23,7 @@ import { createStreamingResponseHandler } from './streaming-response-handler.mjs
 import { createCodeLensHandler } from './code-lens-handler.mjs';
 import createDiffViewerHandler from './diff-viewer-handler.mjs';
 import createRefactorTestsHandler from './refactor-tests-handler.mjs';
+import { createWorkspaceReloadHandler } from './workspace-reload-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -363,6 +364,16 @@ const baseHandlers = [
       description: 'Test generation and validation for refactored code',
       relatedSteps: [93, 71],
       dependencies: [76, 60],
+    },
+    {
+      messageType: 'bridge:workspaceReload',
+      handler: createWorkspaceReloadHandler,
+      isFactory: true,
+      timeoutPolicy: 'medium',
+      stabilityTier: 'core',
+      description: 'Scoped or full workspace reload with cache invalidation',
+      relatedSteps: [94, 71],
+      dependencies: [52, 53, 54],
     },
   ];
 

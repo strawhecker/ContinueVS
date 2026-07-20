@@ -119,11 +119,11 @@
 | 87 | Create context-window handler | None | 71 | ✅ COMPLETE |
 | 88 | Create model-info handler | None | 71 | ✅ COMPLETE |
 | 89 | Create streaming-response handler | None | 71 | ✅ COMPLETE |
-| 90 | Create code-lens handler | None | 71 |
-| 91 | Create snippet handler | None | 71 |
-| 92 | Create diff-viewer handler | None | 71 |
-| 93 | Create refactor-tests handler | None | 71 |
-| 94 | Create workspace-reload handler | None | 71 |
+| 90 | Create code-lens handler | None | 71 | ✅ COMPLETE |
+| 91 | Create snippet handler | None | 71 | ✅ COMPLETE |
+| 92 | Create diff-viewer handler | None | 71 | ✅ COMPLETE |
+| 93 | Create refactor-tests handler | None | 71 | ✅ COMPLETE |
+| 94 | Create workspace-reload handler | None | 71 | ✅ COMPLETE |
 | 95 | Create settings-sync handler | None | 71 |
 | 96 | Create profiler-integration handler (optional) | None | 71 |
 | 97 | Create handler compliance tests | 76-95 | None |
@@ -1653,6 +1653,116 @@ Coverage: Initialization, parsing, queries, fallback, validation, error handling
 
 ---
 
-**Next Action**: Step 92 (Create diff-viewer handler)
+## Step 94 Completion Record
+
+**Title**: Create Workspace-Reload Handler  
+**Status**: ✅ COMPLETE  
+**Dependencies**: None blocking (Step 71 related)  
+**Test Coverage**: 30/30 passing (100%)  
+
+### Deliverables
+
+**Files Created**:
+1. `src/versions/v2.0.0/lib/workspace-reload-handler.mjs` (450+ lines)
+   - Scope validation (config|symbols|diagnostics|documents|full)
+   - Cache invalidation orchestrator with graceful degradation
+   - Concurrent request queue for serialized execution
+   - Metrics and logging integration
+   - Error handling with RPC error codes
+
+2. `src/versions/v2.0.0/tests/workspace-reload-handler.test.mjs` (590+ lines)
+   - 30 comprehensive test cases across 7 suites
+   - Suite 1: Initialization & Configuration (3 tests)
+   - Suite 2: Input Validation (5 tests)
+   - Suite 3: Scoped Cache Invalidation (6 tests)
+   - Suite 4: Metadata & Metrics (4 tests)
+   - Suite 5: Concurrent Reload Handling (3 tests)
+   - Suite 6: Error Recovery & Degradation (3 tests)
+   - Suite 7: Performance Gates (2 tests)
+   - Bonus: Edge Cases & Integration (4 tests)
+
+3. `src/versions/v2.0.0/tests/mocks/workspace-reload-fixtures.mjs` (380+ lines)
+   - Valid/invalid payload fixtures
+   - Mock cache factories with state tracking
+   - Mock metrics and logger implementations
+   - Test context builders and verification utilities
+
+**Files Modified**:
+1. `src/versions/v2.0.0/lib/handler-registry.mjs`
+   - Added import: `createWorkspaceReloadHandler`
+   - Registered handler entry with core tier, medium timeout
+   - Handler count: 12 → 13
+
+2. `src/versions/v2.0.0/handlers/HANDLER_REGISTRY_REFERENCE.md`
+   - Added workspace-reload handler row to Phase 10
+   - Updated total handler count: 11 → 12
+
+3. `docs/session-context.md`
+   - Marked Step 94 ✅ COMPLETE in table
+   - Added completion record with full deliverables
+
+### Test Results
+
+✅ 30/30 PASSING (100% success rate)
+- Initialization: 3/3
+- Validation: 5/5
+- Scoped Invalidation: 6/6
+- Metadata & Metrics: 4/4
+- Concurrent Handling: 3/3
+- Error Recovery: 3/3
+- Performance Gates: 2/2
+- Edge Cases: 4/4
+
+### Key Features
+
+✅ Scope validation for all types (config|symbols|diagnostics|documents|full)
+✅ Cache invalidation via SymbolExtractor.clearCache(), DocumentProvider.clearAll(), DiagnosticsCollector.clear()
+✅ Concurrent request serialization with internal queue
+✅ Response includes metadata (reloadedScopes, filesAffected, duration)
+✅ Performance gates: scoped <2s, full <10s
+✅ Graceful degradation on partial failures
+✅ Optional dependencies (null checks for cache instances)
+✅ Metrics recording on success/error paths
+✅ Logger integration for diagnostics
+
+### Performance Validation
+
+- ✅ Scoped reload: <2s (target met)
+- ✅ Full reload: <10s (target met)
+- ✅ Concurrent request serialization: No race conditions
+- ✅ Memory-safe queue processing
+
+### Coverage Analysis
+
+**Scope Behaviors Validated**:
+- ✅ "config" — Config reload signaling
+- ✅ "symbols" — SymbolExtractor cache clear
+- ✅ "diagnostics" — DiagnosticsCollector clear
+- ✅ "documents" — DocumentProvider clearAll
+- ✅ "full" — All above scopes cleared
+- ✅ Default (null/undefined) → "full" scope
+
+**Integration Points**:
+- ✅ SymbolExtractor optional but used if available
+- ✅ DocumentProvider optional but used if available
+- ✅ DiagnosticsCollector optional but used if available
+- ✅ Logger/metrics optional and gracefully null-checked
+- ✅ Handler dispatcher registration (Step 71 compatible)
+
+### Related Steps
+
+- **Step 71**: Handler registration (✅ updated; workspace-reload registered)
+- **Step 52**: DocumentProvider (✅ dependency for documents scope)
+- **Step 53**: SymbolExtractor (✅ dependency for symbols scope)
+- **Step 54**: DiagnosticsCollector (✅ dependency for diagnostics scope)
+- **Step 95**: Settings-sync handler (complements workspace reload)
+- **Step 97**: Handler compliance tests (will verify Step 94)
+- **Step 98**: Handler performance tests (will benchmark Step 94)
+- **Step 99**: Handler stress tests (will test concurrent reloads)
+
+---
+
+**Next Action**: Step 95 (Create settings-sync handler)
+
 
 

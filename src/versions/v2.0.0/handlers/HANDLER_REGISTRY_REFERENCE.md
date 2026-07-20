@@ -26,8 +26,8 @@
 # Handler Registry Reference
 
 **Last Updated**: 2024-01-15  
-**Total Handlers**: 11 (Steps 46–61 + Step 91 implemented)  
-**Future Expansion**: Steps 76–90, 92–95 (add entries below "Future Handlers" section)
+**Total Handlers**: 12 (Steps 46–61, 76–94 implemented)  
+**Future Expansion**: Steps 95+ (add entries below "Phase 10" section)
 
 ---
 
@@ -135,11 +135,12 @@ Add new handlers following this template:
 | 25 | `bridge:snippet` | `createSnippetHandler()` | fast | experimental | Code snippet insertion | 91 | 52 |
 | 26 | `bridge:diffViewer` | `createDiffViewerHandler()` | medium | experimental | Diff viewing and navigation | 92 | 52 |
 
-### Phase 10: Testing & Refactoring (Steps 93+)
+### Phase 10: Testing, Refactoring & Workspace Management (Steps 93–95)
 
 | # | Message Type | Handler Function | Timeout | Stability | Description | Step | Dependencies |
 |---|--------------|------------------|---------|-----------|-------------|------|--------------|
 | 27 | `bridge:refactorTests` | `createRefactorTestsHandler()` | slow | experimental | Test generation for refactored code | 93 | 93 |
+| 28 | `bridge:workspaceReload` | `createWorkspaceReloadHandler()` | medium | core | Scoped/full workspace reload with cache invalidation | 94 | 52, 53, 54 |
 
 ---
 
