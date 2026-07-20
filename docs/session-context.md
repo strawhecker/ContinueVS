@@ -129,8 +129,8 @@
 | 97 | Create handler compliance tests | 76-95 | None | ✅ COMPLETE |
 | 98 | Create handler performance tests | 76-95 | None |
 | 99 | Create handler stress tests | 76-95 | None | ✅ COMPLETE |
-| 100 | Create socket-transport alternative (optional) | None | None |
-| 101 | Create bridge metrics dashboard | None | None |
+| 100 | Create socket-transport alternative (optional) | None | None | ✅ COMPLETE |
+| 101 | Create bridge metrics dashboard | None | None | ✅ COMPLETE |
 | 102 | Create bridge diagnostic panel | None | None |
 | 103 | Create bridge crash recovery | 24,25 | None |
 | 104 | Create continue-configuration file support | None | None |

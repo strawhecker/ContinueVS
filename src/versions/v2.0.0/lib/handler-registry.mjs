@@ -56,6 +56,7 @@ import createRefactorTestsHandler from './refactor-tests-handler.mjs';
 import { createWorkspaceReloadHandler } from './workspace-reload-handler.mjs';
 import { createLoadSettingsHandler, createApplySettingsHandler } from './settings-sync-handler.mjs';
 import { createProfilerHandler } from './profiler-integration.mjs';
+import { createMetricsStreamHandler } from './metrics-stream-handler.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -436,6 +437,16 @@ const baseHandlers = [
       description: 'Aggregates real-time metrics for handler health diagnostics (Step 96, optional)',
       relatedSteps: [96, 71, 97],
       dependencies: [64, 72, 74, 66],
+    },
+    {
+      messageType: 'bridge:subscribeToMetrics',
+      handler: createMetricsStreamHandler,
+      isFactory: true,
+      timeoutPolicy: 'fast',
+      stabilityTier: 'core',
+      description: 'Subscription-based real-time metrics streaming for dashboard visualization (Step 101)',
+      relatedSteps: [101, 96, 72, 74, 64, 66, 71],
+      dependencies: [96],
     },
   ];
 
