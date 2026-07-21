@@ -73,8 +73,8 @@ namespace ContinueVS.Services
     /// </summary>
     public class HandlerMetricsCollector
     {
-        private readonly object _bridgeServiceProvider;
-        private readonly object _logger;
+        private readonly object? _bridgeServiceProvider;
+        private readonly object? _logger;
         private readonly string _storagePath;
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace ContinueVS.Services
         {
             _bridgeServiceProvider = bridgeServiceProvider;
             _logger = logger;
-            _storagePath = GetStoragePath();
+            _storagePath = GetStoragePath() ?? string.Empty;
         }
 
         /// <summary>
