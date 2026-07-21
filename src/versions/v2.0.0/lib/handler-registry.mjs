@@ -58,6 +58,7 @@ import { createLoadSettingsHandler, createApplySettingsHandler } from './setting
 import { createProfilerHandler } from './profiler-integration.mjs';
 import { createMetricsStreamHandler } from './metrics-stream-handler.mjs';
 import { createDiagnosticPanelHandler } from './diagnostic-panel-handler.mjs';
+import { createCrashRecoveryHandler } from './crash-recovery-manager.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
@@ -457,6 +458,16 @@ const baseHandlers = [
       stabilityTier: 'utility',
       description: 'On-demand health snapshot and diagnostics aggregation (Step 102)',
       relatedSteps: [102, 101, 96, 72, 74, 24, 25, 71],
+      dependencies: [24, 25],
+    },
+    {
+      messageType: 'bridge:crashRecovery',
+      handler: createCrashRecoveryHandler,
+      isFactory: true,
+      timeoutPolicy: 'slow',
+      stabilityTier: 'core',
+      description: 'Bridge crash recovery: detects failures, captures diagnostics, orchestrates recovery (Step 103)',
+      relatedSteps: [103, 24, 25, 45, 74, 71],
       dependencies: [24, 25],
     },
   ];
