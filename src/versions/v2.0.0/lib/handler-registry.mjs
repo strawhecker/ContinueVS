@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Handler Registry with Stress Test Integration (Step 99)
+ * Handler Registry with Stress Test Integration (Step 99) & E2E Integration (Step 110)
  * 
  * This registry maintains metadata for all 20 bridge handlers (Steps 76–95).
  * 
@@ -17,11 +17,42 @@
  * 
  * Related Steps:
  *   - Step 97: Compliance baseline (p99 <100ms baseline)
- *   - Step 98: Performance tests (throughput baseline)
- *   - Step 99: Stress tests (THIS integration)
- *   - Step 110: E2E scenarios (uses stress fixtures)
- *   - Step 112: Regression suite (compares vs Step 99 baseline)
- *   - Step 115: Part III gate (stress report required)
+ *   - Step 98: Performance tests (throughput baseline, used by Step 110)
+ *   - Step 99: Stress tests (concurrent patterns, error injection fixtures)
+ *   - Step 109: Handler Metrics Aggregator (historical persistence)
+ *   - Step 110: E2E scenarios (system-level validation, THIS integration)
+ *   - Step 112: Regression suite (compares vs aggregated historical)
+ *   - Step 115: Part III gate (E2E report + metrics baseline required)
+ * 
+ * Step 110 Integration: E2E Scenario Tests
+ * ??????????????????????????????????????????????
+ * E2E engine (src/versions/v2.0.0/lib/e2e-scenario-engine.mjs) consumes registry:
+ * - 8 realistic workflows orchestrate 3-5 handlers each (20 total covered)
+ * - Handler chains: Editor->AI, Search->Navigate, Git->Refactor, Debug->Terminal
+ * - State propagation validated with checkpoint comparison at each step
+ * - Performance gates: p99 <250-500ms per workflow (per Step 98 baseline)
+ * - Error recovery: timeout -> circuit-breaker -> fallback -> retry
+ * - Concurrent isolation: 5+ simultaneous workflows, >80% isolation (Step 99 baseline)
+ * - Fixtures: src/versions/v2.0.0/tests/mocks/e2e-scenario-fixtures.mjs
+ * - Tests: src/versions/v2.0.0/tests/handler-e2e-scenarios.test.mjs (65+ cases)
+ * - Guide: src/versions/v2.0.0/docs/HANDLER-E2E-SCENARIOS-GUIDE.md
+ * 
+ * Step 109 Integration: Handler Metrics Aggregator
+ * ??????????????????????????????????????????????????
+ * Metrics aggregator initialization and integration with bridge lifecycle:
+ * - Collects real-time snapshots from ProfilerHandler (Step 96) every 5 seconds
+ * - Persists aggregated metrics to ~/.continue/metrics/ with daily rotation
+ * - Provides historical queries for regression detection (Step 98)
+ * - Feeds E2E baseline scenarios (Step 110) with trending data
+ * - Initialized on bridge startup, runs continuously in background
+ * - Zero impact on handler dispatch (non-blocking collection)
+ * 
+ * Usage in core-server.js:
+ *   const aggregator = createHandlerMetricsAggregator(config, logger, metricsCollector);
+ *   await aggregator.initialize();
+ *   await aggregator.start();
+ *   // ... runs continuously, snapshot collection every 5s
+ *   // On shutdown: await aggregator.stop();
  * 
  * Usage in Stress Tests:
  *   const handlers = getAllHandlers();
@@ -63,6 +94,7 @@ import { createProfilerHandler } from './profiler-integration.mjs';
 import { createMetricsStreamHandler } from './metrics-stream-handler.mjs';
 import { createDiagnosticPanelHandler } from './diagnostic-panel-handler.mjs';
 import { createCrashRecoveryHandler } from './crash-recovery-manager.mjs';
+import { createHandlerMetricsAggregator } from './handler-metrics-aggregator.mjs';
 import { TREE_SITTER_ENABLED } from './feature-flags.mjs';
 import { handle as treeAnalysisHandler } from './tree-sitter-handler.mjs';
 export class HandlerRegistryError extends Error {
