@@ -39,7 +39,19 @@
  *   - Step 45: bridge lifecycle manager (integration point: start())
  *   - Steps 50–61: Handler implementations (consumers of registry)
  *   - Step 66: handler-registry.mjs (HANDLER_REGISTRY source)
+ *   - Step 71: Handler registration (this module)
  *   - Steps 72–75: Middleware layers (depend on registered handlers)
+ *   - Step 95: settings-sync handler (IDE ↔ Continue config sync via JSON-RPC)
+ *   - **Step 104**: Continue configuration manager (bridge ↔ filesystem config operations)
+ *
+ * **Step 104 Integration Note**:
+ *   The continue-config-manager.mjs (Step 104) provides a bridge-side config persistence
+ *   layer for managing Continue SDK config files (~/.continue/config.json). While not
+ *   directly involved in handler registration, it is used by:
+ *     - E2E scenario tests (Step 110+) for multi-model config setup
+ *     - Regression test suite (Step 112+) for config variant testing
+ *     - Handler context during config-aware operations (model discovery, settings load)
+ *   Config manager is consumed via: createContinueConfigManager(logger?, metrics?)
  */
 
 import { getAllHandlers, HandlerRegistryError } from './handler-registry.mjs';
