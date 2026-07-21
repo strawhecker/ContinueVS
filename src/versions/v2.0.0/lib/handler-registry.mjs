@@ -50,6 +50,8 @@ import { createSidebarUIHandler } from './sidebar-ui-handler.mjs';
 import { createContextWindowHandler } from './context-window-handler.mjs';
 import { createRateLimiter, createDefaultPolicy } from './rate-limiter.mjs';
 import { createRateLimiterMiddleware } from './rate-limiter-middleware.mjs';
+import { createCircuitBreakerManager } from './circuit-breaker-manager.mjs';
+import { createCircuitBreakerMiddleware } from './circuit-breaker-middleware.mjs';
 import { createModelInfoHandler } from './model-info-handler.mjs';
 import { createStreamingResponseHandler } from './streaming-response-handler.mjs';
 import { createCodeLensHandler } from './code-lens-handler.mjs';
@@ -537,6 +539,40 @@ export function hasHandler(messageType) {
   return HANDLER_REGISTRY.some((h) => h.messageType === messageType);
 }
 
+// Circuit Breaker Manager singleton (lazy initialized)
+let _circuitBreakerManager = null;
+
+export function getCircuitBreakerManager(config = null, deps = {}) {
+  if (!_circuitBreakerManager) {
+    _circuitBreakerManager = createCircuitBreakerManager(config, deps);
+    _circuitBreakerManager.start();
+  }
+  return _circuitBreakerManager;
+}
+
+/**
+ * Step 108: Circuit Breaker Integration
+ * 
+ * The circuit breaker provides per-handler isolation to prevent cascading failures.
+ * Three-state machine (CLOSED/OPEN/HALF_OPEN) with automatic state transitions based on error rates.
+ * 
+ * State Transitions:
+ * - CLOSED ? OPEN: errorCount ? 5 OR errorRate > 5%
+ * - OPEN ? HALF_OPEN: cooldown expires (30s)
+ * - HALF_OPEN ? CLOSED: 2 consecutive successes (recovery successful)
+ * - HALF_OPEN ? OPEN: any failure (recovery failed)
+ * 
+ * Related Steps:
+ *   - Step 47: MiddlewareChain (circuit breaker middleware hook)
+ *   - Step 64: TimeoutManager (error rate metrics)
+ *   - Step 74: ErrorRecoveryMetrics (per-request recovery)
+ *   - Step 99: Stress tests (isolation validation)
+ *   - Step 107: RateLimiter (complements throttling)
+ *   - Step 108: CircuitBreaker (THIS integration)
+ *   - Step 109: MetricsAggregator (consumes circuit state)
+ *   - Step 110: E2E tests (cascading failure scenarios)
+ */
+
 export default {
   getAllHandlers,
   getHandlerMetadata,
@@ -548,6 +584,9 @@ export default {
   createRateLimiter,
   createRateLimiterMiddleware,
   getRateLimitPolicies,
+  createCircuitBreakerManager,
+  createCircuitBreakerMiddleware,
+  getCircuitBreakerManager,
 };
 
 /**
