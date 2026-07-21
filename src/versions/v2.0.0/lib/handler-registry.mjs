@@ -48,6 +48,8 @@ import { createProjectInfoHandler } from './project-info-handler.mjs';
 import { createInlineMessageHandler } from './inline-message-handler.mjs';
 import { createSidebarUIHandler } from './sidebar-ui-handler.mjs';
 import { createContextWindowHandler } from './context-window-handler.mjs';
+import { createRateLimiter, createDefaultPolicy } from './rate-limiter.mjs';
+import { createRateLimiterMiddleware } from './rate-limiter-middleware.mjs';
 import { createModelInfoHandler } from './model-info-handler.mjs';
 import { createStreamingResponseHandler } from './streaming-response-handler.mjs';
 import { createCodeLensHandler } from './code-lens-handler.mjs';
@@ -543,5 +545,62 @@ export default {
   hasHandler,
   HandlerRegistryError,
   HandlerNotFoundError,
+  createRateLimiter,
+  createRateLimiterMiddleware,
+  getRateLimitPolicies,
 };
+
+/**
+ * Step 107: Rate Limiter Integration
+ * 
+ * The rate limiter provides per-handler throttling to prevent bridge overload.
+ * Policies are registered at startup and enforced via middleware hook (Step 47).
+ * 
+ * Default Policies:
+ * - bridge:complete: 100 tokens/second (fast, interactive completions)
+ * - bridge:analyze: 50 tokens/second (medium, code analysis)
+ * - bridge:refactor: 10 tokens/second (slow, complex refactors)
+ * - Global ceiling: 500 RPC/second bridge-wide
+ * 
+ * Related Steps:
+ *   - Step 47: MiddlewareChain (rate limiter middleware hook)
+ *   - Step 64: TimeoutManager (complements timeout enforcement)
+ *   - Step 71: HandlerRegistry (this file, policy registration)
+ *   - Step 72–74: Middleware (logging, validation, error recovery)
+ *   - Step 98: Performance tests (throughput baselines)
+ *   - Step 99: Stress tests (load testing with rate limits)
+ *   - Step 108: CircuitBreaker (complements rate limiting)
+ *   - Step 109: MetricsAggregator (consumes rate limiter metrics)
+ */
+
+export function getRateLimitPolicies() {
+  return {
+    globalCeilingPerSecond: 500,
+    handlerPolicies: new Map([
+      ['bridge:complete', { tokensPerSecond: 100, burst: 5 }],
+      ['bridge:analyze', { tokensPerSecond: 50, burst: 3 }],
+      ['bridge:refactor', { tokensPerSecond: 10, burst: 2 }],
+      ['bridge:getEditorState', { tokensPerSecond: 100, burst: 5 }],
+      ['bridge:search', { tokensPerSecond: 50, burst: 3 }],
+      ['bridge:goToDefinition', { tokensPerSecond: 50, burst: 3 }],
+      ['bridge:findReferences', { tokensPerSecond: 50, burst: 3 }],
+      ['bridge:codeCompletion', { tokensPerSecond: 100, burst: 5 }],
+      ['bridge:hoverInfo', { tokensPerSecond: 100, burst: 5 }],
+      ['bridge:testExplorer', { tokensPerSecond: 20, burst: 2 }],
+      ['bridge:debugSession', { tokensPerSecond: 20, burst: 2 }],
+      ['bridge:fixSuggestion', { tokensPerSecond: 30, burst: 2 }],
+      ['bridge:applyEdit', { tokensPerSecond: 30, burst: 2 }],
+      ['bridge:gitIntegration', { tokensPerSecond: 20, burst: 2 }],
+      ['bridge:terminal', { tokensPerSecond: 50, burst: 3 }],
+      ['bridge:fileSystem', { tokensPerSecond: 50, burst: 3 }],
+      ['bridge:projectInfo', { tokensPerSecond: 20, burst: 2 }],
+      ['bridge:inlineMessage', { tokensPerSecond: 100, burst: 5 }],
+      ['bridge:sidebarUI', { tokensPerSecond: 50, burst: 3 }],
+      ['bridge:contextWindow', { tokensPerSecond: 50, burst: 3 }],
+    ]),
+    defaultTokensPerSecond: 20,
+    defaultBurstMultiplier: 2,
+    refillIntervalMs: 100,
+  };
+}
 
