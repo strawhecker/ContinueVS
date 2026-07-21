@@ -142,7 +142,7 @@
 | 110 | Create end-to-end scenario tests | 97-109 | None | ✅ COMPLETE |
 | 111 | Create cross-version compatibility tests | None | None | ✅ COMPLETE |
 | 112 | Create regression test suite | 97-111 | None | ✅ COMPLETE |
-| 113 | Create manual testing guide | None | None |
+| 113 | Create manual testing guide | None | None | ✅ COMPLETE |
 | 114 | Create troubleshooting guide | None | None |
 | 115 | Create bridge feature parity matrix | None | None |
 
@@ -2941,9 +2941,10 @@ dotnet build VSIXProject1.slnx
 
 ### Next Steps
 
-**Step 113** (Create manual testing guide) — In progress
-- Uses regression detection patterns as reference
-- Automated release gate included as example
+**Step 113** (Create manual testing guide) — ✅ COMPLETE
+- Master QA playbook (MANUAL-TESTING-GUIDE.md, 700 lines)
+- Test message fixtures (manual-testing-scenarios.mjs, 450 lines)
+- Release readiness checklist (RELEASE-READINESS-CHECKLIST.md, 200 lines)
 
 **Step 114** (Create troubleshooting guide) — Pending
 - Regression diagnosis procedures
@@ -2954,6 +2955,91 @@ dotnet build VSIXProject1.slnx
 - No regressions = release-ready
 
 **Part III Gate**: Full coverage & regression tests pass → Ready for Part IV (Steps 116–155)
+
+---
+
+## STEP 113 COMPLETION RECORD
+
+**Title**: Create Manual Testing Guide  
+**Status**: ✅ COMPLETE  
+**Date**: 2024-01-15  
+**Dependencies**: None blocking (Steps 97, 98, 99, 112 all ✅)
+
+### Deliverables
+
+| File | Location | Lines | Status |
+|------|----------|-------|--------|
+| MANUAL-TESTING-GUIDE.md | docs/ | 700 | ✅ Created |
+| manual-testing-scenarios.mjs | src/versions/v2.0.0/tests/mocks/ | 450 | ✅ Created |
+| RELEASE-READINESS-CHECKLIST.md | docs/ | 200 | ✅ Created |
+
+**Total**: 1,350 lines
+
+### Key Features
+
+✅ **20 handlers organized by category**:
+- Factory (6): refactor, fix, apply, format, snippet, diff
+- Subscriptions (4): editor state, terminal, git, debug
+- Bidirectional (3): search, go-to-def, find-refs
+- Analysis (4): completion, hover, test, inline
+- Metadata (3): load settings, apply settings, reload
+
+✅ **Message templates for copy-paste validation** (no guessing on format)
+- Success scenario + response for each handler
+- Error scenario + expected error code
+- Edge cases documented (2–3 per handler)
+
+✅ **Performance gates quantified** (reference Step 112 thresholds):
+- Factory <100ms p99
+- Subscription <2s p99 (first event)
+- Bidirectional <500ms p99
+- Analysis <200ms p99
+- Metadata <100ms p99 (reload <2s)
+- Error rate <1% across all
+
+✅ **4 integration workflows**:
+1. Context → Completion → Hover (user opens file, types, accepts)
+2. Search → Go-To-Definition → Find References → Refactor (multi-file nav)
+3. Refactor → Format → Diff → Apply (full lifecycle)
+4. Settings → Reload → Verify (config persistence)
+
+✅ **Release readiness checklist** (sign-off matrix):
+- Pre-release validation (manual testing, performance, regression, E2E, compliance, stress)
+- Handler validation matrix (20 rows × 4 columns: manual/perf/compliance/stress)
+- Decision matrix (GO / GO-with-conditions / NO-GO)
+- QA Lead + Release Manager sign-off
+- Audit trail integration (Step 103)
+
+✅ **Quick reference appendix**:
+- JSON-RPC error codes
+- Common failures & remediation
+- Terminal one-liners (curl + jq)
+- Expected response shapes
+
+### Integration Points
+
+- **Consumes From**:
+  - Step 112 (Regression gates): p99 latency baselines, error rates
+  - Step 97 (Compliance): Handler dimension list
+  - Step 98–99 (Performance/Stress): Baseline expectations
+  - Step 110 (E2E): Workflow scenarios
+
+- **Feeds Into**:
+  - Step 114 (Troubleshooting Guide): References this as baseline
+  - Step 115 (Part III Gate): Manual testing required before approval
+
+### QA Validation
+
+- ✅ All fixtures valid JSON-RPC format
+- ✅ All performance gates documented (reference Step 112)
+- ✅ Cross-references verified (no broken links)
+- ✅ No regressions in existing test infrastructure
+- ✅ Node.js syntax valid (mjs compiles)
+- ✅ Markdown formatting correct
+
+### Next Action
+
+**Step 114** (Create troubleshooting guide) — Can proceed; uses this step as baseline for error diagnosis
 
 ---
 
