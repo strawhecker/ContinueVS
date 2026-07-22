@@ -38,6 +38,8 @@
     <!-- Required for IAsyncEnumerable<T> support in .NET Framework 4.7.2 -->
     <!-- This enables async generator functions (async function*) translated from TypeScript -->
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
+    <!-- Required for System.Text.Json in .NET Framework 4.7.2 -->
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System.ComponentModel.Composition" />
