@@ -11,7 +11,7 @@
 | t2 | BridgeLogger Service Creation ✅ debugged |
 | t3 | Tool Window Pane Creation ✅ debugged |
 | t4 | ContinueToolWindowControl Constructor Entry ✅ debugged |
-| t5 | MessageDispatcher Registration |
+| t5 | MessageDispatcher Registration ✅ debugged |
 | t6 | WebviewPusher Instantiation |
 | t7 | WorkspaceConfigWatcher Creation |
 | t8 | EditorContextProvider Instantiation |
