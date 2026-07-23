@@ -1,3 +1,59 @@
+# 🎯 Runtime Debugging Plan: ContinueVS Bridge Execution Tracing
+**Overview**: Runtime Debugging Plan: ContinueVS Bridge Execution Tracing
+
+**Last Updated**: 2026-07-23 01:40:43
+
+## 📝 Plan Steps
+
+| step | tokens |
+|---|---|
+| t1 | ContinueVSPackage.InitializeAsync Entry Point ✅ debugged |
+| t2 | BridgeLogger Service Creation ✅ debugged |
+| t3 | Tool Window Pane Creation ✅ debugged |
+| t4 | ContinueToolWindowControl Constructor Entry |
+| t5 | MessageDispatcher Registration |
+| t6 | WebviewPusher Instantiation |
+| t7 | WorkspaceConfigWatcher Creation |
+| t8 | EditorContextProvider Instantiation |
+| t9 | Handler Loop Start - getWorkspaceDirs |
+| t10 | Handler Loop - getIdeInfo |
+| t11 | Handler Loop - getIdeSettings |
+| t12 | Handler Loop - getUniqueId |
+| t13 | Handler Loop - isTelemetryEnabled |
+| t14 | Handler Loop - isWorkspaceRemote |
+| t15 | Handler Loop - File Handlers (readFile/fileExists) |
+| t16 | Handler Loop - More File Handlers (getOpenFiles/writeFile/saveFile/openFile) |
+| t17 | Handler Loop - URL & Git Handlers (openUrl/getBranch) |
+| t18 | Handler Loop - Context Handlers (getContextItems/getSymbolsForFiles/loadSubmenuItems) |
+| t19 | Handler Loop - Context Docs Handlers (addDocs/removeDocs/indexDocs) |
+| t20 | Handler Loop - Config Handlers (addOpenAiKey/ideSettingsUpdate/deleteModel/getSerializedProfileInfo) |
+| t21 | Constructor Completion |
+| t22 | InitializeComponent Execution |
+| t23 | Control Added to Visual Tree |
+| t24 | Loaded Event Routed to Handler |
+| t25 | OnLoaded Event Triggered |
+| t26 | OnLoaded Async Task Started |
+| t27 | Guard Check - WebView Already Initialized |
+| t28 | GuiExtractor Execution |
+| t29 | WebView2 Element Access from Resources |
+| t30 | CoreWebView2Environment Creation |
+| t31 | WebViewEnvironment VirtualHostNameMapping |
+| t32 | CoreWebView2Controller Initialization |
+| t33 | WebView2 Element Bounds Set |
+| t34 | CoreWebView2 Reference Obtained |
+| t35 | WebMessageReceived Event Handler Registered |
+| t36 | Bridge JavaScript Injection |
+| t37 | Navigation URL Construction |
+| t38 | WebView2 Navigation Started |
+| t39 | WebView2 Navigation Completed |
+| t40 | WebView Initialization Flag Set |
+| t41 | Bridge Global Object Verification in JavaScript |
+| t42 | Bridge SendMessage Function Test |
+| t43 | Bridge OnMessage Function Readiness |
+| t44 | First WebviewPusher.PushConfigUpdate Call |
+| t45 | Full Bridge Operationality Confirmed |
+
+
 # ContinueVS Bridge v2.1 - Optimized Session Context
 
 **Status**: Part III Active | **Phase**: Handlers & Testing (Steps 76–115)  

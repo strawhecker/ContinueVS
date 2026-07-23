@@ -4,6 +4,7 @@ using ContinueVS.Services;
 using ContinueVS.Settings;
 using ContinueVS.UI;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -43,7 +44,10 @@ namespace ContinueVS
         public static bool EnableBridgeMode { get; private set; } = true;
 
         /// <summary>Execution tracer for t1 step instrumentation. Populated during InitializeAsync for debugging.</summary>
-        public static IExecutionTracer? ExecutionTracer { get; private set; }
+        public static IExecutionTracer? ExecutionTracer { get; internal set; }
+
+        /// <summary>Tool window pane instance (Step t3). Set during InitializeAsync, allows downstream access to pane and its control.</summary>
+        public static ContinueToolWindowPane? ToolWindowPaneInstance { get; internal set; }
 
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
@@ -150,8 +154,12 @@ namespace ContinueVS
                     }
                 }
 
+                // BREAKPOINT: t3 - Tool window pane creation
+                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Creating tool window pane...");
+                await this.CreateToolWindowPaneAsync(cancellationToken);
+
                 // BREAKPOINT: t1.5 - Command initialization phase
-                System.Diagnostics.Debug.WriteLine("[CV] Step 10: Initializing commands...");
+                System.Diagnostics.Debug.WriteLine("[CV] Step 12: Initializing commands...");
                 using (tracer.BeginScope("t1.5", "ContinueVSPackage"))
                 {
                     await ShowContinuePanelCommand.InitializeAsync(this);
@@ -193,6 +201,76 @@ namespace ContinueVS
             }
         }
 
+        /// <summary>
+        /// Creates and initializes the Continue Tool Window Pane during package initialization (Step t3).
+        /// Wraps ShowToolWindowAsync with execution tracing for debugging.
+        /// </summary>
+        private async Task CreateToolWindowPaneAsync(CancellationToken cancellationToken)
+        {
+            // BREAKPOINT: t3 - Set breakpoint here to inspect tool window pane creation
+            System.Diagnostics.Debug.WriteLine("[CV] Step 11: Creating tool window pane...");
+
+            var tracer = ExecutionTracer;
+            IDisposable? scope = tracer?.BeginScope("t3", "ContinueVSPackage.CreateToolWindowPaneAsync");
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[CV-t3] Calling ShowToolWindowAsync...");
+
+                // ShowToolWindowAsync creates the tool window and its pane
+                var toolWindow = await this.ShowToolWindowAsync(
+                    typeof(ContinueToolWindowPane),
+                    id: 0,
+                    create: true,
+                    cancellationToken: cancellationToken);
+
+                if (toolWindow == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[CV-t3] ⚠ ShowToolWindowAsync returned null, proceeding with warning");
+                    return;
+                }
+
+                // VSTHRD010: Switch to main thread before accessing IVsWindowFrame
+                await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+                // Extract the ToolWindowPane from the returned frame
+                if (toolWindow.Frame is Microsoft.VisualStudio.Shell.Interop.IVsWindowFrame frame)
+                {
+                    // Get the pane object from the window frame
+                    object paneObj;
+                    frame.GetProperty((int)Microsoft.VisualStudio.Shell.Interop.__VSFPROPID.VSFPROPID_DocView, out paneObj);
+
+                    var pane = paneObj as ContinueToolWindowPane;
+                    if (pane != null)
+                    {
+                        ToolWindowPaneInstance = pane;
+                        System.Diagnostics.Debug.WriteLine($"[CV-t3] ✓ Tool window pane created and registered");
+                        System.Diagnostics.Debug.WriteLine($"[CV-t3] Pane GUID: E3A7F1C2-8B4D-4E5A-9F2C-1D6B3A8E0F7D");
+                        System.Diagnostics.Debug.WriteLine($"[CV-t3] Pane Caption: {pane.Caption}");
+                        System.Diagnostics.Debug.WriteLine($"[CV-t3] Pane Docking Style: Tabbed (Solution Explorer)");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[CV-t3] ⚠ Could not extract ContinueToolWindowPane from frame, proceeding");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[CV-t3] ⚠ Tool window Frame is null, proceeding with warning");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CV-t3] ✗ Exception during tool window creation: {ex.GetType().Name}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t3] Message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t3] Stack trace: {ex.StackTrace}");
+                throw;
+            }
+            finally
+            {
+                scope?.Dispose();
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -202,6 +280,7 @@ namespace ContinueVS
                 DowngradeWarningService = null;
                 Logger = null;
                 TelemetryCollector = null;
+                ToolWindowPaneInstance = null;
                 EnableBridgeMode = true; // Reset to default
             }
 

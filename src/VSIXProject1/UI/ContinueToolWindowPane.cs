@@ -16,27 +16,62 @@ namespace ContinueVS.UI
 
         public ContinueToolWindowPane() : base(null)
         {
+            System.Diagnostics.Debug.WriteLine("[CV-t3] ContinueToolWindowPane ctor: entry");
             Caption = "Continue";
+            System.Diagnostics.Debug.WriteLine("[CV-t3] ContinueToolWindowPane ctor: caption set to 'Continue'");
         }
 
         protected override void Initialize()
         {
-            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Initialize() called");
+            System.Diagnostics.Debug.WriteLine("[CV-t3] Initialize() called");
             try
             {
-                base.Initialize();
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] base.Initialize() complete");
+                // t3.1 - Base initialization
+                var tracer = ContinueVSPackage.ExecutionTracer;
+                IDisposable? scope31 = tracer?.BeginScope("t3.1", "ContinueToolWindowPane.Initialize");
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("[CV-t3.1] Calling base.Initialize()...");
+                    base.Initialize();
+                    System.Diagnostics.Debug.WriteLine("[CV-t3.1] base.Initialize() complete");
+                }
+                finally
+                {
+                    scope31?.Dispose();
+                }
 
-                _control = new ContinueToolWindowControl();
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] ContinueToolWindowControl created");
+                // t3.2 - Control instantiation
+                IDisposable? scope32 = tracer?.BeginScope("t3.2", "ContinueToolWindowPane.Initialize");
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("[CV-t3.2] Creating ContinueToolWindowControl...");
+                    _control = new ContinueToolWindowControl();
+                    System.Diagnostics.Debug.WriteLine("[CV-t3.2] ContinueToolWindowControl created");
+                }
+                finally
+                {
+                    scope32?.Dispose();
+                }
 
-                Content = _control;
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Content assigned");
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Initialize() END - SUCCESS");
+                // t3.3 - Content assignment
+                IDisposable? scope33 = tracer?.BeginScope("t3.3", "ContinueToolWindowPane.Initialize");
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("[CV-t3.3] Assigning control to Content...");
+                    Content = _control;
+                    System.Diagnostics.Debug.WriteLine("[CV-t3.3] Content assigned");
+                    System.Diagnostics.Debug.WriteLine("[CV-t3] Initialize() END - SUCCESS");
+                }
+                finally
+                {
+                    scope33?.Dispose();
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowPane] Initialize() FAILED: {ex}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t3] Initialize() FAILED: {ex.GetType().Name}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t3] Exception message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t3] Stack trace: {ex.StackTrace}");
                 throw;
             }
         }

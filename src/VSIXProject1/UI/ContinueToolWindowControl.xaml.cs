@@ -39,76 +39,143 @@ namespace ContinueVS.UI
 
         public ContinueToolWindowControl()
         {
-            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] Constructor START");
+            // BREAKPOINT: t4 - Set breakpoint here to inspect ContinueToolWindowControl constructor entry
+            System.Diagnostics.Debug.WriteLine("[CV] Step 13: ContinueToolWindowControl ctor START");
+            System.Diagnostics.Debug.WriteLine("[CV-t4] Constructor entry");
+
+            var tracer = ContinueVSPackage.ExecutionTracer;
+            IDisposable? scope = tracer?.BeginScope("t4", "ContinueToolWindowControl.ctor");
+
             try
             {
-                InitializeComponent();
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] InitializeComponent() complete");
+                // t4.1 - InitializeComponent (WPF setup)
+                System.Diagnostics.Debug.WriteLine("[CV-t4.1] Invoking InitializeComponent()...");
+                IDisposable? scope41 = tracer?.BeginScope("t4.1", "ContinueToolWindowControl.InitializeComponent");
+                try
+                {
+                    InitializeComponent();
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.1] ✓ InitializeComponent() complete");
+                }
+                finally
+                {
+                    scope41?.Dispose();
+                }
 
-                _pusher = new WebviewPusher(this);
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] WebviewPusher created");
+                // t4.2 - MessageDispatcher setup
+                System.Diagnostics.Debug.WriteLine("[CV-t4.2] MessageDispatcher initialization (already created as field)");
+                IDisposable? scope42 = tracer?.BeginScope("t4.2", "ContinueToolWindowControl.MessageDispatcher");
+                try
+                {
+                    // _dispatcher is already initialized as a field
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.2] ✓ MessageDispatcher ready");
+                }
+                finally
+                {
+                    scope42?.Dispose();
+                }
 
-                _configWatcher = new WorkspaceConfigWatcher(_pusher);
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] WorkspaceConfigWatcher created");
+                // t4.3 - Core UI services (WebviewPusher, ConfigWatcher, EditorContextProvider)
+                System.Diagnostics.Debug.WriteLine("[CV-t4.3] Creating core UI services...");
+                IDisposable? scope43 = tracer?.BeginScope("t4.3", "ContinueToolWindowControl.UIServices");
+                try
+                {
+                    _pusher = new WebviewPusher(this);
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.3] ✓ WebviewPusher created");
 
-                _editorContextProvider = new EditorContextProvider(this);
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] EditorContextProvider created");
+                    _configWatcher = new WorkspaceConfigWatcher(_pusher);
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.3] ✓ WorkspaceConfigWatcher created");
 
-                _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
-                _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
-                _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
-                _dispatcher.Register("getUniqueId",       new GetUniqueIdHandler(this));
-                _dispatcher.Register("isTelemetryEnabled", new IsTelemetryEnabledHandler(this));
-                _dispatcher.Register("isWorkspaceRemote", new IsWorkspaceRemoteHandler(this));
-                _dispatcher.Register("readFile",          new ReadFileHandler(this));
-                _dispatcher.Register("fileExists",        new FileExistsHandler(this));
-                _dispatcher.Register("getOpenFiles",      new GetOpenFilesHandler(this));
-                _dispatcher.Register("writeFile",         new WriteFileHandler(this));
-                _dispatcher.Register("saveFile",          new SaveFileHandler(this));
-                _dispatcher.Register("openFile",          new OpenFileHandler(this));
-                _dispatcher.Register("openUrl",           new OpenUrlHandler(this));
-                _dispatcher.Register("getBranch",         new GetBranchHandler(this));
-                _dispatcher.Register("context/getContextItems",     new ContextGetContextItemsHandler(this));
-                _dispatcher.Register("context/getSymbolsForFiles",  new ContextGetSymbolsForFilesHandler(this));
-                _dispatcher.Register("context/loadSubmenuItems",    new ContextLoadSubmenuItemsHandler(this));
-                _dispatcher.Register("context/addDocs",             new ContextAddDocsHandler(this));
-                _dispatcher.Register("context/removeDocs",          new ContextRemoveDocsHandler(this));
-                _dispatcher.Register("context/indexDocs",           new ContextIndexDocsHandler(this));
-                _dispatcher.Register("config/addOpenAiKey",         new ConfigAddOpenAiKeyHandler(this));
-                _dispatcher.Register("config/ideSettingsUpdate",    new ConfigIdeSettingsUpdateHandler(this));
-                _dispatcher.Register("config/deleteModel",          new ConfigDeleteModelHandler(this));
-                _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this));
-                _dispatcher.Register("config/addModel",             new ConfigAddModelHandler(this));
-                _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
-                _dispatcher.Register("config/addGlobalRule",        new ConfigAddGlobalRuleHandler(this));
-                _dispatcher.Register("config/deleteRule",           new ConfigDeleteRuleHandler(this));
-                _dispatcher.Register("config/newPromptFile",        new ConfigNewPromptFileHandler(this));
-                _dispatcher.Register("config/newAssistantFile",     new ConfigNewAssistantFileHandler(this));
-                _dispatcher.Register("config/refreshProfiles",      new ConfigRefreshProfilesHandler(this));
-                _dispatcher.Register("config/openProfile",          new ConfigOpenProfileHandler(this));
-                _dispatcher.Register("config/updateSharedConfig",   new ConfigUpdateSharedConfigHandler(this));
-                _dispatcher.Register("config/updateSelectedModel",  new ConfigUpdateSelectedModelHandler(this));
-                _dispatcher.Register("llm/complete",                new LlmCompleteHandler(this));
-                _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
-                _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
-                _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
-                _dispatcher.Register("getCurrentFile",               new GetCurrentFileHandler(this));
-                _dispatcher.Register("applyToFile",                  new ApplyToFileHandler(this));
-                _dispatcher.Register("acceptDiff",                   new AcceptDiffHandler(this));
-                _dispatcher.Register("rejectDiff",                   new RejectDiffHandler(this));
-                _dispatcher.Register("autocomplete/complete",         new AutocompleteCompleteHandler(this));
-                _dispatcher.Register("autocomplete/accept",           new AutocompleteAcceptHandler(this));
-                _dispatcher.Register("autocomplete/cancel",           new AutocompleteCancelHandler(this));
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] All handlers registered");
+                    _editorContextProvider = new EditorContextProvider(this);
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.3] ✓ EditorContextProvider created");
+                }
+                finally
+                {
+                    scope43?.Dispose();
+                }
 
-                Loaded += OnLoaded;
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] Loaded event wired");
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] Constructor END - SUCCESS");
+                // t4.4 - Handler registration (t5 entry point)
+                System.Diagnostics.Debug.WriteLine("[CV-t4.4] Registering message handlers (t5 begins)...");
+                IDisposable? scope44 = tracer?.BeginScope("t4.4", "ContinueToolWindowControl.HandlerRegistration");
+                try
+                {
+                    _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
+                    _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
+                    _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
+                    _dispatcher.Register("getUniqueId",       new GetUniqueIdHandler(this));
+                    _dispatcher.Register("isTelemetryEnabled", new IsTelemetryEnabledHandler(this));
+                    _dispatcher.Register("isWorkspaceRemote", new IsWorkspaceRemoteHandler(this));
+                    _dispatcher.Register("readFile",          new ReadFileHandler(this));
+                    _dispatcher.Register("fileExists",        new FileExistsHandler(this));
+                    _dispatcher.Register("getOpenFiles",      new GetOpenFilesHandler(this));
+                    _dispatcher.Register("writeFile",         new WriteFileHandler(this));
+                    _dispatcher.Register("saveFile",          new SaveFileHandler(this));
+                    _dispatcher.Register("openFile",          new OpenFileHandler(this));
+                    _dispatcher.Register("openUrl",           new OpenUrlHandler(this));
+                    _dispatcher.Register("getBranch",         new GetBranchHandler(this));
+                    _dispatcher.Register("context/getContextItems",     new ContextGetContextItemsHandler(this));
+                    _dispatcher.Register("context/getSymbolsForFiles",  new ContextGetSymbolsForFilesHandler(this));
+                    _dispatcher.Register("context/loadSubmenuItems",    new ContextLoadSubmenuItemsHandler(this));
+                    _dispatcher.Register("context/addDocs",             new ContextAddDocsHandler(this));
+                    _dispatcher.Register("context/removeDocs",          new ContextRemoveDocsHandler(this));
+                    _dispatcher.Register("context/indexDocs",           new ContextIndexDocsHandler(this));
+                    _dispatcher.Register("config/addOpenAiKey",         new ConfigAddOpenAiKeyHandler(this));
+                    _dispatcher.Register("config/ideSettingsUpdate",    new ConfigIdeSettingsUpdateHandler(this));
+                    _dispatcher.Register("config/deleteModel",          new ConfigDeleteModelHandler(this));
+                    _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this));
+                    _dispatcher.Register("config/addModel",             new ConfigAddModelHandler(this));
+                    _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
+                    _dispatcher.Register("config/addGlobalRule",        new ConfigAddGlobalRuleHandler(this));
+                    _dispatcher.Register("config/deleteRule",           new ConfigDeleteRuleHandler(this));
+                    _dispatcher.Register("config/newPromptFile",        new ConfigNewPromptFileHandler(this));
+                    _dispatcher.Register("config/newAssistantFile",     new ConfigNewAssistantFileHandler(this));
+                    _dispatcher.Register("config/refreshProfiles",      new ConfigRefreshProfilesHandler(this));
+                    _dispatcher.Register("config/openProfile",          new ConfigOpenProfileHandler(this));
+                    _dispatcher.Register("config/updateSharedConfig",   new ConfigUpdateSharedConfigHandler(this));
+                    _dispatcher.Register("config/updateSelectedModel",  new ConfigUpdateSelectedModelHandler(this));
+                    _dispatcher.Register("llm/complete",                new LlmCompleteHandler(this));
+                    _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
+                    _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
+                    _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
+                    _dispatcher.Register("getCurrentFile",               new GetCurrentFileHandler(this));
+                    _dispatcher.Register("applyToFile",                  new ApplyToFileHandler(this));
+                    _dispatcher.Register("acceptDiff",                   new AcceptDiffHandler(this));
+                    _dispatcher.Register("rejectDiff",                   new RejectDiffHandler(this));
+                    _dispatcher.Register("autocomplete/complete",         new AutocompleteCompleteHandler(this));
+                    _dispatcher.Register("autocomplete/accept",           new AutocompleteAcceptHandler(this));
+                    _dispatcher.Register("autocomplete/cancel",           new AutocompleteCancelHandler(this));
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.4] ✓ All 41 handlers registered");
+                }
+                finally
+                {
+                    scope44?.Dispose();
+                }
+
+                // t4.5 - Loaded event wiring (prelude to t22+)
+                System.Diagnostics.Debug.WriteLine("[CV-t4.5] Wiring Loaded event...");
+                IDisposable? scope45 = tracer?.BeginScope("t4.5", "ContinueToolWindowControl.LoadedEvent");
+                try
+                {
+                    Loaded += OnLoaded;
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.5] ✓ Loaded event wired");
+                }
+                finally
+                {
+                    scope45?.Dispose();
+                }
+
+                System.Diagnostics.Debug.WriteLine("[CV-t4] ✓ Constructor END - SUCCESS");
+                System.Diagnostics.Debug.WriteLine("[CV] Step 13 complete");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl] Constructor FAILED: {ex}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t4] ✗ Constructor FAILED: {ex.GetType().Name}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t4] Message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[CV-t4] Stack trace: {ex.StackTrace}");
                 throw;
+            }
+            finally
+            {
+                scope?.Dispose();
             }
         }
 
