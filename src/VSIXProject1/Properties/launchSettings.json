@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "VSIXProject1": {
+      "commandName": "Project",
+      "commandLineArgs": "\"E:\\DevStudio\\BuildGreekList\\BuildGreekList.sln\""
+    }
+  }
+}

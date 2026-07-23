@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Runtime.InteropServices;
 
 namespace ContinueVS.UI
@@ -20,9 +21,24 @@ namespace ContinueVS.UI
 
         protected override void Initialize()
         {
-            base.Initialize();
-            _control = new ContinueToolWindowControl();
-            Content  = _control;
+            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Initialize() called");
+            try
+            {
+                base.Initialize();
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] base.Initialize() complete");
+
+                _control = new ContinueToolWindowControl();
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] ContinueToolWindowControl created");
+
+                Content = _control;
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Content assigned");
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Initialize() END - SUCCESS");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowPane] Initialize() FAILED: {ex}");
+                throw;
+            }
         }
 
         /// <summary>Forwards a pre-populated message to the React GUI.</summary>

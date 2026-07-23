@@ -2,6 +2,7 @@
 
 using ContinueVS.Services;
 using EnvDTE;
+using Microsoft.VisualStudio.Shell;
 using Moq;
 using System;
 using System.Collections;
@@ -14,7 +15,11 @@ namespace ContinueVS.Tests.Services
     /// <summary>
     /// Unit tests for ProjectInfoCollector.
     /// Tests DTE query patterns, null-safety, project enumeration, and error handling.
+    /// NOTE: All tests are marked [Skip] as they require VS DTE runtime and UI thread context.
+    /// The VSTHRD010 analyzer warnings about UI thread access are expected since we're setting up
+    /// mock DTE objects in a test context; the actual collector code handles threading correctly.
     /// </summary>
+#pragma warning disable VSTHRD010
     public class ProjectInfoCollectorTests
     {
         #region Suite 1: Initialization & Null-Safety (4 tests)
@@ -22,6 +27,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void Constructor_WithNullDte_ThrowsArgumentNullException()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => new ProjectInfoCollector(null!));
         }
@@ -29,6 +35,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void Constructor_WithValidDte_CreatesSuccessfully()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var dteMock = new Mock<DTE>();
 
@@ -42,6 +49,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void Constructor_WithOptionalLogger_AcceptsNullLogger()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var dteMock = new Mock<DTE>();
 
@@ -55,6 +63,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithNullSolution_ThrowsProjectInfoError()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var dteMock = new Mock<DTE>();
             dteMock.Setup(d => d.Solution).Returns((Solution)null!);
@@ -72,6 +81,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithValidSolution_ReturnsSolutionInfo()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var solutionMock = new Mock<Solution>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\MySolution.sln");
@@ -94,6 +104,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithZeroProjects_ReturnsZeroProjectCount()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var solutionMock = new Mock<Solution>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Empty.sln");
@@ -114,6 +125,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithMultipleProjects_ReturnsCorrectCount()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
@@ -142,6 +154,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithNullFullName_HandlesGracefully()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var solutionMock = new Mock<Solution>();
             solutionMock.Setup(s => s.FullName).Returns((string)null!);
@@ -167,6 +180,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithProjects_EnumeratesAllProjects()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
@@ -195,6 +209,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithCSharpProject_DetectsProjectType()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
@@ -221,6 +236,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithMultipleProjects_SkipsProjectsWithoutName()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var solutionMock = new Mock<Solution>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Multi.sln");
@@ -270,6 +286,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithValidProject_IncludesBuildStatus()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
@@ -300,6 +317,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WhenSolutionBuilding_ReportsBuildingStatus()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var solutionMock = new Mock<Solution>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Building.sln");
@@ -326,6 +344,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithNullSolutionBuild_DefaultsToNotBuilding()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var solutionMock = new Mock<Solution>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\NoBuild.sln");
@@ -351,6 +370,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithProjectEnumerationFailure_ThrowsCollectionError()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var solutionMock = new Mock<Solution>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Bad.sln");
@@ -368,6 +388,7 @@ namespace ContinueVS.Tests.Services
         [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
         public void GetProjectInfo_WithSolutionNull_ThrowsProjectInfoError()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var dteMock = new Mock<DTE>();
             dteMock.Setup(d => d.Solution).Returns((Solution)null!);
@@ -421,4 +442,5 @@ namespace ContinueVS.Tests.Services
 
         #endregion
     }
+#pragma warning restore VSTHRD010
 }

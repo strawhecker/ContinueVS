@@ -39,56 +39,77 @@ namespace ContinueVS.UI
 
         public ContinueToolWindowControl()
         {
-            InitializeComponent();
-            _pusher = new WebviewPusher(this);
-            _configWatcher = new WorkspaceConfigWatcher(_pusher);
-            _editorContextProvider = new EditorContextProvider(this);
-            _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
-            _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
-            _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
-            _dispatcher.Register("getUniqueId",       new GetUniqueIdHandler(this));
-            _dispatcher.Register("isTelemetryEnabled", new IsTelemetryEnabledHandler(this));
-            _dispatcher.Register("isWorkspaceRemote", new IsWorkspaceRemoteHandler(this));
-            _dispatcher.Register("readFile",          new ReadFileHandler(this));
-            _dispatcher.Register("fileExists",        new FileExistsHandler(this));
-            _dispatcher.Register("getOpenFiles",      new GetOpenFilesHandler(this));
-            _dispatcher.Register("writeFile",         new WriteFileHandler(this));
-            _dispatcher.Register("saveFile",          new SaveFileHandler(this));
-            _dispatcher.Register("openFile",          new OpenFileHandler(this));
-            _dispatcher.Register("openUrl",           new OpenUrlHandler(this));
-            _dispatcher.Register("getBranch",         new GetBranchHandler(this));
-            _dispatcher.Register("context/getContextItems",     new ContextGetContextItemsHandler(this));
-            _dispatcher.Register("context/getSymbolsForFiles",  new ContextGetSymbolsForFilesHandler(this));
-            _dispatcher.Register("context/loadSubmenuItems",    new ContextLoadSubmenuItemsHandler(this));
-            _dispatcher.Register("context/addDocs",             new ContextAddDocsHandler(this));
-            _dispatcher.Register("context/removeDocs",          new ContextRemoveDocsHandler(this));
-            _dispatcher.Register("context/indexDocs",           new ContextIndexDocsHandler(this));
-            _dispatcher.Register("config/addOpenAiKey",         new ConfigAddOpenAiKeyHandler(this));
-            _dispatcher.Register("config/ideSettingsUpdate",    new ConfigIdeSettingsUpdateHandler(this));
-            _dispatcher.Register("config/deleteModel",          new ConfigDeleteModelHandler(this));
-            _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this));
-            _dispatcher.Register("config/addModel",             new ConfigAddModelHandler(this));
-            _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
-            _dispatcher.Register("config/addGlobalRule",        new ConfigAddGlobalRuleHandler(this));
-            _dispatcher.Register("config/deleteRule",           new ConfigDeleteRuleHandler(this));
-            _dispatcher.Register("config/newPromptFile",        new ConfigNewPromptFileHandler(this));
-            _dispatcher.Register("config/newAssistantFile",     new ConfigNewAssistantFileHandler(this));
-            _dispatcher.Register("config/refreshProfiles",      new ConfigRefreshProfilesHandler(this));
-            _dispatcher.Register("config/openProfile",          new ConfigOpenProfileHandler(this));
-            _dispatcher.Register("config/updateSharedConfig",   new ConfigUpdateSharedConfigHandler(this));
-            _dispatcher.Register("config/updateSelectedModel",  new ConfigUpdateSelectedModelHandler(this));
-            _dispatcher.Register("llm/complete",                new LlmCompleteHandler(this));
-            _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
-            _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
-            _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
-            _dispatcher.Register("getCurrentFile",               new GetCurrentFileHandler(this));
-            _dispatcher.Register("applyToFile",                  new ApplyToFileHandler(this));
-            _dispatcher.Register("acceptDiff",                   new AcceptDiffHandler(this));
-            _dispatcher.Register("rejectDiff",                   new RejectDiffHandler(this));
-            _dispatcher.Register("autocomplete/complete",         new AutocompleteCompleteHandler(this));
-            _dispatcher.Register("autocomplete/accept",           new AutocompleteAcceptHandler(this));
-            _dispatcher.Register("autocomplete/cancel",           new AutocompleteCancelHandler(this));
-            Loaded += OnLoaded;
+            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] Constructor START");
+            try
+            {
+                InitializeComponent();
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] InitializeComponent() complete");
+
+                _pusher = new WebviewPusher(this);
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] WebviewPusher created");
+
+                _configWatcher = new WorkspaceConfigWatcher(_pusher);
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] WorkspaceConfigWatcher created");
+
+                _editorContextProvider = new EditorContextProvider(this);
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] EditorContextProvider created");
+
+                _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
+                _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
+                _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
+                _dispatcher.Register("getUniqueId",       new GetUniqueIdHandler(this));
+                _dispatcher.Register("isTelemetryEnabled", new IsTelemetryEnabledHandler(this));
+                _dispatcher.Register("isWorkspaceRemote", new IsWorkspaceRemoteHandler(this));
+                _dispatcher.Register("readFile",          new ReadFileHandler(this));
+                _dispatcher.Register("fileExists",        new FileExistsHandler(this));
+                _dispatcher.Register("getOpenFiles",      new GetOpenFilesHandler(this));
+                _dispatcher.Register("writeFile",         new WriteFileHandler(this));
+                _dispatcher.Register("saveFile",          new SaveFileHandler(this));
+                _dispatcher.Register("openFile",          new OpenFileHandler(this));
+                _dispatcher.Register("openUrl",           new OpenUrlHandler(this));
+                _dispatcher.Register("getBranch",         new GetBranchHandler(this));
+                _dispatcher.Register("context/getContextItems",     new ContextGetContextItemsHandler(this));
+                _dispatcher.Register("context/getSymbolsForFiles",  new ContextGetSymbolsForFilesHandler(this));
+                _dispatcher.Register("context/loadSubmenuItems",    new ContextLoadSubmenuItemsHandler(this));
+                _dispatcher.Register("context/addDocs",             new ContextAddDocsHandler(this));
+                _dispatcher.Register("context/removeDocs",          new ContextRemoveDocsHandler(this));
+                _dispatcher.Register("context/indexDocs",           new ContextIndexDocsHandler(this));
+                _dispatcher.Register("config/addOpenAiKey",         new ConfigAddOpenAiKeyHandler(this));
+                _dispatcher.Register("config/ideSettingsUpdate",    new ConfigIdeSettingsUpdateHandler(this));
+                _dispatcher.Register("config/deleteModel",          new ConfigDeleteModelHandler(this));
+                _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this));
+                _dispatcher.Register("config/addModel",             new ConfigAddModelHandler(this));
+                _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
+                _dispatcher.Register("config/addGlobalRule",        new ConfigAddGlobalRuleHandler(this));
+                _dispatcher.Register("config/deleteRule",           new ConfigDeleteRuleHandler(this));
+                _dispatcher.Register("config/newPromptFile",        new ConfigNewPromptFileHandler(this));
+                _dispatcher.Register("config/newAssistantFile",     new ConfigNewAssistantFileHandler(this));
+                _dispatcher.Register("config/refreshProfiles",      new ConfigRefreshProfilesHandler(this));
+                _dispatcher.Register("config/openProfile",          new ConfigOpenProfileHandler(this));
+                _dispatcher.Register("config/updateSharedConfig",   new ConfigUpdateSharedConfigHandler(this));
+                _dispatcher.Register("config/updateSelectedModel",  new ConfigUpdateSelectedModelHandler(this));
+                _dispatcher.Register("llm/complete",                new LlmCompleteHandler(this));
+                _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
+                _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
+                _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
+                _dispatcher.Register("getCurrentFile",               new GetCurrentFileHandler(this));
+                _dispatcher.Register("applyToFile",                  new ApplyToFileHandler(this));
+                _dispatcher.Register("acceptDiff",                   new AcceptDiffHandler(this));
+                _dispatcher.Register("rejectDiff",                   new RejectDiffHandler(this));
+                _dispatcher.Register("autocomplete/complete",         new AutocompleteCompleteHandler(this));
+                _dispatcher.Register("autocomplete/accept",           new AutocompleteAcceptHandler(this));
+                _dispatcher.Register("autocomplete/cancel",           new AutocompleteCancelHandler(this));
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] All handlers registered");
+
+                Loaded += OnLoaded;
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] Loaded event wired");
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl] Constructor END - SUCCESS");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl] Constructor FAILED: {ex}");
+                throw;
+            }
         }
 
         // -----------------------------------------------------------------
@@ -97,21 +118,36 @@ namespace ContinueVS.UI
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] Event fired");
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
-                await GuiExtractor.EnsureExtractedAsync();
-                await NavigateAsync();
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] Async task started");
+                try
+                {
+                    await GuiExtractor.EnsureExtractedAsync();
+                    System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] GuiExtractor done");
+
+                    await NavigateAsync();
+                    System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] NavigateAsync done");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.OnLoaded] FAILED: {ex}");
+                }
             }).FileAndForget("vs/continuevs/loaded");
 #pragma warning restore VSSDK007
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
         {
+            System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.NavigateAsync] START - _webViewInitialized={_webViewInitialized}");
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.NavigateAsync] After SwitchToMainThreadAsync - _webViewInitialized={_webViewInitialized}");
 
             if (!_webViewInitialized)
             {
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.NavigateAsync] ENTERING WebView2 initialization block");
                 var userDataFolder = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "ContinueVS", "WebView2");

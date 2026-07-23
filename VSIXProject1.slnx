@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/VSIXProject1/VSIXProject1.csproj" />
+    <Project Path="src/VSIXProject1/VSIXProject1.csproj">
+      <Deploy Solution="Debug|*" />
+    </Project>
     <Project Path="src/tools/ContinueTranslator.Cli/ContinueTranslator.Cli.csproj">
       <Build Solution="Debug|*" Project="false" />
     </Project>
