@@ -15,7 +15,9 @@ namespace ContinueVS.Handlers.Push
 
         internal WebviewPusher(ContinueToolWindowControl control)
         {
+            System.Diagnostics.Debug.WriteLine("[CV-t6] WebviewPusher.ctor ENTRY - control parameter received");
             _control = control;
+            System.Diagnostics.Debug.WriteLine("[CV-t6] WebviewPusher.ctor EXIT - _control field assigned");
         }
 
         // -----------------------------------------------------------------

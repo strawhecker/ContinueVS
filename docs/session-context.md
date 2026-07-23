@@ -12,7 +12,7 @@
 | t3 | Tool Window Pane Creation ✅ debugged |
 | t4 | ContinueToolWindowControl Constructor Entry ✅ debugged |
 | t5 | MessageDispatcher Registration ✅ debugged |
-| t6 | WebviewPusher Instantiation |
+| t6 | WebviewPusher Instantiation ✅ debugged |
 | t7 | WorkspaceConfigWatcher Creation |
 | t8 | EditorContextProvider Instantiation |
 | t9 | Handler Loop Start - getWorkspaceDirs |
