@@ -54,6 +54,7 @@ namespace ContinueVS
             IProgress<ServiceProgressData> progress)
         {
             // BREAKPOINT: t1 - Set breakpoint here to inspect InitializeAsync entry
+            System.Diagnostics.Debug.WriteLine(">>> [CV-ENTRY] InitializeAsync called - EXTENSION IS LOADED <<<");
             var tracer = new ExecutionTracer();
             ExecutionTracer = tracer;
             System.Diagnostics.Debug.WriteLine("╔════════════════════════════════════════════════╗");
@@ -155,8 +156,10 @@ namespace ContinueVS
                 }
 
                 // BREAKPOINT: t3 - Tool window pane creation
-                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Creating tool window pane...");
-                await this.CreateToolWindowPaneAsync(cancellationToken);
+                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Deferring tool window pane creation...");
+                // Tool window creation is deferred to avoid blocking VS initialization.
+                // It will be created lazily when ShowContinuePanel command is first invoked.
+                System.Diagnostics.Debug.WriteLine("[CV] ✓ Tool window creation deferred (will initialize on-demand)");
 
                 // BREAKPOINT: t1.5 - Command initialization phase
                 System.Diagnostics.Debug.WriteLine("[CV] Step 12: Initializing commands...");

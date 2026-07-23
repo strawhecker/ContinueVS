@@ -10,7 +10,7 @@
 | t1 | ContinueVSPackage.InitializeAsync Entry Point ✅ debugged |
 | t2 | BridgeLogger Service Creation ✅ debugged |
 | t3 | Tool Window Pane Creation ✅ debugged |
-| t4 | ContinueToolWindowControl Constructor Entry |
+| t4 | ContinueToolWindowControl Constructor Entry ✅ debugged |
 | t5 | MessageDispatcher Registration |
 | t6 | WebviewPusher Instantiation |
 | t7 | WorkspaceConfigWatcher Creation |
