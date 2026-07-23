@@ -27,8 +27,11 @@ namespace ContinueVS.Services
         /// <param name="npmBridgeCallback">Optional callback to forward logs to npm bridge (for telemetry).</param>
         public BridgeLogger(IServiceProvider? serviceProvider = null, Action<string, string, IReadOnlyDictionary<string, object>?>? npmBridgeCallback = null)
         {
+            System.Diagnostics.Debug.WriteLine($"[CV-t2] BridgeLogger constructor entry: serviceProvider={((serviceProvider != null) ? "✓ NOTNULL" : "✗ NULL")}, npmBridgeCallback={((npmBridgeCallback != null) ? "✓ NOTNULL" : "✗ NULL")}");
             _npmBridgeCallback = npmBridgeCallback;
             _outputWindowWriter = TryGetOutputWindowWriter(serviceProvider);
+            System.Diagnostics.Debug.WriteLine($"[CV-t2] Output window writer: {(_outputWindowWriter != null ? "✓ RESOLVED" : "✗ FALLBACK")}");
+            System.Diagnostics.Debug.WriteLine($"[CV-t2] NPM callback registered: {(_npmBridgeCallback != null ? "✓ YES" : "✗ NULL (expected at t2)")}");
         }
 
         public async Task WriteDebugAsync(string message, IReadOnlyDictionary<string, object>? metadata = null)
@@ -144,22 +147,26 @@ namespace ContinueVS.Services
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"[CV-t2] TryGetOutputWindowWriter: serviceProvider={((serviceProvider != null) ? "✓ NOTNULL" : "✗ NULL")}");
                 if (serviceProvider == null)
                 {
-                    // Fallback: Use console.Out
-                    return line => System.Console.Out.Write(line);
+                    // Fallback: Use safe Debug.Write (avoids console deadlock)
+                    System.Diagnostics.Debug.WriteLine("[CV-t2] TryGetOutputWindowWriter: Using Debug.Write fallback (null serviceProvider)");
+                    return line => System.Diagnostics.Debug.Write(line);
                 }
 
                 // Try to get VS Output Window via IServiceProvider
                 // This is a simplified implementation; in production, you'd use:
                 // var outputWindow = serviceProvider.GetService(typeof(SVsOutputWindow)) as IVsOutputWindow
-                // For now, we fallback to console since we can't access VS SDK in unit tests
-                return line => System.Console.Out.Write(line);
+                // For now, we fallback to Debug.Write since we can't access VS SDK in unit tests
+                System.Diagnostics.Debug.WriteLine("[CV-t2] TryGetOutputWindowWriter: Returning Debug.Write writer");
+                return line => System.Diagnostics.Debug.Write(line);
             }
-            catch
+            catch (Exception ex)
             {
-                // If anything fails, use console as fallback
-                return line => System.Console.Out.Write(line);
+                // If anything fails, use Debug.Write as fallback
+                System.Diagnostics.Debug.WriteLine($"[CV-t2] TryGetOutputWindowWriter: Exception caught: {ex.GetType().Name} - {ex.Message}");
+                return line => System.Diagnostics.Debug.Write(line);
             }
         }
 

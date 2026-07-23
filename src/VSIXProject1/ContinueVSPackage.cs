@@ -101,6 +101,8 @@ namespace ContinueVS
                         Logger = new BridgeLogger(this);
                     }
                     System.Diagnostics.Debug.WriteLine("[CV] ✓ BridgeLogger created");
+                    System.Diagnostics.Debug.WriteLine($"[CV-t2] Logger instance created: {(Logger != null ? "✓ SUCCESS" : "✗ NULL")}");
+                    System.Diagnostics.Debug.WriteLine($"[CV-t2] Logger type: {Logger?.GetType().Name ?? "null"}");
 
                     System.Diagnostics.Debug.WriteLine("[CV] Step 7: Creating BridgeTelemetryCollector...");
                     using (tracer.BeginScope("t1.3.5", "ContinueVSPackage"))
