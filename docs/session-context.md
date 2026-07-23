@@ -13,7 +13,7 @@
 | t4 | ContinueToolWindowControl Constructor Entry ✅ debugged |
 | t5 | MessageDispatcher Registration ✅ debugged |
 | t6 | WebviewPusher Instantiation ✅ debugged |
-| t7 | WorkspaceConfigWatcher Creation |
+| t7 | WorkspaceConfigWatcher Creation ✅ debugged |
 | t8 | EditorContextProvider Instantiation |
 | t9 | Handler Loop Start - getWorkspaceDirs |
 | t10 | Handler Loop - getIdeInfo |

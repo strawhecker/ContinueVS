@@ -22,13 +22,16 @@ namespace ContinueVS.Settings
 
         public WorkspaceConfigWatcher(WebviewPusher pusher)
         {
+            System.Diagnostics.Debug.WriteLine("[CV-t7] WorkspaceConfigWatcher.ctor ENTRY - pusher parameter received");
             _pusher = pusher;
+            System.Diagnostics.Debug.WriteLine("[CV-t7] WorkspaceConfigWatcher.ctor EXIT - _pusher field assigned");
         }
 
         /// <summary>Locates the solution root and starts watching; must be called on UI thread.</summary>
         internal void Start()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
+            System.Diagnostics.Debug.WriteLine("[CV-t7] Start() ENTRY - UI thread verified");
 
             var dte = Package.GetGlobalService(typeof(DTE)) as DTE2;
             string? solutionDir = null;
@@ -36,18 +39,33 @@ namespace ContinueVS.Settings
             {
                 var sln = dte?.Solution;
                 if (sln != null && !string.IsNullOrEmpty(sln.FullName))
+                {
                     solutionDir = Path.GetDirectoryName(sln.FullName);
+                    System.Diagnostics.Debug.WriteLine($"[CV-t7] Solution directory resolved: {solutionDir}");
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CV-t7] DTE access failed: {ex.Message}");
+            }
 
-            if (string.IsNullOrEmpty(solutionDir)) return;
+            if (string.IsNullOrEmpty(solutionDir))
+            {
+                System.Diagnostics.Debug.WriteLine("[CV-t7] Start() EXIT - solution directory not found, watcher not started");
+                return;
+            }
 
             var configDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".continue");
 
-            if (!Directory.Exists(configDir)) return;
+            if (!Directory.Exists(configDir))
+            {
+                System.Diagnostics.Debug.WriteLine($"[CV-t7] Start() EXIT - config directory not found: {configDir}");
+                return;
+            }
 
+            System.Diagnostics.Debug.WriteLine($"[CV-t7] Creating FileSystemWatcher for {configDir}");
             _watcher = new FileSystemWatcher(configDir, "config.json")
             {
                 NotifyFilter        = NotifyFilters.LastWrite | NotifyFilters.Size,
@@ -55,24 +73,45 @@ namespace ContinueVS.Settings
             };
 
             _watcher.Changed += OnConfigChanged;
+            System.Diagnostics.Debug.WriteLine("[CV-t7] Start() EXIT - FileSystemWatcher created and subscribed");
         }
 
         private void OnConfigChanged(object sender, FileSystemEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine($"[CV-t7] OnConfigChanged FIRED - {e.FullPath}");
             // Debounce: the OS often fires two events in quick succession.
             System.Threading.Thread.Sleep(200);
+            System.Diagnostics.Debug.WriteLine("[CV-t7] Debounce complete, calling PushConfigUpdate()");
 
             string content = "";
-            try { content = File.ReadAllText(e.FullPath); } catch { }
+            try { content = File.ReadAllText(e.FullPath); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CV-t7] File read failed: {ex.Message}");
+            }
 
             _pusher.PushConfigUpdate();
+            System.Diagnostics.Debug.WriteLine("[CV-t7] PushConfigUpdate() completed");
         }
 
         public void Dispose()
         {
-            if (_disposed) return;
+            System.Diagnostics.Debug.WriteLine("[CV-t7] Dispose() ENTRY");
+            if (_disposed)
+            {
+                System.Diagnostics.Debug.WriteLine("[CV-t7] Dispose() EXIT - already disposed");
+                return;
+            }
             _disposed = true;
-            _watcher?.Dispose();
+
+            if (_watcher != null)
+            {
+                _watcher.Changed -= OnConfigChanged;
+                System.Diagnostics.Debug.WriteLine("[CV-t7] FileSystemWatcher event handler unsubscribed");
+                _watcher.Dispose();
+                System.Diagnostics.Debug.WriteLine("[CV-t7] FileSystemWatcher disposed");
+            }
+            System.Diagnostics.Debug.WriteLine("[CV-t7] Dispose() EXIT");
         }
     }
 }
