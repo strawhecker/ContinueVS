@@ -41,7 +41,7 @@
 | t4 | ContinueToolWindowControl Constructor Entry ✅ debugged |
 | t5 | MessageDispatcher Registration ✅ debugged |
 | t6 | WebviewPusher Instantiation ✅ debugged |
-| t7 | WorkspaceConfigWatcher Creation ✅ debugged (framework verified, file monitoring untested) |
+| t7 | WorkspaceConfigWatcher Creation ✅ debugged (global config watcher functional: init → configDir check → FileSystemWatcher subscribed) |
 | t8 | EditorContextProvider Instantiation ✅ debugged (initialization & event subscription verified) |
 | t9 | Handler Loop Start - getWorkspaceDirs |
 | t10 | Handler Loop - getIdeInfo |

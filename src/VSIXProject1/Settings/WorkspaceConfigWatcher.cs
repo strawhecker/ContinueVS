@@ -1,6 +1,4 @@
 ﻿using ContinueVS.Handlers.Push;
-using EnvDTE;
-using EnvDTE80;
 using Microsoft.VisualStudio.Shell;
 using System;
 using System.IO;
@@ -9,7 +7,7 @@ using System.Threading;
 namespace ContinueVS.Settings
 {
     /// <summary>
-    /// Watches <c>.continue/config.json</c> in the solution root and pushes a
+    /// Watches <c>~/.continue/config.json</c> (user global config) and pushes a
     /// <c>configUpdate</c> message to the Continue binary whenever the file changes.
     ///
     /// This mirrors how the VS Code extension reloads config without a full restart.
@@ -27,33 +25,11 @@ namespace ContinueVS.Settings
             System.Diagnostics.Debug.WriteLine("[CV-t7] WorkspaceConfigWatcher.ctor EXIT - _pusher field assigned");
         }
 
-        /// <summary>Locates the solution root and starts watching; must be called on UI thread.</summary>
+        /// <summary>Starts watching ~/.continue/config.json; must be called on UI thread.</summary>
         internal void Start()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             System.Diagnostics.Debug.WriteLine("[CV-t7] Start() ENTRY - UI thread verified");
-
-            var dte = Package.GetGlobalService(typeof(DTE)) as DTE2;
-            string? solutionDir = null;
-            try
-            {
-                var sln = dte?.Solution;
-                if (sln != null && !string.IsNullOrEmpty(sln.FullName))
-                {
-                    solutionDir = Path.GetDirectoryName(sln.FullName);
-                    System.Diagnostics.Debug.WriteLine($"[CV-t7] Solution directory resolved: {solutionDir}");
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[CV-t7] DTE access failed: {ex.Message}");
-            }
-
-            if (string.IsNullOrEmpty(solutionDir))
-            {
-                System.Diagnostics.Debug.WriteLine("[CV-t7] Start() EXIT - solution directory not found, watcher not started");
-                return;
-            }
 
             var configDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
