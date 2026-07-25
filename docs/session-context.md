@@ -19,7 +19,7 @@
 | u2 | **Unit** | **MessageDispatcher Handler Registration** — Verify Register(), lookup by type, idempotency. All 19+ handlers register without conflict. Case-insensitive lookup (if applicable). No execution; mocked handlers only. ✅ fully instrumented & verified | None | Unit test assertions (no logs needed) |
 | u3 | **Unit** | **MessageDispatcher Dispatch Routing (Mocked)** — Inject mock message (MessageType: "test-handler", MessageId: "msg-001"). Verify dispatcher finds handler, `handler.HandleAsync()` invoked. Callback/event confirms invocation. No WebView, mocks only. ✅ fully instrumented & verified | u2 | Unit test assertions |
 | u4 | **Unit** | **Message Validator — Valid Envelope** — Construct valid Message (all required fields), pass to MessageValidator. Assert validation succeeds without exception. ✅ fully instrumented & verified | u1 | Unit test assertions |
-| u5 | **Unit** | **Message Validator — Invalid Envelope (Missing Fields)** — Construct Message missing `MessageType` or `MessageId`. Pass to MessageValidator. Assert validation fails (exception or error). | u1 | Unit test assertions |
+| u5 | **Unit** | **Message Validator — Invalid Envelope (Missing Fields)** — Construct Message missing `MessageType` or `MessageId`. Pass to MessageValidator. Assert validation fails (exception or error). ✅ fully instrumented & verified | u1 | Unit test assertions |
 | u6 | **Unit** | **IMessageHandler Contract — Mock Execution** — Create mock handler implementing `IMessageHandler`. Verify `HandleAsync(Message, CancellationToken)` executes with correct parameters. Validate CancellationToken is honored. No real logic. | None | Unit test assertions |
 | u7 | **Unit** | **Bridge Object Injection — Structural (Mock Verification)** — Mock `CoreWebView2.ExecuteScriptAsync()` to simulate injection. Verify result contains valid JSON with `initialized=true`, `version="2.0.0"`, function signatures callable. Assert no exceptions during mock script execution. | None | Unit test assertions (mocked ExecuteScriptAsync) |
 | b10 | **Integration** | **Bridge Global Object Injection (C# → JavaScript)** — Inject real script into WebView2, verify `window.continueVS` object exists and callable in actual JavaScript context. Verify verification script returns true. **Scope**: Structural only (object exists, signatures available via `typeof`). Functional testing deferred to b11–b15. | None | Logs `[B4-*]` + breakpoints at injection site |
@@ -110,7 +110,7 @@
 
 **Status**: COMPLETE - All message validation paths verified, u4 target confirmed passing
 
-**Next Step**: u5 - Message Validator — Invalid Envelope (Missing Fields)
+**Next Step**: u6 - IMessageHandler Contract — Mock Execution
 
 ### Key Assertions Verified
 1. ✅ `Register_WithValidHandler_Succeeds` — No exception on valid registration
