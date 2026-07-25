@@ -18,7 +18,7 @@
 | u1 | **Unit** | **Bridge Message Envelope Structure Validation** — Verify C# Message class JSON serialization/deserialization. Round-trip fidelity, null/empty field handling. No WebView required; mocked dependencies. ✅ fully instrumented & verified | None | Unit test assertions (no logs needed) |
 | u2 | **Unit** | **MessageDispatcher Handler Registration** — Verify Register(), lookup by type, idempotency. All 19+ handlers register without conflict. Case-insensitive lookup (if applicable). No execution; mocked handlers only. ✅ fully instrumented & verified | None | Unit test assertions (no logs needed) |
 | u3 | **Unit** | **MessageDispatcher Dispatch Routing (Mocked)** — Inject mock message (MessageType: "test-handler", MessageId: "msg-001"). Verify dispatcher finds handler, `handler.HandleAsync()` invoked. Callback/event confirms invocation. No WebView, mocks only. ✅ fully instrumented & verified | u2 | Unit test assertions |
-| u4 | **Unit** | **Message Validator — Valid Envelope** — Construct valid Message (all required fields), pass to MessageValidator. Assert validation succeeds without exception. | u1 | Unit test assertions |
+| u4 | **Unit** | **Message Validator — Valid Envelope** — Construct valid Message (all required fields), pass to MessageValidator. Assert validation succeeds without exception. ✅ fully instrumented & verified | u1 | Unit test assertions |
 | u5 | **Unit** | **Message Validator — Invalid Envelope (Missing Fields)** — Construct Message missing `MessageType` or `MessageId`. Pass to MessageValidator. Assert validation fails (exception or error). | u1 | Unit test assertions |
 | u6 | **Unit** | **IMessageHandler Contract — Mock Execution** — Create mock handler implementing `IMessageHandler`. Verify `HandleAsync(Message, CancellationToken)` executes with correct parameters. Validate CancellationToken is honored. No real logic. | None | Unit test assertions |
 | u7 | **Unit** | **Bridge Object Injection — Structural (Mock Verification)** — Mock `CoreWebView2.ExecuteScriptAsync()` to simulate injection. Verify result contains valid JSON with `initialized=true`, `version="2.0.0"`, function signatures callable. Assert no exceptions during mock script execution. | None | Unit test assertions (mocked ExecuteScriptAsync) |
@@ -75,29 +75,42 @@
 
 ---
 
-## 🟢 Latest Milestone: u2 EXECUTED & VERIFIED
+## 🟢 Latest Milestone: u4 EXECUTED & VERIFIED
 
-**MessageDispatcher Handler Registration** is now **✅ FULLY TESTED**
+**Message Validator — Valid Envelope** is now **✅ FULLY TESTED**
 
 ### Test Execution Summary (Unit Test Coverage)
-- **Test File**: `src/VSIXProject1.Tests/Handlers/MessageDispatcherTests.cs`
-- **Test Count**: 7 comprehensive unit tests for registration
-- **Execution Status**: ✅ 7/7 PASSED (100% pass rate)
-- **Total Duration**: ~3.2 seconds (build + test execution)
+- **Test File**: `src/VSIXProject1.Tests/IPC/MessageValidatorTests.cs`
+- **Test Count**: 18 comprehensive unit tests for message validation
+- **Execution Status**: ✅ 18/18 PASSED (100% pass rate)
+- **Total Duration**: ~4.2 seconds (build + test execution)
+- **Build Status**: ✅ Build succeeded with 2 warnings (xUnit2013 on MessageEnvelopeTests, not MessageValidatorTests)
 - **Coverage Areas**:
-  - ✅ Handler registration success (valid messageType + handler)
-  - ✅ Duplicate detection (same messageType registered twice → ArgumentException)
-  - ✅ Null validation (messageType null → ArgumentNullException)
-  - ✅ Null validation (handler null → ArgumentNullException)
-  - ✅ Logger integration (WriteDebugAsync invoked exactly once per registration)
-  - ✅ Case-insensitive lookup (OrdinalIgnoreCase dictionary matching "bridge:Test" to "BRIDGE:TEST")
-  - ✅ Idempotency & multi-handler (7+ handlers register without conflict, each routes correctly)
+  - ✅ Envelope validation happy path (2 tests) — valid message with all fields, null data allowed
+  - ✅ Envelope validation invalid (4 tests) — null message, empty messageId, null/whitespace messageType
+  - ✅ Request payload validation happy path (2 tests) — valid requests, notifications (no id)
+  - ✅ Request payload validation invalid (3 tests) — missing method, invalid params type, invalid id type
+  - ✅ Response payload validation happy path (2 tests) — response with result, response with error
+  - ✅ Response payload validation invalid (3 tests) — both result and error, neither result nor error, error missing message
+  - ✅ Error response building (2 tests) — correct structure with error code, preserves original messageId
+
+### Test Targets
+- **u4 Test**: `ValidateEnvelope_ValidMessage_ReturnsTrue` ✅ PASSED (1 ms)
+  - Constructs Message(MessageType="bridge:test", MessageId="msg-001", Data={method: "test"})
+  - Calls ValidateEnvelope()
+  - Asserts (isValid=true, error=null)
+  - Result: ✅ PASS
 
 ### Pass Rates
-- **Registration Tests**: 5/5 PASSED (100%)
-- **Case-Insensitive Lookup Test**: 1/1 PASSED (100%)
-- **Multi-Handler Idempotency Test**: 1/1 PASSED (100%)
-- **Overall**: 7/7 PASSED (100%)
+- **Envelope Validation Tests**: 6/6 PASSED (100%)
+- **Request Payload Tests**: 5/5 PASSED (100%)
+- **Response Payload Tests**: 5/5 PASSED (100%)
+- **Error Response Tests**: 2/2 PASSED (100%)
+- **Overall**: 18/18 PASSED (100%)
+
+**Status**: COMPLETE - All message validation paths verified, u4 target confirmed passing
+
+**Next Step**: u5 - Message Validator — Invalid Envelope (Missing Fields)
 
 ### Key Assertions Verified
 1. ✅ `Register_WithValidHandler_Succeeds` — No exception on valid registration

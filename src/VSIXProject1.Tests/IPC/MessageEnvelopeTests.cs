@@ -423,7 +423,7 @@ namespace ContinueVS.Tests.IPC
             Assert.NotNull(deserialized);
             Assert.NotNull(deserialized.Data);
             Assert.IsType<JObject>(deserialized.Data);
-            Assert.Equal(0, ((JObject)deserialized.Data).Count);
+            Assert.Empty((JObject)deserialized.Data);
         }
 
         [Fact]
@@ -445,7 +445,7 @@ namespace ContinueVS.Tests.IPC
             Assert.NotNull(deserialized);
             Assert.NotNull(deserialized.Data);
             Assert.IsType<JArray>(deserialized.Data);
-            Assert.Equal(0, ((JArray)deserialized.Data).Count);
+            Assert.Empty((JArray)deserialized.Data);
         }
 
         // =====================================================================
