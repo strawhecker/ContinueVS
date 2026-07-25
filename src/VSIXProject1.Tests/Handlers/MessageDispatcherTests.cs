@@ -171,6 +171,36 @@ namespace ContinueVS.Tests.Handlers
                 Times.Once);
         }
 
+        [Fact]
+        public async Task DispatchAsync_WithMockedMessage_RoutsAndInvokesCorrectHandler()
+        {
+            // Arrange
+            var messageType = "test-handler";
+            var messageId = "msg-001";
+            var message = new Message { MessageType = messageType, MessageId = messageId, Data = null };
+            var mockHandler = new Mock<IMessageHandler>(MockBehavior.Default);
+            var handlerInvoked = false;
+
+            mockHandler.Setup(x => x.HandleAsync(It.IsAny<Message>(), It.IsAny<CancellationToken>()))
+                .Callback<Message, CancellationToken>((msg, ct) =>
+                {
+                    // Verify correct message routed to handler
+                    Assert.Equal(messageType, msg.MessageType);
+                    Assert.Equal(messageId, msg.MessageId);
+                    handlerInvoked = true;
+                })
+                .Returns(Task.CompletedTask);
+
+            _dispatcher.Register(messageType, mockHandler.Object);
+
+            // Act
+            await _dispatcher.DispatchAsync(message, CancellationToken.None);
+
+            // Assert
+            Assert.True(handlerInvoked, "Handler callback should have been invoked");
+            mockHandler.Verify(x => x.HandleAsync(It.IsAny<Message>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         // === Dispatch Error Tests ===
 
         [Fact]
