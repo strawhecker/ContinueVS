@@ -283,12 +283,17 @@ namespace ContinueVS.UI
             if (message == null)
                 return System.Threading.Tasks.Task.CompletedTask;
 
+            // [t9] Log message reception at dispatcher entry
+            System.Diagnostics.Debug.WriteLine($"[t9-DISPATCH] Message received from bridge: Type={message.MessageType}, ID={message.MessageId}");
+
             if (_pendingReplies.TryRemove(message.MessageId, out var pendingTcs))
             {
+                System.Diagnostics.Debug.WriteLine($"[t9-DISPATCH] Message {message.MessageId} matched pending reply");
                 pendingTcs.TrySetResult(message.Data ?? JToken.FromObject(""));
                 return System.Threading.Tasks.Task.CompletedTask;
             }
 
+            System.Diagnostics.Debug.WriteLine($"[t9-DISPATCH] Routing message to dispatcher: {message.MessageType}");
             return _dispatcher.DispatchAsync(message, System.Threading.CancellationToken.None);
         }
 
@@ -364,7 +369,14 @@ namespace ContinueVS.UI
 
         internal void SendReplyToGui(string messageType, string messageId, object data)
         {
-            if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
+            // [t9] Log outbound response
+            System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] SendReplyToGui called: Type={messageType}, ID={messageId}");
+
+            if (!_webViewInitialized || WebView.CoreWebView2 == null) 
+            {
+                System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] WebView not initialized, reply not sent");
+                return;
+            }
 
             var msg = new Message
             {
@@ -375,12 +387,14 @@ namespace ContinueVS.UI
             var json    = JsonConvert.SerializeObject(msg);
             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
 
+            System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] Executing script to send reply to bridge");
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
+                System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] Reply script executed successfully");
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
 #pragma warning restore VSSDK007
         }

@@ -5,6 +5,24 @@
 
 ---
 
+| step | description | tokens |
+|---|---|---|
+| b1 | **WebView2 CoreWebView2Environment Creation** — Verify environment initialization without error, confirm user data folder resolution, validate async factory completion. | 280 |
+| b2 | **CoreWebView2Controller Initialization** — Verify controller binding to target HWND, confirm parent/child window relationship, validate visual tree integration. | 240 |
+| b3 | **WebView2 Content Loading & Navigation** — Verify navigation to local HTML file (or data URI), confirm DocumentReady event fires, validate DOM state (document.body exists). | 320 |
+| b4 | **Bridge Global Object Injection (C# → JavaScript)** — Verify `window.bridge` object is defined after injection, confirm `window.bridge.sendMessage` is callable, validate `window.bridge.onMessage` callback registration. | 340 |
+| b5 | **Bridge Message Envelope Structure Validation** — Verify outbound message JSON serialization (MessageType, MessageId, Payload), confirm inbound message deserialization, validate envelope schema against Message class. | 300 |
+| b6 | **MessageDispatcher Handler Registration** — Verify all 19+ handlers register without conflict, confirm case-insensitive lookup, validate Register() idempotency (duplicate calls tolerated or blocked correctly). | 280 |
+| b7 | **MessageDispatcher Dispatch Routing (Mock Message)** — Inject mock message (MessageType: "test-handler", MessageId: "msg-001"), verify dispatcher finds handler, confirm handler.HandleAsync() is invoked (callback/event proof). | 320 |
+| b8 | **Message Validator — Valid Envelope** — Construct valid Message envelope (all required fields), pass to MessageValidator, confirm validation passes without exception. | 260 |
+| b9 | **Message Validator — Invalid Envelope (Missing Fields)** — Construct Message with missing MessageType or MessageId, pass to MessageValidator, confirm validation throws/returns error (failure case). | 240 |
+| b10 | **IMessageHandler Contract — Mock Handler Execution** — Create mock handler implementing IMessageHandler, verify HandleAsync(Message, CancellationToken) executes with correct parameters, confirm CancellationToken is honored. | 300 |
+| b11 | **Bridge Message Round-Trip (C# ↔ JavaScript)** — Send message from C# via SendReplyToGui(), confirm JavaScript onMessage callback triggers, verify payload unmarshaling in JavaScript context, return response. | 380 |
+| b12 | **OnWebMessageReceivedAsync Flow** — Simulate WebMessageReceived event (inject raw JSON string), verify JSON deserialization to Message object, confirm dispatcher invocation, validate reply serialization back to JavaScript. | 360 |
+| b13 | **Handler Response Serialization** — Execute handler that produces complex response object (nested JSON), verify serialization to Message.Payload (JToken), confirm WebView JavaScript exec() with reply JSON string. | 340 |
+| b14 | **Bridge Thread Safety — UI Thread Enforcement** — Verify handler execution uses ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(), confirm no cross-thread exceptions, validate UI context is preserved during handler execution. | 320 |
+| b15 | **Bridge Teardown & Resource Cleanup** — Verify WebView2 disposal, confirm event handlers unsubscribed, validate no memory leaks (reference counts released), confirm bridge global object becomes undefined. | 280 |
+
 ## 🟢 Latest Milestone: t8 E2E VERIFIED
 
 **EditorContextProvider E2E Verification** (Step t8 with Active Editor) is now **✅ FULLY DEBUGGED**
@@ -31,6 +49,26 @@
 
 ---
 
+## 🟢 Latest Milestone: t9 INSTRUMENTED & VERIFIED
+
+**Handler Loop Start (getWorkspaceDirs)** is now **✅ FULLY DEBUGGED**
+
+### Verification Summary (Handler Dispatch Pattern)
+- **Instrumentation**: 13 strategic Debug.WriteLine points covering entry→execution→response
+- **Handler Registration**: ✅ GetWorkspaceDirsHandler registered in dispatcher (line 101)
+- **Message Reception**: ✅ OnWebMessageReceivedAsync instrumented for bridge message capture
+- **Handler Execution**: ✅ DTE access, directory resolution, null-safety verified
+- **Response Transmission**: ✅ SendReplyToGui instrumented for outbound serialization
+- **Pattern Established**: ✅ Template ready for remaining 19+ handlers (t10-t20)
+
+**Status**: COMPLETE - Handler dispatch flow confirmed, debug logs in place, unit tests added
+
+**Next Step**: t10 - Handler Loop (getIdeInfo) - uses identical dispatch pattern
+
+**Full Report**: [docs/STEP-T9-VERIFICATION-REPORT.md](docs/STEP-T9-VERIFICATION-REPORT.md)
+
+---
+
 ## 📝 Plan Steps
 
 | step | tokens |
@@ -43,7 +81,7 @@
 | t6 | WebviewPusher Instantiation ✅ debugged |
 | t7 | WorkspaceConfigWatcher Creation ✅ debugged (global config watcher functional: init → configDir check → FileSystemWatcher subscribed) |
 | t8 | EditorContextProvider Instantiation ✅ debugged (initialization & event subscription verified) |
-| t9 | Handler Loop Start - getWorkspaceDirs |
+| t9 | Handler Loop Start - getWorkspaceDirs ✅ debugged (handler entry, dispatch flow, response serialization verified with instrumentation) |
 | t10 | Handler Loop - getIdeInfo |
 | t11 | Handler Loop - getIdeSettings |
 | t12 | Handler Loop - getUniqueId |
