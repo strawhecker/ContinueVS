@@ -216,7 +216,7 @@ namespace VSIXProject1.Tests.Services
         /// <summary>
         /// Test 14: Throws OperationCanceledException on cancellation.
         /// </summary>
-        [Fact(Skip = "BridgeStateCollector.CreateSnapshotAsync does not check cancellation token; requires integration with async operations that respect CancellationToken.")]
+        [Fact]
         public async Task CreateSnapshotAsync_WithCancellation_ThrowsOperationCanceledException()
         {
             var cts = new CancellationTokenSource();

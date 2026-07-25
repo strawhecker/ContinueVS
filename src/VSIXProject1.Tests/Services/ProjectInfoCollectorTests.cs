@@ -24,7 +24,7 @@ namespace ContinueVS.Tests.Services
     {
         #region Suite 1: Initialization & Null-Safety (4 tests)
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void Constructor_WithNullDte_ThrowsArgumentNullException()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -32,7 +32,7 @@ namespace ContinueVS.Tests.Services
             Assert.Throws<ArgumentNullException>(() => new ProjectInfoCollector(null!));
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void Constructor_WithValidDte_CreatesSuccessfully()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -46,7 +46,7 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(collector);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void Constructor_WithOptionalLogger_AcceptsNullLogger()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -60,7 +60,7 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(collector);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithNullSolution_ThrowsProjectInfoError()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -78,7 +78,7 @@ namespace ContinueVS.Tests.Services
 
         #region Suite 2: Solution Info Queries (4 tests)
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithValidSolution_ReturnsSolutionInfo()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -101,7 +101,7 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(@"C:\Solution\MySolution.sln", result.Solution.Path);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithZeroProjects_ReturnsZeroProjectCount()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -122,7 +122,7 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(0, result.Solution.ProjectCount);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithMultipleProjects_ReturnsCorrectCount()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -151,7 +151,7 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(3, result.Projects.Count);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithNullFullName_HandlesGracefully()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -177,7 +177,7 @@ namespace ContinueVS.Tests.Services
 
         #region Suite 3: Project Enumeration (4 tests)
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithProjects_EnumeratesAllProjects()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -206,7 +206,7 @@ namespace ContinueVS.Tests.Services
             Assert.Contains(result.Projects, p => p.Name == "ClassLib");
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithCSharpProject_DetectsProjectType()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -233,7 +233,7 @@ namespace ContinueVS.Tests.Services
             Assert.Equal("C# Project", project.Type);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithMultipleProjects_SkipsProjectsWithoutName()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -283,7 +283,7 @@ namespace ContinueVS.Tests.Services
 
         #region Suite 4: Build Status Collection (3 tests)
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithValidProject_IncludesBuildStatus()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -314,7 +314,7 @@ namespace ContinueVS.Tests.Services
             Assert.False(result.BuildStatus.IsBuilding);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WhenSolutionBuilding_ReportsBuildingStatus()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -341,7 +341,7 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(result.BuildStatus);
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithNullSolutionBuild_DefaultsToNotBuilding()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -367,7 +367,7 @@ namespace ContinueVS.Tests.Services
 
         #region Suite 5: Error Propagation (3 tests)
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithProjectEnumerationFailure_ThrowsCollectionError()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -385,7 +385,7 @@ namespace ContinueVS.Tests.Services
             Assert.Throws<CollectionError>(() => collector.GetProjectInfo());
         }
 
-        [Fact(Skip = "Requires VS DTE runtime; assembly Microsoft.VisualStudio.Interop not available")]
+        [Fact]
         public void GetProjectInfo_WithSolutionNull_ThrowsProjectInfoError()
         {
             ThreadHelper.ThrowIfNotOnUIThread();

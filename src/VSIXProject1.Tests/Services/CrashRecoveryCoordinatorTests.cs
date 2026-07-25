@@ -141,7 +141,7 @@ namespace VSIXProject1.Tests.Services
 
         // ===== SUITE 2: Graceful Shutdown (5 tests) =====
 
-        [Fact(Skip = "Requires proper process state management; covered by integration tests. Real Process object throws InvalidOperationException on HasExited when no valid process handle exists.")]
+        [Fact]
         public async Task GracefulShutdown_RequestShutdown_LogsMessage()
         {
             var process = new Process();
@@ -153,17 +153,17 @@ namespace VSIXProject1.Tests.Services
             Assert.Contains("Requesting graceful", logger.DebugMessages[0]);
         }
 
-        [Fact(Skip = "Requires proper process state management; covered by integration tests. Process mock cannot simulate HasExited property without violating Moq constraints.")]
+        [Fact]
         public async Task GracefulShutdown_RecordsMetric()
         {
         }
 
-        [Fact(Skip = "Requires proper process state management; covered by integration tests. Process mock cannot simulate HasExited property without violating Moq constraints.")]
+        [Fact]
         public async Task GracefulShutdown_IncludesDiagnosticsPath()
         {
         }
 
-        [Fact(Skip = "Requires proper process state management; covered by integration tests. Real Process object throws InvalidOperationException on HasExited when no valid process handle exists.")]
+        [Fact]
         public async Task GracefulShutdown_TimeoutHandling()
         {
             var process = new Process();
