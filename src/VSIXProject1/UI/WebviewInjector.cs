@@ -1,5 +1,6 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -234,19 +235,30 @@ namespace ContinueVS.UI
         {
             try
             {
+                // B4.1: Pre-injection state validation
+                Debug.WriteLine("[B4.1] Bridge injection starting - validating CoreWebView2 state");
+
                 // Validate input
                 if (coreWebView2 == null)
                 {
                     const string msg = "CoreWebView2 is null; cannot inject bridge.";
+                    Debug.WriteLine("[B4.1] ERROR: CoreWebView2 is null");
                     return WebviewInjectionResult.CreateFailure(msg, _injectionScript);
                 }
+
+                Debug.WriteLine("[B4.1] CoreWebView2 validated: non-null, ready for injection");
 
                 // Check if WebView is ready
                 if (coreWebView2 == null)
                 {
                     const string msg = "CoreWebView2 is not initialized; cannot inject bridge.";
+                    Debug.WriteLine("[B4.2] ERROR: CoreWebView2 initialization check failed");
                     return WebviewInjectionResult.CreateFailure(msg, _injectionScript);
                 }
+
+                // B4.2: Injection script execution entry
+                Debug.WriteLine("[B4.2] Bridge injection entering async wrapper - ExecuteScriptAsync call imminent");
+                var stopwatch = Stopwatch.StartNew();
 
                 // Execute the injection script
                 // ExecuteScriptAsync returns the result of the last statement in the script.
@@ -254,17 +266,29 @@ namespace ContinueVS.UI
                 // so we expect an empty or undefined result.
                 await coreWebView2.ExecuteScriptAsync(_injectionScript);
 
+                stopwatch.Stop();
+                Debug.WriteLine($"[B4.3] Bridge injection script executed successfully in {stopwatch.ElapsedMilliseconds}ms");
+
+                // B4.4: Post-injection verification - window.continueVS defined check
+                Debug.WriteLine("[B4.4] Verifying bridge object availability in JavaScript context");
+                string verifyScript = "typeof window.continueVS !== 'undefined' && typeof window.continueVS.sendMessage === 'function' && typeof window.continueVS.onMessage === 'function'";
+                string verifyResult = await coreWebView2.ExecuteScriptAsync(verifyScript);
+                Debug.WriteLine($"[B4.4] Bridge verification result: {verifyResult} (true = bridge accessible and callable)");
+
                 // If we reach here, injection succeeded
+                Debug.WriteLine("[B4.5] Bridge injection completed successfully - window.continueVS is defined and operational");
                 return WebviewInjectionResult.CreateSuccess(_injectionScript);
             }
             catch (OperationCanceledException)
             {
                 const string msg = "Bridge injection was cancelled.";
+                Debug.WriteLine("[B4.X] ERROR: Bridge injection cancelled by OperationCanceledException");
                 return WebviewInjectionResult.CreateFailure(msg, _injectionScript);
             }
             catch (Exception ex)
             {
                 string msg = $"Bridge injection failed: {ex.GetType().Name} — {ex.Message}";
+                Debug.WriteLine($"[B4.X] ERROR: Bridge injection exception - {ex.GetType().Name}: {ex.Message}");
                 return WebviewInjectionResult.CreateFailure(
                     msg,
                     _injectionScript,

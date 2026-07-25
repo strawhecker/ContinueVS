@@ -397,16 +397,142 @@ namespace ContinueVS.UI
                 }
 
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+
+                // STEP b3.1: Add NavigationCompleted event handler
+                System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] Navigation handler registration starting");
+                var navStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                WebView.CoreWebView2.NavigationCompleted += async (sender, args) =>
+                {
+                    navStopwatch.Stop();
+                    System.Diagnostics.Debug.WriteLine($"[b3-NAV-COMPLETED] NavigationCompleted event fired, IsSuccess={args.IsSuccess}, WebErrorStatus={args.WebErrorStatus}, elapsed={navStopwatch.ElapsedMilliseconds}ms");
+
+                    try
+                    {
+                        // STEP b3.2: DOM verification script execution
+                        System.Diagnostics.Debug.WriteLine("[b3-DOM-READY] Executing DOM readiness verification script");
+                        var domVerifyScript = @"
+(function() {
+  try {
+    return JSON.stringify({
+      readyState: document.readyState,
+      bodyExists: document.body !== null && document.body !== undefined
+    });
+  } catch (e) {
+    return JSON.stringify({
+      readyState: 'error',
+      bodyExists: false,
+      error: e.message
+    });
+  }
+})();
+";
+                        var domStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                        string domResult = await WebView.CoreWebView2.ExecuteScriptAsync(domVerifyScript);
+                        domStopwatch.Stop();
+                        System.Diagnostics.Debug.WriteLine($"[b3-DOM-READY] DOM verification completed in {domStopwatch.ElapsedMilliseconds}ms, result={domResult}");
+
+                        // Parse DOM result
+                        try
+                        {
+                            // ExecuteScriptAsync returns JSON string (result includes quotes)
+                            // Remove outer quotes if present
+                            string cleanedDomResult = domResult;
+                            if (cleanedDomResult.StartsWith("\"") && cleanedDomResult.EndsWith("\""))
+                            {
+                                cleanedDomResult = System.Text.Json.JsonDocument.Parse(domResult).RootElement.GetString();
+                            }
+
+                            var domState = Newtonsoft.Json.Linq.JObject.Parse(cleanedDomResult);
+                            string readyState = domState["readyState"]?.ToString() ?? "unknown";
+                            bool bodyExists = domState["bodyExists"]?.Value<bool>() ?? false;
+                            System.Diagnostics.Debug.WriteLine($"[b3-DOM-BODY] document.readyState={readyState}, document.body exists={bodyExists}");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[b3-DOM-READY] WARNING: Failed to parse DOM result: {ex.Message}");
+                        }
+
+                        // STEP b3.3: Bridge ready verification script
+                        System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-READY] Executing bridge readiness verification script");
+                        var bridgeVerifyScript = @"
+(function() {
+  try {
+    var bridgeReady = 
+      typeof window.continueVS !== 'undefined' &&
+      typeof window.continueVS.sendMessage === 'function' &&
+      typeof window.continueVS.onMessage === 'function' &&
+      typeof window.continueVS.getState === 'function';
+
+    return JSON.stringify({
+      bridgeReady: bridgeReady,
+      hasSendMessage: typeof window.continueVS?.sendMessage === 'function',
+      hasOnMessage: typeof window.continueVS?.onMessage === 'function',
+      hasGetState: typeof window.continueVS?.getState === 'function'
+    });
+  } catch (e) {
+    return JSON.stringify({
+      bridgeReady: false,
+      error: e.message
+    });
+  }
+})();
+";
+                        var bridgeStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                        string bridgeResult = await WebView.CoreWebView2.ExecuteScriptAsync(bridgeVerifyScript);
+                        bridgeStopwatch.Stop();
+                        System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] Bridge verification completed in {bridgeStopwatch.ElapsedMilliseconds}ms, result={bridgeResult}");
+
+                        // Parse bridge result
+                        try
+                        {
+                            // ExecuteScriptAsync returns JSON string (result includes quotes)
+                            // Remove outer quotes if present
+                            string cleanedBridgeResult = bridgeResult;
+                            if (cleanedBridgeResult.StartsWith("\"") && cleanedBridgeResult.EndsWith("\""))
+                            {
+                                cleanedBridgeResult = System.Text.Json.JsonDocument.Parse(bridgeResult).RootElement.GetString();
+                            }
+
+                            var bridgeState = Newtonsoft.Json.Linq.JObject.Parse(cleanedBridgeResult);
+                            bool bridgeReady = bridgeState["bridgeReady"]?.Value<bool>() ?? false;
+                            System.Diagnostics.Debug.WriteLine($"[b3-INTEGRATION] Bridge operational: {bridgeReady}, sendMessage={bridgeState["hasSendMessage"]}, onMessage={bridgeState["hasOnMessage"]}, getState={bridgeState["hasGetState"]}");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] WARNING: Failed to parse bridge result: {ex.Message}");
+                        }
+                    }
+                    catch (System.Runtime.InteropServices.COMException comEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-NAV] COMException during navigation completion handler: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
+                    }
+                    catch (System.OperationCanceledException opEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] OperationCanceledException during DOM/bridge verification: {opEx.Message}");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] Unexpected exception in NavigationCompleted handler: {ex.GetType().Name} - {ex.Message}");
+                    }
+                };
+                System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] NavigationCompleted handler registered successfully");
+
                 _webViewInitialized = true;
                 _pusher.Subscribe();
                 await _editorContextProvider?.RegisterAsync()!;
                 _configWatcher?.Start();
             }
 
-            WebView.Source = new Uri("https://continue.local/index.html");
+            // STEP b3: Navigation to HTML content
+            System.Diagnostics.Debug.WriteLine("[b3-VHOST-STATE] Virtual host mapping pre-check: https://continue.local/ -> GUI assets");
+            var navigationUri = new Uri("https://continue.local/index.html");
+            System.Diagnostics.Debug.WriteLine($"[b3-NAV-ENTRY] Navigation starting: {navigationUri.AbsoluteUri}");
+
+            WebView.Source = navigationUri;
 
             LoadingPanel.Visibility = Visibility.Collapsed;
             WebView.Visibility      = Visibility.Visible;
+            System.Diagnostics.Debug.WriteLine("[b3-TIMING] Navigation initiated, awaiting NavigationCompleted event and DOM/bridge verification");
             _pusher.PushConfigUpdate();
             _pusher.PushIndexProgress();
         }
