@@ -107,7 +107,7 @@ namespace ContinueVS.Handlers
             // Validate message envelope
             ValidateMessage(message);
 
-            // Find handler
+            // [b12-DISPATCH-END] Find handler in registry
             if (!_handlers.TryGetValue(message.MessageType, out var handler))
             {
                 var context = new Dictionary<string, string>
@@ -115,6 +115,8 @@ namespace ContinueVS.Handlers
                     { "messageType", message.MessageType },
                     { "messageId", message.MessageId ?? "null" }
                 };
+
+                System.Diagnostics.Debug.WriteLine($"[b12-DISPATCH-END] Handler not found for: {message.MessageType}");
 
                 await LogWarningAsync(
                     $"No handler registered for message type: {message.MessageType}",
@@ -128,12 +130,17 @@ namespace ContinueVS.Handlers
                     context);
             }
 
+            System.Diagnostics.Debug.WriteLine($"[b12-DISPATCH-END] Handler found: {handler.GetType().Name}, invoking HandleAsync");
+
             // Invoke handler with error wrapping
             var sw = Stopwatch.StartNew();
             try
             {
+                // [b12-HANDLER-EXEC] Handler execution
+                System.Diagnostics.Debug.WriteLine($"[b12-HANDLER-EXEC] Invoking handler for message type: {message.MessageType}, id: {message.MessageId}");
                 await handler.HandleAsync(message, cancellationToken);
                 sw.Stop();
+                System.Diagnostics.Debug.WriteLine($"[b12-HANDLER-EXEC] Handler completed successfully in {sw.ElapsedMilliseconds}ms");
 
                 // Record success metrics
                 await RecordHandlerExecutionAsync(

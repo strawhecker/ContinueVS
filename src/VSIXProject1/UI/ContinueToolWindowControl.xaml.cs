@@ -567,10 +567,18 @@ namespace ContinueVS.UI
 
         private System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            // [b12-RECEIVED] Capture raw JSON from WebView
             var json = e.TryGetWebMessageAsString();
+            System.Diagnostics.Debug.WriteLine($"[b12-RECEIVED] Raw JSON received: {json}");
+
+            // [b12-DESERIALIZED] Deserialize JSON to Message object
             var message = JsonConvert.DeserializeObject<Message>(json);
             if (message == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[b12-DESERIALIZED] Failed: message is null after deserialization");
                 return System.Threading.Tasks.Task.CompletedTask;
+            }
+            System.Diagnostics.Debug.WriteLine($"[b12-DESERIALIZED] Message: Type={message.MessageType}, ID={message.MessageId}");
 
             // [t9] Log message reception at dispatcher entry
             System.Diagnostics.Debug.WriteLine($"[t9-DISPATCH] Message received from bridge: Type={message.MessageType}, ID={message.MessageId}");
@@ -582,7 +590,8 @@ namespace ContinueVS.UI
                 return System.Threading.Tasks.Task.CompletedTask;
             }
 
-            System.Diagnostics.Debug.WriteLine($"[t9-DISPATCH] Routing message to dispatcher: {message.MessageType}");
+            // [b12-DISPATCH-START] Routing to dispatcher
+            System.Diagnostics.Debug.WriteLine($"[b12-DISPATCH-START] Routing message to dispatcher: {message.MessageType}");
             return _dispatcher.DispatchAsync(message, System.Threading.CancellationToken.None);
         }
 
@@ -658,15 +667,16 @@ namespace ContinueVS.UI
 
         public void SendReplyToGui(string messageType, string messageId, object data)
         {
-            // [t9] Log outbound response
-            System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] SendReplyToGui called: Type={messageType}, ID={messageId}");
+            // [b12-RESPONSE] Log outbound response initialization
+            System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] SendReplyToGui called: Type={messageType}, ID={messageId}");
 
             if (!_webViewInitialized || WebView.CoreWebView2 == null) 
             {
-                System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] WebView not initialized, reply not sent");
+                System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] WebView not initialized, reply not sent");
                 return;
             }
 
+            // [b12-RESPONSE] Response serialization
             var msg = new Message
             {
                 MessageType = messageType,
@@ -674,16 +684,20 @@ namespace ContinueVS.UI
                 Data        = JToken.FromObject(data),
             };
             var json    = JsonConvert.SerializeObject(msg);
-            var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+            System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Message serialized: {json}");
 
-            System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] Executing script to send reply to bridge");
+            var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+            System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Escaped JSON: {escaped}");
+
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                // [b12-SCRIPT-EXEC] ExecuteScriptAsync injection
+                System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Executing script to send reply to bridge");
                 await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-                System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] Reply script executed successfully");
+                System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Reply script executed successfully");
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
 #pragma warning restore VSSDK007
         }
