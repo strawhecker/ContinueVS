@@ -111,7 +111,7 @@ namespace VSIXProject1.Services
         private readonly ILogger? _logger;
         private readonly ITelemetryCollector? _telemetry;
         private readonly RestartStrategy _restartStrategy;
-        internal Process? _bridgeProcess;
+        internal IProcessAdapter? _bridgeProcess;
         private int consecutiveCrashCount = 0;
         private const int FallbackThreshold = 2; // Enter degraded mode after 2+ consecutive crashes
         private bool isInDegradedMode = false;
@@ -130,13 +130,28 @@ namespace VSIXProject1.Services
         }
 
         /// <summary>
+        /// Constructor for dependency injection of IProcessAdapter (primarily for testing)
+        /// </summary>
+        public CrashRecoveryCoordinator(
+            IProcessAdapter? bridgeProcess,
+            ILogger? logger = null,
+            ITelemetryCollector? telemetry = null)
+        {
+            _logger = logger;
+            _telemetry = telemetry;
+            _restartStrategy = new RestartStrategy();
+            _bridgeProcess = bridgeProcess;
+            cancellationTokenSource = new CancellationTokenSource();
+        }
+
+        /// <summary>
         /// Initialize crash recovery coordination
         /// </summary>
         public async Task InitializeAsync(Process bridgeProcess)
         {
             try
             {
-                _bridgeProcess = bridgeProcess;
+                _bridgeProcess = new ProcessAdapter(bridgeProcess);
                 LogDebug("Crash recovery coordinator initialized");
                 RecordMetric("crash_recovery_coordinator.initialized", 1);
                 await Task.CompletedTask;

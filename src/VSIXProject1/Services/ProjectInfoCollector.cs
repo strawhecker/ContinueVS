@@ -32,9 +32,9 @@ namespace ContinueVS.Services
     internal sealed class ProjectInfoCollector
     {
         /// <summary>
-        /// The DTE object representing the Visual Studio environment.
+        /// The IDTEService abstraction for accessing VS environment.
         /// </summary>
-        private readonly DTE _dte;
+        private readonly IDTEService _dteService;
 
         /// <summary>
         /// Optional logger for diagnostics and debugging.
@@ -42,15 +42,27 @@ namespace ContinueVS.Services
         private readonly IBridgeLogger? _logger;
 
         /// <summary>
-        /// Initializes a new instance of ProjectInfoCollector.
+        /// Initializes a new instance of ProjectInfoCollector with a DTE object.
         /// </summary>
         /// <param name="dte">The DTE object from the Visual Studio IDE state.</param>
         /// <param name="logger">Optional logger for diagnostics; gracefully degrades if null.</param>
         /// <exception cref="ArgumentNullException">Thrown if dte is null.</exception>
         public ProjectInfoCollector(DTE dte, IBridgeLogger? logger = null)
+            : this(new DTEService(dte), logger)
         {
-            if (dte == null) throw new ArgumentNullException(nameof(dte));
-            _dte = dte;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of ProjectInfoCollector with a mockable IDTEService.
+        /// Used for testing and dependency injection.
+        /// </summary>
+        /// <param name="dteService">The IDTEService abstraction for VS environment access.</param>
+        /// <param name="logger">Optional logger for diagnostics; gracefully degrades if null.</param>
+        /// <exception cref="ArgumentNullException">Thrown if dteService is null.</exception>
+        internal ProjectInfoCollector(IDTEService dteService, IBridgeLogger? logger = null)
+        {
+            if (dteService == null) throw new ArgumentNullException(nameof(dteService));
+            _dteService = dteService;
             _logger = logger;
             if (_logger != null)
             {
@@ -68,11 +80,9 @@ namespace ContinueVS.Services
         /// <exception cref="CollectionError">Thrown if project enumeration fails.</exception>
         public ProjectInfo GetProjectInfo()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             try
             {
-                var solution = _dte.Solution;
+                var solution = _dteService.Solution;
                 if (solution == null)
                 {
                     throw new ProjectInfoError("DTE.Solution is null; no solution is loaded", "NO_SOLUTION");
@@ -106,10 +116,8 @@ namespace ContinueVS.Services
         /// </summary>
         /// <param name="solution">The DTE Solution object.</param>
         /// <returns>SolutionInfo with name, path, and projectCount.</returns>
-        private SolutionInfo GetSolutionInfo(Solution solution)
+        private SolutionInfo GetSolutionInfo(ISolutionAdapter solution)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             try
             {
                 var name = solution.FullName ?? "Unknown";
@@ -148,10 +156,8 @@ namespace ContinueVS.Services
         /// </summary>
         /// <param name="solution">The DTE Solution object.</param>
         /// <returns>List of ProjectInfo objects; empty list if Projects collection is null or enumeration fails.</returns>
-        private List<ProjectItemInfo> GetProjectsList(Solution solution)
+        private List<ProjectItemInfo> GetProjectsList(ISolutionAdapter solution)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             var projects = new List<ProjectItemInfo>();
 
             try
@@ -165,7 +171,7 @@ namespace ContinueVS.Services
                     return projects;
                 }
 
-                foreach (Project project in solution.Projects)
+                foreach (IProjectAdapter project in solution.Projects)
                 {
                     try
                     {
@@ -199,10 +205,8 @@ namespace ContinueVS.Services
         /// </summary>
         /// <param name="project">A single DTE Project object.</param>
         /// <returns>ProjectItemInfo for the project, or null if basic properties are missing.</returns>
-        private ProjectItemInfo? GetSingleProjectInfo(Project project)
+        private ProjectItemInfo? GetSingleProjectInfo(IProjectAdapter project)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             try
             {
                 // Guard against null project or missing Name
@@ -211,7 +215,7 @@ namespace ContinueVS.Services
                     return null;
                 }
 
-                var name = project.Name;
+                var name = project.Name ?? string.Empty;
                 var path = project.FullName ?? string.Empty;
                 var projectKind = project.Kind ?? "Unknown";
                 var targetFramework = GetTargetFramework(project) ?? "Unknown";
@@ -220,7 +224,7 @@ namespace ContinueVS.Services
                 return new ProjectItemInfo
                 {
                     Name = name,
-                    Path = path,
+                    Path = path ?? string.Empty,
                     Type = DetermineProjectType(projectKind),
                     TargetFramework = targetFramework,
                     BuildStatus = buildStatus,
@@ -243,10 +247,8 @@ namespace ContinueVS.Services
         /// </summary>
         /// <param name="project">The DTE Project object.</param>
         /// <returns>Target framework string (e.g., "net8.0", "net472") or null if unavailable.</returns>
-        private string? GetTargetFramework(Project project)
+        private string? GetTargetFramework(IProjectAdapter project)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             try
             {
                 if (project.Properties == null)
@@ -335,10 +337,8 @@ namespace ContinueVS.Services
         /// </summary>
         /// <param name="project">The DTE Project object.</param>
         /// <returns>Build status string (e.g., "Ready", "Building", "Error").</returns>
-        private string GetProjectBuildStatus(Project project)
+        private string GetProjectBuildStatus(IProjectAdapter project)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             try
             {
                 // Check if project is currently building
@@ -376,11 +376,9 @@ namespace ContinueVS.Services
         /// <returns>WorkspaceInfo with rootPath and optional gitBranch.</returns>
         private WorkspaceInfo GetWorkspaceInfo()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             try
             {
-                var rootPath = _dte.Solution?.FullName ?? string.Empty;
+                var rootPath = _dteService.Solution?.FullName ?? string.Empty;
                 if (!string.IsNullOrEmpty(rootPath))
                 {
                     rootPath = Path.GetDirectoryName(rootPath) ?? string.Empty;
@@ -463,12 +461,10 @@ namespace ContinueVS.Services
         /// <returns>BuildStatus with error/warning counts, lastBuild time, and isBuilding flag.</returns>
         private BuildStatus GetBuildStatus()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
             try
             {
                 // Get SolutionBuild if available; some Visual Studio configurations don't expose it
-                var solutionBuild = _dte.Solution?.SolutionBuild;
+                var solutionBuild = _dteService.Solution?.SolutionBuild;
                 var isBuilding = false;
 
                 if (solutionBuild != null)

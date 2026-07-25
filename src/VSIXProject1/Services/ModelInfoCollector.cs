@@ -88,10 +88,23 @@ namespace ContinueVS.Services
         /// </returns>
         public async Task<List<ModelInfoDto>> GetAvailableModelsAsync()
         {
+            return await GetAvailableModelsAsync(null);
+        }
+
+        /// <summary>
+        /// Gets all available LLM models from a specified model list (internal for testing).
+        /// </summary>
+        /// <param name="modelsOverride">Optional list of models to use instead of config file (for testing).</param>
+        /// <returns>
+        /// A list of ModelInfoDto objects representing all configured models.
+        /// Returns an empty list if no models are configured or config is unavailable.
+        /// </returns>
+        internal async Task<List<ModelInfoDto>> GetAvailableModelsAsync(List<LlmModelConfig>? modelsOverride)
+        {
             try
             {
                 var result = new List<ModelInfoDto>();
-                var allModels = GetAllConfiguredModels();
+                var allModels = modelsOverride ?? GetAllConfiguredModels();
 
                 foreach (var model in allModels)
                 {

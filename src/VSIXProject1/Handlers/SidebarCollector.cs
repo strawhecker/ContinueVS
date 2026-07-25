@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.IPC;
-using EnvDTE;
 using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Handlers
@@ -123,20 +122,18 @@ namespace ContinueVS.Handlers
     internal sealed class SidebarCollector
     {
         private readonly IServiceProvider _serviceProvider;
-        private DTE? _dte;
+        private readonly object? _dte;
 
         /// <summary>
-        /// Initialize SidebarCollector with service provider
+        /// Initialize SidebarCollector with service provider and DTE
         /// </summary>
-        /// <param name="serviceProvider">VS service provider for DTE access</param>
+        /// <param name="serviceProvider">VS service provider (required)</param>
+        /// <param name="dte">DTE instance for document enumeration (nullable for testing)</param>
         /// <exception cref="SidebarException">If serviceProvider is null</exception>
-        public SidebarCollector(IServiceProvider serviceProvider)
+        public SidebarCollector(IServiceProvider serviceProvider, object? dte = null)
         {
             _serviceProvider = serviceProvider ?? throw new SidebarException("ServiceProvider required", "MISSING_SERVICE_PROVIDER");
-
-            ThreadHelper.ThrowIfNotOnUIThread();
-            var dteService = ServiceProvider.GlobalProvider.GetService(typeof(DTE));
-            _dte = dteService as DTE;
+            _dte = dte;
         }
 
         /// <summary>
@@ -149,8 +146,6 @@ namespace ContinueVS.Handlers
         {
             return await Task.Run(() =>
             {
-                // Use ThreadHelper to switch to UI thread for DTE access
-                ThreadHelper.ThrowIfNotOnUIThread();
                 return GetSidebarStateInternal(filterFilepath);
             });
         }
@@ -164,8 +159,6 @@ namespace ContinueVS.Handlers
 
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
                 // Enumerate open documents
                 state.Documents = GetOpenDocuments(filterFilepath);
 
@@ -203,18 +196,30 @@ namespace ContinueVS.Handlers
 
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
-                if (_dte?.Documents == null)
+                if (_dte == null)
                 {
                     return documents;
                 }
 
-                foreach (Document doc in _dte.Documents)
+                var documentsProperty = _dte.GetType().GetProperty("Documents");
+                var documentsCollection = documentsProperty?.GetValue(_dte);
+
+                if (documentsCollection == null)
+                {
+                    return documents;
+                }
+
+                foreach (var doc in (System.Collections.IEnumerable)documentsCollection)
                 {
                     try
                     {
-                        var filepath = doc.FullName;
+                        var fullNameProperty = doc.GetType().GetProperty("FullName");
+                        var filepath = (string?)fullNameProperty?.GetValue(doc);
+
+                        if (string.IsNullOrEmpty(filepath))
+                        {
+                            continue;
+                        }
 
                         // Apply filter if specified
                         if (!string.IsNullOrEmpty(filterFilepath) && filepath != filterFilepath)
@@ -222,14 +227,17 @@ namespace ContinueVS.Handlers
                             continue;
                         }
 
-                        var language = GetLanguageFromFilepath(filepath);
+                        var language = GetLanguageFromFilepath(filepath ?? string.Empty);
                         var lineCount = GetLineCount(doc);
+
+                        var savedProperty = doc.GetType().GetProperty("Saved");
+                        var isModified = savedProperty != null && !(bool)(savedProperty.GetValue(doc) ?? true);
 
                         documents.Add(new SidebarDocument
                         {
                             Filepath = filepath,
                             Language = language,
-                            IsModified = doc.Saved == false,
+                            IsModified = isModified,
                             LineCount = lineCount,
                         });
                     }
@@ -277,15 +285,24 @@ namespace ContinueVS.Handlers
 
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
-                // Placeholder: extract from active document if it matches filter
-                var activeDocument = _dte?.ActiveDocument;
-                if (activeDocument != null && 
-                    (string.IsNullOrEmpty(filterFilepath) || activeDocument.FullName == filterFilepath))
+                if (_dte == null)
                 {
-                    // TODO: Integrate with Step 53 (SymbolExtractor) cache
-                    // For now, return empty array
+                    return symbols;
+                }
+
+                var activeDocProperty = _dte.GetType().GetProperty("ActiveDocument");
+                var activeDocument = activeDocProperty?.GetValue(_dte);
+
+                if (activeDocument != null)
+                {
+                    var fullNameProperty = activeDocument.GetType().GetProperty("FullName");
+                    var activeFilepath = (string?)fullNameProperty?.GetValue(activeDocument);
+
+                    if (string.IsNullOrEmpty(filterFilepath) || activeFilepath == filterFilepath)
+                    {
+                        // TODO: Integrate with Step 53 (SymbolExtractor) cache
+                        // For now, return empty array
+                    }
                 }
 
                 return symbols;
@@ -322,22 +339,30 @@ namespace ContinueVS.Handlers
         /// <summary>
         /// Get line count from document
         /// </summary>
-        private static int GetLineCount(Document doc)
+        private static int GetLineCount(object doc)
         {
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
                 // COM interop: Document.Object can be tricky to access
                 // Use reflection to safely get the TextDocument
                 var objProp = doc.GetType().GetProperty("Object");
                 if (objProp != null)
                 {
                     var obj = objProp.GetValue(doc);
-                    var textDoc = obj as TextDocument;
-                    if (textDoc != null)
+                    // Safely access EndPoint.Line via reflection
+                    var textDocType = obj?.GetType();
+                    if (textDocType != null)
                     {
-                        return textDoc.EndPoint.Line;
+                        var endPointProp = textDocType.GetProperty("EndPoint");
+                        if (endPointProp != null)
+                        {
+                            var endPoint = endPointProp.GetValue(obj);
+                            var lineProp = endPoint?.GetType().GetProperty("Line");
+                            if (lineProp != null)
+                            {
+                                return (int)lineProp.GetValue(endPoint);
+                            }
+                        }
                     }
                 }
 

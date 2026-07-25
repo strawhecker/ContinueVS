@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.Web.WebView2.Core;
+using ContinueVS.Adapters;
 using Moq;
 using Xunit;
 
@@ -9,18 +9,20 @@ namespace ContinueVS.Tests.UI
     /// <summary>
     /// Unit tests for WebView2 content loading and navigation (Step b3).
     /// 
-    /// Tests validate component contracts offline using mocked CoreWebView2.
+    /// Tests validate component contracts offline using mocked WebView2 adapters.
     /// These tests are SUPPORTING INFRASTRUCTURE only and are NOT step completion evidence.
     /// 
     /// Primary completion evidence comes from debugger breakpoints and Debug.WriteLine logs.
     /// </summary>
     public class WebViewContentLoadingTests
     {
-        private readonly Mock<CoreWebView2> _mockCoreWebView2;
+        private readonly Mock<IWebView2Adapter> _mockWebView2;
+        private readonly Mock<INavigationCompletedEventArgs> _mockNavigationEventArgs;
 
         public WebViewContentLoadingTests()
         {
-            _mockCoreWebView2 = new Mock<CoreWebView2>();
+            _mockWebView2 = new Mock<IWebView2Adapter>();
+            _mockNavigationEventArgs = new Mock<INavigationCompletedEventArgs>();
         }
 
         [Fact]
@@ -43,44 +45,47 @@ namespace ContinueVS.Tests.UI
         public void TestVirtualHostMapping_StateBeforeNavigation()
         {
             // Arrange - Mock virtual host mapping state
-            _mockCoreWebView2.Setup(x =>
+            _mockWebView2.Setup(x =>
                 x.SetVirtualHostNameToFolderMapping(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<CoreWebView2HostResourceAccessKind>()))
+                    It.IsAny<Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind>()))
                 .Verifiable();
 
             // Act
-            _mockCoreWebView2.Object.SetVirtualHostNameToFolderMapping(
+            _mockWebView2.Object.SetVirtualHostNameToFolderMapping(
                 "continue.local",
                 "C:\\gui",
-                CoreWebView2HostResourceAccessKind.Allow);
+                Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
 
             // Assert
-            _mockCoreWebView2.Verify();
+            _mockWebView2.Verify();
         }
 
         [Fact]
-        public async Task TestNavigationCompleted_EventFires()
+        public void TestNavigationCompleted_EventFires()
         {
             // Arrange
             var navigationCompletedFired = false;
-            var mockEventArgs = new Mock<CoreWebView2NavigationCompletedEventArgs>();
-            mockEventArgs.Setup(x => x.IsSuccess).Returns(true);
-            mockEventArgs.Setup(x => x.WebErrorStatus).Returns(CoreWebView2WebErrorStatus.Unknown);
+            _mockNavigationEventArgs.Setup(x => x.IsSuccess).Returns(true);
+            _mockNavigationEventArgs.Setup(x => x.WebErrorStatus)
+                .Returns(Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.Unknown);
 
-            // Simulate event firing by creating a mock handler
-            EventHandler<CoreWebView2NavigationCompletedEventArgs> handler = (sender, args) =>
+            // Simulate event firing by subscribing to the mock
+            EventHandler<INavigationCompletedEventArgs> handler = (sender, args) =>
             {
                 navigationCompletedFired = true;
             };
 
             // Act
-            _mockCoreWebView2.Object.NavigationCompleted += handler;
+            _mockWebView2.Object.NavigationCompleted += handler;
+
+            // Manually raise the event on the mock
+            _mockWebView2.Raise(x => x.NavigationCompleted += null, 
+                _mockWebView2.Object, _mockNavigationEventArgs.Object);
 
             // Assert
-            Assert.True(navigationCompletedFired == false || navigationCompletedFired == true, 
-                "NavigationCompleted handler registration should succeed");
+            Assert.True(navigationCompletedFired, "NavigationCompleted event should have fired");
         }
 
         [Fact]
@@ -97,12 +102,12 @@ namespace ContinueVS.Tests.UI
 ";
             var mockResult = "{\"readyState\":\"complete\",\"bodyExists\":true}";
 
-            _mockCoreWebView2.Setup(x =>
+            _mockWebView2.Setup(x =>
                 x.ExecuteScriptAsync(It.IsAny<string>()))
                 .ReturnsAsync(mockResult);
 
             // Act
-            var result = await _mockCoreWebView2.Object.ExecuteScriptAsync(domVerifyScript);
+            var result = await _mockWebView2.Object.ExecuteScriptAsync(domVerifyScript);
             var parsedResult = Newtonsoft.Json.Linq.JObject.Parse(result);
 
             // Assert
@@ -119,12 +124,12 @@ namespace ContinueVS.Tests.UI
             var expectedReadyState = "complete";
             var mockResult = "{\"readyState\":\"complete\",\"bodyExists\":true}";
 
-            _mockCoreWebView2.Setup(x =>
+            _mockWebView2.Setup(x =>
                 x.ExecuteScriptAsync(It.IsAny<string>()))
                 .ReturnsAsync(mockResult);
 
             // Act
-            var result = await _mockCoreWebView2.Object.ExecuteScriptAsync("document.readyState");
+            var result = await _mockWebView2.Object.ExecuteScriptAsync("document.readyState");
             var parsedResult = Newtonsoft.Json.Linq.JObject.Parse(result);
             var readyState = parsedResult["readyState"]?.ToString();
 
@@ -149,12 +154,12 @@ namespace ContinueVS.Tests.UI
 ";
             var mockResult = "{\"bridgeReady\":true,\"hasSendMessage\":true,\"hasOnMessage\":true,\"hasGetState\":true}";
 
-            _mockCoreWebView2.Setup(x =>
+            _mockWebView2.Setup(x =>
                 x.ExecuteScriptAsync(It.IsAny<string>()))
                 .ReturnsAsync(mockResult);
 
             // Act
-            var result = await _mockCoreWebView2.Object.ExecuteScriptAsync(bridgeVerifyScript);
+            var result = await _mockWebView2.Object.ExecuteScriptAsync(bridgeVerifyScript);
             var parsedResult = Newtonsoft.Json.Linq.JObject.Parse(result);
             var bridgeToken = parsedResult["bridgeReady"];
 
@@ -190,13 +195,13 @@ namespace ContinueVS.Tests.UI
         {
             // Arrange
             var failureMessage = "Script execution failed";
-            _mockCoreWebView2.Setup(x =>
+            _mockWebView2.Setup(x =>
                 x.ExecuteScriptAsync(It.IsAny<string>()))
                 .ThrowsAsync(new Exception(failureMessage));
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<Exception>(() =>
-                _mockCoreWebView2.Object.ExecuteScriptAsync("document.readyState"));
+                _mockWebView2.Object.ExecuteScriptAsync("document.readyState"));
             Assert.Equal(failureMessage, ex.Message);
         }
     }

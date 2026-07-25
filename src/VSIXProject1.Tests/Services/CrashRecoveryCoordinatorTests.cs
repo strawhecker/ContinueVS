@@ -37,6 +37,31 @@ namespace VSIXProject1.Tests.Services
     }
 
     /// <summary>
+    /// Mock process adapter for testing
+    /// </summary>
+    public class MockProcessAdapter : IProcessAdapter
+    {
+        public bool HasExited { get; set; } = false;
+        public bool WaitForExitCalled { get; set; } = false;
+        public bool KillCalled { get; set; } = false;
+        public int WaitForExitTimeoutMs { get; set; }
+        public bool WaitForExitResult { get; set; } = true;
+
+        public bool WaitForExit(int millisecondsTimeout)
+        {
+            WaitForExitCalled = true;
+            WaitForExitTimeoutMs = millisecondsTimeout;
+            return WaitForExitResult;
+        }
+
+        public void Kill()
+        {
+            KillCalled = true;
+            HasExited = true;
+        }
+    }
+
+    /// <summary>
     /// Crash Recovery Coordinator Tests
     /// 25+ comprehensive test cases across 5 suites
     /// </summary>
@@ -144,8 +169,8 @@ namespace VSIXProject1.Tests.Services
         [Fact]
         public async Task GracefulShutdown_RequestShutdown_LogsMessage()
         {
-            var process = new Process();
-            await coordinator.InitializeAsync(process);
+            var mockProcess = new MockProcessAdapter { HasExited = false };
+            var coordinator = new CrashRecoveryCoordinator(mockProcess, logger, telemetry);
 
             await coordinator.RequestGracefulShutdownAsync("/path/to/diagnostics");
 
@@ -166,14 +191,15 @@ namespace VSIXProject1.Tests.Services
         [Fact]
         public async Task GracefulShutdown_TimeoutHandling()
         {
-            var process = new Process();
-            await coordinator.InitializeAsync(process);
+            var mockProcess = new MockProcessAdapter { HasExited = false, WaitForExitResult = false };
+            var coordinator = new CrashRecoveryCoordinator(mockProcess, logger, telemetry);
 
             // Request shutdown - should handle gracefully even if process not real
             try
             {
                 await coordinator.RequestGracefulShutdownAsync();
                 Assert.True(true); // No exception should be thrown
+                Assert.True(mockProcess.KillCalled); // Kill should be called on timeout
             }
             catch
             {

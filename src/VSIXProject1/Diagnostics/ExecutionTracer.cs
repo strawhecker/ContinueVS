@@ -15,11 +15,21 @@ namespace ContinueVS.Diagnostics
     /// </summary>
     public sealed class ExecutionTracer : IExecutionTracer
     {
-        private readonly ConcurrentBag<ExecutionTracePoint> _tracePoints = new();
+        private readonly List<ExecutionTracePoint> _tracePoints = new();
+        private readonly object _lock = new object();
         private bool _disposed = false;
 
         /// <summary>Gets the number of recorded trace points.</summary>
-        public int TraceCount => _tracePoints.Count;
+        public int TraceCount
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _tracePoints.Count;
+                }
+            }
+        }
 
         /// <summary>
         /// Records a single trace point immediately and outputs to Debug.WriteLine.
@@ -32,7 +42,11 @@ namespace ContinueVS.Diagnostics
             ThrowIfDisposed();
 
             var tracePoint = new ExecutionTracePoint(token, component, durationMs: null, metadata: metadata);
-            _tracePoints.Add(tracePoint);
+
+            lock (_lock)
+            {
+                _tracePoints.Add(tracePoint);
+            }
 
             // Output to Debug.WriteLine immediately for real-time visibility in Output pane
             System.Diagnostics.Debug.WriteLine($"[TRACE] {tracePoint}");
@@ -60,7 +74,11 @@ namespace ContinueVS.Diagnostics
             IReadOnlyDictionary<string, object>? metadata = null)
         {
             var tracePoint = new ExecutionTracePoint(token, component, durationMs: elapsedMs, metadata: metadata);
-            _tracePoints.Add(tracePoint);
+
+            lock (_lock)
+            {
+                _tracePoints.Add(tracePoint);
+            }
 
             // Output to Debug.WriteLine for Output pane consumption
             System.Diagnostics.Debug.WriteLine($"[TRACE] {tracePoint}");
@@ -72,8 +90,11 @@ namespace ContinueVS.Diagnostics
         public Task<ExecutionTracePoint[]> GetTracePointsAsync()
         {
             ThrowIfDisposed();
-            var points = _tracePoints.ToArray();
-            return Task.FromResult(points);
+            lock (_lock)
+            {
+                var points = _tracePoints.ToArray();
+                return Task.FromResult(points);
+            }
         }
 
         /// <summary>
@@ -82,9 +103,10 @@ namespace ContinueVS.Diagnostics
         public void Clear()
         {
             ThrowIfDisposed();
-            // Note: ConcurrentBag<T> doesn't have a Clear method.
-            // For this debugging scenario, we'd need to replace the whole bag.
-            // For now, this is a no-op. Consider using ConcurrentDictionary in production.
+            lock (_lock)
+            {
+                _tracePoints.Clear();
+            }
         }
 
         private void ThrowIfDisposed()
@@ -107,7 +129,7 @@ namespace ContinueVS.Diagnostics
         /// Inner disposable class for scoped trace operations.
         /// Measures elapsed time and records on Dispose.
         /// </summary>
-        private sealed class TraceScope : IDisposable
+        public sealed class TraceScope : IDisposable
         {
             private readonly ExecutionTracer _tracer;
             private readonly string _token;

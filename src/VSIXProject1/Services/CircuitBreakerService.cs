@@ -248,6 +248,16 @@ namespace VSIXProject1.Services
                     };
                     _aggregateMetrics.TotalCircuits++;
                     _updateStateCounts();
+
+                    // Emit event for initial creation
+                    StateChanged?.Invoke(this, new StateChangeEvent
+                    {
+                        Handler = handlerType,
+                        OldState = CircuitState.Closed,
+                        NewState = newState,
+                        Reason = reason,
+                        Timestamp = DateTime.UtcNow,
+                    });
                 }
             }
             finally

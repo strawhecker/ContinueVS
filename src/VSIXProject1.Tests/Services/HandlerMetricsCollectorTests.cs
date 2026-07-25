@@ -212,8 +212,19 @@ namespace VSIXProject1.Tests.Services
         public async Task PersistSnapshot_PermissionsDenied_ThrowsMetricsException()
         {
             // Arrange
-            var readOnlyDir = Path.Combine(_tempDir, "readonly");
-            Directory.CreateDirectory(readOnlyDir);
+            // Create a FILE where a directory would normally be created
+            // This simulates permission denied when trying to create the directory
+            var readOnlyPath = Path.Combine(_tempDir, "readonly_file");
+
+            // Ensure _tempDir exists
+            if (!Directory.Exists(_tempDir))
+            {
+                Directory.CreateDirectory(_tempDir);
+            }
+
+            // Create a file at the path where the storage directory would be
+            // This forces Directory.CreateDirectory to fail
+            File.WriteAllText(readOnlyPath, "placeholder");
 
             var snapshot = new HandlerMetricsSnapshot
             {
@@ -222,21 +233,12 @@ namespace VSIXProject1.Tests.Services
                 Metadata = new Dictionary<string, object>()
             };
 
-            // Make directory read-only (platform-specific)
-            try
-            {
-                var dirInfo = new DirectoryInfo(readOnlyDir);
-                dirInfo.Attributes |= FileAttributes.ReadOnly;
-            }
-            catch
-            {
-                // Skip on systems that don't support this
-                return;
-            }
+            // Create collector configured to use the blocked path
+            var collectorWithBlockedPath = new HandlerMetricsCollector(readOnlyPath);
 
             // Act & Assert
             await Assert.ThrowsAsync<MetricsCollectionException>(
-                () => _collector.PersistSnapshotAsync(snapshot));
+                () => collectorWithBlockedPath.PersistSnapshotAsync(snapshot));
         }
 
         [Fact]

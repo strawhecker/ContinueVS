@@ -44,7 +44,7 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange: Config file doesn't exist
             // Act: Read returns empty config
-            var config = await ContinueConfigurationManager.ReadConfigAsync();
+            var config = await ContinueConfigurationManager.ReadConfigAsync(_tempConfigPath);
 
             // Assert
             Assert.NotNull(config);
@@ -68,7 +68,7 @@ namespace ContinueVS.Tests.Services
             File.WriteAllText(_tempConfigPath, validJson);
 
             // Act
-            var config = await ContinueConfigurationManager.ReadConfigAsync();
+            var config = await ContinueConfigurationManager.ReadConfigAsync(_tempConfigPath);
 
             // Assert
             Assert.NotNull(config);
@@ -85,7 +85,7 @@ namespace ContinueVS.Tests.Services
 
             // Act & Assert
             await Assert.ThrowsAsync<ConfigurationException>(
-                async () => await ContinueConfigurationManager.ReadConfigAsync()
+                async () => await ContinueConfigurationManager.ReadConfigAsync(_tempConfigPath)
             );
         }
 
@@ -96,8 +96,8 @@ namespace ContinueVS.Tests.Services
             File.WriteAllText(_tempConfigPath, "{ \"other\": \"field\" }");
 
             // Act & Assert
-            await Assert.ThrowsAsync<ConfigurationException>(
-                async () => await ContinueConfigurationManager.ReadConfigAsync()
+            await Assert.ThrowsAsync<SchemaValidationException>(
+                async () => await ContinueConfigurationManager.ReadConfigAsync(_tempConfigPath)
             );
         }
 
@@ -123,7 +123,7 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act & Assert: Should not throw
-            await ContinueConfigurationManager.WriteConfigAsync(config);
+            await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config);
         }
 
         [Fact]
@@ -144,8 +144,8 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<ConfigurationException>(
-                async () => await ContinueConfigurationManager.WriteConfigAsync(config)
+            await Assert.ThrowsAsync<SchemaValidationException>(
+                async () => await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config)
             );
         }
 
@@ -163,8 +163,8 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<ConfigurationException>(
-                async () => await ContinueConfigurationManager.WriteConfigAsync(config)
+            await Assert.ThrowsAsync<SchemaValidationException>(
+                async () => await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config)
             );
         }
 
@@ -186,8 +186,8 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<ConfigurationException>(
-                async () => await ContinueConfigurationManager.WriteConfigAsync(config)
+            await Assert.ThrowsAsync<SchemaValidationException>(
+                async () => await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config)
             );
         }
 
@@ -209,8 +209,8 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<ConfigurationException>(
-                async () => await ContinueConfigurationManager.WriteConfigAsync(config)
+            await Assert.ThrowsAsync<SchemaValidationException>(
+                async () => await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config)
             );
         }
 
@@ -347,10 +347,10 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act
-            await ContinueConfigurationManager.WriteConfigAsync(config);
+            await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config);
 
             // Assert: File should exist and be readable
-            var readBack = await ContinueConfigurationManager.ReadConfigAsync();
+            var readBack = await ContinueConfigurationManager.ReadConfigAsync(_tempConfigPath);
             Assert.Single(readBack.Models);
         }
 
@@ -374,11 +374,11 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act
-            await ContinueConfigurationManager.WriteConfigAsync(config1);
-            await ContinueConfigurationManager.WriteConfigAsync(config2);
+            await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config1);
+            await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config2);
 
             // Assert
-            var readBack = await ContinueConfigurationManager.ReadConfigAsync();
+            var readBack = await ContinueConfigurationManager.ReadConfigAsync(_tempConfigPath);
             Assert.Single(readBack.Models);
             Assert.Equal("Claude", readBack.Models[0].Title);
         }
@@ -412,8 +412,8 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act
-            await ContinueConfigurationManager.WriteConfigAsync(config);
-            var readBack = await ContinueConfigurationManager.ReadConfigAsync();
+            await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config);
+            var readBack = await ContinueConfigurationManager.ReadConfigAsync(_tempConfigPath);
 
             // Assert
             Assert.Equal("sk-test", readBack.Models[0].ApiKey);
@@ -460,8 +460,8 @@ namespace ContinueVS.Tests.Services
             };
 
             // Act & Assert: Should throw before writing
-            await Assert.ThrowsAsync<ConfigurationException>(
-                async () => await ContinueConfigurationManager.WriteConfigAsync(config)
+            await Assert.ThrowsAsync<SchemaValidationException>(
+                async () => await ContinueConfigurationManager.WriteConfigAsync(_tempConfigPath, config)
             );
         }
 

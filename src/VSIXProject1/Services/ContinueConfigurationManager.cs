@@ -43,7 +43,23 @@ namespace ContinueVS.Services
         /// <exception cref="ConfigurationException">Thrown on file I/O or validation errors.</exception>
         public static async Task<ContinueConfig> ReadConfigAsync(CancellationToken cancellationToken = default)
         {
-            string configPath = GetConfigPath();
+            return await ReadConfigAsync(GetConfigPath(), cancellationToken);
+        }
+
+        /// <summary>
+        /// Internal overload: Reads and deserializes Continue config file from a specific path.
+        /// Used for testing with custom paths; production code uses path-less overload.
+        /// </summary>
+        /// <param name="configPath">Full path to config file to read.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Deserialized ContinueConfig with validated structure.</returns>
+        /// <exception cref="ConfigurationException">Thrown on file I/O or validation errors.</exception>
+        internal static async Task<ContinueConfig> ReadConfigAsync(string configPath, CancellationToken cancellationToken = default)
+        {
+            if (configPath == null)
+            {
+                throw new ArgumentNullException(nameof(configPath));
+            }
 
             lock (s_fileLock)
             {
@@ -114,8 +130,35 @@ namespace ContinueVS.Services
         /// Thread-safe: uses lock for synchronous directory/file operations.
         /// </summary>
         /// <exception cref="ConfigurationException">Thrown on validation or file I/O errors.</exception>
+        /// <summary>
+        /// Writes and serializes Continue config file (~/.continue/config.json).
+        /// 
+        /// Creates parent directory (~/.continue) if not present.
+        /// Creates backup of existing file before overwriting.
+        /// Validates schema before writing.
+        /// Thread-safe: uses lock for synchronous directory/file operations.
+        /// </summary>
+        /// <exception cref="ConfigurationException">Thrown on validation or file I/O errors.</exception>
         public static async Task WriteConfigAsync(ContinueConfig config, CancellationToken cancellationToken = default)
         {
+            await WriteConfigAsync(GetConfigPath(), config, cancellationToken);
+        }
+
+        /// <summary>
+        /// Internal overload: Writes and serializes Continue config file to a specific path.
+        /// Used for testing with custom paths; production code uses path-less overload.
+        /// </summary>
+        /// <param name="configPath">Full path where config file should be written.</param>
+        /// <param name="config">Configuration object to serialize.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ConfigurationException">Thrown on validation or file I/O errors.</exception>
+        internal static async Task WriteConfigAsync(string configPath, ContinueConfig config, CancellationToken cancellationToken = default)
+        {
+            if (configPath == null)
+            {
+                throw new ArgumentNullException(nameof(configPath));
+            }
+
             if (config == null)
             {
                 throw new ArgumentNullException(nameof(config));
@@ -123,7 +166,6 @@ namespace ContinueVS.Services
 
             ValidateSchema(config);
 
-            string configPath = GetConfigPath();
             string configDir = Path.GetDirectoryName(configPath);
 
             try

@@ -1,5 +1,6 @@
 ﻿#nullable enable
 
+using ContinueVS.Handlers.Llm;
 using ContinueVS.Services;
 using Moq;
 using System;
@@ -119,9 +120,11 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange
             var collector = new ModelInfoCollector();
+            var emptyModelConfigs = new List<LlmModelConfig>(); // Empty list simulates no configured models
 
             // Act
-            var result = await collector.GetAvailableModelsAsync();
+            // Use internal overload with empty model list to test graceful degradation
+            var result = await collector.GetAvailableModelsAsync(emptyModelConfigs);
 
             // Assert
             Assert.NotNull(result);

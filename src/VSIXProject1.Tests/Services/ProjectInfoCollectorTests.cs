@@ -1,8 +1,6 @@
 ﻿#nullable enable
 
 using ContinueVS.Services;
-using EnvDTE;
-using Microsoft.VisualStudio.Shell;
 using Moq;
 using System;
 using System.Collections;
@@ -15,32 +13,29 @@ namespace ContinueVS.Tests.Services
     /// <summary>
     /// Unit tests for ProjectInfoCollector.
     /// Tests DTE query patterns, null-safety, project enumeration, and error handling.
-    /// NOTE: All tests are marked [Skip] as they require VS DTE runtime and UI thread context.
-    /// The VSTHRD010 analyzer warnings about UI thread access are expected since we're setting up
-    /// mock DTE objects in a test context; the actual collector code handles threading correctly.
+    /// These tests use the mockable IDTEService interface instead of direct DTE mocking,
+    /// allowing them to run without loading Visual Studio assemblies.
     /// </summary>
-#pragma warning disable VSTHRD010
     public class ProjectInfoCollectorTests
     {
-        #region Suite 1: Initialization & Null-Safety (4 tests)
+        #region Suite 1: Initialization & Null-Safety (3 tests)
 
         [Fact]
-        public void Constructor_WithNullDte_ThrowsArgumentNullException()
+        public void Constructor_WithNullDTEService_ThrowsArgumentNullException()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => new ProjectInfoCollector(null!));
+            IDTEService? nullService = null;
+            Assert.Throws<ArgumentNullException>(() => new ProjectInfoCollector(nullService!));
         }
 
         [Fact]
-        public void Constructor_WithValidDte_CreatesSuccessfully()
+        public void Constructor_WithValidDTEService_CreatesSuccessfully()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var dteMock = new Mock<DTE>();
+            var dteServiceMock = new Mock<IDTEService>();
 
             // Act
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Assert
             Assert.NotNull(collector);
@@ -49,29 +44,14 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void Constructor_WithOptionalLogger_AcceptsNullLogger()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var dteMock = new Mock<DTE>();
+            var dteServiceMock = new Mock<IDTEService>();
 
             // Act
-            var collector = new ProjectInfoCollector(dteMock.Object, null);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object, null);
 
             // Assert
             Assert.NotNull(collector);
-        }
-
-        [Fact]
-        public void GetProjectInfo_WithNullSolution_ThrowsProjectInfoError()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            // Arrange
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns((Solution)null!);
-            var collector = new ProjectInfoCollector(dteMock.Object);
-
-            // Act & Assert
-            var ex = Assert.Throws<ProjectInfoError>(() => collector.GetProjectInfo());
-            Assert.Equal("NO_SOLUTION", ex.ErrorCode);
         }
 
         #endregion
@@ -79,18 +59,30 @@ namespace ContinueVS.Tests.Services
         #region Suite 2: Solution Info Queries (4 tests)
 
         [Fact]
+        public void GetProjectInfo_WithNullSolution_ThrowsProjectInfoError()
+        {
+            // Arrange
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d. Solution).Returns((ISolutionAdapter)null!);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
+
+            // Act & Assert
+            var ex = Assert.Throws<ProjectInfoError>(() => collector.GetProjectInfo());
+            Assert.Equal("NO_SOLUTION", ex.ErrorCode);
+        }
+
+        [Fact]
         public void GetProjectInfo_WithValidSolution_ReturnsSolutionInfo()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\MySolution.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(new List<(string name, string path)>()));
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -104,16 +96,15 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithZeroProjects_ReturnsZeroProjectCount()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Empty.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(new List<(string, string)>()));
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -125,7 +116,6 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithMultipleProjects_ReturnsCorrectCount()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
@@ -134,14 +124,14 @@ namespace ContinueVS.Tests.Services
                 ("Project3", @"C:\Solution\Project3\Project3.csproj")
             };
 
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Multi.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(projects));
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -154,16 +144,15 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithNullFullName_HandlesGracefully()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns((string)null!);
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(new List<(string, string)>()));
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -175,12 +164,11 @@ namespace ContinueVS.Tests.Services
 
         #endregion
 
-        #region Suite 3: Project Enumeration (4 tests)
+        #region Suite 3: Project Enumeration (5 tests)
 
         [Fact]
         public void GetProjectInfo_WithProjects_EnumeratesAllProjects()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
@@ -188,14 +176,14 @@ namespace ContinueVS.Tests.Services
                 ("ClassLib", @"C:\Solution\ClassLib\ClassLib.csproj")
             };
 
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Multi.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(projects));
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -209,21 +197,20 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithCSharpProject_DetectsProjectType()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
                 ("CSharpApp", @"C:\Solution\CSharpApp\CSharpApp.csproj")
             };
 
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Multi.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(projects));
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -236,26 +223,26 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithMultipleProjects_SkipsProjectsWithoutName()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Multi.sln");
 
-            // Create mock projects list with one null and two valid
-            var projectsMock = new Mock<Projects>();
-            projectsMock.Setup(p => p.Count).Returns(2);
-            projectsMock.Setup(p => p.GetEnumerator()).Returns(() =>
+            // Create mock projects adapter with one valid and one invalid
+            var projectsAdapterMock = new Mock<IProjectsAdapter>();
+            projectsAdapterMock.Setup(p => p.Count).Returns(2);
+            projectsAdapterMock.Setup(p => p.GetEnumerator()).Returns(() =>
             {
                 var list = new ArrayList();
 
-                var proj1 = new Mock<Project>();
+                var proj1 = new Mock<IProjectAdapter>();
                 proj1.Setup(pr => pr.Name).Returns("ValidProject");
                 proj1.Setup(pr => pr.FullName).Returns(@"C:\Solution\ValidProject\Valid.csproj");
                 proj1.Setup(pr => pr.Kind).Returns("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}");
-                proj1.Setup(pr => pr.Properties).Returns((Properties)null!);
+                proj1.Setup(pr => pr.Properties).Returns((IPropertiesAdapter)null!);
+                proj1.Setup(pr => pr.ConfigurationManager).Returns((IConfigurationManagerAdapter)null!);
                 list.Add(proj1.Object);
 
-                var proj2 = new Mock<Project>();
+                var proj2 = new Mock<IProjectAdapter>();
                 proj2.Setup(pr => pr.Name).Returns((string)null!);
                 proj2.Setup(pr => pr.FullName).Returns((string)null!);
                 list.Add(proj2.Object);
@@ -263,12 +250,12 @@ namespace ContinueVS.Tests.Services
                 return list.GetEnumerator();
             });
 
-            solutionMock.Setup(s => s.Projects).Returns(projectsMock.Object);
+            solutionMock.Setup(s => s.Projects).Returns(projectsAdapterMock.Object);
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -279,6 +266,34 @@ namespace ContinueVS.Tests.Services
             Assert.Equal("ValidProject", result.Projects.First().Name);
         }
 
+        [Fact]
+        public void GetProjectInfo_WithTargetFramework_IncludesInProjectInfo()
+        {
+            // Arrange
+            var projects = new List<(string, string)>
+            {
+                ("NetProject", @"C:\Solution\NetProject\NetProject.csproj")
+            };
+
+            var solutionMock = new Mock<ISolutionAdapter>();
+            solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Multi.sln");
+            var projectsAdapter = CreateMockProjects(projects);
+            solutionMock.Setup(s => s.Projects).Returns(projectsAdapter);
+
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
+
+            // Act
+            var result = collector.GetProjectInfo();
+
+            // Assert
+            var project = result.Projects.First();
+            Assert.NotNull(project.TargetFramework);
+            Assert.NotEmpty(project.TargetFramework);
+        }
+
         #endregion
 
         #region Suite 4: Build Status Collection (3 tests)
@@ -286,25 +301,23 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithValidProject_IncludesBuildStatus()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
             var projects = new List<(string, string)>
             {
                 ("MyProject", @"C:\Solution\MyProject\MyProject.csproj")
             };
 
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Multi.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(projects));
 
-            var solutionBuildMock = new Mock<SolutionBuild>();
-            // Note: SolutionBuild may not expose a "Building" property in all VS configurations
+            var solutionBuildMock = new Mock<ISolutionBuildAdapter>();
             solutionMock.Setup(s => s.SolutionBuild).Returns(solutionBuildMock.Object);
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -317,44 +330,39 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WhenSolutionBuilding_ReportsBuildingStatus()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Building.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(new List<(string, string)>()));
 
-            var solutionBuildMock = new Mock<SolutionBuild>();
-            // Note: SolutionBuild may not expose a "Building" property in all VS configurations
+            var solutionBuildMock = new Mock<ISolutionBuildAdapter>();
             solutionMock.Setup(s => s.SolutionBuild).Returns(solutionBuildMock.Object);
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
 
             // Assert
-            // Note: This test validates the build status is collected; actual "building" state
-            // requires proper SolutionBuild property access which may be limited in test environment
             Assert.NotNull(result.BuildStatus);
         }
 
         [Fact]
         public void GetProjectInfo_WithNullSolutionBuild_DefaultsToNotBuilding()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\NoBuild.sln");
             solutionMock.Setup(s => s.Projects).Returns(CreateMockProjects(new List<(string, string)>()));
-            solutionMock.Setup(s => s.SolutionBuild).Returns((SolutionBuild)null!);
+            solutionMock.Setup(s => s.SolutionBuild).Returns((ISolutionBuildAdapter)null!);
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act
             var result = collector.GetProjectInfo();
@@ -370,16 +378,15 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithProjectEnumerationFailure_ThrowsCollectionError()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var solutionMock = new Mock<Solution>();
+            var solutionMock = new Mock<ISolutionAdapter>();
             solutionMock.Setup(s => s.FullName).Returns(@"C:\Solution\Bad.sln");
             solutionMock.Setup(s => s.Projects).Throws<Exception>();
 
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns(solutionMock.Object);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns(solutionMock.Object);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act & Assert
             Assert.Throws<CollectionError>(() => collector.GetProjectInfo());
@@ -388,12 +395,11 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void GetProjectInfo_WithSolutionNull_ThrowsProjectInfoError()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
             // Arrange
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Solution).Returns((Solution)null!);
+            var dteServiceMock = new Mock<IDTEService>();
+            dteServiceMock.Setup(d => d.Solution).Returns((ISolutionAdapter)null!);
 
-            var collector = new ProjectInfoCollector(dteMock.Object);
+            var collector = new ProjectInfoCollector(dteServiceMock.Object);
 
             // Act & Assert
             var ex = Assert.Throws<ProjectInfoError>(() => collector.GetProjectInfo());
@@ -414,33 +420,54 @@ namespace ContinueVS.Tests.Services
 
         #region Helpers
 
-        private Projects CreateMockProjects(List<(string name, string path)> projectList)
+        private IProjectsAdapter CreateMockProjects(List<(string name, string path)> projectList)
         {
-            var projectsMock = new Mock<Projects>();
-            projectsMock.Setup(p => p.Count).Returns(projectList.Count);
+            var projectsAdapterMock = new Mock<IProjectsAdapter>();
+            projectsAdapterMock.Setup(p => p.Count).Returns(projectList.Count);
 
-            projectsMock.Setup(p => p.GetEnumerator()).Returns(() =>
+            projectsAdapterMock.Setup(p => p.GetEnumerator()).Returns(() =>
             {
                 var list = new ArrayList();
 
                 foreach (var (name, path) in projectList)
                 {
-                    var projMock = new Mock<Project>();
+                    var projMock = new Mock<IProjectAdapter>();
                     projMock.Setup(pr => pr.Name).Returns(name);
                     projMock.Setup(pr => pr.FullName).Returns(path);
                     projMock.Setup(pr => pr.Kind).Returns("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"); // C# GUID
-                    projMock.Setup(pr => pr.Properties).Returns((Properties)null!);
-                    projMock.Setup(pr => pr.ConfigurationManager).Returns((ConfigurationManager)null!);
+
+                    // Mock Properties for target framework
+                    var propertiesMock = new Mock<IPropertiesAdapter>();
+                    propertiesMock.Setup(pr => pr.Item("TargetFramework")).Returns(
+                        CreateMockProperty("net8.0"));
+                    propertiesMock.Setup(pr => pr.Item("TargetFrameworks")).Returns(
+                        CreateMockProperty(null));
+                    propertiesMock.Setup(pr => pr.Item("TargetFrameworkVersion")).Returns(
+                        CreateMockProperty(null));
+
+                    projMock.Setup(pr => pr.Properties).Returns(propertiesMock.Object);
+                    projMock.Setup(pr => pr.ConfigurationManager).Returns((IConfigurationManagerAdapter)null!);
                     list.Add(projMock.Object);
                 }
 
                 return list.GetEnumerator();
             });
 
-            return projectsMock.Object;
+            return projectsAdapterMock.Object;
+        }
+
+        private IPropertyAdapter? CreateMockProperty(string? value)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            var propMock = new Mock<IPropertyAdapter>();
+            propMock.Setup(p => p.Value).Returns(value);
+            return propMock.Object;
         }
 
         #endregion
     }
-#pragma warning restore VSTHRD010
 }

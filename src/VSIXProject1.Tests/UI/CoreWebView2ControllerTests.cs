@@ -5,12 +5,16 @@ using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
+using ContinueVS.Tests.Infrastructure;
 
 namespace ContinueVS.Tests.UI
 {
     /// <summary>
     /// Unit tests for CoreWebView2Controller initialization and binding.
     /// These tests verify HWND binding, parent-child window relationship, and bounds persistence.
+    /// 
+    /// All tests are wrapped with StaTestHelper.RunAsync() because Window and WebView2
+    /// require STA (Single-Threaded Apartment) context. xUnit runs tests on MTA by default.
     /// </summary>
     public class CoreWebView2ControllerTests
     {
@@ -21,40 +25,43 @@ namespace ContinueVS.Tests.UI
         [Fact]
         public async Task EnsureCoreWebView2Async_WithValidEnvironment_InitializesControllerSuccessfully()
         {
-            // Arrange: Create a minimal WebView2 instance in a test window
-            var testWindow = new Window { Width = 800, Height = 600 };
-            var webView = new WebView2 { };
-            testWindow.Content = webView;
-            testWindow.Show();
-
-            try
+            await StaTestHelper.RunAsync(async () =>
             {
-                // Act: Initialize the environment and controller
-                var userDataFolder = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ContinueVS",
-                    "WebView2Tests"
-                );
+                // Arrange: Create a minimal WebView2 instance in a test window
+                var testWindow = new Window { Width = 800, Height = 600 };
+                var webView = new WebView2 { };
+                testWindow.Content = webView;
+                testWindow.Show();
 
-                var env = await CoreWebView2Environment.CreateAsync(
-                    browserExecutableFolder: null,
-                    userDataFolder: userDataFolder
-                );
+                try
+                {
+                    // Act: Initialize the environment and controller
+                    var userDataFolder = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "ContinueVS",
+                        "WebView2Tests"
+                    );
 
-                Assert.NotNull(env);
+                    var env = await CoreWebView2Environment.CreateAsync(
+                        browserExecutableFolder: null,
+                        userDataFolder: userDataFolder
+                    );
 
-                await webView.EnsureCoreWebView2Async(env);
+                    Assert.NotNull(env);
 
-                // Assert: CoreWebView2 is initialized and controller is bound
-                Assert.NotNull(webView.CoreWebView2);
-                Assert.True(webView.CoreWebView2.BrowserProcessId > 0);
+                    await webView.EnsureCoreWebView2Async(env);
 
-                System.Diagnostics.Debug.WriteLine($"[TEST-B2-BINDING] Controller initialized: BrowserProcessId={webView.CoreWebView2.BrowserProcessId}");
-            }
-            finally
-            {
-                testWindow.Close();
-            }
+                    // Assert: CoreWebView2 is initialized and controller is bound
+                    Assert.NotNull(webView.CoreWebView2);
+                    Assert.True(webView.CoreWebView2.BrowserProcessId > 0);
+
+                    System.Diagnostics.Debug.WriteLine($"[TEST-B2-BINDING] Controller initialized: BrowserProcessId={webView.CoreWebView2.BrowserProcessId}");
+                }
+                finally
+                {
+                    testWindow.Close();
+                }
+            });
         }
 
         /// <summary>
@@ -64,43 +71,46 @@ namespace ContinueVS.Tests.UI
         [Fact]
         public async Task CoreWebView2Controller_ParentChildHWND_RelationshipCorrect()
         {
-            // Arrange: Create a window with WebView child element
-            var testWindow = new Window { Width = 800, Height = 600 };
-            var webView = new WebView2 { };
-            testWindow.Content = webView;
-            testWindow.Show();
-
-            try
+            await StaTestHelper.RunAsync(async () =>
             {
-                // Initialize controller
-                var userDataFolder = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ContinueVS",
-                    "WebView2Tests"
-                );
+                // Arrange: Create a window with WebView child element
+                var testWindow = new Window { Width = 800, Height = 600 };
+                var webView = new WebView2 { };
+                testWindow.Content = webView;
+                testWindow.Show();
 
-                var env = await CoreWebView2Environment.CreateAsync(
-                    browserExecutableFolder: null,
-                    userDataFolder: userDataFolder
-                );
+                try
+                {
+                    // Initialize controller
+                    var userDataFolder = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "ContinueVS",
+                        "WebView2Tests"
+                    );
 
-                await webView.EnsureCoreWebView2Async(env);
+                    var env = await CoreWebView2Environment.CreateAsync(
+                        browserExecutableFolder: null,
+                        userDataFolder: userDataFolder
+                    );
 
-                // Act: Get parent window HWND
-                var presentationSource = System.Windows.PresentationSource.FromVisual(webView);
-                var parentWindow = presentationSource?.RootVisual as Window;
-                var parentHwnd = new WindowInteropHelper(parentWindow).Handle;
+                    await webView.EnsureCoreWebView2Async(env);
 
-                // Assert: Parent HWND is valid (non-zero) and WebView is properly nested
-                Assert.NotEqual(IntPtr.Zero, parentHwnd);
-                Assert.Equal(testWindow, parentWindow);
+                    // Act: Get parent window HWND
+                    var presentationSource = System.Windows.PresentationSource.FromVisual(webView);
+                    var parentWindow = presentationSource?.RootVisual as Window;
+                    var parentHwnd = new WindowInteropHelper(parentWindow).Handle;
 
-                System.Diagnostics.Debug.WriteLine($"[TEST-B2-PARENT-CHILD] Parent HWND: 0x{parentHwnd:X8}, WebView properly nested");
-            }
-            finally
-            {
-                testWindow.Close();
-            }
+                    // Assert: Parent HWND is valid (non-zero) and WebView is properly nested
+                    Assert.NotEqual(IntPtr.Zero, parentHwnd);
+                    Assert.Equal(testWindow, parentWindow);
+
+                    System.Diagnostics.Debug.WriteLine($"[TEST-B2-PARENT-CHILD] Parent HWND: 0x{parentHwnd:X8}, WebView properly nested");
+                }
+                finally
+                {
+                    testWindow.Close();
+                }
+            });
         }
 
         /// <summary>
@@ -110,61 +120,64 @@ namespace ContinueVS.Tests.UI
         [Fact]
         public async Task CoreWebView2Controller_Bounds_PersistAcrossLayoutUpdates()
         {
-            // Arrange: Create window with explicit size
-            var testWindow = new Window { Width = 800, Height = 600 };
-            var webView = new WebView2 { };
-            testWindow.Content = webView;
-            testWindow.Show();
-
-            try
+            await StaTestHelper.RunAsync(async () =>
             {
-                // Initialize controller
-                var userDataFolder = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ContinueVS",
-                    "WebView2Tests"
-                );
+                // Arrange: Create window with explicit size
+                var testWindow = new Window { Width = 800, Height = 600 };
+                var webView = new WebView2 { };
+                testWindow.Content = webView;
+                testWindow.Show();
 
-                var env = await CoreWebView2Environment.CreateAsync(
-                    browserExecutableFolder: null,
-                    userDataFolder: userDataFolder
-                );
-
-                await webView.EnsureCoreWebView2Async(env);
-
-                // Act: Capture bounds immediately after controller init
-                var boundsAfterInit = new
+                try
                 {
-                    Width = webView.ActualWidth,
-                    Height = webView.ActualHeight,
-                    X = webView.DesiredSize.Width,
-                    Y = webView.DesiredSize.Height
-                };
+                    // Initialize controller
+                    var userDataFolder = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "ContinueVS",
+                        "WebView2Tests"
+                    );
 
-                // Trigger a layout update
-                testWindow.InvalidateVisual();
-                await Task.Delay(100); // Give layout time to process
+                    var env = await CoreWebView2Environment.CreateAsync(
+                        browserExecutableFolder: null,
+                        userDataFolder: userDataFolder
+                    );
 
-                // Capture bounds after update
-                var boundsAfterUpdate = new
+                    await webView.EnsureCoreWebView2Async(env);
+
+                    // Act: Capture bounds immediately after controller init
+                    var boundsAfterInit = new
+                    {
+                        Width = webView.ActualWidth,
+                        Height = webView.ActualHeight,
+                        X = webView.DesiredSize.Width,
+                        Y = webView.DesiredSize.Height
+                    };
+
+                    // Trigger a layout update
+                    testWindow.InvalidateVisual();
+                    await Task.Delay(100); // Give layout time to process
+
+                    // Capture bounds after update
+                    var boundsAfterUpdate = new
+                    {
+                        Width = webView.ActualWidth,
+                        Height = webView.ActualHeight,
+                        X = webView.DesiredSize.Width,
+                        Y = webView.DesiredSize.Height
+                    };
+
+                    // Assert: Bounds should remain stable (or be set to window size)
+                    // Note: ActualWidth/Height may be 0 in headless test environment,
+                    // but we verify the controller persists regardless
+                    Assert.NotNull(webView.CoreWebView2);
+
+                    System.Diagnostics.Debug.WriteLine($"[TEST-B2-BOUNDS] Initial: W={boundsAfterInit.Width}, H={boundsAfterInit.Height}; After update: W={boundsAfterUpdate.Width}, H={boundsAfterUpdate.Height}");
+                }
+                finally
                 {
-                    Width = webView.ActualWidth,
-                    Height = webView.ActualHeight,
-                    X = webView.DesiredSize.Width,
-                    Y = webView.DesiredSize.Height
-                };
-
-                // Assert: Bounds should remain stable (or be set to window size)
-                // Note: ActualWidth/Height may be 0 in headless test environment,
-                // but we verify the controller persists regardless
-                Assert.NotNull(webView.CoreWebView2);
-
-                System.Diagnostics.Debug.WriteLine($"[TEST-B2-BOUNDS] Initial: W={boundsAfterInit.Width}, H={boundsAfterInit.Height}; After update: W={boundsAfterUpdate.Width}, H={boundsAfterUpdate.Height}");
-            }
-            finally
-            {
-                testWindow.Close();
-            }
+                    testWindow.Close();
+                }
+            });
         }
     }
 }

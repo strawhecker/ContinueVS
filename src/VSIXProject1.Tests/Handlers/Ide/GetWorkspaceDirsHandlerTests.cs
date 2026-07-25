@@ -14,8 +14,13 @@ namespace ContinueVS.Tests.Handlers.Ide
         public async Task HandleAsync_WithValidMessage_SendsReplyWithWorkspaceDirs()
         {
             // Arrange
-            var mockControl = new Mock<ContinueToolWindowControl>();
-            var handler = new GetWorkspaceDirsHandler(mockControl.Object);
+            var mockGuiReply = new Mock<IGuiReplyProvider>();
+            var mockWorkspaceProvider = new Mock<IWorkspacePathProvider>();
+            mockWorkspaceProvider
+                .Setup(w => w.GetWorkspaceDirectoriesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new[] { "/home/user/project" });
+
+            var handler = new GetWorkspaceDirsHandler(mockGuiReply.Object, mockWorkspaceProvider.Object);
 
             var message = new Message
             {
@@ -31,7 +36,7 @@ namespace ContinueVS.Tests.Handlers.Ide
 
             // Assert
             // Verify SendReplyToGui was called
-            mockControl.Verify(
+            mockGuiReply.Verify(
                 c => c.SendReplyToGui(
                     It.IsAny<string>(),
                     "test-id-123",

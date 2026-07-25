@@ -90,6 +90,19 @@ namespace ContinueVS.Services
         }
 
         /// <summary>
+        /// Initialize metrics collector with a custom storage path (for testing).
+        /// </summary>
+        public HandlerMetricsCollector(
+            string? customStoragePath,
+            object? bridgeServiceProvider = null,
+            object? logger = null)
+        {
+            _bridgeServiceProvider = bridgeServiceProvider;
+            _logger = logger;
+            _storagePath = customStoragePath ?? (GetStoragePath() ?? string.Empty);
+        }
+
+        /// <summary>
         /// Get default metrics storage path: ~/.continue/metrics/
         /// </summary>
         public static string GetStoragePath()

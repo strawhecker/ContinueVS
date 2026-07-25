@@ -127,6 +127,8 @@ namespace VSIXProject1.Services
         /// </summary>
         public async Task<BridgeStateSnapshot?> CreateSnapshotAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 var snapshot = new BridgeStateSnapshot

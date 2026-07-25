@@ -202,7 +202,7 @@ namespace ContinueVS.Tests.Diagnostics
         {
             // Arrange
             var tracer = new ExecutionTracer();
-            var scope = tracer.BeginScope("t1", "Package") as TraceScope;
+            var scope = tracer.BeginScope("t1", "Package") as ExecutionTracer.TraceScope;
 
             // Act & Assert
             scope!.Dispose();

@@ -22,12 +22,19 @@ using System.IO;
 namespace ContinueVS.UI
 {
     /// <summary>
+    /// Interface for sending replies back to the GUI (testable abstraction)
+    /// </summary>
+    public interface IGuiReplyProvider
+    {
+        void SendReplyToGui(string messageType, string messageId, object data);
+    }
+    /// <summary>
     /// WPF UserControl hosting a WebView2 that renders the Continue React GUI.
     ///
     /// The GUI HTML is extracted alongside the binary from the Continue VSIX package.
     /// It communicates with the continue-binary via the stdio IPC client.
     /// </summary>
-    public partial class ContinueToolWindowControl : UserControl, IDisposable
+    public partial class ContinueToolWindowControl : UserControl, IDisposable, IGuiReplyProvider
     {
         private bool _webViewInitialized;
         private bool _disposed;
@@ -649,7 +656,7 @@ namespace ContinueVS.UI
             return tcs.Task;
         }
 
-        internal void SendReplyToGui(string messageType, string messageId, object data)
+        public void SendReplyToGui(string messageType, string messageId, object data)
         {
             // [t9] Log outbound response
             System.Diagnostics.Debug.WriteLine($"[t9-RESPONSE] SendReplyToGui called: Type={messageType}, ID={messageId}");
