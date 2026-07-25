@@ -15,7 +15,7 @@
 
 | step | classification | description | blocker | verifiable via |
 |---|---|---|---|---|
-| u1 | **Unit** | **Bridge Message Envelope Structure Validation** — Verify C# Message class JSON serialization/deserialization. Round-trip fidelity, null/empty field handling. No WebView required; mocked dependencies. | None | Unit test assertions (no logs needed) |
+| u1 | **Unit** | **Bridge Message Envelope Structure Validation** — Verify C# Message class JSON serialization/deserialization. Round-trip fidelity, null/empty field handling. No WebView required; mocked dependencies. ✅ fully instrumented & verified | None | Unit test assertions (no logs needed) |
 | u2 | **Unit** | **MessageDispatcher Handler Registration** — Verify Register(), lookup by type, idempotency. All 19+ handlers register without conflict. Case-insensitive lookup (if applicable). No execution; mocked handlers only. | None | Unit test assertions |
 | u3 | **Unit** | **MessageDispatcher Dispatch Routing (Mocked)** — Inject mock message (MessageType: "test-handler", MessageId: "msg-001"). Verify dispatcher finds handler, `handler.HandleAsync()` invoked. Callback/event confirms invocation. No WebView, mocks only. | u2 | Unit test assertions |
 | u4 | **Unit** | **Message Validator — Valid Envelope** — Construct valid Message (all required fields), pass to MessageValidator. Assert validation succeeds without exception. | u1 | Unit test assertions |
@@ -72,6 +72,38 @@
 **Next Step**: t10 - Handler Loop (getIdeInfo) - uses identical dispatch pattern
 
 **Full Report**: [docs/STEP-T9-VERIFICATION-REPORT.md](docs/STEP-T9-VERIFICATION-REPORT.md)
+
+---
+
+## 🟢 Latest Milestone: u1 VERIFIED
+
+**Bridge Message Envelope Structure Validation** is now **✅ FULLY TESTED**
+
+### Test Summary (Unit Test Coverage)
+- **Test File**: `src/VSIXProject1.Tests/IPC/MessageEnvelopeTests.cs`
+- **Test Count**: 24 comprehensive unit tests
+- **Execution Status**: ✅ 24/24 PASSED (100% pass rate)
+- **Coverage Areas**:
+  - ✅ Round-trip serialization/deserialization (valid messages with/without data)
+  - ✅ JSON property mapping (camelCase names: messageType, messageId, data)
+  - ✅ Null and empty field handling (missing fields, null values, defaults)
+  - ✅ Complex nested payload structures (objects, arrays, primitives, deep nesting)
+  - ✅ Special characters, whitespace, and Unicode in fields
+  - ✅ Edge cases (very long IDs, deeply nested payloads, empty objects/arrays)
+  - ✅ JSON validity and format
+  - ✅ Message instantiation defaults
+
+### Test Breakdown
+**Round-Trip Tests** (6): Valid messages with all fields, without data, nested objects, arrays, primitives, numeric payloads
+**Property Mapping Tests** (2): camelCase serialization, case-insensitive deserialization
+**Null/Empty Tests** (5): Missing fields, null values, default values for MessageType/MessageId/Data
+**Complex Payload Tests** (5): Nested objects, arrays, primitives, numeric values, very long IDs
+**Edge Cases** (4): Deep nesting, empty objects, empty arrays, Unicode support
+**JSON Format Tests** (2): Valid JSON production, malformed JSON handling
+
+**Status**: COMPLETE - Message envelope structure fully validated, round-trip fidelity confirmed, all 24 tests passing
+
+**Next Step**: u2 - MessageDispatcher Handler Registration unit tests
 
 ---
 

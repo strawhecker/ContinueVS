@@ -398,10 +398,11 @@ namespace ContinueVS.UI
 
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
-                // STEP b3.1: Add NavigationCompleted event handler
-                System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] Navigation handler registration starting");
-                var navStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                WebView.CoreWebView2.NavigationCompleted += async (sender, args) =>
+                                 // STEP b3.1: Add NavigationCompleted event handler
+                                 System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] Navigation handler registration starting");
+                                 var navStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                #pragma warning disable VSTHRD101 // All exceptions are caught in try/catch below
+                                 WebView.CoreWebView2.NavigationCompleted += async (sender, args) =>
                 {
                     navStopwatch.Stop();
                     System.Diagnostics.Debug.WriteLine($"[b3-NAV-COMPLETED] NavigationCompleted event fired, IsSuccess={args.IsSuccess}, WebErrorStatus={args.WebErrorStatus}, elapsed={navStopwatch.ElapsedMilliseconds}ms");
@@ -439,10 +440,11 @@ namespace ContinueVS.UI
                             string cleanedDomResult = domResult;
                             if (cleanedDomResult.StartsWith("\"") && cleanedDomResult.EndsWith("\""))
                             {
-                                cleanedDomResult = System.Text.Json.JsonDocument.Parse(domResult).RootElement.GetString();
+                                var parsedJson = System.Text.Json.JsonDocument.Parse(domResult);
+                                cleanedDomResult = parsedJson.RootElement.GetString() ?? domResult;
                             }
 
-                            var domState = Newtonsoft.Json.Linq.JObject.Parse(cleanedDomResult);
+                            var domState = Newtonsoft.Json.Linq.JObject.Parse(cleanedDomResult ?? "");
                             string readyState = domState["readyState"]?.ToString() ?? "unknown";
                             bool bodyExists = domState["bodyExists"]?.Value<bool>() ?? false;
                             System.Diagnostics.Debug.WriteLine($"[b3-DOM-BODY] document.readyState={readyState}, document.body exists={bodyExists}");
@@ -490,10 +492,11 @@ namespace ContinueVS.UI
                             string cleanedBridgeResult = bridgeResult;
                             if (cleanedBridgeResult.StartsWith("\"") && cleanedBridgeResult.EndsWith("\""))
                             {
-                                cleanedBridgeResult = System.Text.Json.JsonDocument.Parse(bridgeResult).RootElement.GetString();
+                                var parsedJson = System.Text.Json.JsonDocument.Parse(bridgeResult);
+                                cleanedBridgeResult = parsedJson.RootElement.GetString() ?? bridgeResult;
                             }
 
-                            var bridgeState = Newtonsoft.Json.Linq.JObject.Parse(cleanedBridgeResult);
+                            var bridgeState = Newtonsoft.Json.Linq.JObject.Parse(cleanedBridgeResult ?? "");
                             bool bridgeReady = bridgeState["bridgeReady"]?.Value<bool>() ?? false;
                             System.Diagnostics.Debug.WriteLine($"[b3-INTEGRATION] Bridge operational: {bridgeReady}, sendMessage={bridgeState["hasSendMessage"]}, onMessage={bridgeState["hasOnMessage"]}, getState={bridgeState["hasGetState"]}");
                         }
@@ -515,6 +518,7 @@ namespace ContinueVS.UI
                         System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] Unexpected exception in NavigationCompleted handler: {ex.GetType().Name} - {ex.Message}");
                     }
                 };
+#pragma warning restore VSTHRD101
                 System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] NavigationCompleted handler registered successfully");
 
                 _webViewInitialized = true;
