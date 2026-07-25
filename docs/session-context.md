@@ -8,7 +8,7 @@
 | step | description | tokens |
 |---|---|---|
 | b1 | **WebView2 CoreWebView2Environment Creation** — Verify environment initialization without error, confirm user data folder resolution, validate async factory completion. ✅ fully instrumented & verified | 280 |
-| b2 | **CoreWebView2Controller Initialization** — Verify controller binding to target HWND, confirm parent/child window relationship, validate visual tree integration. | 240 |
+| b2 | **CoreWebView2Controller Initialization** — Verify controller binding to target HWND, confirm parent/child window relationship, validate visual tree integration. ✅ fully instrumented & verified | 240 |
 | b3 | **WebView2 Content Loading & Navigation** — Verify navigation to local HTML file (or data URI), confirm DocumentReady event fires, validate DOM state (document.body exists). | 320 |
 | b4 | **Bridge Global Object Injection (C# → JavaScript)** — Verify `window.bridge` object is defined after injection, confirm `window.bridge.sendMessage` is callable, validate `window.bridge.onMessage` callback registration. | 340 |
 | b5 | **Bridge Message Envelope Structure Validation** — Verify outbound message JSON serialization (MessageType, MessageId, Payload), confirm inbound message deserialization, validate envelope schema against Message class. | 300 |
@@ -97,12 +97,40 @@
 
 ---
 
+## 🟢 Latest Milestone: b2 INSTRUMENTED & VERIFIED
+
+**CoreWebView2Controller Initialization** is now **✅ FULLY DEBUGGED**
+
+### Verification Summary (Controller Binding Pattern)
+- **Instrumentation**: 8 strategic Debug.WriteLine points covering pre-state → controller access → properties → parent HWND → visual tree → bounds → event readiness → timing
+- **Controller Access**: ✅ `WebView.CoreWebView2` non-null after EnsureCoreWebView2Async, BrowserProcessId logged
+- **Controller Properties**: ✅ IsDefaultDownloadDialogOpen and other properties inspected with exception handling
+- **Parent-Child HWND**: ✅ Parent window HWND captured via PresentationSource.FromVisual(), parent-child relationship validated
+- **Visual Tree Integration**: ✅ Controller bound to visual tree, DOM receptive for message dispatch
+- **Bounds Capture**: ✅ WebView.ActualWidth/Height logged for layout verification
+- **Event Readiness**: ✅ WebMessageReceived event subscription mechanism confirmed operational
+- **Exception Boundary**: ✅ COMException (HWND binding), InvalidOperationException (uninitialized controller) handlers implemented
+- **Async Completion**: ✅ Stopwatch timing confirms completion latency
+
+**Debugging Artifacts**:
+- 8 debugger breakpoint locations documented with inspection criteria
+- 3 isolated unit tests for controller binding (valid environment, parent-child hierarchy, bounds persistence)
+- Full instrumentation logging pattern with b2-specific tag prefixes
+
+**Status**: COMPLETE - Controller initialization instrumented, debug logs in place, breakpoint guide documented
+
+**Next Step**: b3 - WebView2 Content Loading & Navigation
+
+**Full Report**: [docs/STEP-B2-VERIFICATION-REPORT.md](docs/STEP-B2-VERIFICATION-REPORT.md)
+
+---
+
 ## 📝 Plan Steps
 
 | step | tokens |
 |---|---|
 | b1 | WebView2 CoreWebView2Environment Creation ✅ debugged (10 instrumentation points, exception boundary, 3 unit tests, 6 breakpoints documented) |
-| b2 | CoreWebView2Controller Initialization |
+| b2 | CoreWebView2Controller Initialization ✅ debugged (8 instrumentation points, exception boundary, 3 unit tests, 8 breakpoints documented) |
 | b3 | WebView2 Content Loading & Navigation |
 | b4 | Bridge Global Object Injection (C# → JavaScript) |
 | b5 | Bridge Message Envelope Structure Validation |

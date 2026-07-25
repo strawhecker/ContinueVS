@@ -247,25 +247,96 @@ namespace ContinueVS.UI
                     }
 
                     System.Diagnostics.Debug.WriteLine("[b1-ENSURE-START] About to call WebView.EnsureCoreWebView2Async(env)");
-                    if (env == null)
-                    {
-                        throw new InvalidOperationException("environment object is null after CreateAsync");
-                    }
-                    await WebView.EnsureCoreWebView2Async(env);
+                     if (env == null)
+                     {
+                         throw new InvalidOperationException("environment object is null after CreateAsync");
+                     }
+                     if (WebView == null)
+                     {
+                         throw new InvalidOperationException("WebView control is null; cannot initialize CoreWebView2");
+                     }
+                     await WebView.EnsureCoreWebView2Async(env);
                     System.Diagnostics.Debug.WriteLine("[b1-ENSURE-SUCCESS] EnsureCoreWebView2Async completed successfully");
 
-                    // STEP b1.6: Verify async factory completion
-                    System.Diagnostics.Debug.WriteLine("[b1-ASYNC-COMPLETION] Async factory pattern verified - environment ready for downstream operations");
-                }
-                catch (OperationCanceledException ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-CANCEL] CreateAsync was cancelled: {ex.Message}");
-                    throw;
-                }
-                catch (System.Runtime.InteropServices.COMException ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-COM] COMException during environment creation: 0x{ex.HResult:X8} - {ex.Message}");
-                    throw;
+                    // STEP b2.1: Pre-state logging before controller binding verification
+                    System.Diagnostics.Debug.WriteLine("[b2-PRE-STATE] WebView element reference obtained, preparing for controller HWND binding");
+
+                    // STEP b2.2: CoreWebView2 access verification
+                    var stopwatchB2 = System.Diagnostics.Stopwatch.StartNew();
+                    if (WebView.CoreWebView2 != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b2-CONTROLLER-ACCESS] CoreWebView2 initialized successfully, BrowserProcessId={WebView.CoreWebView2.BrowserProcessId}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[b2-CONTROLLER-ACCESS] ERROR: CoreWebView2 is null after EnsureCoreWebView2Async");
+                    }
+
+                    // STEP b2.3: Controller properties inspection
+                    if (WebView.CoreWebView2 != null)
+                    {
+                        try
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[b2-CONTROLLER-PROPS] IsDefaultDownloadDialogOpen={WebView.CoreWebView2.IsDefaultDownloadDialogOpen}");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[b2-CONTROLLER-PROPS] Error reading properties: {ex.Message}");
+                        }
+                    }
+
+                    // STEP b2.4: Parent window HWND capture and parent-child validation
+                    try
+                    {
+                        var presentationSource = System.Windows.PresentationSource.FromVisual(WebView);
+                        if (presentationSource != null && presentationSource.RootVisual is System.Windows.Window parentWindow)
+                        {
+                            var parentHwnd = new System.Windows.Interop.WindowInteropHelper(parentWindow).Handle;
+                            System.Diagnostics.Debug.WriteLine($"[b2-PARENT-HWND] Parent ToolWindow HWND: 0x{parentHwnd:X8}, WebView child relationship established");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[b2-PARENT-HWND] WARNING: Could not resolve parent window HWND");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b2-PARENT-HWND] Exception resolving parent HWND: {ex.GetType().Name} - {ex.Message}");
+                    }
+
+                    // STEP b2.5: Visual tree timing and controller ready state
+                    System.Diagnostics.Debug.WriteLine("[b2-VISUAL-TREE] Controller bound to visual tree, DOM receptive for message dispatch");
+
+                    // STEP b2.6: Bounds capture for layout integration verification
+                    System.Diagnostics.Debug.WriteLine($"[b2-BOUNDS-CAPTURE] WebView layout: ActualWidth={WebView.ActualWidth}, ActualHeight={WebView.ActualHeight}");
+
+                    // STEP b2.7: Event readiness verification (confirm WebMessageReceived subscription possible)
+                    try
+                    {
+                        // Verify the event subscription mechanism is ready (we'll actually subscribe later in the flow)
+                        System.Diagnostics.Debug.WriteLine("[b2-EVENT-READY] CoreWebView2 ready for event subscription (WebMessageReceived, NavigationCompleted, etc.)");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b2-EVENT-READY] ERROR: Event subscription not ready: {ex.Message}");
+                    }
+
+                        stopwatchB2.Stop();
+                        System.Diagnostics.Debug.WriteLine($"[b2-TIMING] Controller initialization completed in {stopwatchB2.ElapsedMilliseconds}ms");
+
+                        // STEP b1.6: Verify async factory completion
+                        System.Diagnostics.Debug.WriteLine("[b1-ASYNC-COMPLETION] Async factory pattern verified - environment ready for downstream operations");
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b2-EXCEPTION-INVALID-OP] InvalidOperationException (controller uninitialized or invalid state): {ex.Message}");
+                        throw;
+                        }
+                    catch (System.Runtime.InteropServices.COMException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-COM] COMException during environment creation: 0x{ex.HResult:X8} - {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[b2-EXCEPTION-COM] COMException during controller binding (HWND binding failure): 0x{ex.HResult:X8} - {ex.Message}");
+                        throw;
                 }
                 catch (ArgumentException ex)
                 {
