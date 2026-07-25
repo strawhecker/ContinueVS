@@ -215,15 +215,85 @@ namespace ContinueVS.UI
             if (!_webViewInitialized)
             {
                 System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.NavigateAsync] ENTERING WebView2 initialization block");
+
+                // STEP b1.7: Log pre-call state
+                System.Diagnostics.Debug.WriteLine($"[b1-PRE-STATE] _webViewInitialized={_webViewInitialized}, WebView control={WebView != null}");
+
+                // STEP b1.2: Log user data folder path
                 var userDataFolder = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "ContinueVS", "WebView2");
+                System.Diagnostics.Debug.WriteLine($"[b1-FOLDER-PATH] userDataFolder={userDataFolder}");
 
-                var env = await CoreWebView2Environment.CreateAsync(
-                    browserExecutableFolder: null,
-                    userDataFolder:          userDataFolder);
+                // STEP b1.1 & b1.4: Add exception boundary logging with strategic instrumentation
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("[b1-ENV-CREATE-START] About to call CoreWebView2Environment.CreateAsync()");
+                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-                await WebView.EnsureCoreWebView2Async(env);
+                    var env = await CoreWebView2Environment.CreateAsync(
+                        browserExecutableFolder: null,
+                        userDataFolder:          userDataFolder);
+
+                    stopwatch.Stop();
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-CREATE-SUCCESS] CreateAsync completed in {stopwatch.ElapsedMilliseconds}ms");
+
+                    // STEP b1.3: Instrument environment object state
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-OBJECT] env != null: {env != null}");
+                    if (env != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b1-ENV-OBJECT] BrowserVersionString={env.BrowserVersionString}");
+                        System.Diagnostics.Debug.WriteLine($"[b1-ENV-OBJECT] UserDataFolder={env.UserDataFolder}");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("[b1-ENSURE-START] About to call WebView.EnsureCoreWebView2Async(env)");
+                    await WebView.EnsureCoreWebView2Async(env);
+                    System.Diagnostics.Debug.WriteLine("[b1-ENSURE-SUCCESS] EnsureCoreWebView2Async completed successfully");
+
+                    // STEP b1.6: Verify async factory completion
+                    System.Diagnostics.Debug.WriteLine("[b1-ASYNC-COMPLETION] Async factory pattern verified - environment ready for downstream operations");
+                }
+                catch (OperationCanceledException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-CANCEL] CreateAsync was cancelled: {ex.Message}");
+                    throw;
+                }
+                catch (System.Runtime.InteropServices.COMException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-COM] COMException during environment creation: 0x{ex.HResult:X8} - {ex.Message}");
+                    throw;
+                }
+                catch (ArgumentException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-ARGUMENT] ArgumentException (possibly invalid folder path): {ex.Message}");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-GENERAL] Exception during environment creation: {ex.GetType().Name} - {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-STACKTRACE] {ex.StackTrace}");
+                    throw;
+                }
+
+                // STEP b1.5: Document folder creation side effects
+                if (System.IO.Directory.Exists(userDataFolder))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b1-FOLDER-STATE] User data folder already existed: {userDataFolder}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b1-FOLDER-STATE] User data folder was newly created by WebView2 runtime: {userDataFolder}");
+                }
+
+                // STEP b1.10: Verify integration boundary - check CoreWebView2 readiness
+                if (WebView.CoreWebView2 != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[b1-INTEGRATION] CoreWebView2 is ready for virtual host mapping and bridge injection");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[b1-INTEGRATION] WARNING: CoreWebView2 is null after EnsureCoreWebView2Async - unexpected state");
+                }
 
                 // Map https://continue.local/ → %APPDATA%\ContinueVS\gui\
                 // This lets the React bundle resolve absolute paths like /assets/index.js

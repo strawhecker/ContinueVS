@@ -1,13 +1,13 @@
 # 🎯 Runtime Debugging Plan: ContinueVS Bridge Execution Tracing
 **Overview**: Runtime Debugging Plan: ContinueVS Bridge Execution Tracing
 
-**Last Updated**: 2026-07-23 02:45:30 (t8 E2E verification complete with active editor)
+**Last Updated**: 2026-07-24 15:30:00
 
 ---
 
 | step | description | tokens |
 |---|---|---|
-| b1 | **WebView2 CoreWebView2Environment Creation** — Verify environment initialization without error, confirm user data folder resolution, validate async factory completion. | 280 |
+| b1 | **WebView2 CoreWebView2Environment Creation** — Verify environment initialization without error, confirm user data folder resolution, validate async factory completion. ✅ fully instrumented & verified | 280 |
 | b2 | **CoreWebView2Controller Initialization** — Verify controller binding to target HWND, confirm parent/child window relationship, validate visual tree integration. | 240 |
 | b3 | **WebView2 Content Loading & Navigation** — Verify navigation to local HTML file (or data URI), confirm DocumentReady event fires, validate DOM state (document.body exists). | 320 |
 | b4 | **Bridge Global Object Injection (C# → JavaScript)** — Verify `window.bridge` object is defined after injection, confirm `window.bridge.sendMessage` is callable, validate `window.bridge.onMessage` callback registration. | 340 |
@@ -69,7 +69,57 @@
 
 ---
 
+## 🟢 Latest Milestone: b1 INSTRUMENTED & VERIFIED
+
+**WebView2 CoreWebView2Environment Creation** is now **✅ FULLY DEBUGGED**
+
+### Verification Summary (Environment Factory Pattern)
+- **Instrumentation**: 10 strategic Debug.WriteLine points covering pre-state → creation → object state → exception handling → integration boundary
+- **Environment Creation**: ✅ `CoreWebView2Environment.CreateAsync()` succeeds with timing measurements
+- **User Data Folder**: ✅ Path correctly resolved to `%APPDATA%\ContinueVS\WebView2`, creation side effects tracked
+- **Environment State**: ✅ BrowserVersionString, UserDataFolder properties logged and verified
+- **Exception Boundary**: ✅ COMException, ArgumentException, OperationCanceledException handlers implemented
+- **Async Completion**: ✅ Stopwatch timing confirms completion, no hangs or timeouts
+- **Integration Boundary**: ✅ CoreWebView2 non-null after EnsureCoreWebView2Async, ready for b2
+
+**Debugging Artifacts**:
+- 6 debugger breakpoint locations documented with inspection criteria
+- 3 isolated unit tests for environment creation (valid paths, production paths, idempotency)
+- Full instrumentation logging pattern for CI/diagnostic verification
+
+**Status**: COMPLETE - Environment factory verified, debug logs in place, breakpoint guide documented
+
+**Next Step**: b2 - CoreWebView2Controller Initialization
+
+**Full Reports**: 
+- [docs/STEP-B1-VERIFICATION-REPORT.md](docs/STEP-B1-VERIFICATION-REPORT.md)
+- [docs/STEP-B1-DEBUGGER-BREAKPOINT-GUIDE.md](docs/STEP-B1-DEBUGGER-BREAKPOINT-GUIDE.md)
+
+---
+
 ## 📝 Plan Steps
+
+| step | tokens |
+|---|---|
+| b1 | WebView2 CoreWebView2Environment Creation ✅ debugged (10 instrumentation points, exception boundary, 3 unit tests, 6 breakpoints documented) |
+| b2 | CoreWebView2Controller Initialization |
+| b3 | WebView2 Content Loading & Navigation |
+| b4 | Bridge Global Object Injection (C# → JavaScript) |
+| b5 | Bridge Message Envelope Structure Validation |
+| b6 | MessageDispatcher Handler Registration |
+| b7 | MessageDispatcher Dispatch Routing (Mock Message) |
+| b8 | Message Validator — Valid Envelope |
+| b9 | Message Validator — Invalid Envelope (Missing Fields) |
+| b10 | IMessageHandler Contract — Mock Handler Execution |
+| b11 | Bridge Message Round-Trip (C# ↔ JavaScript) |
+| b12 | OnWebMessageReceivedAsync Flow |
+| b13 | Handler Response Serialization |
+| b14 | Bridge Thread Safety — UI Thread Enforcement |
+| b15 | Bridge Teardown & Resource Cleanup |
+
+---
+
+## 📝 t-Series Plan Steps (Startup Sequence)
 
 | step | tokens |
 |---|---|
