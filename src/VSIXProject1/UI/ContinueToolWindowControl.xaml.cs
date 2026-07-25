@@ -247,6 +247,10 @@ namespace ContinueVS.UI
                     }
 
                     System.Diagnostics.Debug.WriteLine("[b1-ENSURE-START] About to call WebView.EnsureCoreWebView2Async(env)");
+                    if (env == null)
+                    {
+                        throw new InvalidOperationException("environment object is null after CreateAsync");
+                    }
                     await WebView.EnsureCoreWebView2Async(env);
                     System.Diagnostics.Debug.WriteLine("[b1-ENSURE-SUCCESS] EnsureCoreWebView2Async completed successfully");
 
@@ -297,10 +301,17 @@ namespace ContinueVS.UI
 
                 // Map https://continue.local/ → %APPDATA%\ContinueVS\gui\
                 // This lets the React bundle resolve absolute paths like /assets/index.js
-                WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    hostName:          "continue.local",
-                    folderPath:        GuiExtractor.GuiRoot,
-                    accessKind:        CoreWebView2HostResourceAccessKind.Allow);
+                if (WebView.CoreWebView2 != null)
+                {
+                    WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                        hostName:          "continue.local",
+                        folderPath:        GuiExtractor.GuiRoot,
+                        accessKind:        CoreWebView2HostResourceAccessKind.Allow);
+                }
+                else
+                {
+                    throw new InvalidOperationException("CoreWebView2 is null after EnsureCoreWebView2Async");
+                }
 
                 // Inject the continueVS bridge (must happen before navigation)
                 var injector = new WebviewInjector();
