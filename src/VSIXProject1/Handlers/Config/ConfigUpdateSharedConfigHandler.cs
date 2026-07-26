@@ -14,10 +14,11 @@ namespace ContinueVS.Handlers.Config
             _control = control;
         }
 
-        public Task HandleAsync(Message message, CancellationToken cancellationToken)
+        public async Task HandleAsync(Message message, CancellationToken cancellationToken)
         {
+            // VSTHRD010: Switch to main thread before calling SendReplyToGui
+            await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             _control.SendReplyToGui(message.MessageType, message.MessageId, new object());
-            return Task.CompletedTask;
         }
     }
 }

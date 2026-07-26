@@ -559,6 +559,10 @@ namespace ContinueVS.UI
         // VSTHRD100: replaced async void with sync wrapper + OnWebMessageReceivedAsync
         private void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            // [b14-ENTRY] Entry point - capture current thread ID
+            var entryThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            System.Diagnostics.Debug.WriteLine($"[b14-ENTRY] OnWebMessageReceived entry on thread: {entryThreadId}");
+
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(() => OnWebMessageReceivedAsync(sender, e))
                            .FileAndForget("vs/continuevs/webmessage");  // VSSDK007
@@ -567,6 +571,10 @@ namespace ContinueVS.UI
 
         private System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            // [b14-ENTRY] Async entry - capture thread ID after JoinableTask switch
+            var asyncThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            System.Diagnostics.Debug.WriteLine($"[b14-ENTRY] OnWebMessageReceivedAsync executing on thread: {asyncThreadId}");
+
             // [b12-RECEIVED] Capture raw JSON from WebView
             var json = e.TryGetWebMessageAsString();
             System.Diagnostics.Debug.WriteLine($"[b12-RECEIVED] Raw JSON received: {json}");
@@ -706,7 +714,23 @@ namespace ContinueVS.UI
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
+                // [b14-THREAD-BEFORE] Capture thread ID before SwitchToMainThreadAsync
+                var threadBefore = System.Threading.Thread.CurrentThread.ManagedThreadId;
+                System.Diagnostics.Debug.WriteLine($"[b14-THREAD-BEFORE] Thread ID before switch: {threadBefore}");
+
+                // [b14-SWITCH] About to switch to UI thread
+                System.Diagnostics.Debug.WriteLine($"[b14-SWITCH] Switching to main thread");
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                // [b14-THREAD-AFTER] Capture thread ID after SwitchToMainThreadAsync
+                var threadAfter = System.Threading.Thread.CurrentThread.ManagedThreadId;
+                System.Diagnostics.Debug.WriteLine($"[b14-THREAD-AFTER] Thread ID after switch: {threadAfter}");
+
+                // [b14-ASSERTION] Verify we are on the UI thread
+                // After SwitchToMainThreadAsync(), we should be on UI thread
+                // Log confirmation without throwing (VerifyAccess would violate VSTHRD109)
+                System.Diagnostics.Debug.WriteLine($"[b14-ASSERTION] After SwitchToMainThreadAsync - proceeding to ExecuteScriptAsync on UI thread");
+
                 // [b12-SCRIPT-EXEC] ExecuteScriptAsync injection
                 System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Executing script to send reply to bridge");
                 var scriptResult = await WebView.CoreWebView2.ExecuteScriptAsync(

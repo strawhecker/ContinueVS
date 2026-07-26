@@ -136,10 +136,19 @@ namespace ContinueVS.Handlers
             var sw = Stopwatch.StartNew();
             try
             {
+                // [b14-HANDLER-ENTRY] Handler execution entry - capture thread ID
+                var handlerEntryThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+                System.Diagnostics.Debug.WriteLine($"[b14-HANDLER-ENTRY] Handler entry for {message.MessageType} on thread: {handlerEntryThreadId}");
+
                 // [b12-HANDLER-EXEC] Handler execution
                 System.Diagnostics.Debug.WriteLine($"[b12-HANDLER-EXEC] Invoking handler for message type: {message.MessageType}, id: {message.MessageId}");
                 await handler.HandleAsync(message, cancellationToken);
                 sw.Stop();
+
+                // [b14-HANDLER-EXIT] Handler execution exit - capture thread ID
+                var handlerExitThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+                System.Diagnostics.Debug.WriteLine($"[b14-HANDLER-EXIT] Handler exit for {message.MessageType} on thread: {handlerExitThreadId} (elapsed: {sw.ElapsedMilliseconds}ms)");
+
                 System.Diagnostics.Debug.WriteLine($"[b12-HANDLER-EXEC] Handler completed successfully in {sw.ElapsedMilliseconds}ms");
 
                 // Record success metrics
