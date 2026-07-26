@@ -676,18 +676,32 @@ namespace ContinueVS.UI
                 return;
             }
 
+            // [b13-RESPONSE-OBJECT] Inspect payload object structure before JToken conversion
+            System.Diagnostics.Debug.WriteLine($"[b13-RESPONSE-OBJECT] Handler response object: Type={data?.GetType().Name ?? "null"}, Content={JsonConvert.SerializeObject(data)}");
+
             // [b12-RESPONSE] Response serialization
             var msg = new Message
             {
                 MessageType = messageType,
                 MessageId   = messageId,
-                Data        = JToken.FromObject(data),
+                Data        = JToken.FromObject(data!),
             };
+
+            // [b13-JTOKEN-SERIALIZE] Log JToken creation
+            System.Diagnostics.Debug.WriteLine($"[b13-JTOKEN-SERIALIZE] JToken created from payload");
+
             var json    = JsonConvert.SerializeObject(msg);
             System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Message serialized: {json}");
 
-            var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+            // [b13-JSON-VALID] Validate JSON structure
+            var isValidJson = IsValidJson(json);
+            System.Diagnostics.Debug.WriteLine($"[b13-JSON-VALID] JSON validation: IsValid={isValidJson}, Length={json?.Length ?? 0}");
+
+            var escaped = json?.Replace("\\", "\\\\").Replace("'", "\\'") ?? string.Empty;
             System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Escaped JSON: {escaped}");
+
+            // [b13-SCRIPT-PAYLOAD] Show final escaped string for injection
+            System.Diagnostics.Debug.WriteLine($"[b13-SCRIPT-PAYLOAD] JavaScript payload ready: FunctionCall=window.continueVS.onMessage, PayloadLength={escaped?.Length ?? 0}");
 
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
@@ -695,8 +709,10 @@ namespace ContinueVS.UI
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 // [b12-SCRIPT-EXEC] ExecuteScriptAsync injection
                 System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Executing script to send reply to bridge");
-                await WebView.CoreWebView2.ExecuteScriptAsync(
+                var scriptResult = await WebView.CoreWebView2.ExecuteScriptAsync(
                     $"window.continueVS && window.continueVS.onMessage('{escaped}');");
+                // [b13-SCRIPT-RESULT] Capture result from ExecuteScriptAsync
+                System.Diagnostics.Debug.WriteLine($"[b13-SCRIPT-RESULT] ExecuteScriptAsync completed: Result={scriptResult}, Status=Success");
                 System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Reply script executed successfully");
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
 #pragma warning restore VSSDK007
@@ -705,6 +721,25 @@ namespace ContinueVS.UI
         // -----------------------------------------------------------------
         // IDisposable
         // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Validates that a string is well-formed JSON without parsing side effects.
+        /// </summary>
+        private static bool IsValidJson(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return false;
+
+            try
+            {
+                JsonConvert.DeserializeObject(json!);
+                return true;
+            }
+            catch (JsonException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[b13-JSON-VALID] JSON parse error: {ex.Message}");
+                return false;
+            }
+        }
 
         public void Dispose()
         {
