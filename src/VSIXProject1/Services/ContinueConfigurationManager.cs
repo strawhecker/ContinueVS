@@ -164,6 +164,9 @@ namespace ContinueVS.Services
                 throw new ArgumentNullException(nameof(config));
             }
 
+            // [b19-CONFIG-UPDATE-START] Model selection persistence entry point
+            System.Diagnostics.Debug.WriteLine($"[b19-CONFIG-UPDATE-START] WriteConfigAsync entry");
+
             ValidateSchema(config);
 
             string configDir = Path.GetDirectoryName(configPath);
@@ -194,6 +197,9 @@ namespace ContinueVS.Services
                 {
                     await writer.WriteAsync(jsonContent);
                 }
+
+                // [b19-CONFIG-UPDATE-PERSIST] Confirm config written to disk
+                System.Diagnostics.Debug.WriteLine($"[b19-CONFIG-UPDATE-PERSIST] Config persisted to {configPath}");
             }
             catch (IOException ex)
             {

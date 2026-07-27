@@ -75,9 +75,12 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Clears the settings cache (e.g., after configuration changes).
+        /// Instrumentation: [b19-CACHE-INVALIDATE] marker for model selection round-trip tests.
         /// </summary>
         public static void ClearCache()
         {
+            // [b19-CACHE-INVALIDATE] Model selection cache invalidation
+            System.Diagnostics.Debug.WriteLine("[b19-CACHE-INVALIDATE] Settings cache cleared");
             lock (s_cacheLock)
             {
                 s_cachedSettings = null;
