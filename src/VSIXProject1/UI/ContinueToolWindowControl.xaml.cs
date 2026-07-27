@@ -615,6 +615,9 @@ namespace ContinueVS.UI
 
         private System.Threading.Tasks.Task OnWebMessageReceivedAsync(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            // [b16-REQUEST-RECEIVED] Start timing measurement for b16 verification
+            var b16RequestTimestamp = System.Diagnostics.Stopwatch.StartNew();
+
             // [b14-ENTRY] Async entry - capture thread ID after JoinableTask switch
             var asyncThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             System.Diagnostics.Debug.WriteLine($"[b14-ENTRY] OnWebMessageReceivedAsync executing on thread: {asyncThreadId}");
@@ -631,6 +634,12 @@ namespace ContinueVS.UI
                 return System.Threading.Tasks.Task.CompletedTask;
             }
             System.Diagnostics.Debug.WriteLine($"[b12-DESERIALIZED] Message: Type={message.MessageType}, ID={message.MessageId}");
+
+            // [b16-REQUEST-RECEIVED] Log for loadSettings handler
+            if (message.MessageType == "bridge:loadSettings")
+            {
+                System.Diagnostics.Debug.WriteLine($"[b16-REQUEST-RECEIVED] loadSettings request: MessageId={message.MessageId}, timestamp={b16RequestTimestamp.ElapsedMilliseconds}ms");
+            }
 
             // [t9] Log message reception at dispatcher entry
             System.Diagnostics.Debug.WriteLine($"[t9-DISPATCH] Message received from bridge: Type={message.MessageType}, ID={message.MessageId}");
@@ -719,6 +728,9 @@ namespace ContinueVS.UI
 
         public void SendReplyToGui(string messageType, string messageId, object data)
         {
+            // [b16-RESPONSE-SERIALIZED] Start timing measurement for b16 verification
+            var b16ResponseStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
             // [b12-RESPONSE] Log outbound response initialization
             System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] SendReplyToGui called: Type={messageType}, ID={messageId}");
 
@@ -748,6 +760,12 @@ namespace ContinueVS.UI
             // [b13-JSON-VALID] Validate JSON structure
             var isValidJson = IsValidJson(json);
             System.Diagnostics.Debug.WriteLine($"[b13-JSON-VALID] JSON validation: IsValid={isValidJson}, Length={json?.Length ?? 0}");
+
+            // [b16-RESPONSE-SERIALIZED] Log for loadSettings handler
+            if (messageType == "bridge:loadSettings")
+            {
+                System.Diagnostics.Debug.WriteLine($"[b16-RESPONSE-SERIALIZED] Response prepared: DataType={data?.GetType().Name}, JsonLength={json?.Length}");
+            }
 
             var escaped = json?.Replace("\\", "\\\\").Replace("'", "\\'") ?? string.Empty;
             System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Escaped JSON: {escaped}");
@@ -782,6 +800,13 @@ namespace ContinueVS.UI
                 // [b13-SCRIPT-RESULT] Capture result from ExecuteScriptAsync
                 System.Diagnostics.Debug.WriteLine($"[b13-SCRIPT-RESULT] ExecuteScriptAsync completed: Result={scriptResult}, Status=Success");
                 System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Reply script executed successfully");
+
+                // [b16-SCRIPT-INJECTED] Log for loadSettings handler
+                if (messageType == "bridge:loadSettings")
+                {
+                    b16ResponseStopwatch.Stop();
+                    System.Diagnostics.Debug.WriteLine($"[b16-SCRIPT-INJECTED] JavaScript executed, totalElapsedMs={b16ResponseStopwatch.ElapsedMilliseconds}");
+                }
             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
 #pragma warning restore VSSDK007
         }
