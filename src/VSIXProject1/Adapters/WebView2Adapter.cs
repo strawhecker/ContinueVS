@@ -2,6 +2,7 @@
 
 using Microsoft.Web.WebView2.Core;
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace ContinueVS.Adapters
@@ -9,7 +10,7 @@ namespace ContinueVS.Adapters
     /// <summary>
     /// Mockable interface for CoreWebView2 to support unit testing.
     /// </summary>
-    public interface IWebView2Adapter
+    public interface IWebView2Adapter : IAsyncDisposable
     {
         /// <summary>
         /// Event fired when navigation completes.
@@ -51,7 +52,8 @@ namespace ContinueVS.Adapters
     /// </summary>
     public sealed class WebView2Adapter : IWebView2Adapter
     {
-        private readonly CoreWebView2 _coreWebView2;
+        private CoreWebView2? _coreWebView2;
+        private bool _disposed;
 
         /// <summary>
         /// Initializes a new instance of WebView2Adapter.
@@ -73,11 +75,20 @@ namespace ContinueVS.Adapters
             string folderPath,
             CoreWebView2HostResourceAccessKind accessKind)
         {
-            _coreWebView2.SetVirtualHostNameToFolderMapping(hostName, folderPath, accessKind);
+            if (_disposed)
+                throw new ObjectDisposedException("WebView2Adapter has been disposed");
+
+            _coreWebView2?.SetVirtualHostNameToFolderMapping(hostName, folderPath, accessKind);
         }
 
         public async Task<string> ExecuteScriptAsync(string script)
         {
+            if (_disposed)
+                throw new ObjectDisposedException("WebView2Adapter has been disposed");
+
+            if (_coreWebView2 == null)
+                throw new ObjectDisposedException("CoreWebView2 is null");
+
             return await _coreWebView2.ExecuteScriptAsync(script);
         }
 
@@ -87,6 +98,34 @@ namespace ContinueVS.Adapters
         {
             var adaptedArgs = new NavigationCompletedEventArgsAdapter(args);
             NavigationCompleted?.Invoke(this, adaptedArgs);
+        }
+
+        /// <summary>
+        /// Disposes the adapter and unsubscribes from all events.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            try
+            {
+                Debug.WriteLine("[b15-ADAPTER-DISPOSE] WebView2Adapter disposal starting");
+
+                if (_coreWebView2 != null)
+                {
+                    Debug.WriteLine("[b15-UNSUBSCRIBE-NAV] Unsubscribing from NavigationCompleted event");
+                    _coreWebView2.NavigationCompleted -= OnNavigationCompleted;
+                    _coreWebView2 = null;
+                    Debug.WriteLine("[b15-ADAPTER-DISPOSE] CoreWebView2 reference cleared");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[b15-ADAPTER-DISPOSE-ERROR] Error during disposal: {ex.Message}");
+            }
         }
     }
 

@@ -164,6 +164,10 @@ namespace ContinueVS.UI
                 {
                     Loaded += OnLoaded;
                     System.Diagnostics.Debug.WriteLine("[CV-t4.5] ✓ Loaded event wired");
+
+                    // Wire Unloaded event for bridge teardown (b15)
+                    Unloaded += OnUnloaded;
+                    System.Diagnostics.Debug.WriteLine("[CV-t4.5] ✓ Unloaded event wired");
                 }
                 finally
                 {
@@ -211,6 +215,46 @@ namespace ContinueVS.UI
                 }
             }).FileAndForget("vs/continuevs/loaded");
 #pragma warning restore VSSDK007
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("[b15-UNLOADED-EVENT] Control unloaded event fired");
+            try
+            {
+                // Fire-and-forget the dispose without blocking
+                // The actual dispose will happen asynchronously
+#pragma warning disable VSSDK007
+                ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+                {
+                    try
+                    {
+                        // Give the teardown script a short time to execute
+                        using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(2)))
+                        {
+                            if (WebView?.CoreWebView2 != null)
+                            {
+                                System.Diagnostics.Debug.WriteLine("[b15-SCRIPT-INJECT] Invoking InjectTeardownScriptAsync from OnUnloaded");
+                                var teardownResult = await WebviewInjectorTeardownExtensions.InjectTeardownScriptAsync(WebView.CoreWebView2, cts.Token);
+                                System.Diagnostics.Debug.WriteLine($"[b15-SCRIPT-RESULT] Teardown result: {teardownResult}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b15-TEARDOWN-ERROR] Teardown failed: {ex.Message}");
+                    }
+                    finally
+                    {
+                        System.Diagnostics.Debug.WriteLine("[b15-COMPLETION] OnUnloaded cleanup finished");
+                    }
+                }).FileAndForget("vs/continuevs/unloaded");
+#pragma warning restore VSSDK007
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[b15-UNLOADED-ERROR] Failed in OnUnloaded: {ex.Message}");
+            }
         }
 
         private async System.Threading.Tasks.Task NavigateAsync()
@@ -773,12 +817,32 @@ namespace ContinueVS.UI
             ThreadHelper.JoinableTaskFactory.Run(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                // [b15-TEARDOWN-START] Bridge teardown on control disposal
+                System.Diagnostics.Debug.WriteLine("[b15-TEARDOWN-START] ContinueToolWindowControl.Dispose() initiating bridge teardown");
+
+                try
+                {
+                    // Trigger bridge teardown if WebView is initialized
+                    if (WebView?.CoreWebView2 != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[b15-SCRIPT-INJECT] Invoking InjectTeardownScriptAsync");
+                        var teardownResult = await WebviewInjectorTeardownExtensions.InjectTeardownScriptAsync(WebView.CoreWebView2);
+                        System.Diagnostics.Debug.WriteLine($"[b15-SCRIPT-RESULT] Teardown result: {teardownResult}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b15-TEARDOWN-ERROR] Teardown failed: {ex.Message}");
+                }
+
                 _pusher.Dispose();
             });
 
             _editorContextProvider?.Dispose();
             _configWatcher?.Dispose();
             WebView.Dispose();
+            System.Diagnostics.Debug.WriteLine("[b15-COMPLETION] ContinueToolWindowControl.Dispose() completed");
         }
     }
 }

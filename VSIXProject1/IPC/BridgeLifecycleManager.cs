@@ -460,13 +460,95 @@ namespace ContinueVS.IPC
             }
         }
 
-        public void Dispose()
+        /// <summary>
+        /// Disposes the bridge lifecycle manager and all resources.
+        /// </summary>
+        public async ValueTask DisposeAsync()
         {
             if (_disposed)
                 return;
 
             _disposed = true;
-            _transport?.Dispose();
+
+            try
+            {
+                Debug.WriteLine("[b15-LIFECYCLE-DISPOSE] BridgeLifecycleManager disposal starting");
+
+                // Shutdown transport if not already shut down
+                if (_state != BridgeLifecycleState.Shutdown)
+                {
+                    try
+                    {
+                        Debug.WriteLine("[b15-LIFECYCLE-DISPOSE] Calling ShutdownAsync");
+                        await ShutdownAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[b15-LIFECYCLE-DISPOSE] Error during ShutdownAsync: {ex.Message}");
+                    }
+                }
+
+                // Unsubscribe from transport events
+                if (_transport != null)
+                {
+                    try
+                    {
+                        Debug.WriteLine("[b15-UNSUBSCRIBE-WMR] Unsubscribing from transport events");
+                        _transport.OnTransportError -= HandleTransportError;
+                        _transport.OnTransportDisconnected -= HandleTransportDisconnected;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[b15-LIFECYCLE-DISPOSE] Error unsubscribing from events: {ex.Message}");
+                    }
+                }
+
+                // Dispose transport
+                if (_transport != null)
+                {
+                    try
+                    {
+                        Debug.WriteLine("[b15-TRANSPORT-DISPOSE] Disposing transport");
+                        if (_transport is IAsyncDisposable asyncDisposable)
+                        {
+                            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            _transport.Dispose();
+                        }
+                        _transport = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[b15-TRANSPORT-DISPOSE] Error disposing transport: {ex.Message}");
+                    }
+                }
+
+                // Clear message queue
+                try
+                {
+                    while (_messageQueue.TryDequeue(out _))
+                    {
+                        // Drain queue
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[b15-LIFECYCLE-DISPOSE] Error clearing message queue: {ex.Message}");
+                }
+
+                Debug.WriteLine("[b15-COMPLETION] BridgeLifecycleManager disposal completed");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[b15-LIFECYCLE-DISPOSE-ERROR] Unexpected error during disposal: {ex.Message}");
+            }
+        }
+
+        public void Dispose()
+        {
+            DisposeAsync().GetAwaiter().GetResult();
         }
     }
 }
