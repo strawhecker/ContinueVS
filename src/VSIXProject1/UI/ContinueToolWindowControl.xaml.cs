@@ -143,6 +143,7 @@ namespace ContinueVS.UI
                     _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
                     _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
                     _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
+                    _dispatcher.Register("bridge:getModelInfo",         new GetModelInfoHandler(this));
                     _dispatcher.Register("getCurrentFile",               new GetCurrentFileHandler(this));
                     _dispatcher.Register("applyToFile",                  new ApplyToFileHandler(this));
                     _dispatcher.Register("acceptDiff",                   new AcceptDiffHandler(this));
