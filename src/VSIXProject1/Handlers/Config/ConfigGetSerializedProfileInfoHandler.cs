@@ -60,14 +60,36 @@ namespace ContinueVS.Handlers.Config
                                 ? new[] { tabAutocompleteModel }
                                 : new object[0],
                             allowAnonymousTelemetry = true,
+                            slashCommands = new object[0],
+                            contextProviders = new object[0],
+                            tools = new object[0],
+                            mcpServerStatuses = new object[0],
+                            rules = new object[0],
+                            modelsByRole = new
+                            {
+                                chat = firstModel != null ? new[] { firstModel } : new object[0],
+                                apply = firstModel != null ? new[] { firstModel } : new object[0],
+                                edit = firstModel != null ? new[] { firstModel } : new object[0],
+                                summarize = firstModel != null ? new[] { firstModel } : new object[0],
+                                autocomplete = tabAutocompleteModel != null ? new[] { tabAutocompleteModel } : new object[0],
+                                rerank = new object[0],
+                                embed = new object[0],
+                                subagent = new object[0]
+                            },
                             selectedModelByRole = new
                             {
                                 chat = firstModel,
                                 edit = firstModel,
                                 apply = firstModel,
-                                summarize = firstModel
+                                summarize = firstModel,
+                                autocomplete = tabAutocompleteModel,
+                                rerank = (object?)null,
+                                embed = (object?)null,
+                                subagent = (object?)null
                             }
-                        }
+                        },
+                        errors = (object?)null,
+                        configLoadInterrupted = false
                     },
                     profileId = "local",
                     profiles = new[] { new { id = "local", title = "Local" } }

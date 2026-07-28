@@ -157,8 +157,8 @@ namespace ContinueVS.UI
                     _dispatcher.Register("autocomplete/cancel", new AutocompleteCancelHandler(this));
 
                     // History handler - GUI requests session history on init
-                    _dispatcher.Register("history/load", new GenericReplyHandler(this, new { sessions = new object[0] }));
-                    _dispatcher.Register("history/list", new GenericReplyHandler(this, new { sessions = new object[0] }));
+                    _dispatcher.Register("history/load", new GenericReplyHandler(this, new { history = new object[0], title = "New Session", sessionId = "", workspaceDirectory = "" }));
+                    _dispatcher.Register("history/list", new GenericReplyHandler(this, new object[0]));
                     _dispatcher.Register("history/save", new GenericReplyHandler(this, new { success = true }));
                     _dispatcher.Register("history/delete", new GenericReplyHandler(this, new { success = true }));
                     _dispatcher.Register("docs/initStatuses", new GenericReplyHandler(this, new object[] { }));
@@ -941,8 +941,9 @@ namespace ContinueVS.UI
             System.Diagnostics.Debug.WriteLine($"[b13-RESPONSE-OBJECT] Handler response object: Type={data?.GetType().Name ?? "null"}, Content={JsonConvert.SerializeObject(data)}");
 
             // [b12-RESPONSE] Response serialization
-            // Send the raw handler payload directly as event.data.data
-            SendReplyToGuiInternal(messageType, messageId, data ?? new object());
+            // Wrap in WebviewSingleMessage envelope: { status: "success", done: true, content: <payload> }
+            var wrapped = new { status = "success", done = true, content = data ?? new object() };
+            SendReplyToGuiInternal(messageType, messageId, wrapped);
         }
 
         private void SendReplyToGuiInternal(string messageType, string messageId, object wrappedData)
