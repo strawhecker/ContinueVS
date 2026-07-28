@@ -109,52 +109,61 @@ namespace ContinueVS.UI
                     // Bridge bootstrap handler - React sends this first!
                     _dispatcher.Register("bridge:bootstrap", new BootstrapHandler(_dispatcher));
 
-                    _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
-                    _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
-                    _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
-                    _dispatcher.Register("getUniqueId",       new GetUniqueIdHandler(this));
+                    _dispatcher.Register("getWorkspaceDirs", new GetWorkspaceDirsHandler(this));
+                    _dispatcher.Register("getIdeInfo", new GetIdeInfoHandler(this));
+                    _dispatcher.Register("getIdeSettings", new GetIdeSettingsHandler(this));
+                    _dispatcher.Register("getUniqueId", new GetUniqueIdHandler(this));
                     _dispatcher.Register("isTelemetryEnabled", new IsTelemetryEnabledHandler(this));
                     _dispatcher.Register("isWorkspaceRemote", new IsWorkspaceRemoteHandler(this));
-                    _dispatcher.Register("readFile",          new ReadFileHandler(this));
-                    _dispatcher.Register("fileExists",        new FileExistsHandler(this));
-                    _dispatcher.Register("getOpenFiles",      new GetOpenFilesHandler(this));
-                    _dispatcher.Register("writeFile",         new WriteFileHandler(this));
-                    _dispatcher.Register("saveFile",          new SaveFileHandler(this));
-                    _dispatcher.Register("openFile",          new OpenFileHandler(this));
-                    _dispatcher.Register("openUrl",           new OpenUrlHandler(this));
-                    _dispatcher.Register("getBranch",         new GetBranchHandler(this));
-                    _dispatcher.Register("context/getContextItems",     new ContextGetContextItemsHandler(this));
-                    _dispatcher.Register("context/getSymbolsForFiles",  new ContextGetSymbolsForFilesHandler(this));
-                    _dispatcher.Register("context/loadSubmenuItems",    new ContextLoadSubmenuItemsHandler(this));
-                    _dispatcher.Register("context/addDocs",             new ContextAddDocsHandler(this));
-                    _dispatcher.Register("context/removeDocs",          new ContextRemoveDocsHandler(this));
-                    _dispatcher.Register("context/indexDocs",           new ContextIndexDocsHandler(this));
-                    _dispatcher.Register("config/addOpenAiKey",         new ConfigAddOpenAiKeyHandler(this));
-                    _dispatcher.Register("config/ideSettingsUpdate",    new ConfigIdeSettingsUpdateHandler(this));
-                    _dispatcher.Register("config/deleteModel",          new ConfigDeleteModelHandler(this));
+                    _dispatcher.Register("readFile", new ReadFileHandler(this));
+                    _dispatcher.Register("fileExists", new FileExistsHandler(this));
+                    _dispatcher.Register("getOpenFiles", new GetOpenFilesHandler(this));
+                    _dispatcher.Register("writeFile", new WriteFileHandler(this));
+                    _dispatcher.Register("saveFile", new SaveFileHandler(this));
+                    _dispatcher.Register("openFile", new OpenFileHandler(this));
+                    _dispatcher.Register("openUrl", new OpenUrlHandler(this));
+                    _dispatcher.Register("getBranch", new GetBranchHandler(this));
+                    _dispatcher.Register("context/getContextItems", new ContextGetContextItemsHandler(this));
+                    _dispatcher.Register("context/getSymbolsForFiles", new ContextGetSymbolsForFilesHandler(this));
+                    _dispatcher.Register("context/loadSubmenuItems", new ContextLoadSubmenuItemsHandler(this));
+                    _dispatcher.Register("context/addDocs", new ContextAddDocsHandler(this));
+                    _dispatcher.Register("context/removeDocs", new ContextRemoveDocsHandler(this));
+                    _dispatcher.Register("context/indexDocs", new ContextIndexDocsHandler(this));
+                    _dispatcher.Register("config/addOpenAiKey", new ConfigAddOpenAiKeyHandler(this));
+                    _dispatcher.Register("config/ideSettingsUpdate", new ConfigIdeSettingsUpdateHandler(this));
+                    _dispatcher.Register("config/deleteModel", new ConfigDeleteModelHandler(this));
                     _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this));
-                    _dispatcher.Register("config/addModel",             new ConfigAddModelHandler(this));
+                    _dispatcher.Register("config/addModel", new ConfigAddModelHandler(this));
                     _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
-                    _dispatcher.Register("config/addGlobalRule",        new ConfigAddGlobalRuleHandler(this));
-                    _dispatcher.Register("config/deleteRule",           new ConfigDeleteRuleHandler(this));
-                    _dispatcher.Register("config/newPromptFile",        new ConfigNewPromptFileHandler(this));
-                    _dispatcher.Register("config/newAssistantFile",     new ConfigNewAssistantFileHandler(this));
-                    _dispatcher.Register("config/refreshProfiles",      new ConfigRefreshProfilesHandler(this));
-                    _dispatcher.Register("config/openProfile",          new ConfigOpenProfileHandler(this));
-                    _dispatcher.Register("config/updateSharedConfig",   new ConfigUpdateSharedConfigHandler(this));
-                    _dispatcher.Register("config/updateSelectedModel",  new ConfigUpdateSelectedModelHandler(this));
-                    _dispatcher.Register("llm/complete",                new LlmCompleteHandler(this));
-                    _dispatcher.Register("llm/streamChat",              new LlmStreamChatHandler(this));
-                    _dispatcher.Register("llm/listModels",              new LlmListModelsHandler(this));
-                    _dispatcher.Register("llm/compileChat",             new LlmCompileChatHandler(this));
-                    _dispatcher.Register("bridge:getModelInfo",         new GetModelInfoHandler(this));
-                    _dispatcher.Register("getCurrentFile",               new GetCurrentFileHandler(this));
-                    _dispatcher.Register("applyToFile",                  new ApplyToFileHandler(this));
-                    _dispatcher.Register("acceptDiff",                   new AcceptDiffHandler(this));
-                    _dispatcher.Register("rejectDiff",                   new RejectDiffHandler(this));
-                    _dispatcher.Register("autocomplete/complete",         new AutocompleteCompleteHandler(this));
-                    _dispatcher.Register("autocomplete/accept",           new AutocompleteAcceptHandler(this));
-                    _dispatcher.Register("autocomplete/cancel",           new AutocompleteCancelHandler(this));
+                    _dispatcher.Register("config/addGlobalRule", new ConfigAddGlobalRuleHandler(this));
+                    _dispatcher.Register("config/deleteRule", new ConfigDeleteRuleHandler(this));
+                    _dispatcher.Register("config/newPromptFile", new ConfigNewPromptFileHandler(this));
+                    _dispatcher.Register("config/newAssistantFile", new ConfigNewAssistantFileHandler(this));
+                    _dispatcher.Register("config/refreshProfiles", new ConfigRefreshProfilesHandler(this));
+                    _dispatcher.Register("config/openProfile", new ConfigOpenProfileHandler(this));
+                    _dispatcher.Register("config/updateSharedConfig", new ConfigUpdateSharedConfigHandler(this));
+                    _dispatcher.Register("config/updateSelectedModel", new ConfigUpdateSelectedModelHandler(this));
+                    _dispatcher.Register("llm/complete", new LlmCompleteHandler(this));
+                    _dispatcher.Register("llm/streamChat", new LlmStreamChatHandler(this));
+                    _dispatcher.Register("llm/listModels", new LlmListModelsHandler(this));
+                    _dispatcher.Register("llm/compileChat", new LlmCompileChatHandler(this));
+                    _dispatcher.Register("bridge:getModelInfo", new GetModelInfoHandler(this));
+                    _dispatcher.Register("getCurrentFile", new GetCurrentFileHandler(this));
+                    _dispatcher.Register("applyToFile", new ApplyToFileHandler(this));
+                    _dispatcher.Register("acceptDiff", new AcceptDiffHandler(this));
+                    _dispatcher.Register("rejectDiff", new RejectDiffHandler(this));
+                    _dispatcher.Register("autocomplete/complete", new AutocompleteCompleteHandler(this));
+                    _dispatcher.Register("autocomplete/accept", new AutocompleteAcceptHandler(this));
+                    _dispatcher.Register("autocomplete/cancel", new AutocompleteCancelHandler(this));
+
+                    // History handler - GUI requests session history on init
+                    _dispatcher.Register("history/load", new GenericReplyHandler(this, new { sessions = new object[0] }));
+                    _dispatcher.Register("history/list", new GenericReplyHandler(this, new { sessions = new object[0] }));
+                    _dispatcher.Register("history/save", new GenericReplyHandler(this, new { success = true }));
+                    _dispatcher.Register("history/delete", new GenericReplyHandler(this, new { success = true }));
+                    _dispatcher.Register("docs/initStatuses", new GenericReplyHandler(this, new object[] { }));
+                    _dispatcher.Register("models/fetch", new GenericReplyHandler(this, new object[] { }));
+
                     System.Diagnostics.Debug.WriteLine("[CV-t4.4] ✓ All 41 handlers registered");
                 }
                 finally
@@ -164,7 +173,7 @@ namespace ContinueVS.UI
 
                 // [b20] Handler registration verification
                 System.Diagnostics.Debug.WriteLine($"[b20-HANDLER-COUNT] Registered handlers: {_dispatcher.GetHandlerCount()}");
-                var handlerMessageTypes = new[] 
+                var handlerMessageTypes = new[]
                 {
                     "getWorkspaceDirs", "getIdeInfo", "getIdeSettings", "getUniqueId", "isTelemetryEnabled", "isWorkspaceRemote",
                     "readFile", "fileExists", "getOpenFiles", "writeFile", "saveFile", "openFile", "openUrl", "getBranch",
@@ -320,7 +329,7 @@ namespace ContinueVS.UI
 
                     var env = await CoreWebView2Environment.CreateAsync(
                         browserExecutableFolder: null,
-                        userDataFolder:          userDataFolder);
+                        userDataFolder: userDataFolder);
 
                     stopwatch.Stop();
                     System.Diagnostics.Debug.WriteLine($"[b1-ENV-CREATE-SUCCESS] CreateAsync completed in {stopwatch.ElapsedMilliseconds}ms");
@@ -334,15 +343,15 @@ namespace ContinueVS.UI
                     }
 
                     System.Diagnostics.Debug.WriteLine("[b1-ENSURE-START] About to call WebView.EnsureCoreWebView2Async(env)");
-                     if (env == null)
-                     {
-                         throw new InvalidOperationException("environment object is null after CreateAsync");
-                     }
-                     if (WebView == null)
-                     {
-                         throw new InvalidOperationException("WebView control is null; cannot initialize CoreWebView2");
-                     }
-                     await WebView.EnsureCoreWebView2Async(env);
+                    if (env == null)
+                    {
+                        throw new InvalidOperationException("environment object is null after CreateAsync");
+                    }
+                    if (WebView == null)
+                    {
+                        throw new InvalidOperationException("WebView control is null; cannot initialize CoreWebView2");
+                    }
+                    await WebView.EnsureCoreWebView2Async(env);
                     System.Diagnostics.Debug.WriteLine("[b1-ENSURE-SUCCESS] EnsureCoreWebView2Async completed successfully");
 
                     // STEP b1.11: Configure WebView2 settings for bridge communication
@@ -432,22 +441,22 @@ namespace ContinueVS.UI
                         System.Diagnostics.Debug.WriteLine($"[b2-EVENT-READY] ERROR: Event subscription not ready: {ex.Message}");
                     }
 
-                        stopwatchB2.Stop();
-                        System.Diagnostics.Debug.WriteLine($"[b2-TIMING] Controller initialization completed in {stopwatchB2.ElapsedMilliseconds}ms");
+                    stopwatchB2.Stop();
+                    System.Diagnostics.Debug.WriteLine($"[b2-TIMING] Controller initialization completed in {stopwatchB2.ElapsedMilliseconds}ms");
 
-                        // STEP b1.6: Verify async factory completion
-                        System.Diagnostics.Debug.WriteLine("[b1-ASYNC-COMPLETION] Async factory pattern verified - environment ready for downstream operations");
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[b2-EXCEPTION-INVALID-OP] InvalidOperationException (controller uninitialized or invalid state): {ex.Message}");
-                        throw;
-                        }
-                    catch (System.Runtime.InteropServices.COMException ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-COM] COMException during environment creation: 0x{ex.HResult:X8} - {ex.Message}");
-                        System.Diagnostics.Debug.WriteLine($"[b2-EXCEPTION-COM] COMException during controller binding (HWND binding failure): 0x{ex.HResult:X8} - {ex.Message}");
-                        throw;
+                    // STEP b1.6: Verify async factory completion
+                    System.Diagnostics.Debug.WriteLine("[b1-ASYNC-COMPLETION] Async factory pattern verified - environment ready for downstream operations");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b2-EXCEPTION-INVALID-OP] InvalidOperationException (controller uninitialized or invalid state): {ex.Message}");
+                    throw;
+                }
+                catch (System.Runtime.InteropServices.COMException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b1-ENV-EXCEPTION-COM] COMException during environment creation: 0x{ex.HResult:X8} - {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[b2-EXCEPTION-COM] COMException during controller binding (HWND binding failure): 0x{ex.HResult:X8} - {ex.Message}");
+                    throw;
                 }
                 catch (ArgumentException ex)
                 {
@@ -486,9 +495,9 @@ namespace ContinueVS.UI
                 if (WebView.CoreWebView2 != null)
                 {
                     WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                        hostName:          "continue.local",
-                        folderPath:        GuiExtractor.GuiRoot,
-                        accessKind:        CoreWebView2HostResourceAccessKind.Allow);
+                        hostName: "continue.local",
+                        folderPath: GuiExtractor.GuiRoot,
+                        accessKind: CoreWebView2HostResourceAccessKind.Allow);
                 }
                 else
                 {
@@ -500,20 +509,31 @@ namespace ContinueVS.UI
                 // Otherwise the page load will reset the JavaScript context
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
-                                 // STEP b3.1: Add NavigationCompleted event handler
-                                 System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] Navigation handler registration starting");
-                                 var navStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                #pragma warning disable VSTHRD101 // All exceptions are caught in try/catch below
-                                 WebView.CoreWebView2.NavigationCompleted += async (sender, args) =>
+                // Capture JS console output for diagnostics
+                WebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                WebView.CoreWebView2.GetDevToolsProtocolEventReceiver("Runtime.consoleAPICalled").DevToolsProtocolEventReceived += (s2, ev) =>
                 {
-                    navStopwatch.Stop();
-                    System.Diagnostics.Debug.WriteLine($"[b3-NAV-COMPLETED] NavigationCompleted event fired, IsSuccess={args.IsSuccess}, WebErrorStatus={args.WebErrorStatus}, elapsed={navStopwatch.ElapsedMilliseconds}ms");
+                    System.Diagnostics.Debug.WriteLine($"[JS-CONSOLE] {ev.ParameterObjectAsJson}");
+                };
+#pragma warning disable VSTHRD110, CS4014
+                WebView.CoreWebView2.CallDevToolsProtocolMethodAsync("Runtime.enable", "{}");
+#pragma warning restore VSTHRD110, CS4014
 
-                    try
-                    {
-                        // STEP b3.2: DOM verification script execution
-                        System.Diagnostics.Debug.WriteLine("[b3-DOM-READY] Executing DOM readiness verification script");
-                        var domVerifyScript = @"
+                // STEP b3.1: Add NavigationCompleted event handler
+                System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] Navigation handler registration starting");
+                var navStopwatch = System.Diagnostics.Stopwatch.StartNew();
+#pragma warning disable VSTHRD101 // All exceptions are caught in try/catch below
+                WebView.CoreWebView2.NavigationCompleted += async (sender, args) =>
+{
+   navStopwatch.Stop();
+   System.Diagnostics.Debug.WriteLine($"[b3-NAV-COMPLETED] NavigationCompleted event fired, IsSuccess={args.IsSuccess}, WebErrorStatus={args.WebErrorStatus}, elapsed={navStopwatch.ElapsedMilliseconds}ms");
+   var b21InitStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+   try
+   {
+        // STEP b3.2: DOM verification script execution
+       System.Diagnostics.Debug.WriteLine("[b3-DOM-READY] Executing DOM readiness verification script");
+       var domVerifyScript = @"
 (function() {
   try {
     return JSON.stringify({
@@ -529,41 +549,87 @@ namespace ContinueVS.UI
   }
 })();
 ";
-                        var domStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                        string domResult = await WebView.CoreWebView2.ExecuteScriptAsync(domVerifyScript);
-                        domStopwatch.Stop();
-                        System.Diagnostics.Debug.WriteLine($"[b3-DOM-READY] DOM verification completed in {domStopwatch.ElapsedMilliseconds}ms, result={domResult}");
+       var domStopwatch = System.Diagnostics.Stopwatch.StartNew();
+       string domResult = await WebView.CoreWebView2.ExecuteScriptAsync(domVerifyScript);
+       domStopwatch.Stop();
+       System.Diagnostics.Debug.WriteLine($"[b3-DOM-READY] DOM verification completed in {domStopwatch.ElapsedMilliseconds}ms, result={domResult}");
 
-                        // Parse DOM result
-                        try
-                        {
-                            // ExecuteScriptAsync returns JSON string (result includes quotes)
-                            // Remove outer quotes if present
-                            string cleanedDomResult = domResult;
-                            if (cleanedDomResult.StartsWith("\"") && cleanedDomResult.EndsWith("\""))
-                            {
-                                var parsedJson = System.Text.Json.JsonDocument.Parse(domResult);
-                                cleanedDomResult = parsedJson.RootElement.GetString() ?? domResult;
-                            }
+        // Parse DOM result
+       try
+       {
+            // ExecuteScriptAsync returns JSON string (result includes quotes)
+            // Remove outer quotes if present
+           string cleanedDomResult = domResult;
+           if (cleanedDomResult.StartsWith("\"") && cleanedDomResult.EndsWith("\""))
+           {
+               var parsedJson = System.Text.Json.JsonDocument.Parse(domResult);
+               cleanedDomResult = parsedJson.RootElement.GetString() ?? domResult;
+           }
 
-                            var domState = Newtonsoft.Json.Linq.JObject.Parse(cleanedDomResult ?? "");
-                            string readyState = domState["readyState"]?.ToString() ?? "unknown";
-                            bool bodyExists = domState["bodyExists"]?.Value<bool>() ?? false;
-                            System.Diagnostics.Debug.WriteLine($"[b3-DOM-BODY] document.readyState={readyState}, document.body exists={bodyExists}");
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[b3-DOM-READY] WARNING: Failed to parse DOM result: {ex.Message}");
-                        }
+           var domState = Newtonsoft.Json.Linq.JObject.Parse(cleanedDomResult ?? "");
+           string readyState = domState["readyState"]?.ToString() ?? "unknown";
+           bool bodyExists = domState["bodyExists"]?.Value<bool>() ?? false;
+           System.Diagnostics.Debug.WriteLine($"[b3-DOM-BODY] document.readyState={readyState}, document.body exists={bodyExists}");
+           System.Diagnostics.Debug.WriteLine($"[b21-DOM-READY] document.readyState={readyState}, bodyExists={bodyExists}, elapsed={b21InitStopwatch.ElapsedMilliseconds}ms");
+       }
+       catch (Exception ex)
+       {
+           System.Diagnostics.Debug.WriteLine($"[b3-DOM-READY] WARNING: Failed to parse DOM result: {ex.Message}");
+           System.Diagnostics.Debug.WriteLine($"[b21-DOM-READY] WARN: DOM parse failed, elapsed={b21InitStopwatch.ElapsedMilliseconds}ms, error={ex.Message}");
+       }
 
-                        // STEP b3.2b: Bridge is now loaded via HTML (bridge-wrapper.js in index.html)
-                         // The new bridge wrapper loads automatically before React initializes
-                         System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-INJECT] Bridge wrapper loaded via index.html (no C# injection needed)");
+        // STEP b21: React mount probe
+       System.Diagnostics.Debug.WriteLine("[b21-REACT-MOUNT] Executing React mount probe script");
+       var reactMountScript = @"
+(function() {
+  try {
+    var rootEl = document.getElementById('root');
+    var reactRootEl = document.querySelector('[data-reactroot]');
+    var rootFound = rootEl !== null && rootEl !== undefined;
+    var childCount = rootFound ? rootEl.childElementCount : 0;
+    var reactMounted = rootFound && childCount > 0;
+    console.log('[VS-React-Check] rootFound=' + rootFound + ', childCount=' + childCount + ', reactMounted=' + reactMounted);
+    return JSON.stringify({
+      reactMounted: reactMounted,
+      rootFound: rootFound,
+      childCount: childCount,
+      hasDataReactRoot: reactRootEl !== null
+    });
+  } catch (e) {
+    console.error('[VS-React-Check] Exception: ' + e.message);
+    return JSON.stringify({ reactMounted: false, rootFound: false, childCount: 0, error: e.message });
+  }
+})();
+";
+       try
+       {
+           string reactResult = await WebView.CoreWebView2.ExecuteScriptAsync(reactMountScript);
+           string cleanedReactResult = reactResult;
+           if (cleanedReactResult.StartsWith("\"") && cleanedReactResult.EndsWith("\""))
+           {
+               var parsedJson = System.Text.Json.JsonDocument.Parse(reactResult);
+               cleanedReactResult = parsedJson.RootElement.GetString() ?? reactResult;
+           }
+           var reactState = Newtonsoft.Json.Linq.JObject.Parse(cleanedReactResult ?? "");
+           bool reactMounted = reactState["reactMounted"]?.Value<bool>() ?? false;
+           bool rootFound = reactState["rootFound"]?.Value<bool>() ?? false;
+           int childCount = reactState["childCount"]?.Value<int>() ?? 0;
+           bool hasDataReactRoot = reactState["hasDataReactRoot"]?.Value<bool>() ?? false;
+           System.Diagnostics.Debug.WriteLine($"[b21-REACT-MOUNT] reactMounted={reactMounted}, rootFound={rootFound}, childCount={childCount}, hasDataReactRoot={hasDataReactRoot}, elapsed={b21InitStopwatch.ElapsedMilliseconds}ms");
+       }
+       catch (Exception ex)
+       {
+           System.Diagnostics.Debug.WriteLine($"[b21-REACT-MOUNT] WARN: React mount probe failed, elapsed={b21InitStopwatch.ElapsedMilliseconds}ms, error={ex.Message}");
+       }
 
-                                                                          // STEP b3.3: Bridge ready verification script
-                                                                          // Check for the new bridge-wrapper.js bridge layer
-                                                                          System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-READY] Executing bridge readiness verification script");
-                                                                          var bridgeVerifyScript = @"
+        // STEP b3.2b: Bridge is now loaded via HTML (bridge-wrapper.js in index.html)
+        // The new bridge wrapper loads automatically before React initializes
+       System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-INJECT] Bridge wrapper loaded via index.html (no C# injection needed)");
+
+        // STEP b3.3: Bridge ready verification script
+        // Check for the new bridge-wrapper.js bridge layer
+       System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-READY] Executing bridge readiness verification script");
+       var bridgeVerifyScript = @"
                                                  (function() {
                                                    try {
                                                      console.log('[VS-Bridge-Check] Starting bridge verification');
@@ -605,68 +671,67 @@ namespace ContinueVS.UI
                                                    }
                                                  })();
                                                  ";
-                        var bridgeStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                        string bridgeResult = await WebView.CoreWebView2.ExecuteScriptAsync(bridgeVerifyScript);
-                        bridgeStopwatch.Stop();
-                        System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] Bridge verification completed in {bridgeStopwatch.ElapsedMilliseconds}ms, result={bridgeResult}");
+       var bridgeStopwatch = System.Diagnostics.Stopwatch.StartNew();
+       string bridgeResult = await WebView.CoreWebView2.ExecuteScriptAsync(bridgeVerifyScript);
+       bridgeStopwatch.Stop();
+       System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] Bridge verification completed in {bridgeStopwatch.ElapsedMilliseconds}ms, result={bridgeResult}");
 
-                        // Parse bridge result
-                        try
-                        {
-                            // ExecuteScriptAsync returns JSON string (result includes quotes)
-                            // Remove outer quotes if present
-                            string cleanedBridgeResult = bridgeResult;
-                            if (cleanedBridgeResult.StartsWith("\"") && cleanedBridgeResult.EndsWith("\""))
-                            {
-                                var parsedJson = System.Text.Json.JsonDocument.Parse(bridgeResult);
-                                cleanedBridgeResult = parsedJson.RootElement.GetString() ?? bridgeResult;
-                            }
+        // Parse bridge result
+       try
+       {
+            // ExecuteScriptAsync returns JSON string (result includes quotes)
+            // Remove outer quotes if present
+           string cleanedBridgeResult = bridgeResult;
+           if (cleanedBridgeResult.StartsWith("\"") && cleanedBridgeResult.EndsWith("\""))
+           {
+               var parsedJson = System.Text.Json.JsonDocument.Parse(bridgeResult);
+               cleanedBridgeResult = parsedJson.RootElement.GetString() ?? bridgeResult;
+           }
 
-                            var bridgeState = Newtonsoft.Json.Linq.JObject.Parse(cleanedBridgeResult ?? "");
-                                 bool bridgeReady = bridgeState["bridgeReady"]?.Value<bool>() ?? false;
-                                System.Diagnostics.Debug.WriteLine($"[b3-INTEGRATION] Bridge operational: {bridgeReady}, wrapper={bridgeState["wrapperReady"]}, legacy={bridgeState["legacyReady"]}, sendToExtension={bridgeState["hasSendToExtension"]}");
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] WARNING: Failed to parse bridge result: {ex.Message}");
-                            }
+           var bridgeState = Newtonsoft.Json.Linq.JObject.Parse(cleanedBridgeResult ?? "");
+           bool bridgeReady = bridgeState["bridgeReady"]?.Value<bool>() ?? false;
+           System.Diagnostics.Debug.WriteLine($"[b3-INTEGRATION] Bridge operational: {bridgeReady}, wrapper={bridgeState["wrapperReady"]}, legacy={bridgeState["legacyReady"]}, sendToExtension={bridgeState["hasSendToExtension"]}");
+           System.Diagnostics.Debug.WriteLine($"[b21-BRIDGE-READY] bridgeReady={bridgeReady}, wrapperReady={bridgeState["wrapperReady"]}, legacyReady={bridgeState["legacyReady"]}, elapsed={b21InitStopwatch.ElapsedMilliseconds}ms");
+           b21InitStopwatch.Stop();
+           System.Diagnostics.Debug.WriteLine($"[b21-INIT-TIME-MS] WebView2 init complete, totalMs={b21InitStopwatch.ElapsedMilliseconds}, bridgeReady={bridgeReady}");
+       }
+       catch (Exception ex)
+       {
+           System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] WARNING: Failed to parse bridge result: {ex.Message}");
+           System.Diagnostics.Debug.WriteLine($"[b21-BRIDGE-READY] WARN: Bridge parse failed, elapsed={b21InitStopwatch.ElapsedMilliseconds}ms, error={ex.Message}");
+       }
 
-                            // KICKSTART: Send initialization message to React to trigger startup
-                            System.Diagnostics.Debug.WriteLine("[KICKSTART] Sending bridge:init message to React...");
-                            try
-                            {
-                                // Give React/DOM a moment to set up event listeners
-                                await System.Threading.Tasks.Task.Delay(300);
+        // KICKSTART: Disabled — the GUI initiates communication on its own
+        // via vscode.postMessage once it loads. Sending bridge:init caused
+        // the GUI to re-initialize and loop.
+       System.Diagnostics.Debug.WriteLine("[KICKSTART] Skipped — GUI self-initiates via vscode shim");
 
-                                SendReplyToGui("bridge:init", "init-kickstart-" + System.Guid.NewGuid().ToString("N").Substring(0, 8),
-                                    new
-                                    {
-                                        version = "2.0.0",
-                                        capabilities = new[] { "chat", "edit", "diff", "codebase" },
-                                        ide = "vs",
-                                        timestamp = System.DateTime.UtcNow.ToString("O")
-                                    }
-                                );
-                                System.Diagnostics.Debug.WriteLine("[KICKSTART] bridge:init message sent successfully");
-                            }
-                            catch (Exception kickstartEx)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[KICKSTART-ERROR] Failed to send kickstart message: {kickstartEx.Message}");
-                            }
-                    }
-                    catch (System.Runtime.InteropServices.COMException comEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-NAV] COMException during navigation completion handler: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
-                    }
-                    catch (System.OperationCanceledException opEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] OperationCanceledException during DOM/bridge verification: {opEx.Message}");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] Unexpected exception in NavigationCompleted handler: {ex.GetType().Name} - {ex.Message}");
-                    }
-                };
+        // DIAGNOSTIC: Inject a message listener to log all incoming messages
+        // This will help us understand if the GUI's request() method matches responses
+       await WebView.CoreWebView2.ExecuteScriptAsync(@"
+                                (function() {
+                                    window.addEventListener('message', function(e) {
+                                        if (e && e.data && e.data.messageType) {
+                                            console.log('[DIAG-MSG-IN] type=' + e.data.messageType + ' id=' + e.data.messageId + ' hasData=' + !!e.data.data);
+                                        }
+                                    });
+                                    console.log('[DIAG] Message listener installed for diagnostics');
+                                })()
+                            ");
+   }
+   catch (System.Runtime.InteropServices.COMException comEx)
+   {
+       System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-NAV] COMException during navigation completion handler: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
+   }
+   catch (System.OperationCanceledException opEx)
+   {
+       System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] OperationCanceledException during DOM/bridge verification: {opEx.Message}");
+   }
+   catch (Exception ex)
+   {
+       System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] Unexpected exception in NavigationCompleted handler: {ex.GetType().Name} - {ex.Message}");
+   }
+};
 #pragma warning restore VSTHRD101
                 System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] NavigationCompleted handler registered successfully");
 
@@ -684,7 +749,7 @@ namespace ContinueVS.UI
             WebView.Source = navigationUri;
 
             LoadingPanel.Visibility = Visibility.Collapsed;
-            WebView.Visibility      = Visibility.Visible;
+            WebView.Visibility = Visibility.Visible;
             System.Diagnostics.Debug.WriteLine("[b3-TIMING] Navigation initiated, awaiting NavigationCompleted event and DOM/bridge verification");
             // NOTE: PushConfigUpdate() and PushIndexProgress() are now called from NavigationCompleted handler
             // after the bridge is successfully injected, not before!
@@ -752,7 +817,20 @@ namespace ContinueVS.UI
 
             // [b12-DISPATCH-START] Routing to dispatcher
             System.Diagnostics.Debug.WriteLine($"[b12-DISPATCH-START] Routing message to dispatcher: {message.MessageType}");
-            return _dispatcher.DispatchAsync(message, System.Threading.CancellationToken.None);
+            return _dispatcher.DispatchAsync(message, System.Threading.CancellationToken.None)
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DISPATCH-ERROR] {message.MessageType}: {t.Exception?.InnerException?.Message}");
+                        // Send error response so GUI doesn't hang waiting
+                        // Note: SendReplyToGui wraps in {status:"success",content:...} so we pass the error object directly
+                        // and the GUI will get {status:"success",content:{error:"..."}}
+                        // The GUI's request() resolves, but the caller should handle missing expected fields gracefully
+                        try { SendErrorReplyToGui(message.MessageType, message.MessageId, t.Exception?.InnerException?.Message ?? "Unknown error"); }
+                        catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine($"[DISPATCH-ERROR-REPLY] Failed: {ex.Message}"); }
+                    }
+                }, System.Threading.Tasks.TaskScheduler.Default);
         }
 
         // -----------------------------------------------------------------
@@ -764,41 +842,41 @@ namespace ContinueVS.UI
         /// command that wants to pre-populate the input box with selected code).
         /// </summary>
         public void SendToGui(string messageType, object data)
-         {
-             if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
+        {
+            if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
 
-             var msg = new Message
-             {
-                 MessageType = messageType,
-                 MessageId   = Guid.NewGuid().ToString(),
-                 Data        = JToken.FromObject(data),
-             };
-             var json    = JsonConvert.SerializeObject(msg);
-             System.Diagnostics.Debug.WriteLine($"[SendToGui-DEBUG] messageType={messageType}, json={json}");
-             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
-             // Call the new bridge wrapper's onMessageFromExtension method
-             var script = $"window.continueVSBridge && window.continueVSBridge.onMessageFromExtension('{escaped}');";
-             System.Diagnostics.Debug.WriteLine($"[SendToGui-SCRIPT] {script.Substring(0, Math.Min(200, script.Length))}...");
+            var msg = new Message
+            {
+                MessageType = messageType,
+                MessageId = Guid.NewGuid().ToString(),
+                Data = JToken.FromObject(data),
+            };
+            var json = JsonConvert.SerializeObject(msg);
+            System.Diagnostics.Debug.WriteLine($"[SendToGui-DEBUG] messageType={messageType}, json={json}");
+            var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+            // Call via window.continueVS.onMessage (the documented C#→JS bridge API)
+            var script = $"window.continueVS && window.continueVS.onMessage('{escaped}');";
+            System.Diagnostics.Debug.WriteLine($"[SendToGui-SCRIPT] {script.Substring(0, Math.Min(200, script.Length))}...");
 
- #pragma warning disable VSSDK007
-             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-             {
-                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                 try
-                 {
-                     await WebView.CoreWebView2.ExecuteScriptAsync(script);
-                     System.Diagnostics.Debug.WriteLine($"[SendToGui-OK] Message sent: {messageType}");
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                try
+                {
+                    await WebView.CoreWebView2.ExecuteScriptAsync(script);
+                    System.Diagnostics.Debug.WriteLine($"[SendToGui-OK] Message sent: {messageType}");
 
-                     // Also log the raw message for debugging
-                     System.Diagnostics.Debug.WriteLine($"[SendToGui-MSG] {messageType}: {json.Substring(0, Math.Min(150, json.Length))}");
-                 }
-                 catch (Exception ex)
-                 {
-                     System.Diagnostics.Debug.WriteLine($"[SendToGui-ERROR] Failed to send {messageType}: {ex.Message}");
-                 }
-             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
- #pragma warning restore VSSDK007
-         }
+                    // Also log the raw message for debugging
+                    System.Diagnostics.Debug.WriteLine($"[SendToGui-MSG] {messageType}: {json.Substring(0, Math.Min(150, json.Length))}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[SendToGui-ERROR] Failed to send {messageType}: {ex.Message}");
+                }
+            }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
+#pragma warning restore VSSDK007
+        }
 
         /// <summary>
         /// Sends a message to the GUI and waits asynchronously for a reply with the same messageId.
@@ -821,10 +899,10 @@ namespace ContinueVS.UI
             var msg = new Message
             {
                 MessageType = messageType,
-                MessageId   = messageId,
-                Data        = JToken.FromObject(data),
+                MessageId = messageId,
+                Data = JToken.FromObject(data),
             };
-            var json    = JsonConvert.SerializeObject(msg);
+            var json = JsonConvert.SerializeObject(msg);
             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
 
 #pragma warning disable VSSDK007
@@ -839,6 +917,12 @@ namespace ContinueVS.UI
             return tcs.Task;
         }
 
+        /// <summary>Send an error reply that the GUI's request() will see as {status:"error", error:"..."}.</summary>
+        public void SendErrorReplyToGui(string messageType, string messageId, string errorMessage)
+        {
+            SendReplyToGuiInternal(messageType, messageId, new { status = "error", error = errorMessage });
+        }
+
         public void SendReplyToGui(string messageType, string messageId, object data)
         {
             // [b16-RESPONSE-SERIALIZED] Start timing measurement for b16 verification
@@ -847,7 +931,7 @@ namespace ContinueVS.UI
             // [b12-RESPONSE] Log outbound response initialization
             System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] SendReplyToGui called: Type={messageType}, ID={messageId}");
 
-            if (!_webViewInitialized || WebView.CoreWebView2 == null) 
+            if (!_webViewInitialized)
             {
                 System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] WebView not initialized, reply not sent");
                 return;
@@ -857,17 +941,24 @@ namespace ContinueVS.UI
             System.Diagnostics.Debug.WriteLine($"[b13-RESPONSE-OBJECT] Handler response object: Type={data?.GetType().Name ?? "null"}, Content={JsonConvert.SerializeObject(data)}");
 
             // [b12-RESPONSE] Response serialization
+            // Send the raw handler payload directly as event.data.data
+            SendReplyToGuiInternal(messageType, messageId, data ?? new object());
+        }
+
+        private void SendReplyToGuiInternal(string messageType, string messageId, object wrappedData)
+        {
+            var b16ResponseStopwatch = System.Diagnostics.Stopwatch.StartNew();
             var msg = new Message
             {
                 MessageType = messageType,
-                MessageId   = messageId,
-                Data        = JToken.FromObject(data!),
+                MessageId = messageId,
+                Data = JToken.FromObject(wrappedData),
             };
 
             // [b13-JTOKEN-SERIALIZE] Log JToken creation
             System.Diagnostics.Debug.WriteLine($"[b13-JTOKEN-SERIALIZE] JToken created from payload");
 
-            var json    = JsonConvert.SerializeObject(msg);
+            var json = JsonConvert.SerializeObject(msg);
             System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Message serialized: {json}");
 
             // [b13-JSON-VALID] Validate JSON structure
@@ -877,14 +968,8 @@ namespace ContinueVS.UI
             // [b16-RESPONSE-SERIALIZED] Log for loadSettings handler
             if (messageType == "bridge:loadSettings")
             {
-                System.Diagnostics.Debug.WriteLine($"[b16-RESPONSE-SERIALIZED] Response prepared: DataType={data?.GetType().Name}, JsonLength={json?.Length}");
+                System.Diagnostics.Debug.WriteLine($"[b16-RESPONSE-SERIALIZED] Response prepared: DataType={wrappedData?.GetType().Name}, JsonLength={json?.Length}");
             }
-
-            var escaped = json?.Replace("\\", "\\\\").Replace("'", "\\'") ?? string.Empty;
-            System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Escaped JSON: {escaped}");
-
-            // [b13-SCRIPT-PAYLOAD] Show final escaped string for injection
-            System.Diagnostics.Debug.WriteLine($"[b13-SCRIPT-PAYLOAD] JavaScript payload ready: FunctionCall=window.continueVS.onMessage, PayloadLength={escaped?.Length ?? 0}");
 
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
@@ -906,13 +991,19 @@ namespace ContinueVS.UI
                 // Log confirmation without throwing (VerifyAccess would violate VSTHRD109)
                 System.Diagnostics.Debug.WriteLine($"[b14-ASSERTION] After SwitchToMainThreadAsync - proceeding to ExecuteScriptAsync on UI thread");
 
-                // [b12-SCRIPT-EXEC] ExecuteScriptAsync injection
-                System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Executing script to send reply to bridge");
-                var scriptResult = await WebView.CoreWebView2.ExecuteScriptAsync(
-                    $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-                // [b13-SCRIPT-RESULT] Capture result from ExecuteScriptAsync
-                System.Diagnostics.Debug.WriteLine($"[b13-SCRIPT-RESULT] ExecuteScriptAsync completed: Result={scriptResult}, Status=Success");
-                System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Reply script executed successfully");
+                // [b12-SCRIPT-EXEC] Post message to WebView2 via PostWebMessageAsJson
+                // PostWebMessageAsJson automatically handles JSON → fires chrome.webview 'message'
+                // bridge-wrapper relays it to window 'message' listeners via _dispatchToMessageListeners
+                System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Delivering via PostWebMessageAsJson, jsonLen={json?.Length}");
+                try
+                {
+                    WebView.CoreWebView2.PostWebMessageAsJson(json);
+                    System.Diagnostics.Debug.WriteLine($"[b13-SCRIPT-RESULT] PostWebMessageAsJson succeeded");
+                }
+                catch (Exception postEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[b12-ERROR] PostWebMessageAsJson failed: {postEx.Message}");
+                }
 
                 // [b16-SCRIPT-INJECTED] Log for loadSettings handler
                 if (messageType == "bridge:loadSettings")

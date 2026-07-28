@@ -277,34 +277,9 @@ namespace ContinueVS.Handlers
                     });
             }
 
-            // Step 73: Validate payload (request/response)
-            if (message.Data is not null)
-            {
-                var dataObj = message.Data as JObject;
-                if (dataObj != null)
-                {
-                    // Detect if request or response based on method field presence
-                    bool isRequest = dataObj.ContainsKey("method");
-
-                    var (payloadValid, payloadError, errorCode) = 
-                        MessageValidator.ValidatePayload(dataObj, isRequest);
-
-                    if (!payloadValid)
-                    {
-                        throw new BridgeMessageDispatcherException(
-                            $"Payload validation failed: {payloadError}",
-                            BridgeMessageDispatcherException.OperationType.ValidationFailed,
-                            BridgeMessageDispatcherException.ErrorCodes.ValidationFailed,
-                            message.MessageType,
-                            new Dictionary<string, string>
-                            {
-                                { "messageId", message.MessageId ?? "null" },
-                                { "payloadError", payloadError ?? "unknown" },
-                                { "jsonRpcErrorCode", errorCode?.ToString() ?? "unknown" }
-                            });
-                    }
-                }
-            }
+            // Step 73: Payload validation skipped — the GUI uses a simple
+            // {messageType, messageId, data} envelope (not JSON-RPC), so requiring
+            // "result"/"error" or "method" fields would reject all valid GUI messages.
         }
 
         /// <summary>

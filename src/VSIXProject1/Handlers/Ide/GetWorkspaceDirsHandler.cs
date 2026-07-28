@@ -56,65 +56,26 @@ namespace ContinueVS.Handlers.Ide
         {
             try
             {
-                // [b14-WORKSPACE-BEFORE] Capture thread ID before ReflectionBased ThreadHelper call
-                var beforeTid = System.Threading.Thread.CurrentThread.ManagedThreadId;
-                System.Diagnostics.Debug.WriteLine($"[b14-WORKSPACE-BEFORE] GetWorkspaceDirectoriesAsync thread before switch: {beforeTid}");
+                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
-                // Use reflection to call ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync
-                var threadHelper = typeof(Microsoft.VisualStudio.Shell.ThreadHelper);
-                var method = threadHelper.GetMethod("SwitchToMainThreadAsync", 
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
-
-                if (method != null)
+                var dte = (EnvDTE.DTE)Microsoft.VisualStudio.Shell.Package.GetGlobalService(typeof(EnvDTE.DTE));
+                if (dte?.Solution != null)
                 {
-                    var task = method.Invoke(null, new object[] { cancellationToken });
-                    if (task is Task taskObj)
+                    var fullName = dte.Solution.FullName;
+                    if (!string.IsNullOrEmpty(fullName))
                     {
-                        await taskObj;
-                    }
-                }
-
-                // [b14-WORKSPACE-AFTER] Capture thread ID after ReflectionBased ThreadHelper call
-                var afterTid = System.Threading.Thread.CurrentThread.ManagedThreadId;
-                System.Diagnostics.Debug.WriteLine($"[b14-WORKSPACE-AFTER] GetWorkspaceDirectoriesAsync thread after switch: {afterTid}");
-
-                // Get DTE via Package.GetGlobalService
-                var packageType = typeof(Microsoft.VisualStudio.Shell.Package);
-                var getGlobalServiceMethod = packageType.GetMethod("GetGlobalService",
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-
-                if (getGlobalServiceMethod != null)
-                {
-                    var dteType = typeof(EnvDTE.DTE);
-                    var dte = getGlobalServiceMethod.Invoke(null, new object[] { dteType });
-
-                    if (dte != null)
-                    {
-                        // Use reflection to access Solution.FullName
-                        var solutionProperty = dte.GetType().GetProperty("Solution");
-                        var solution = solutionProperty?.GetValue(dte);
-
-                        if (solution != null)
+                        var dir = Path.GetDirectoryName(fullName);
+                        if (!string.IsNullOrEmpty(dir))
                         {
-                            var fullNameProperty = solution.GetType().GetProperty("FullName");
-                            var fullName = (string?)fullNameProperty?.GetValue(solution);
-
-                            if (!string.IsNullOrEmpty(fullName))
-                            {
-                                var dir = Path.GetDirectoryName(fullName);
-                                if (!string.IsNullOrEmpty(dir))
-                                {
-                                    System.Diagnostics.Debug.WriteLine($"[t9-HANDLER] Workspace directory found: {dir}");
-                                    return new[] { dir };
-                                }
-                            }
+                            System.Diagnostics.Debug.WriteLine($"[t9-HANDLER] Workspace directory found: {dir}");
+                            return new[] { dir };
                         }
                     }
                 }
             }
-            catch
+            catch (System.Exception ex)
             {
-                // If anything fails (assembly missing, DTE unavailable), return empty
+                System.Diagnostics.Debug.WriteLine($"[t9-HANDLER] GetWorkspaceDirectoriesAsync error: {ex.Message}");
             }
 
             System.Diagnostics.Debug.WriteLine($"[t9-HANDLER] No workspace directory available (no solution open)");

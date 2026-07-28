@@ -61,7 +61,14 @@ namespace ContinueVS.Binary
 
             if (indexExists && wrapperExists)
             {
-                System.Diagnostics.Debug.WriteLine("[GuiExtractor.EnsureExtractedAsync] Both files exist - returning early");
+                System.Diagnostics.Debug.WriteLine("[GuiExtractor.EnsureExtractedAsync] Both files exist - updating bridge-wrapper.js from bundled source");
+                // Always overwrite bridge-wrapper.js to ensure latest version is deployed
+                var bundledWrapper = Path.Combine(BundledGuiPath, "bridge-wrapper.js");
+                if (File.Exists(bundledWrapper))
+                {
+                    File.Copy(bundledWrapper, bridgeWrapperPath, overwrite: true);
+                    System.Diagnostics.Debug.WriteLine("[GuiExtractor.EnsureExtractedAsync] bridge-wrapper.js updated from bundled source");
+                }
                 return Task.CompletedTask;
             }
 
