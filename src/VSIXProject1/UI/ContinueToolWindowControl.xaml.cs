@@ -2,6 +2,7 @@
 using ContinueVS.Editor;
 using System.Collections.Concurrent;
 using ContinueVS.Handlers;
+using ContinueVS.Handlers.Bridge;
 using ContinueVS.Handlers.Config;
 using ContinueVS.Handlers.Context;
 using ContinueVS.Handlers.File;
@@ -105,6 +106,9 @@ namespace ContinueVS.UI
                 IDisposable? scope44 = tracer?.BeginScope("t4.4", "ContinueToolWindowControl.HandlerRegistration");
                 try
                 {
+                    // Bridge bootstrap handler - React sends this first!
+                    _dispatcher.Register("bridge:bootstrap", new BootstrapHandler(_dispatcher));
+
                     _dispatcher.Register("getWorkspaceDirs",  new GetWorkspaceDirsHandler(this));
                     _dispatcher.Register("getIdeInfo",        new GetIdeInfoHandler(this));
                     _dispatcher.Register("getIdeSettings",    new GetIdeSettingsHandler(this));
@@ -158,6 +162,20 @@ namespace ContinueVS.UI
                     scope44?.Dispose();
                 }
 
+                // [b20] Handler registration verification
+                System.Diagnostics.Debug.WriteLine($"[b20-HANDLER-COUNT] Registered handlers: {_dispatcher.GetHandlerCount()}");
+                var handlerMessageTypes = new[] 
+                {
+                    "getWorkspaceDirs", "getIdeInfo", "getIdeSettings", "getUniqueId", "isTelemetryEnabled", "isWorkspaceRemote",
+                    "readFile", "fileExists", "getOpenFiles", "writeFile", "saveFile", "openFile", "openUrl", "getBranch",
+                    "context/getContextItems", "context/getSymbolsForFiles", "context/loadSubmenuItems", "context/addDocs", "context/removeDocs", "context/indexDocs",
+                    "config/addOpenAiKey", "config/ideSettingsUpdate", "config/deleteModel", "config/getSerializedProfileInfo", "config/addModel", "config/addLocalWorkspaceBlock", "config/addGlobalRule", "config/deleteRule", "config/newPromptFile", "config/newAssistantFile", "config/refreshProfiles", "config/openProfile", "config/updateSharedConfig", "config/updateSelectedModel",
+                    "llm/complete", "llm/streamChat", "llm/listModels", "llm/compileChat", "bridge:getModelInfo", "getCurrentFile", "applyToFile", "acceptDiff", "rejectDiff",
+                    "autocomplete/complete", "autocomplete/accept", "autocomplete/cancel"
+                };
+                System.Diagnostics.Debug.WriteLine($"[b20-HANDLER-LIST] {string.Join(", ", handlerMessageTypes)}");
+                System.Diagnostics.Debug.WriteLine("[b20-REGISTRATION-COMPLETE]");
+
                 // t4.5 - Loaded event wiring (prelude to t22+)
                 System.Diagnostics.Debug.WriteLine("[CV-t4.5] Wiring Loaded event...");
                 IDisposable? scope45 = tracer?.BeginScope("t4.5", "ContinueToolWindowControl.LoadedEvent");
@@ -177,6 +195,26 @@ namespace ContinueVS.UI
 
                 System.Diagnostics.Debug.WriteLine("[CV-t4] ✓ Constructor END - SUCCESS");
                 System.Diagnostics.Debug.WriteLine("[CV] Step 13 complete");
+
+                // Schedule NavigateAsync to run on the next dispatcher cycle to ensure UI is ready
+                System.Diagnostics.Debug.WriteLine("[CV-t4] Scheduling NavigateAsync via dispatcher");
+#pragma warning disable VSSDK007
+                ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+                {
+                    // Yield to let the visual tree settle before navigating
+                    await System.Threading.Tasks.Task.Yield();
+                    System.Diagnostics.Debug.WriteLine("[CV-Dispatcher] NavigateAsync scheduled task starting");
+                    try
+                    {
+                        await NavigateAsync();
+                        System.Diagnostics.Debug.WriteLine("[CV-Dispatcher] NavigateAsync completed successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[CV-Dispatcher] NavigateAsync FAILED: {ex}");
+                    }
+                }).FileAndForget("vs/continuevs/navigate");
+#pragma warning restore VSSDK007
             }
             catch (Exception ex)
             {
@@ -197,25 +235,9 @@ namespace ContinueVS.UI
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] Event fired");
-#pragma warning disable VSSDK007
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-            {
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] Async task started");
-                try
-                {
-                    await GuiExtractor.EnsureExtractedAsync();
-                    System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] GuiExtractor done");
-
-                    await NavigateAsync();
-                    System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] NavigateAsync done");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.OnLoaded] FAILED: {ex}");
-                }
-            }).FileAndForget("vs/continuevs/loaded");
-#pragma warning restore VSSDK007
+            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] Event fired (now handled in constructor via dispatcher)");
+            // NavigateAsync is now called directly from the constructor via dispatcher
+            // This OnLoaded event handler is kept for backward compatibility but is no longer needed
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -261,6 +283,19 @@ namespace ContinueVS.UI
         private async System.Threading.Tasks.Task NavigateAsync()
         {
             System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.NavigateAsync] START - _webViewInitialized={_webViewInitialized}");
+
+            // Ensure GUI assets are extracted before WebView2 initialization
+            System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.NavigateAsync] Calling EnsureExtractedAsync...");
+            try
+            {
+                await GuiExtractor.EnsureExtractedAsync();
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.NavigateAsync] EnsureExtractedAsync completed successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.NavigateAsync] EnsureExtractedAsync FAILED: {ex.Message}");
+            }
+
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.NavigateAsync] After SwitchToMainThreadAsync - _webViewInitialized={_webViewInitialized}");
 
@@ -309,6 +344,30 @@ namespace ContinueVS.UI
                      }
                      await WebView.EnsureCoreWebView2Async(env);
                     System.Diagnostics.Debug.WriteLine("[b1-ENSURE-SUCCESS] EnsureCoreWebView2Async completed successfully");
+
+                    // STEP b1.11: Configure WebView2 settings for bridge communication
+                    System.Diagnostics.Debug.WriteLine("[b1-SECURITY-CONFIG] Configuring WebView2Settings for bridge communication");
+                    try
+                    {
+                        if (WebView.CoreWebView2 != null)
+                        {
+                            var settings = WebView.CoreWebView2.Settings;
+
+                            // Enable dev tools for console debugging (available in WebView2 1.0.x)
+                            settings.AreDevToolsEnabled = true;
+                            System.Diagnostics.Debug.WriteLine("[b1-SECURITY] AreDevToolsEnabled = true");
+
+                            System.Diagnostics.Debug.WriteLine("[b1-SECURITY-CONFIG] WebView2 settings configured successfully");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[b1-SECURITY-CONFIG-ERROR] CoreWebView2 is null");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[b1-SECURITY-CONFIG-ERROR] {ex.GetType().Name}: {ex.Message}");
+                    }
 
                     // STEP b2.1: Pre-state logging before controller binding verification
                     System.Diagnostics.Debug.WriteLine("[b2-PRE-STATE] WebView element reference obtained, preparing for controller HWND binding");
@@ -436,18 +495,9 @@ namespace ContinueVS.UI
                     throw new InvalidOperationException("CoreWebView2 is null after EnsureCoreWebView2Async");
                 }
 
-                // Inject the continueVS bridge (must happen before navigation)
-                var injector = new WebviewInjector();
-                var injectionResult = await injector.InjectBridgeAsync(
-                    WebView.CoreWebView2,
-                    System.Threading.CancellationToken.None);
-
-                if (!injectionResult.Success)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[ContinueVS] Webview bridge injection failed: {injectionResult.ErrorMessage}");
-                }
-
+                // Inject the continueVS bridge (will be done in NavigationCompleted instead)
+                // The bridge must be injected AFTER navigation completes, not before
+                // Otherwise the page load will reset the JavaScript context
                 WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
                                  // STEP b3.1: Add NavigationCompleted event handler
@@ -506,31 +556,55 @@ namespace ContinueVS.UI
                             System.Diagnostics.Debug.WriteLine($"[b3-DOM-READY] WARNING: Failed to parse DOM result: {ex.Message}");
                         }
 
-                        // STEP b3.3: Bridge ready verification script
-                        System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-READY] Executing bridge readiness verification script");
-                        var bridgeVerifyScript = @"
-(function() {
-  try {
-    var bridgeReady = 
-      typeof window.continueVS !== 'undefined' &&
-      typeof window.continueVS.sendMessage === 'function' &&
-      typeof window.continueVS.onMessage === 'function' &&
-      typeof window.continueVS.getState === 'function';
+                        // STEP b3.2b: Bridge is now loaded via HTML (bridge-wrapper.js in index.html)
+                         // The new bridge wrapper loads automatically before React initializes
+                         System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-INJECT] Bridge wrapper loaded via index.html (no C# injection needed)");
 
-    return JSON.stringify({
-      bridgeReady: bridgeReady,
-      hasSendMessage: typeof window.continueVS?.sendMessage === 'function',
-      hasOnMessage: typeof window.continueVS?.onMessage === 'function',
-      hasGetState: typeof window.continueVS?.getState === 'function'
-    });
-  } catch (e) {
-    return JSON.stringify({
-      bridgeReady: false,
-      error: e.message
-    });
-  }
-})();
-";
+                                                                          // STEP b3.3: Bridge ready verification script
+                                                                          // Check for the new bridge-wrapper.js bridge layer
+                                                                          System.Diagnostics.Debug.WriteLine("[b3-BRIDGE-READY] Executing bridge readiness verification script");
+                                                                          var bridgeVerifyScript = @"
+                                                 (function() {
+                                                   try {
+                                                     console.log('[VS-Bridge-Check] Starting bridge verification');
+
+                                                     // Check for new bridge wrapper
+                                                     var wrapperReady = 
+                                                       typeof window.continueVSBridge !== 'undefined' &&
+                                                       typeof window.continueVSBridge.sendToExtension === 'function' &&
+                                                       typeof window.continueVSBridge.onMessageFromExtension === 'function';
+
+                                                     console.log('[VS-Bridge-Check] wrapperReady=' + wrapperReady);
+                                                     console.log('[VS-Bridge-Check] window.continueVSBridge=' + (typeof window.continueVSBridge));
+
+                                                     // Legacy bridge check (for backward compatibility)
+                                                     var legacyReady = 
+                                                       typeof window.continueVS !== 'undefined' &&
+                                                       typeof window.continueVS.sendMessage === 'function' &&
+                                                       typeof window.continueVS.onMessage === 'function';
+
+                                                     console.log('[VS-Bridge-Check] legacyReady=' + legacyReady);
+
+                                                     var result = {
+                                                       bridgeReady: wrapperReady || legacyReady,
+                                                       wrapperReady: wrapperReady,
+                                                       legacyReady: legacyReady,
+                                                       hasWrapper: typeof window.continueVSBridge !== 'undefined',
+                                                       hasSendToExtension: typeof window.continueVSBridge?.sendToExtension === 'function',
+                                                       hasOnMessageFromExtension: typeof window.continueVSBridge?.onMessageFromExtension === 'function'
+                                                     };
+
+                                                     console.log('[VS-Bridge-Check] Result:' + JSON.stringify(result));
+                                                     return JSON.stringify(result);
+                                                   } catch (e) {
+                                                     console.error('[VS-Bridge-Check] Exception: ' + e.message);
+                                                     return JSON.stringify({
+                                                       bridgeReady: false,
+                                                       error: e.message
+                                                     });
+                                                   }
+                                                 })();
+                                                 ";
                         var bridgeStopwatch = System.Diagnostics.Stopwatch.StartNew();
                         string bridgeResult = await WebView.CoreWebView2.ExecuteScriptAsync(bridgeVerifyScript);
                         bridgeStopwatch.Stop();
@@ -549,13 +623,36 @@ namespace ContinueVS.UI
                             }
 
                             var bridgeState = Newtonsoft.Json.Linq.JObject.Parse(cleanedBridgeResult ?? "");
-                            bool bridgeReady = bridgeState["bridgeReady"]?.Value<bool>() ?? false;
-                            System.Diagnostics.Debug.WriteLine($"[b3-INTEGRATION] Bridge operational: {bridgeReady}, sendMessage={bridgeState["hasSendMessage"]}, onMessage={bridgeState["hasOnMessage"]}, getState={bridgeState["hasGetState"]}");
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] WARNING: Failed to parse bridge result: {ex.Message}");
-                        }
+                                 bool bridgeReady = bridgeState["bridgeReady"]?.Value<bool>() ?? false;
+                                System.Diagnostics.Debug.WriteLine($"[b3-INTEGRATION] Bridge operational: {bridgeReady}, wrapper={bridgeState["wrapperReady"]}, legacy={bridgeState["legacyReady"]}, sendToExtension={bridgeState["hasSendToExtension"]}");
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[b3-BRIDGE-READY] WARNING: Failed to parse bridge result: {ex.Message}");
+                            }
+
+                            // KICKSTART: Send initialization message to React to trigger startup
+                            System.Diagnostics.Debug.WriteLine("[KICKSTART] Sending bridge:init message to React...");
+                            try
+                            {
+                                // Give React/DOM a moment to set up event listeners
+                                await System.Threading.Tasks.Task.Delay(300);
+
+                                SendReplyToGui("bridge:init", "init-kickstart-" + System.Guid.NewGuid().ToString("N").Substring(0, 8),
+                                    new
+                                    {
+                                        version = "2.0.0",
+                                        capabilities = new[] { "chat", "edit", "diff", "codebase" },
+                                        ide = "vs",
+                                        timestamp = System.DateTime.UtcNow.ToString("O")
+                                    }
+                                );
+                                System.Diagnostics.Debug.WriteLine("[KICKSTART] bridge:init message sent successfully");
+                            }
+                            catch (Exception kickstartEx)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[KICKSTART-ERROR] Failed to send kickstart message: {kickstartEx.Message}");
+                            }
                     }
                     catch (System.Runtime.InteropServices.COMException comEx)
                     {
@@ -589,8 +686,8 @@ namespace ContinueVS.UI
             LoadingPanel.Visibility = Visibility.Collapsed;
             WebView.Visibility      = Visibility.Visible;
             System.Diagnostics.Debug.WriteLine("[b3-TIMING] Navigation initiated, awaiting NavigationCompleted event and DOM/bridge verification");
-            _pusher.PushConfigUpdate();
-            _pusher.PushIndexProgress();
+            // NOTE: PushConfigUpdate() and PushIndexProgress() are now called from NavigationCompleted handler
+            // after the bridge is successfully injected, not before!
         }
 
         // -----------------------------------------------------------------
@@ -624,7 +721,8 @@ namespace ContinueVS.UI
             System.Diagnostics.Debug.WriteLine($"[b14-ENTRY] OnWebMessageReceivedAsync executing on thread: {asyncThreadId}");
 
             // [b12-RECEIVED] Capture raw JSON from WebView
-            var json = e.TryGetWebMessageAsString();
+            // Use WebMessageAsJson property which is always available (doesn't throw like TryGetWebMessageAsString)
+            var json = e.WebMessageAsJson;
             System.Diagnostics.Debug.WriteLine($"[b12-RECEIVED] Raw JSON received: {json}");
 
             // [b12-DESERIALIZED] Deserialize JSON to Message object
@@ -666,27 +764,41 @@ namespace ContinueVS.UI
         /// command that wants to pre-populate the input box with selected code).
         /// </summary>
         public void SendToGui(string messageType, object data)
-        {
-            if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
+         {
+             if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
 
-            var msg = new Message
-            {
-                MessageType = messageType,
-                MessageId   = Guid.NewGuid().ToString(),
-                Data        = JToken.FromObject(data),
-            };
-            var json    = JsonConvert.SerializeObject(msg);
-            var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+             var msg = new Message
+             {
+                 MessageType = messageType,
+                 MessageId   = Guid.NewGuid().ToString(),
+                 Data        = JToken.FromObject(data),
+             };
+             var json    = JsonConvert.SerializeObject(msg);
+             System.Diagnostics.Debug.WriteLine($"[SendToGui-DEBUG] messageType={messageType}, json={json}");
+             var escaped = json.Replace("\\", "\\\\").Replace("'", "\\'");
+             // Call the new bridge wrapper's onMessageFromExtension method
+             var script = $"window.continueVSBridge && window.continueVSBridge.onMessageFromExtension('{escaped}');";
+             System.Diagnostics.Debug.WriteLine($"[SendToGui-SCRIPT] {script.Substring(0, Math.Min(200, script.Length))}...");
 
-#pragma warning disable VSSDK007
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-            {
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                await WebView.CoreWebView2.ExecuteScriptAsync(
-                    $"window.continueVS && window.continueVS.onMessage('{escaped}');");
-            }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
-#pragma warning restore VSSDK007
-        }
+ #pragma warning disable VSSDK007
+             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+             {
+                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                 try
+                 {
+                     await WebView.CoreWebView2.ExecuteScriptAsync(script);
+                     System.Diagnostics.Debug.WriteLine($"[SendToGui-OK] Message sent: {messageType}");
+
+                     // Also log the raw message for debugging
+                     System.Diagnostics.Debug.WriteLine($"[SendToGui-MSG] {messageType}: {json.Substring(0, Math.Min(150, json.Length))}");
+                 }
+                 catch (Exception ex)
+                 {
+                     System.Diagnostics.Debug.WriteLine($"[SendToGui-ERROR] Failed to send {messageType}: {ex.Message}");
+                 }
+             }).FileAndForget("vs/continuevs/sendtogui");                // VSSDK007
+ #pragma warning restore VSSDK007
+         }
 
         /// <summary>
         /// Sends a message to the GUI and waits asynchronously for a reply with the same messageId.

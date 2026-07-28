@@ -419,3 +419,33 @@ src/output/**
 src/rejected/
 src/rejected/**
 src/rejected/.rejection-manifest.json
+
+# ============================================================================
+# Continue Frontend - Downloaded/Generated at Build Time
+# Do NOT commit these directories - they are managed by build scripts
+# ============================================================================
+
+# Official Continue GUI repository (cloned separately, not part of VSIX)
+/Continue/
+/src/VSIXProject1/gui/continue-official/
+
+# Build output folder with Continue files injected with your bridge
+/bin/*/gui/
+/obj/*/gui/
+
+# Continue node modules and build temp files
+/src/VSIXProject1/gui/continue-official/node_modules/
+/src/VSIXProject1/gui/continue-official/.cache/
+/src/VSIXProject1/gui/continue-official/dist/
+/src/VSIXProject1/gui/continue-official/build/
+
+# Temp extraction/staging folders
+/temp/
+/tmp/
+/staging/
+
+# Continue package files (if downloaded as zip or tarball)
+continue*.zip
+continue*.tar.gz
+continue*.tar
+

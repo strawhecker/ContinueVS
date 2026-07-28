@@ -245,6 +245,12 @@ namespace ContinueVS.Handlers
         }
 
         /// <summary>
+        /// Returns the count of currently registered handlers.
+        /// Used for verification purposes (e.g., b20 handler registration completeness test).
+        /// </summary>
+        public int GetHandlerCount() => _handlers.Count;
+
+        /// <summary>
         /// Validates message envelope for null, empty type, and well-formed id.
         /// Uses MessageValidator (Step 73) for comprehensive envelope and payload validation.
         /// </summary>

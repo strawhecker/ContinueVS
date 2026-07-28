@@ -5,11 +5,43 @@
     <link rel="icon" type="image/svg+xml" href="/play_button.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Continue</title>
+
+    <!-- Load your custom bridge wrapper FIRST - BEFORE React loads -->
+    <script src="/bridge-wrapper.js"></script>
+
+    <!-- Configuration for Continue to use the VS Code WebView bridge -->
+    <!-- This runs AFTER the bridge wrapper but BEFORE React loads -->
+    <script>
+      // This runs BEFORE React loads, so React can detect our bridge
+      window.__continueVSExtension = true;
+      window.__continueVSBridgeInitialized = !!window.continueVSBridge;
+      window.__continueVSIDE = 'vs';
+
+      // Set localStorage to indicate this is VS
+      localStorage.setItem('ide', '"vs"');
+      localStorage.setItem('continueExtension', 'true');
+
+      console.log('[index.html] Configuration set, window.continueVSBridge available:', !!window.continueVSBridge);
+
+      // If bridge isn't ready yet, wait for it
+      if (!window.continueVSBridge) {
+        window.__waitForBridge = new Promise((resolve) => {
+          window.__bridgeReadyResolver = resolve;
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            console.warn('[index.html] Bridge not ready after 5 seconds');
+            resolve(null);
+          }, 5000);
+        });
+      }
+    </script>
+
+    <!-- NOW load React (module script) -->
     <script type="module" crossorigin src="/assets/index.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/XCircleIcon.js">
     <link rel="stylesheet" crossorigin href="/assets/index.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
   </body>
 </html>
