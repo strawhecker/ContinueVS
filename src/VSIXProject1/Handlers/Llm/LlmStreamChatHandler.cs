@@ -40,7 +40,7 @@ namespace ContinueVS.Handlers.Llm
 
             try
             {
-                await LlmHttpClient.StreamChatAsync(modelConfig, messages, onChunk, cancellationToken).ConfigureAwait(false);
+                await LlmHttpClient.StreamChatAsync(modelConfig, messages, onChunk, cancellationToken);
             }
             catch (HttpRequestException ex)
             {

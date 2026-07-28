@@ -843,7 +843,7 @@ namespace ContinueVS.UI
         /// </summary>
         public void SendToGui(string messageType, object data)
         {
-            if (!_webViewInitialized || WebView.CoreWebView2 == null) return;
+            if (!_webViewInitialized) return;
 
             var msg = new Message
             {
