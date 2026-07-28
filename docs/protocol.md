@@ -2,18 +2,36 @@
 
 > Generated from ContinueTranslator output for Continue v2.0.0 `core/protocol/**`.
 > Reference for Phase 3 message handler implementation in VSIXProject1.
-> Review: `output\review-018.md` â€” verdict: **GAPS FOUND**.
-> Protocol entry form: `[PayloadType, ResponseType]`. Direction: `A â† B` = B sends, A handles.
+> Review: `output\review-018.md` Ã¢â‚¬â€ verdict: **GAPS FOUND**.
+> Protocol entry form: `[PayloadType, ResponseType]`. Direction: `A Ã¢â€ Â B` = B sends, A handles.
+
+---
+
+## Response Envelope (Verified 2026-07-28)
+
+All responses from the host to the GUI must be wrapped in `WebviewSingleMessage<T>`:
+
+```
+{ messageType, messageId, data: { status: "success", done: true, content: <T> } }
+```
+
+Or for errors:
+```
+{ messageType, messageId, data: { status: "error", error: "<message>", done: true } }
+```
+
+The GUI's `request()` resolves with `event.data.data` (i.e., the `WebviewSingleMessage` object).
+Source: `core/protocol/util.ts` → `SuccessWebviewSingleMessage<T>` / `ErrorWebviewMessage`.
 
 ---
 
 ## Supporting Types
 
-### `OnboardingModes` (Enum â€” `Protocol/core.Enums.cs`)
+### `OnboardingModes` (Enum Ã¢â‚¬â€ `Protocol/core.Enums.cs`)
 **Values:** `API_KEY`, `LOCAL`
-**Gaps:** String literal initialisers â€” invalid C#. Emitter must map to integer-backed enum with `[EnumMember(Value = "...")]`.
+**Gaps:** String literal initialisers Ã¢â‚¬â€ invalid C#. Emitter must map to integer-backed enum with `[EnumMember(Value = "...")]`.
 
-### `ListHistoryOptions` (Interface â€” `Protocol/core.Interfaces.cs`)
+### `ListHistoryOptions` (Interface Ã¢â‚¬â€ `Protocol/core.Interfaces.cs`)
 | Name | C# Type | Notes |
 |---|---|---|
 | offset | double? | optional pagination offset |
@@ -21,21 +39,21 @@
 | workspaceDirectory | string? | optional workspace filter |
 **Gaps:** Properties emitted with raw `number \| undefined` / `string \| undefined` union syntax.
 
-### `GetGhTokenArgs` (Interface â€” `Protocol/ide.Interfaces.cs`)
+### `GetGhTokenArgs` (Interface Ã¢â‚¬â€ `Protocol/ide.Interfaces.cs`)
 | Name | C# Type | Notes |
 |---|---|---|
 | force | bool? | force token refresh |
 **Gaps:** Property emitted with raw `boolean \| undefined`.
 
-### `ErrorWebviewMessage` (Interface â€” `Protocol/util.Interfaces.cs`)
+### `ErrorWebviewMessage` (Interface Ã¢â‚¬â€ `Protocol/util.Interfaces.cs`)
 | Name | C# Type | Notes |
 |---|---|---|
-| status | string | TS literal `"error"` â€” treat as string constant |
+| status | string | TS literal `"error"` Ã¢â‚¬â€ treat as string constant |
 | error | string | error text |
-| done | bool | TS literal `true` â€” treat as bool constant |
+| done | bool | TS literal `true` Ã¢â‚¬â€ treat as bool constant |
 **Gaps:** TS string/bool literal types not mapped; properties are raw TS syntax.
 
-### `SuccessWebviewSingleMessage<T>` (Interface â€” `Protocol/util.Interfaces.cs`)
+### `SuccessWebviewSingleMessage<T>` (Interface Ã¢â‚¬â€ `Protocol/util.Interfaces.cs`)
 | Name | C# Type | Notes |
 |---|---|---|
 | done | bool | TS literal `true` |
@@ -43,7 +61,7 @@
 | content | T | response payload |
 **Gaps:** Not declared generic in output; TS literal types not mapped.
 
-### `Message<T>` (Interface â€” `Protocol/Messenger/index.Interfaces.cs`)
+### `Message<T>` (Interface Ã¢â‚¬â€ `Protocol/Messenger/index.Interfaces.cs`)
 | Name | C# Type | Notes |
 |---|---|---|
 | messageType | string | message discriminator key |
@@ -51,14 +69,14 @@
 | data | T | typed payload |
 **Gaps:** None on this type itself.
 
-### `IMessenger` (Interface â€” `Protocol/Messenger/index.Interfaces.cs`)
+### `IMessenger` (Interface Ã¢â‚¬â€ `Protocol/Messenger/index.Interfaces.cs`)
 Methods: `onError`, `send<T>`, `on<T>`, `request<T>`, `invoke<T>`
 **Gaps:** All method signatures contain unresolved TS indexed-access types (`FromProtocol[T][N]`,
-`ToProtocol[T][N]`); `on<T>` has an unclosed parenthesis â€” broken C# syntax throughout.
+`ToProtocol[T][N]`); `on<T>` has an unclosed parenthesis Ã¢â‚¬â€ broken C# syntax throughout.
 
 ## Composite Protocol Aliases
 
-All emitted as empty `public static class â€¦Alias {}` stubs â€” TS intersection types have no direct C# equivalent.
+All emitted as empty `public static class Ã¢â‚¬Â¦Alias {}` stubs Ã¢â‚¬â€ TS intersection types have no direct C# equivalent.
 
 | Alias | Composed From |
 |---|---|
@@ -71,7 +89,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 
 ---
 
-## Messages: Core â† IDE / Webview (`ToCoreFromIdeOrWebviewProtocol`)
+## Messages: Core Ã¢â€ Â IDE / Webview (`ToCoreFromIdeOrWebviewProtocol`)
 
 ### `ping`
 **Payload:** `string`
@@ -90,8 +108,9 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 
 ### `history/list`
 **Payload:** `ListHistoryOptions` (see Supporting Types)
-**Expected Response:** `BaseSessionMetadata[]`
+**Expected Response:** `BaseSessionMetadata[]` (raw array, NOT wrapped in `{ sessions: [...] }`)
 **Gaps:** None on this entry; payload type has its own gaps.
+**Note:** The `content` field must be a plain array `[]`, not an object.
 
 ### `history/delete`
 | Name | C# Type | Notes |
@@ -104,8 +123,9 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 | Name | C# Type | Notes |
 |---|---|---|
 | id | string | session ID |
-**Expected Response:** `Session`
+**Expected Response:** `Session` (must include `history: []` array at minimum)
 **Gaps:** None
+**Note:** GUI accesses `session.history.length` — if `history` is missing, React crashes.
 
 ### `history/save`
 **Payload:** `Session`
@@ -135,8 +155,8 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 **Gaps:** None
 
 ### `config/getSerializedProfileInfo`
-**Payload:** none
-**Expected Response:** inline object `{ result, profileId, profiles }` â€” no named C# type emitted
+**Payload:** none (undefined)
+**Expected Response:** `{ result: ConfigResult<BrowserSerializedContinueConfig>, profileId: string, profiles: ProfileDescription[] }`
 **Gaps:** Inline response object not mapped to a named C# type.
 
 ### `autocomplete/complete`
@@ -159,8 +179,8 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 ### `llm/complete`
 | Name | C# Type | Notes |
 |---|---|---|
-| prompt | string | â€” |
-| completionOptions | LLMFullCompletionOptions | â€” |
+| prompt | string | Ã¢â‚¬â€ |
+| completionOptions | LLMFullCompletionOptions | Ã¢â‚¬â€ |
 | title | string | model title |
 **Expected Response:** `string`
 **Gaps:** None
@@ -169,7 +189,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 | Name | C# Type | Notes |
 |---|---|---|
 | messages | ChatMessage[] | chat history |
-| completionOptions | LLMFullCompletionOptions | â€” |
+| completionOptions | LLMFullCompletionOptions | Ã¢â‚¬â€ |
 | title | string | model title |
 | messageOptions | MessageOption? | optional |
 **Expected Response:** `IAsyncEnumerable<ChatMessage>` (TS `AsyncGenerator<ChatMessage, PromptLog>`)
@@ -178,7 +198,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 ### `auth/getAuthUrl`
 | Name | C# Type | Notes |
 |---|---|---|
-| useOnboarding | bool | â€” |
+| useOnboarding | bool | Ã¢â‚¬â€ |
 **Expected Response:** `string` (url field from inline `{ url: string }`)
 **Gaps:** Inline response object not mapped to a named C# type.
 
@@ -195,24 +215,24 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 ### `isItemTooBig`
 | Name | C# Type | Notes |
 |---|---|---|
-| item | ContextItemWithId | â€” |
+| item | ContextItemWithId | Ã¢â‚¬â€ |
 **Expected Response:** `bool`
 **Gaps:** None
 
 ### `mdm/setLicenseKey`
 | Name | C# Type | Notes |
 |---|---|---|
-| licenseKey | string | â€” |
+| licenseKey | string | Ã¢â‚¬â€ |
 **Expected Response:** `bool`
 **Gaps:** None
 
 ### `config/addModel`
 | Name | C# Type | Notes |
 |---|---|---|
-| model | object | `SerializedContinueConfig["models"][number]` â€” inline model config |
+| model | object | `SerializedContinueConfig["models"][number]` Ã¢â‚¬â€ inline model config |
 | role | string? | optional `keyof ExperimentalModelRoles` |
 **Expected Response:** void
-**Gaps:** `SerializedContinueConfig["models"][number]` is an indexed-access type â€” emitted as `object`.|
+**Gaps:** `SerializedContinueConfig["models"][number]` is an indexed-access type Ã¢â‚¬â€ emitted as `object`.|
 
 ### `config/addLocalWorkspaceBlock`
 | Name | C# Type | Notes |
@@ -227,7 +247,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 |---|---|---|
 | baseFilename | string? | optional |
 **Expected Response:** void
-**Gaps:** Payload is `undefined \| { baseFilename?: string }` â€” treated as optional object.
+**Gaps:** Payload is `undefined \| { baseFilename?: string }` Ã¢â‚¬â€ treated as optional object.
 
 ### `config/deleteRule`
 | Name | C# Type | Notes |
@@ -252,7 +272,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 | reason | string? | optional refresh reason |
 | selectProfileId | string? | optional profile to select |
 **Expected Response:** void
-**Gaps:** Payload is `undefined \| { reason?: string; selectProfileId?: string }` â€” optional object.
+**Gaps:** Payload is `undefined \| { reason?: string; selectProfileId?: string }` Ã¢â‚¬â€ optional object.
 
 ### `config/openProfile`
 | Name | C# Type | Notes |
@@ -269,7 +289,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 ### `config/updateSelectedModel`
 | Name | C# Type | Notes |
 |---|---|---|
-| profileId | string | â€” |
+| profileId | string | Ã¢â‚¬â€ |
 | role | string | `ModelRole` enum value |
 | title | string? | model title (nullable) |
 **Expected Response:** `GlobalContextModelSelections`
@@ -282,7 +302,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 | query | string | query string |
 | fullInput | string | full user input |
 | selectedCode | RangeInFile[] | selected code ranges |
-| isInAgentMode | bool | â€” |
+| isInAgentMode | bool | Ã¢â‚¬â€ |
 **Expected Response:** `ContextItemWithId[]`
 **Gaps:** None
 
@@ -330,13 +350,13 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 | Name | C# Type | Notes |
 |---|---|---|
 | messages | ChatMessage[] | chat history |
-| options | LLMFullCompletionOptions | â€” |
+| options | LLMFullCompletionOptions | Ã¢â‚¬â€ |
 **Expected Response:** `CompiledMessagesResult`
 **Gaps:** `CompiledMessagesResult` not yet emitted to ContinueProtocol.cs.
 
 ---
 
-## Messages: IDE â† Webview / Core (`ToIdeFromWebviewOrCoreProtocol`)
+## Messages: IDE Ã¢â€ Â Webview / Core (`ToIdeFromWebviewOrCoreProtocol`)
 
 ### `getWorkspaceDirs`
 **Payload:** none
@@ -356,43 +376,43 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 ### `readFile`
 | Name | C# Type | Notes |
 |---|---|---|
-| filepath | string | â€” |
+| filepath | string | Ã¢â‚¬â€ |
 **Expected Response:** `string`
 **Gaps:** None
 
 ### `writeFile`
 | Name | C# Type | Notes |
 |---|---|---|
-| path | string | â€” |
-| contents | string | â€” |
+| path | string | Ã¢â‚¬â€ |
+| contents | string | Ã¢â‚¬â€ |
 **Expected Response:** void
-**Gaps:** `Task<void>` not valid C# â€” should be `Task`.
+**Gaps:** `Task<void>` not valid C# Ã¢â‚¬â€ should be `Task`.
 
 ### `saveFile`
 | Name | C# Type | Notes |
 |---|---|---|
-| filepath | string | â€” |
+| filepath | string | Ã¢â‚¬â€ |
 **Expected Response:** void
-**Gaps:** `Task<void>` not valid C# â€” should be `Task`.
+**Gaps:** `Task<void>` not valid C# Ã¢â‚¬â€ should be `Task`.
 
 ### `fileExists`
 | Name | C# Type | Notes |
 |---|---|---|
-| filepath | string | â€” |
+| filepath | string | Ã¢â‚¬â€ |
 **Expected Response:** `bool`
 **Gaps:** None
 
 ### `openFile`
 | Name | C# Type | Notes |
 |---|---|---|
-| path | string | â€” |
+| path | string | Ã¢â‚¬â€ |
 **Expected Response:** void
-**Gaps:** `Task<void>` not valid C# â€” should be `Task`.
+**Gaps:** `Task<void>` not valid C# Ã¢â‚¬â€ should be `Task`.
 
 ### `openUrl`
 **Payload:** `string` (URL)
 **Expected Response:** void
-**Gaps:** `Task<void>` not valid C# â€” should be `Task`.
+**Gaps:** `Task<void>` not valid C# Ã¢â‚¬â€ should be `Task`.
 
 ### `getOpenFiles`
 **Payload:** none
@@ -422,13 +442,13 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 **Gaps:** None
 
 ### `showToast`
-**Payload:** `Parameters<IDE["showToast"]>` (TS utility â€” unresolved)
-**Expected Response:** `Awaited<ReturnType<IDE["showToast"]>>` (TS utility â€” unresolved)
+**Payload:** `Parameters<IDE["showToast"]>` (TS utility Ã¢â‚¬â€ unresolved)
+**Expected Response:** `Awaited<ReturnType<IDE["showToast"]>>` (TS utility Ã¢â‚¬â€ unresolved)
 **Gaps:** Payload and response use unresolved TS conditional/utility types.
 
 ---
 
-## Messages: Webview â† IDE / Core (`ToWebviewFromIdeOrCoreProtocol`)
+## Messages: Webview Ã¢â€ Â IDE / Core (`ToWebviewFromIdeOrCoreProtocol`)
 
 ### `configUpdate`
 | Name | C# Type | Notes |
@@ -436,7 +456,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 | result | ConfigResult\<BrowserSerializedContinueConfig\> | serialized config |
 | profileId | string? | current profile (nullable) |
 | profiles | ProfileDescription[] | all available profiles |
-**Expected Response:** void (push event â€” no reply)
+**Expected Response:** void (push event Ã¢â‚¬â€ no reply)
 **Gaps:** Inline payload object not mapped to a named C# type.
 
 ### `indexProgress`
@@ -461,7 +481,7 @@ All emitted as empty `public static class â€¦Alias {}` stubs â€” TS int
 **Expected Response:** void
 **Gaps:** None
 
-### `didChangeSelectedProfile` (Core â† Webview only â€” `ToCoreFromWebviewProtocol`)
+### `didChangeSelectedProfile` (Core Ã¢â€ Â Webview only Ã¢â‚¬â€ `ToCoreFromWebviewProtocol`)
 | Name | C# Type | Notes |
 |---|---|---|
 | id | string | selected profile ID |
@@ -476,7 +496,7 @@ The following message names were identified but not fully documented.
 Payload shapes are available in the block-comment bodies of the TypeAlias output files.
 Emitter gaps have been fixed (TODO-025). context/, config/, and llm/ groups are now fully documented above.
 
-### Core â† IDE/Webview (additional)
+### Core Ã¢â€ Â IDE/Webview (additional)
 `devdata/log`, `history/share`, `mcp/reloadServer`,
 `mcp/setServerEnabled`, `mcp/getPrompt`, `mcp/startAuthentication`, `mcp/removeAuthentication`,
 `nextEdit/predict`, `nextEdit/reject`,
@@ -492,7 +512,7 @@ Emitter gaps have been fixed (TODO-025). context/, config/, and llm/ groups are 
 `addAutocompleteModel`, `tools/call`, `tools/evaluatePolicy`, `tools/preprocessArgs`,
 `clipboardCache/add`, `process/markAsBackgrounded`, `process/isBackgrounded`,
 `process/killTerminalProcess`, `models/fetch`
-### IDE â† Webview/Core (additional)
+### IDE Ã¢â€ Â Webview/Core (additional)
 `runCommand`, `getSearchResults`, `getFileResults`, `subprocess`, `getProblems`,
 `getCurrentFile`, `getPinnedFiles`, `showLines`, `removeFile`, `showVirtualFile`,
 `readRangeInFile`, `getDiff`, `getTerminalContents`, `getDebugLocals`,
@@ -501,13 +521,13 @@ Emitter gaps have been fixed (TODO-025). context/, config/, and llm/ groups are 
 `getReferences`, `getDocumentSymbols`, `getFileStats`, `getGitRootPath`,
 `listDir`, `getRepoName`, `reportError`, `closeSidebar`
 
-### IDE â† Webview only (`ToIdeFromWebviewProtocol` additions)
+### IDE Ã¢â€ Â Webview only (`ToIdeFromWebviewProtocol` additions)
 `applyToFile`, `overwriteFile`, `showTutorial`, `showFile`, `toggleDevTools`, `reloadWindow`,
 `focusEditor`, `toggleFullScreen`, `insertAtCursor`, `copyText`, `acceptDiff`, `rejectDiff`,
 `edit/sendPrompt`, `edit/addCurrentSelection`, `edit/clearDecorations`, `session/share`,
 `jetbrains/isOSREnabled`, `jetbrains/onLoad`, `jetbrains/getColors`, `vscode/openMoveRightMarkdown`
 
-### Webview â† IDE only (`ToWebviewFromIdeProtocol` additions)
+### Webview Ã¢â€ Â IDE only (`ToWebviewFromIdeProtocol` additions)
 `setInactive`, `newSessionWithPrompt`, `userInput`, `focusContinueInput`,
 `focusContinueInputWithoutClear`, `focusContinueInputWithNewSession`, `highlightedCode`,
 `setCodeToEdit`, `navigateTo`, `addModel`, `focusContinueSessionId`, `newSession`,
@@ -515,13 +535,13 @@ Emitter gaps have been fixed (TODO-025). context/, config/, and llm/ groups are 
 `openOnboardingCard`, `applyCodeFromChat`, `updateApplyState`, `exitEditMode`, `focusEdit`,
 `addToChat`, `jetbrains/editorInsetRefresh`, `jetbrains/isOSREnabled`
 
-### Webview â† IDE/Core (additional)
+### Webview Ã¢â€ Â IDE/Core (additional)
 `indexing/statusUpdate`, `refreshSubmenuItems`, `didCloseFiles`, `isContinueInputFocused`,
 `addContextItem`, `getWebviewHistoryLength`, `getCurrentSessionId`, `sessionUpdate`,
 `toolCallPartialOutput`, `jetbrains/setColors`
 
 ### Messenger Implementation Classes
-`InProcessMessenger`, `MessageIde`, `ReverseMessageIde` â€” all methods are TODO stubs
+`InProcessMessenger`, `MessageIde`, `ReverseMessageIde` Ã¢â‚¬â€ all methods are TODO stubs
 with unresolved TS type signatures. See `Protocol/Messenger/` for details.
 ---
 
@@ -573,7 +593,7 @@ Direction: IDE (C#) ? Core (Node.js bridge).
 }
 \\\
 **Response:** void
-**Consumer:** DocumentProvider.onDocumentOpen listeners; handlers (Steps 53�61)
+**Consumer:** DocumentProvider.onDocumentOpen listeners; handlers (Steps 53–61)
 
 ### didChangeDocument
 **Description:** Document modified (content or dirty flag changed).
