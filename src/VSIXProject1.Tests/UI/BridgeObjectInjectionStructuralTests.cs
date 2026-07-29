@@ -157,8 +157,8 @@ namespace ContinueVS.Tests.UI
         }
 
         /// <summary>
-        /// Test: Injection script contains clearQueue() function for cleanup.
-        /// Verifies message queue can be cleared during lifecycle.
+        /// Test: Injection script contains dequeueMessages() function for cleanup.
+        /// Verifies message queue can be cleared and retrieved during lifecycle.
         /// </summary>
         [Fact]
         public async Task InjectBridgeAsync_ScriptContainsClearQueueFunction()
@@ -171,7 +171,7 @@ namespace ContinueVS.Tests.UI
 
             // Assert
             Assert.NotNull(result.InjectionScript);
-            Assert.Contains("bridge.clearQueue = function", result.InjectionScript);
+            Assert.Contains("bridge.dequeueMessages = function", result.InjectionScript);
             Assert.Contains("_messageQueue = []", result.InjectionScript);
         }
 

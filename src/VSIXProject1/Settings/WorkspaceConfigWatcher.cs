@@ -55,18 +55,19 @@ namespace ContinueVS.Settings
         private void OnConfigChanged(object sender, FileSystemEventArgs e)
         {
             System.Diagnostics.Debug.WriteLine($"[CV-t7] OnConfigChanged FIRED - {e.FullPath}");
-            // Debounce: the OS often fires two events in quick succession.
-            System.Threading.Thread.Sleep(200);
-            System.Diagnostics.Debug.WriteLine("[CV-t7] Debounce complete, calling PushConfigUpdate()");
+             // Debounce: the OS often fires two events in quick succession.
+             System.Threading.Thread.Sleep(200);
+             System.Diagnostics.Debug.WriteLine("[CV-t7] Debounce complete, calling PushConfigUpdate()");
+             System.Diagnostics.Debug.WriteLine("[b22-CALL-SITE] OnConfigChanged invoking PushConfigUpdate from WebviewPusher");
 
-            string content = "";
-            try { content = File.ReadAllText(e.FullPath); }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[CV-t7] File read failed: {ex.Message}");
-            }
+             string content = "";
+             try { content = File.ReadAllText(e.FullPath); }
+             catch (Exception ex)
+             {
+                 System.Diagnostics.Debug.WriteLine($"[CV-t7] File read failed: {ex.Message}");
+             }
 
-            _pusher.PushConfigUpdate();
+             _pusher.PushConfigUpdate();
             System.Diagnostics.Debug.WriteLine("[CV-t7] PushConfigUpdate() completed");
         }
 

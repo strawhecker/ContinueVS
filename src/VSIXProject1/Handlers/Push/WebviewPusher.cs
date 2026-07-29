@@ -26,12 +26,31 @@ namespace ContinueVS.Handlers.Push
 
         internal void PushConfigUpdate()
         {
-            _control.SendToGui("configUpdate", new
+            System.Diagnostics.Debug.WriteLine("[b22-PUSH-START] entry - IdeSettings serialization starting");
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            var settingsObject = new
             {
                 result    = new IdeSettings(),
                 profileId = (string?)null,
                 profiles  = new object[0],
-            });
+            };
+            System.Diagnostics.Debug.WriteLine("[b22-CONFIG-SERIALIZED] IdeSettings object created");
+
+            System.Diagnostics.Debug.WriteLine("[b22-SCRIPT-INJECTED] calling SendToGui(configUpdate)");
+            _control.SendToGui("configUpdate", settingsObject);
+
+            stopwatch.Stop();
+            System.Diagnostics.Debug.WriteLine($"[b22-UI-RENDER] SendToGui completed in {stopwatch.ElapsedMilliseconds}ms");
+
+            if (stopwatch.ElapsedMilliseconds > 500)
+            {
+                System.Diagnostics.Debug.WriteLine($"[b22-LATENCY-GATE-EXCEEDED] {stopwatch.ElapsedMilliseconds}ms > 500ms gate");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[b22-LATENCY-GATE-PASS] {stopwatch.ElapsedMilliseconds}ms within gate");
+            }
         }
 
         internal void PushIndexProgress()
