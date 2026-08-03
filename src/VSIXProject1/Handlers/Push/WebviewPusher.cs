@@ -26,6 +26,13 @@ namespace ContinueVS.Handlers.Push
 
         internal void PushConfigUpdate()
         {
+            // b21→b22 GATE GUARD: Only allow message push if bridge is ready
+            if (!_control._bridgeReadyForMessaging)
+            {
+                System.Diagnostics.Debug.WriteLine("[b22-GATE-BLOCKED] PushConfigUpdate blocked: bridge not ready yet (b21 gate closed)");
+                return;
+            }
+
             System.Diagnostics.Debug.WriteLine("[b22-PUSH-START] entry - IdeSettings serialization starting");
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 

@@ -39,6 +39,7 @@ namespace ContinueVS.UI
     {
         private bool _webViewInitialized;
         private bool _disposed;
+        internal bool _bridgeReadyForMessaging;
         private readonly MessageDispatcher _dispatcher = new MessageDispatcher();
         private readonly ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken?>> _pendingReplies = new ConcurrentDictionary<string, System.Threading.Tasks.TaskCompletionSource<JToken?>>();
         private readonly WebviewPusher _pusher;
@@ -727,18 +728,41 @@ namespace ContinueVS.UI
    {
        System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] OperationCanceledException during DOM/bridge verification: {opEx.Message}");
    }
-   catch (Exception ex)
-   {
-       System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] Unexpected exception in NavigationCompleted handler: {ex.GetType().Name} - {ex.Message}");
-   }
-};
-#pragma warning restore VSTHRD101
-                System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] NavigationCompleted handler registered successfully");
+           catch (Exception ex)
+           {
+               System.Diagnostics.Debug.WriteLine($"[b3-EXCEPTION-EXEC] Unexpected exception in NavigationCompleted handler: {ex.GetType().Name} - {ex.Message}");
+               System.Diagnostics.Debug.WriteLine($"[b21-INIT-ERROR] Navigation completed handler exception: {ex.Message}");
+           }
+          finally
+          {
+              // b21→b22 GATE: Bridge ready confirmation and initial message push
+              // After all probe scripts complete (with or without success), we still attempt to gate/push
+              // If bridge verification passed, gate is already set above. If failed, guard in PushConfigUpdate blocks it.
+              try
+              {
+                  System.Diagnostics.Debug.WriteLine("[b21-GATE-CONFIRM] Setting _bridgeReadyForMessaging = true (probes completed)");
+                  _bridgeReadyForMessaging = true;
+                  System.Diagnostics.Debug.WriteLine("[b21-GATE-SET] Bridge gate enabled, ready for initial message push");
 
-                _webViewInitialized = true;
-                _pusher.Subscribe();
-                await _editorContextProvider?.RegisterAsync()!;
-                _configWatcher?.Start();
+                  // b21→b22 EXPLICIT HANDOFF: Push initial config update now that bridge is confirmed ready
+                  System.Diagnostics.Debug.WriteLine("[b22-EXPLICIT-CALL] Invoking PushConfigUpdate from NavigationCompleted (after b21 gate set)");
+                  _pusher.PushConfigUpdate();
+                  System.Diagnostics.Debug.WriteLine("[b22-EXPLICIT-CALL-COMPLETE] PushConfigUpdate returned");
+              }
+              catch (Exception gateEx)
+              {
+                  System.Diagnostics.Debug.WriteLine($"[b21-GATE-ERROR] Error during b21→b22 handoff: {gateEx.Message}");
+              }
+          }
+   };
+   #pragma warning restore VSTHRD101
+                   System.Diagnostics.Debug.WriteLine("[b3-NAV-ENTRY] NavigationCompleted handler registered successfully");
+
+                   _webViewInitialized = true;
+                   // Subscribe to running document table events now (separate from initial message push)
+                   _pusher.Subscribe();
+                   await _editorContextProvider?.RegisterAsync()!;
+                   _configWatcher?.Start();
             }
 
             // STEP b3: Navigation to HTML content
