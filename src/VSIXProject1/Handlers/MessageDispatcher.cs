@@ -145,6 +145,9 @@ namespace ContinueVS.Handlers
                 await handler.HandleAsync(message, cancellationToken);
                 sw.Stop();
 
+                // [b23-ELAPSED-MS] Log elapsed time before timeout catch block
+                System.Diagnostics.Debug.WriteLine($"[b23-ELAPSED-MS] Handler {message.MessageType} completed in {sw.ElapsedMilliseconds}ms (timeout threshold: 2000ms)");
+
                 // [b14-HANDLER-EXIT] Handler execution exit - capture thread ID
                 var handlerExitThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
                 System.Diagnostics.Debug.WriteLine($"[b14-HANDLER-EXIT] Handler exit for {message.MessageType} on thread: {handlerExitThreadId} (elapsed: {sw.ElapsedMilliseconds}ms)");

@@ -841,18 +841,34 @@ namespace ContinueVS.UI
 
             // [b12-DISPATCH-START] Routing to dispatcher
             System.Diagnostics.Debug.WriteLine($"[b12-DISPATCH-START] Routing message to dispatcher: {message.MessageType}");
-            return _dispatcher.DispatchAsync(message, System.Threading.CancellationToken.None)
+
+            // [b23-TIMEOUT-GATE] Entry to timeout-wrapped dispatch with 2000ms timeout
+            System.Diagnostics.Debug.WriteLine($"[b23-TIMEOUT-GATE] Dispatching {message.MessageType} (id={message.MessageId}) with 2000ms timeout");
+
+            return _dispatcher.DispatchWithTimeoutAsync(message, 2000, System.Threading.CancellationToken.None)
                 .ContinueWith(t =>
                 {
                     if (t.IsFaulted)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[DISPATCH-ERROR] {message.MessageType}: {t.Exception?.InnerException?.Message}");
-                        // Send error response so GUI doesn't hang waiting
-                        // Note: SendReplyToGui wraps in {status:"success",content:...} so we pass the error object directly
-                        // and the GUI will get {status:"success",content:{error:"..."}}
-                        // The GUI's request() resolves, but the caller should handle missing expected fields gracefully
-                        try { SendErrorReplyToGui(message.MessageType, message.MessageId, t.Exception?.InnerException?.Message ?? "Unknown error"); }
-                        catch (System.Exception ex) { System.Diagnostics.Debug.WriteLine($"[DISPATCH-ERROR-REPLY] Failed: {ex.Message}"); }
+                        var ex = t.Exception?.InnerException;
+
+                        // [b23-HANDLER-TIMEOUT] Caught timeout exception
+                        if (ex is System.OperationCanceledException)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[b23-HANDLER-TIMEOUT] {message.MessageType} (id={message.MessageId}) exceeded 2000ms timeout, exception: {ex.Message}");
+                        }
+                        // [b23-HANDLER-ERROR] Caught handler exception (non-timeout)
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[b23-HANDLER-ERROR] {message.MessageType} (id={message.MessageId}) threw {ex?.GetType().Name}: {ex?.Message}");
+                        }
+
+                        System.Diagnostics.Debug.WriteLine($"[DISPATCH-ERROR] {message.MessageType}: {ex?.Message}");
+
+                        // [b23-ERROR-RESPONSE-SENT] Send error response to GUI
+                        System.Diagnostics.Debug.WriteLine($"[b23-ERROR-RESPONSE-SENT] Sending error response for {message.MessageType} (id={message.MessageId})");
+                        try { SendErrorReplyToGui(message.MessageType, message.MessageId, ex?.Message ?? "Unknown error"); }
+                        catch (System.Exception errEx) { System.Diagnostics.Debug.WriteLine($"[b23-ERROR-SEND-FAILED] Failed to send error reply: {errEx.Message}"); }
                     }
                 }, System.Threading.Tasks.TaskScheduler.Default);
         }
