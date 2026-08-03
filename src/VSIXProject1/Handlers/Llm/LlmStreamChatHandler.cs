@@ -228,16 +228,40 @@ namespace ContinueVS.Handlers.Llm
             }
 
             var accumulatedContent = new StringBuilder();
+            var inactivityWindow = new System.Timers.Timer(15000); // 15-second inactivity window
+            var overallTimeout = new System.Timers.Timer(5 * 60 * 1000); // 5-minute overall timeout, reset on each chunk
+
+            // Overall timeout: fires after 5 minutes, stops the stream if no activity
+            overallTimeout.Elapsed += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine("[b24-TIMEOUT] 5-minute overall timeout expired");
+                inactivityWindow?.Stop();
+            };
+            overallTimeout.AutoReset = false; // Only fire once
+
+            // Inactivity window: fires after 15 seconds no chunks, then reset the 5-minute timer
+            inactivityWindow.Elapsed += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine("[b24-INACTIVITY] 15-second inactivity window expired, resetting 5-minute timeout");
+                overallTimeout.Stop();
+                overallTimeout.Start(); // Reset the 5-minute timeout
+            };
+            inactivityWindow.AutoReset = false; // Only fire once per start
 
             Action<string> onChunk = chunk =>
             {
                 accumulatedContent.Append(chunk);
+                inactivityWindow.Stop();
+                inactivityWindow.Start(); // Restart the 15-second inactivity window on each chunk
+                System.Diagnostics.Debug.WriteLine($"[b24-STREAM-CHUNK] Received chunk: {chunk.Length} chars. Total: {accumulatedContent.Length}");
                 _control.SendReplyToGui(message.MessageType, message.MessageId, new { role = "assistant", content = chunk, done = false });
             };
 
             try
             {
-                System.Diagnostics.Debug.WriteLine("[b24-STREAM-START] Starting LLM stream chat");
+                System.Diagnostics.Debug.WriteLine("[b24-STREAM-START] Starting LLM stream chat with 5min timeout + 15sec inactivity reset");
+                overallTimeout.Start();
+                inactivityWindow.Start();
                 await LlmHttpClient.StreamChatAsync(modelConfig, compiledMessages, onChunk, cancellationToken);
                 System.Diagnostics.Debug.WriteLine("[b24-STREAM-COMPLETE] LLM stream chat completed successfully");
             }
@@ -249,6 +273,13 @@ namespace ContinueVS.Handlers.Llm
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[b24-ERROR-GENERAL] Exception: {ex.Message}");
+            }
+            finally
+            {
+                inactivityWindow?.Stop();
+                inactivityWindow?.Dispose();
+                overallTimeout?.Stop();
+                overallTimeout?.Dispose();
             }
 
             System.Diagnostics.Debug.WriteLine("[b24-HANDLER-EXIT] Sending final completion marker");

@@ -842,10 +842,14 @@ namespace ContinueVS.UI
             // [b12-DISPATCH-START] Routing to dispatcher
             System.Diagnostics.Debug.WriteLine($"[b12-DISPATCH-START] Routing message to dispatcher: {message.MessageType}");
 
-            // [b23-TIMEOUT-GATE] Entry to timeout-wrapped dispatch with 2000ms timeout
-            System.Diagnostics.Debug.WriteLine($"[b23-TIMEOUT-GATE] Dispatching {message.MessageType} (id={message.MessageId}) with 2000ms timeout");
+            // [b23-TIMEOUT-GATE] Determine timeout based on message type
+            // Streaming handlers (llm/streamChat) need much longer timeout for slow CPU LLMs
+            // 5 minutes = 300,000 ms allows time for model warmup + token generation
+            // Non-streaming handlers get 2 seconds (fire-and-forget operations)
+            int timeoutMs = message.MessageType == "llm/streamChat" ? 300000 : 2000;
+            System.Diagnostics.Debug.WriteLine($"[b23-TIMEOUT-GATE] Dispatching {message.MessageType} (id={message.MessageId}) with {timeoutMs}ms timeout");
 
-            return _dispatcher.DispatchWithTimeoutAsync(message, 2000, System.Threading.CancellationToken.None)
+            return _dispatcher.DispatchWithTimeoutAsync(message, timeoutMs, System.Threading.CancellationToken.None)
                 .ContinueWith(t =>
                 {
                     if (t.IsFaulted)
