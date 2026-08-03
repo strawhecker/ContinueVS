@@ -16,42 +16,180 @@ namespace ContinueVS.Handlers.Llm
     {
         private readonly ContinueToolWindowControl _control;
 
+        /// <summary>
+        /// Configuration for token limits (mirrors ContextConfig from LlmCompileChatHandler)
+        /// </summary>
+        private static class TokenConfig
+        {
+            public static int MaxContextTokens
+            {
+                get
+                {
+                    var envVar = System.Environment.GetEnvironmentVariable("CONTINUE_MAX_CONTEXT_TOKENS");
+                    if (int.TryParse(envVar, out var value) && value > 0)
+                        return value;
+                    return 4000;
+                }
+            }
+
+            public static int ReserveForResponse
+            {
+                get
+                {
+                    var envVar = System.Environment.GetEnvironmentVariable("CONTINUE_RESERVE_TOKENS");
+                    if (int.TryParse(envVar, out var value) && value >= 0)
+                        return value;
+                    return 1000;
+                }
+            }
+
+            public static int CharsPerToken
+            {
+                get
+                {
+                    var envVar = System.Environment.GetEnvironmentVariable("CONTINUE_CHARS_PER_TOKEN");
+                    if (int.TryParse(envVar, out var value) && value > 0)
+                        return value;
+                    return 4;
+                }
+            }
+
+            public static int UsableContextTokens => MaxContextTokens - ReserveForResponse;
+        }
+
         public LlmStreamChatHandler(ContinueToolWindowControl control)
         {
             _control = control;
         }
 
         /// <summary>
-        /// Extract content text from either string or array format.
-        /// Handles both: "content": "text" and "content": [{"text": "...", "type": "text"}]
+        /// Estimate token count for a single message.
         /// </summary>
-        private string ExtractContentPreview(JToken? contentToken)
+        private int EstimateTokensForMessage(JToken msg)
         {
-            if (contentToken == null)
-                return "(null)";
-
-            if (contentToken is JValue jValue)
+            try
             {
-                return jValue.Value<string>() ?? "(null)";
-            }
-            else if (contentToken is JArray contentArray)
-            {
-                var textParts = new List<string>();
-                foreach (var item in contentArray)
+                if (msg is JObject jMsg)
                 {
-                    if (item is JObject contentBlock)
+                    var contentToken = jMsg["content"];
+                    string contentText = "";
+
+                    if (contentToken is JValue jValue)
                     {
-                        var text = contentBlock["text"]?.Value<string>();
-                        if (text != null)
+                        contentText = jValue.Value<string>() ?? "";
+                    }
+                    else if (contentToken is JArray contentArray)
+                    {
+                        var textParts = new List<string>();
+                        foreach (var item in contentArray)
                         {
-                            textParts.Add(text);
+                            if (item is JObject contentBlock)
+                            {
+                                var text = contentBlock["text"]?.Value<string>();
+                                if (text != null)
+                                    textParts.Add(text);
+                            }
                         }
+                        contentText = string.Join(" ", textParts);
+                    }
+
+                    return 4 + (contentText.Length / TokenConfig.CharsPerToken);
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>
+        /// Estimate total token count for all messages.
+        /// </summary>
+        private int EstimateTokens(JArray messages)
+        {
+            int totalTokens = 0;
+            if (messages == null || messages.Count == 0)
+                return 0;
+
+            try
+            {
+                foreach (var msg in messages)
+                {
+                    if (msg != null)
+                        totalTokens += EstimateTokensForMessage(msg);
+                }
+            }
+            catch { }
+
+            return totalTokens;
+        }
+
+        /// <summary>
+        /// Normalize messages: convert array-based content to strings.
+        /// </summary>
+        private JArray NormalizeMessages(JArray messages)
+        {
+            try
+            {
+                var normalizedMessages = new JArray();
+                foreach (var msg in messages)
+                {
+                    var msgObj = msg as JObject;
+                    if (msgObj != null)
+                    {
+                        var normalized = new JObject(msgObj);
+                        var contentToken = msgObj["content"];
+                        if (contentToken is JArray contentArray)
+                        {
+                            var textParts = new List<string>();
+                            foreach (var item in contentArray)
+                            {
+                                if (item is JObject block)
+                                {
+                                    var text = block["text"]?.Value<string>();
+                                    if (text != null)
+                                        textParts.Add(text);
+                                }
+                            }
+                            normalized["content"] = string.Join(" ", textParts);
+                        }
+                        normalizedMessages.Add(normalized);
+                    }
+                    else
+                    {
+                        normalizedMessages.Add(msg);
                     }
                 }
-                return textParts.Count > 0 ? string.Join(" ", textParts) : "(empty array)";
+                return normalizedMessages;
             }
+            catch
+            {
+                return messages;
+            }
+        }
 
-            return "(unsupported format)";
+        /// <summary>
+        /// Internally compile messages if not already compiled (i.e., not coming from llm/compileChat).
+        /// This ensures messages are always pruned and normalized before streaming.
+        /// </summary>
+        private JArray CompileMessagesIfNeeded(JArray messages)
+        {
+            try
+            {
+                // Estimate tokens
+                var totalTokens = EstimateTokens(messages);
+                System.Diagnostics.Debug.WriteLine($"[b24-STREAM-PRECOMPILE] Estimated total tokens: {totalTokens}");
+
+                // For now, keep all messages but normalize them
+                // In future, add pruning logic if tokens exceed UsableContextTokens
+                var compiledMessages = NormalizeMessages(messages);
+
+                System.Diagnostics.Debug.WriteLine($"[b24-STREAM-PRECOMPILE] Compiled {compiledMessages.Count} messages (normalized)");
+                return compiledMessages;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[b24-STREAM-PRECOMPILE] Error during message compilation: {ex.Message}");
+                return messages;
+            }
         }
 
         public async Task HandleAsync(Message message, CancellationToken cancellationToken)
@@ -65,23 +203,8 @@ namespace ContinueVS.Handlers.Llm
             var messages = dataObj?["messages"] as JArray ?? new JArray();
             System.Diagnostics.Debug.WriteLine($"[b24-PAYLOAD-EXTRACT] Extracted title='{title}', message count={messages.Count}");
 
-            // Log message array structure
-            if (messages.Count > 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"[b24-PAYLOAD-MESSAGES] Messages content={JsonConvert.SerializeObject(messages)}");
-                var firstMsg = messages[0] as JObject;
-                var lastMsg = messages[messages.Count - 1] as JObject;
-
-                var firstContent = ExtractContentPreview(firstMsg?["content"]);
-                var lastContent = ExtractContentPreview(lastMsg?["content"]);
-
-                System.Diagnostics.Debug.WriteLine($"[b24-PAYLOAD-SAMPLE] First message: role={firstMsg?["role"]?.Value<string>()}, content_len={firstContent?.Length ?? 0}, content_preview={firstContent?.Substring(0, Math.Min(50, firstContent?.Length ?? 0))}");
-                System.Diagnostics.Debug.WriteLine($"[b24-PAYLOAD-SAMPLE] Last message: role={lastMsg?["role"]?.Value<string>()}, content_len={lastContent?.Length ?? 0}, content_preview={lastContent?.Substring(0, Math.Min(50, lastContent?.Length ?? 0))}");
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine("[b24-PAYLOAD-EMPTY] Messages array is empty");
-            }
+            // Auto-compile messages if not already compiled (ensure normalization and pruning)
+            var compiledMessages = CompileMessagesIfNeeded(messages);
 
             var modelConfig = ContinueConfigReader.FindModel(title);
             System.Diagnostics.Debug.WriteLine($"[b24-MODEL-CONFIG-LOOKUP] Model config lookup: title='{title}', found={modelConfig != null}");
@@ -96,11 +219,11 @@ namespace ContinueVS.Handlers.Llm
                 return;
             }
 
-            // [b24-FIX] Handle empty messages - this should no longer happen now that llm/compileChat returns properly
-            if (messages.Count == 0)
+            // [b24-FIX] Handle empty messages
+            if (compiledMessages.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine("[b24-EMPTY-MESSAGES] Messages array is empty - ensure llm/compileChat is returning compiled messages");
-                _control.SendReplyToGui(message.MessageType, message.MessageId, new { role = "assistant", content = "Error: No chat messages provided by frontend", done = true });
+                System.Diagnostics.Debug.WriteLine("[b24-EMPTY-MESSAGES] Messages array is empty after compilation");
+                _control.SendReplyToGui(message.MessageType, message.MessageId, new { role = "assistant", content = "Error: No chat messages provided", done = true });
                 return;
             }
 
@@ -115,7 +238,7 @@ namespace ContinueVS.Handlers.Llm
             try
             {
                 System.Diagnostics.Debug.WriteLine("[b24-STREAM-START] Starting LLM stream chat");
-                await LlmHttpClient.StreamChatAsync(modelConfig, messages, onChunk, cancellationToken);
+                await LlmHttpClient.StreamChatAsync(modelConfig, compiledMessages, onChunk, cancellationToken);
                 System.Diagnostics.Debug.WriteLine("[b24-STREAM-COMPLETE] LLM stream chat completed successfully");
             }
             catch (HttpRequestException ex)

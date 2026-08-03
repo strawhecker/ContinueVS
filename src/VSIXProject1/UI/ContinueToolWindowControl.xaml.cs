@@ -933,16 +933,44 @@ namespace ContinueVS.UI
 
             if (!_webViewInitialized)
             {
-                System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] WebView not initialized, reply not sent");
+                System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] WebView not initialized, reply not sent. _webViewInitialized={_webViewInitialized}, WebView={WebView != null}");
                 return;
             }
+
+            System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE-CHECK] WebView initialized check passed. _webViewInitialized={_webViewInitialized}");
 
             // [b13-RESPONSE-OBJECT] Inspect payload object structure before JToken conversion
             System.Diagnostics.Debug.WriteLine($"[b13-RESPONSE-OBJECT] Handler response object: Type={data?.GetType().Name ?? "null"}, Content={JsonConvert.SerializeObject(data)}");
 
             // [b12-RESPONSE] Response serialization
-            // Wrap in WebviewSingleMessage envelope: { status: "success", done: true, content: <payload> }
-            var wrapped = new { status = "success", done = true, content = data ?? new object() };
+            // For streaming responses (llm/streamChat with done=false), preserve the done flag from data
+            // For other responses, wrap with status=success and done=true
+            bool isStreamingChunk = false;
+            if (data is JObject jobj)
+            {
+                isStreamingChunk = jobj["done"]?.Value<bool>() == false;
+            }
+            else if (data != null)
+            {
+                var doneProperty = data.GetType().GetProperty("done");
+                if (doneProperty != null)
+                {
+                    isStreamingChunk = (bool?)doneProperty.GetValue(data) == false;
+                }
+            }
+
+            object wrapped;
+            if (isStreamingChunk)
+            {
+                // For streaming chunks, preserve the done flag from the data
+                wrapped = new { status = "success", done = false, content = data ?? new object() };
+            }
+            else
+            {
+                // For non-streaming responses, wrap with done=true
+                wrapped = new { status = "success", done = true, content = data ?? new object() };
+            }
+
             SendReplyToGuiInternal(messageType, messageId, wrapped);
         }
 
@@ -973,14 +1001,16 @@ namespace ContinueVS.UI
             }
 
 #pragma warning disable VSSDK007
+            System.Diagnostics.Debug.WriteLine("[b12-RUNASYNC-START] About to RunAsync for PostWebMessageAsJson");
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
+                System.Diagnostics.Debug.WriteLine("[b14-ASYNC-ENTERED] Async lambda entered");
                 // [b14-THREAD-BEFORE] Capture thread ID before SwitchToMainThreadAsync
                 var threadBefore = System.Threading.Thread.CurrentThread.ManagedThreadId;
                 System.Diagnostics.Debug.WriteLine($"[b14-THREAD-BEFORE] Thread ID before switch: {threadBefore}");
 
                 // [b14-SWITCH] About to switch to UI thread
-                System.Diagnostics.Debug.WriteLine($"[b14-SWITCH] Switching to main thread");
+                System.Diagnostics.Debug.WriteLine("[b14-SWITCH] Switching to main thread");
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
                 // [b14-THREAD-AFTER] Capture thread ID after SwitchToMainThreadAsync
@@ -990,7 +1020,7 @@ namespace ContinueVS.UI
                 // [b14-ASSERTION] Verify we are on the UI thread
                 // After SwitchToMainThreadAsync(), we should be on UI thread
                 // Log confirmation without throwing (VerifyAccess would violate VSTHRD109)
-                System.Diagnostics.Debug.WriteLine($"[b14-ASSERTION] After SwitchToMainThreadAsync - proceeding to ExecuteScriptAsync on UI thread");
+                System.Diagnostics.Debug.WriteLine("[b14-ASSERTION] After SwitchToMainThreadAsync - proceeding to ExecuteScriptAsync on UI thread");
 
                 // [b12-SCRIPT-EXEC] Post message to WebView2 via PostWebMessageAsJson
                 // PostWebMessageAsJson automatically handles JSON → fires chrome.webview 'message'
@@ -998,8 +1028,15 @@ namespace ContinueVS.UI
                 System.Diagnostics.Debug.WriteLine($"[b12-SCRIPT-EXEC] Delivering via PostWebMessageAsJson, jsonLen={json?.Length}");
                 try
                 {
-                    WebView.CoreWebView2.PostWebMessageAsJson(json);
-                    System.Diagnostics.Debug.WriteLine($"[b13-SCRIPT-RESULT] PostWebMessageAsJson succeeded");
+                    if (WebView?.CoreWebView2 != null)
+                    {
+                        WebView.CoreWebView2.PostWebMessageAsJson(json);
+                        System.Diagnostics.Debug.WriteLine("[b13-SCRIPT-RESULT] PostWebMessageAsJson succeeded");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[b12-ERROR] WebView or CoreWebView2 is null");
+                    }
                 }
                 catch (Exception postEx)
                 {

@@ -1,0 +1,6 @@
+{
+  "maxContextTokens": 131072,
+  "reserveTokensForResponse": 8192,
+  "charsPerToken": 4,
+  "description": "DEFAULT: Large context window settings (2^17 tokens). Suitable for most modern models like GPT-4, Claude 2, Llama 2 70B, and Mistral variants."
+}

@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Services
 {
@@ -9,25 +10,24 @@ namespace ContinueVS.Services
     /// Collects context window token budget and utilization information from Visual Studio.
     /// 
     /// Exposes the following data:
-    /// - maxTokens: Total context window size (from Continue configuration)
+    /// - maxTokens: Total context window size (from TokenLimitSettings)
     /// - usedTokens: Estimated tokens consumed by active conversation
     /// - estimatedTokens: Breakdown by source (editor, selected text, files, history)
     /// 
     /// Token estimation methodology:
-    /// - Editor content: 1 token per ~4 characters (rough approximation)
-    /// - Selected text: 1 token per ~4 characters
-    /// - Recent files: 1 token per ~4 characters (limited to ~5 recent files)
+    /// - Editor content: 1 token per ~N characters (N from settings, default 4)
+    /// - Selected text: 1 token per ~N characters
+    /// - Recent files: 1 token per ~N characters (limited to ~5 recent files)
     /// - Conversation history: Estimated from message count
     /// 
-    /// This collector is thread-safe and handles missing/unavailable IDE state gracefully.
+    /// Token limits are read from ~/.continue/vsx-settings.json at startup.
+    /// All DTE access must occur on the UI thread.
     /// </summary>
     public class ContextWindowCollector
     {
         private readonly DTE _dte;
         private const int MaxRecentFiles = 5;
-        private const int DefaultMaxTokens = 4096;
         private const int EstimatedTokensPerMessage = 250;
-        private const int CharactersPerToken = 4; // Rough approximation
 
         /// <summary>
         /// DTO for context window information response
@@ -36,7 +36,7 @@ namespace ContinueVS.Services
         {
             public int MaxTokens { get; set; }
             public int UsedTokens { get; set; }
-            public EstimatedTokensBreakdown EstimatedTokens { get; set; }
+            public EstimatedTokensBreakdown EstimatedTokens { get; set; } = new EstimatedTokensBreakdown();
         }
 
         /// <summary>
@@ -60,14 +60,23 @@ namespace ContinueVS.Services
         }
 
         /// <summary>
-        /// Asynchronously retrieve context window information
+        /// Asynchronously retrieve context window information.
+        /// Reads token limits from ~/.continue/vsx-settings.json.
+        /// Falls back to hardcoded defaults if settings unavailable.
+        /// Must be called from the UI thread or after switching to it.
         /// </summary>
         /// <returns>ContextWindowInfo object with token budget and utilization</returns>
         public async Task<ContextWindowInfo> GetContextWindowAsync()
         {
             try
             {
-                return await Task.Run(() => GetContextWindowInternal());
+                // Load token limit settings from ~/.continue/vsx-settings.json
+                var settings = await TokenLimitSettings.ReadSettingsAsync();
+
+                // Switch to UI thread for DTE access
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                return GetContextWindowInternal(settings);
             }
             catch (Exception ex)
             {
@@ -79,27 +88,30 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Internal synchronous implementation of context window collection
+        /// Must be called on the UI thread
         /// </summary>
-        private ContextWindowInfo GetContextWindowInternal()
+        private ContextWindowInfo GetContextWindowInternal(TokenLimitSettings.TokenLimitConfig settings)
         {
             try
             {
+                ThreadHelper.ThrowIfNotOnUIThread();
+
                 var info = new ContextWindowInfo
                 {
-                    MaxTokens = DefaultMaxTokens,
+                    MaxTokens = settings.MaxContextTokens,
                     EstimatedTokens = new EstimatedTokensBreakdown()
                 };
 
                 // Estimate tokens from active document
-                int editorTokens = EstimateEditorTokens();
+                int editorTokens = EstimateEditorTokens(settings);
                 info.EstimatedTokens.EditorContent = editorTokens;
 
                 // Estimate tokens from selected text
-                int selectionTokens = EstimateSelectedTextTokens();
+                int selectionTokens = EstimateSelectedTextTokens(settings);
                 info.EstimatedTokens.SelectedText = selectionTokens;
 
                 // Estimate tokens from recent files (limit to 5)
-                int recentFilesTokens = EstimateRecentFilesTokens();
+                int recentFilesTokens = EstimateRecentFilesTokens(settings);
                 info.EstimatedTokens.RecentFiles = recentFilesTokens;
 
                 // Estimate tokens from conversation history
@@ -122,16 +134,23 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Estimate tokens consumed by active editor content
+        /// Uses the charsPerToken ratio from token limit settings
+        /// Must be called on the UI thread
         /// </summary>
-        private int EstimateEditorTokens()
+        private int EstimateEditorTokens(TokenLimitSettings.TokenLimitConfig settings)
         {
             try
             {
+                ThreadHelper.ThrowIfNotOnUIThread();
+
                 if (_dte?.ActiveDocument == null)
                     return 0;
 
-                var textDocument = _dte.ActiveDocument.Object as TextDocument;
-                if (textDocument == null)
+                // Access the Object property and check for TextDocument
+                #pragma warning disable CS8974
+                object? docObjValue = _dte.ActiveDocument.Object;
+                #pragma warning restore CS8974
+                if (!(docObjValue is TextDocument textDocument))
                     return 0;
 
                 // Count characters in the document
@@ -148,8 +167,8 @@ namespace ContinueVS.Services
                     charCount = textDocument.EndPoint.Line * 80; // Assume ~80 chars per line
                 }
 
-                // Estimate tokens: 1 token per ~4 characters
-                return Math.Max(1, charCount / CharactersPerToken);
+                // Estimate tokens using configured ratio
+                return Math.Max(1, charCount / settings.CharsPerToken);
             }
             catch
             {
@@ -159,40 +178,48 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Estimate tokens consumed by selected text
+        /// Uses the charsPerToken ratio from token limit settings
+        /// Must be called on the UI thread
         /// </summary>
-        private int EstimateSelectedTextTokens()
+        private int EstimateSelectedTextTokens(TokenLimitSettings.TokenLimitConfig settings)
         {
             try
             {
+                ThreadHelper.ThrowIfNotOnUIThread();
+
                 if (_dte?.ActiveDocument == null)
                     return 0;
 
-                var textDocument = _dte.ActiveDocument.Object as TextDocument;
-                if (textDocument == null)
+                // Access the Object property and check for TextDocument
+                #pragma warning disable CS8974
+                object? docObjValue = _dte.ActiveDocument.Object;
+                #pragma warning restore CS8974
+                if (!(docObjValue is TextDocument textDocument))
                     return 0;
 
-                // Get selection
-                Selection selection = null;
+                // Get selection - safely check type first  
+                object? selection = null;
                 try
                 {
-                    if (_dte.ActiveWindow?.Selection is Selection sel && !sel.IsEmpty)
-                    {
-                        selection = sel;
-                    }
+                    selection = _dte.ActiveWindow?.Selection;
                 }
                 catch
                 {
                     return 0;
                 }
 
-                if (selection == null || selection.IsEmpty)
+                // Type-check for TextSelection before accessing properties
+                if (selection is not TextSelection textSelection)
+                    return 0;
+
+                if (textSelection.IsEmpty)
                     return 0;
 
                 // Get selected text
-                string selectedText = null;
+                string? selectedText = null;
                 try
                 {
-                    selectedText = selection.Text;
+                    selectedText = textSelection.Text;
                 }
                 catch
                 {
@@ -202,8 +229,8 @@ namespace ContinueVS.Services
                 if (string.IsNullOrEmpty(selectedText))
                     return 0;
 
-                // Estimate tokens from selected text
-                return Math.Max(1, selectedText.Length / CharactersPerToken);
+                // Estimate tokens from selected text using configured ratio
+                return Math.Max(1, selectedText.Length / settings.CharsPerToken);
             }
             catch
             {
@@ -213,11 +240,15 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Estimate tokens consumed by recent open files (limited to 5)
+        /// Uses the charsPerToken ratio from token limit settings
+        /// Must be called on the UI thread
         /// </summary>
-        private int EstimateRecentFilesTokens()
+        private int EstimateRecentFilesTokens(TokenLimitSettings.TokenLimitConfig settings)
         {
             try
             {
+                ThreadHelper.ThrowIfNotOnUIThread();
+
                 if (_dte?.Documents == null)
                     return 0;
 
@@ -231,31 +262,34 @@ namespace ContinueVS.Services
 
                     try
                     {
-                        var textDoc = doc.Object as TextDocument;
-                        if (textDoc != null)
-                        {
-                            // Estimate this file's size
-                            int charCount = 0;
-                            try
-                            {
-                                EditPoint startPoint = textDoc.StartPoint.CreateEditPoint();
-                                EditPoint endPoint = textDoc.EndPoint.CreateEditPoint();
-                                charCount = endPoint.AbsoluteCharOffset - startPoint.AbsoluteCharOffset;
-                            }
-                            catch
-                            {
-                                charCount = textDoc.EndPoint.Line * 80;
-                            }
+                        // Access the Object property and check for TextDocument
+                        #pragma warning disable CS8974
+                        object? docObjValue = doc.Object;
+                        #pragma warning restore CS8974
+                        if (!(docObjValue is TextDocument textDoc))
+                            continue;
 
-                            // Add to total
-                            totalTokens += Math.Max(1, charCount / CharactersPerToken);
-                            fileCount++;
+                        // Estimate this file's size
+                        int charCount = 0;
+                        try
+                        {
+                            EditPoint startPoint = textDoc.StartPoint.CreateEditPoint();
+                            EditPoint endPoint = textDoc.EndPoint.CreateEditPoint();
+                            charCount = endPoint.AbsoluteCharOffset - startPoint.AbsoluteCharOffset;
                         }
+                        catch
+                        {
+                            // Fallback
+                            charCount = textDoc.EndPoint.Line * 80;
+                        }
+
+                        int fileTokens = Math.Max(1, charCount / settings.CharsPerToken);
+                        totalTokens += fileTokens;
+                        fileCount++;
                     }
                     catch
                     {
-                        // Skip files that can't be read
-                        continue;
+                        // Skip this file and continue
                     }
                 }
 
@@ -269,10 +303,6 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Estimate tokens consumed by conversation history
-        /// 
-        /// Note: This is a placeholder estimation. In a real implementation,
-        /// this would be populated by the Continue bridge IPC mechanism.
-        /// For now, we estimate based on a fixed token-per-message average.
         /// </summary>
         private int EstimateConversationHistoryTokens()
         {
@@ -291,12 +321,15 @@ namespace ContinueVS.Services
 
         /// <summary>
         /// Return default context window when collection fails
+        /// Uses defaults from TokenLimitSettings
         /// </summary>
         private ContextWindowInfo GetDefaultContextWindow()
         {
+            // Create default settings (131072 max, 8192 reserve)
+            var defaultSettings = new TokenLimitSettings.TokenLimitConfig();
             return new ContextWindowInfo
             {
-                MaxTokens = DefaultMaxTokens,
+                MaxTokens = defaultSettings.MaxContextTokens,
                 UsedTokens = 0,
                 EstimatedTokens = new EstimatedTokensBreakdown
                 {
