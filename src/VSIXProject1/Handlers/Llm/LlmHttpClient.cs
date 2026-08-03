@@ -99,6 +99,10 @@ namespace ContinueVS.Handlers.Llm
             var baseUrl = (model.ApiBase ?? "https://api.openai.com/v1").TrimEnd('/');
             var url = baseUrl + "/chat/completions";
 
+            System.Diagnostics.Debug.WriteLine($"[b24-OPENAI-CONFIG] Provider={model.Provider}, Model={model.Model}, ApiBase={model.ApiBase ?? "(null)"}");
+            System.Diagnostics.Debug.WriteLine($"[b24-OPENAI-URL] Constructed URL={url}");
+            System.Diagnostics.Debug.WriteLine($"[b24-OPENAI-MESSAGES] Message count={messages.Count}");
+
             var request = new HttpRequestMessage(HttpMethod.Post, url);
 
             if (!string.IsNullOrEmpty(model.ApiKey))
@@ -196,17 +200,75 @@ namespace ContinueVS.Handlers.Llm
             }
         }
 
-        internal static async Task StreamChatAsync(
+        private static async Task OllamaStreamChatAsync(
             LlmModelConfig model,
             JArray messages,
             Action<string> onChunk,
             CancellationToken cancellationToken)
         {
-            var provider = (model.Provider ?? "").ToLowerInvariant();
-            if (provider == "anthropic")
-                await AnthropicStreamChatAsync(model, messages, onChunk, cancellationToken).ConfigureAwait(false);
-            else
-                await OpenAiStreamChatAsync(model, messages, onChunk, cancellationToken).ConfigureAwait(false);
+            var baseUrl = (model.ApiBase ?? "http://localhost:11434").TrimEnd('/');
+            var url = baseUrl + "/api/chat";
+
+            System.Diagnostics.Debug.WriteLine($"[b24-OLLAMA-CONFIG] Provider={model.Provider}, Model={model.Model}, ApiBase={model.ApiBase ?? "(null)"}");
+            System.Diagnostics.Debug.WriteLine($"[b24-OLLAMA-URL] Constructed URL={url}");
+            System.Diagnostics.Debug.WriteLine($"[b24-OLLAMA-MESSAGES] Message count={messages.Count}");
+
+            var request = new HttpRequestMessage(HttpMethod.Post, url);
+
+            var bodyJson = JsonConvert.SerializeObject(new
+            {
+                model = model.Model,
+                messages = messages,
+                stream = true
+            });
+            request.Content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
+
+            using (var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
+            {
+                response.EnsureSuccessStatusCode();
+                using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                using (var reader = new StreamReader(stream))
+                {
+                    while (true)
+                    {
+                        var line = await reader.ReadLineAsync().ConfigureAwait(false);
+                        if (line == null) break;
+                        if (line == "") continue;
+                        try
+                        {
+                            var jObj = JObject.Parse(line);
+                            var chunk = jObj["message"]?["content"]?.Value<string>();
+                            if (!string.IsNullOrEmpty(chunk))
+                                onChunk(chunk!);
+
+                            // Check if this is the final message
+                            var done = jObj["done"]?.Value<bool>() ?? false;
+                            if (done) break;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[b24-OLLAMA-PARSE-ERROR] Failed to parse Ollama response line: {ex.Message}");
+                        }
+                    }
+                }
+            }
         }
+
+            internal static async Task StreamChatAsync(
+                LlmModelConfig model,
+                JArray messages,
+                Action<string> onChunk,
+                CancellationToken cancellationToken)
+            {
+                var provider = (model.Provider ?? "").ToLowerInvariant();
+                System.Diagnostics.Debug.WriteLine($"[b24-STREAM-DISPATCHER] Routing to provider={provider}");
+
+                if (provider == "anthropic")
+                    await AnthropicStreamChatAsync(model, messages, onChunk, cancellationToken).ConfigureAwait(false);
+                else if (provider == "ollama")
+                    await OllamaStreamChatAsync(model, messages, onChunk, cancellationToken).ConfigureAwait(false);
+                else
+                    await OpenAiStreamChatAsync(model, messages, onChunk, cancellationToken).ConfigureAwait(false);
+            }
     }
 }
