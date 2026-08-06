@@ -5113,3 +5113,470 @@ Together, they form the **lowest-level entry surface** for the webview-rendered 
 - **Hot Reload** (dev): CSS/JS changes re-import; React hot-module-replacement re-renders tree; Redux state persists
 - **Persist Rehydration**: PersistGate prevents flashing of old UI; waits for localStorage restore before rendering
 - **StrictMode Effects**: In development, components mount/unmount/remount twice to catch side-effect cleanup issues
+---
+
+## 🔌 PROTOCOL & MESSAGING  
+
+### Overview
+
+Two core protocol files define the type-safe contract between webview (GUI) and core (backend), plus the message routing registry.
+
+1. **protocol/util.ts** (53 lines): Type definitions for webview↔core messages
+2. **protocol/passThrough.ts** (109 lines): Registry of 46 webview→core + 9 core→webview message types
+
+Together they ensure type safety across the webview-core communication boundary and document all supported message paths.
+
+### Key Concepts
+
+**WebviewMessage Types (protocol/util.ts)**
+
+- **SingleMessage**: Request-response pair (ask once, get one answer)
+  - `ErrorWebviewMessage`: `{status: "error", error: string, done: true}`
+  - `SuccessWebviewSingleMessage<T>`: `{done: true, status: "success", content: T}`
+
+- **GeneratorMessage**: Streaming/progressive responses
+  - `SuccessWebviewGeneratorMessage<T, R>`: 
+    - Yield: `{status: "success", done: false, content: T}`
+    - Return: `{status: "success", done: true, content: R}`
+  - `WebviewGeneratorMessage<T, R>`: Success OR Error variant
+
+- **Generic Wrappers**: 
+  - `WebviewSingleProtocolMessage<T>`: Extract success type from protocol definition
+  - `WebviewProtocolGeneratorMessage<T>`: Extract yield/return types from protocol definition
+  - `WebviewMessage<T, R>`: Union of single + generator messages
+
+**PassThrough Registry (protocol/passThrough.ts)**
+
+Message types explicitly allowed to pass (forward) between webview and core:
+- **WEBVIEW_TO_CORE_PASS_THROUGH** (46 messages):
+  - Config: addModel, newPromptFile, addLocalWorkspaceBlock, deleteRule, updateSelectedModel, etc.
+  - History: list, delete, load, save, clear
+  - Context: getContextItems, getSymbolsForFiles, loadSubmenuItems, addDocs, removeDocs
+  - LLM: complete, streamChat, listModels, compileChat
+  - Tool execution: tools/call, tools/evaluatePolicy, tools/preprocessArgs
+  - MCP: reloadServer, getPrompt, startAuthentication, setServerEnabled
+  - Indexing: indexing/reindex, abort, setPaused
+  - And more...
+
+- **CORE_TO_WEBVIEW_PASS_THROUGH** (9 messages):
+  - configUpdate: Config changes from core → GUI
+  - sessionUpdate: Session state from core → GUI
+  - indexProgress, indexing/statusUpdate: Index status updates
+  - addContextItem: New context item discovered
+  - refreshSubmenuItems: Submenu cache invalidation
+  - isContinueInputFocused, getWebviewHistoryLength, getCurrentSessionId: Queries
+  - toolCallPartialOutput: Streamed tool output
+  - didCloseFiles: File close notifications
+  - setTTSActive: TTS state from core
+
+**Note**: Comments reference IntelliJ extension sync points (constants/MessageTypes.kt, toolWindow/ContinueBrowser.kt)
+
+### File Details
+
+**protocol/util.ts** (53 lines)
+
+**Exports**:
+- `ErrorWebviewMessage`: Interface for error responses
+- `SuccessWebviewSingleMessage<T>`: Interface for single success response
+- `WebviewSingleMessage<T>`: Union of error + single success
+- `WebviewSingleProtocolMessage<T extends keyof FromWebviewProtocol>`: Lookup success type from protocol
+- `GeneratorYieldType<T>`: Extract AsyncGenerator yield type
+- `GeneratorReturnType<T>`: Extract AsyncGenerator return type
+- `SuccessWebviewGeneratorMessage<T, R>`: Internal type for generator success (yield or return)
+- `WebviewGeneratorMessage<T, R>`: Generator success + error union
+- `WebviewProtocolGeneratorMessage<T extends keyof FromWebviewProtocol>`: Lookup yield/return types
+- `WebviewMessage<T, R>`: Universal message type (single + generator union)
+
+**protocol/passThrough.ts** (109 lines)
+
+**Exports**:
+- `WEBVIEW_TO_CORE_PASS_THROUGH`: Array of 46 message keys allowed to route from webview to core
+  - Lines 9-90: Explicit array of message type strings
+- `CORE_TO_WEBVIEW_PASS_THROUGH`: Array of 9 message keys allowed to route from core to webview
+  - Lines 95-109: Explicit array of message type strings
+
+### Dependencies
+
+**protocol/util.ts** imports:
+- `./coreWebview.js` (or index): `FromWebviewProtocol` type (generic protocol definition)
+- TypeScript 4.8+: Generic inference for AsyncGenerator type extraction
+
+**protocol/passThrough.ts** imports:
+- `./coreWebview.js`: `ToCoreFromWebviewProtocol`, `ToWebviewFromCoreProtocol` (protocol interfaces)
+- No runtime dependencies; pure data
+
+### Usage Chain
+
+1. **Message Definition** (coreWebview.d.ts):
+   - Define `ToCoreFromWebviewProtocol` with keys like `"config/addModel": [request, AsyncGenerator<response>]`
+   - Define `ToWebviewFromCoreProtocol` with keys like `"configUpdate": [request, response]`
+
+2. **Type Safety** (util.ts):
+   - `WebviewSingleProtocolMessage<"config/addModel">` extracts the response type from protocol definition
+   - Prevents type mismatches at compile time
+
+3. **Runtime Gating** (passThrough.ts):
+   - IdeMessenger checks if message type is in `WEBVIEW_TO_CORE_PASS_THROUGH` before forwarding
+   - Core checks if message type is in `CORE_TO_WEBVIEW_PASS_THROUGH` before sending to GUI
+   - Acts as allowlist + documentation of supported message paths
+
+4. **Usage Example**:
+   ```tsx
+   // Type-safe message creation
+   const msg: WebviewSingleProtocolMessage<"config/addModel"> = {
+     status: "success",
+     done: true,
+     content: { /* typed based on protocol */ }
+   };
+
+   // Runtime check before routing
+   if (WEBVIEW_TO_CORE_PASS_THROUGH.includes("config/addModel")) {
+     ideMessenger.sendMessage("config/addModel", payload);
+   }
+   ```
+
+### Integration Points
+
+1. **IdeMessenger.tsx** ↔ **protocol/passThrough.ts**:
+   - Before routing webview→core, check: `WEBVIEW_TO_CORE_PASS_THROUGH.includes(messageType)`
+   - Prevents accidental core exposure of unimplemented messages
+
+2. **Core.ts** ↔ **protocol/passThrough.ts**:
+   - Before routing core→webview, check: `CORE_TO_WEBVIEW_PASS_THROUGH.includes(messageType)`
+   - Filters internal core events from leaking to GUI
+
+3. **coreWebview.d.ts** ↔ **protocol/util.ts**:
+   - Protocol definition updates trigger type re-extraction
+   - util.ts automatically stays in sync via generic lookup
+
+4. **IntelliJ Extension** (via comments):
+   - Must keep IntelliJ constants/MessageTypes.kt in sync with passThrough.ts
+   - Must keep IntelliJ ContinueBrowser.kt compatible with util.ts message format
+
+---
+
+## 🟦 LLM CONSTANTS & UTILITIES
+
+### Overview
+
+Two minimal utility files manage LLM configuration defaults and chat message validation helpers:
+
+1. **llm/constants.ts** (37 lines): LLM tuning defaults (tokens, temperature, context length)
+2. **llm/messages.ts** (73 lines): Chat message inspection and validation helpers
+
+Together they provide compile-time defaults and runtime query functions for message introspection.
+
+### Key Concepts
+
+**LLM Configuration Defaults (constants.ts)**
+
+- **Token Limits**:
+  - `DEFAULT_MAX_TOKENS = 4096`: Max output tokens per LLM completion
+  - `DEFAULT_CONTEXT_LENGTH = 32_768`: Default model context window (32k tokens)
+  - `DEFAULT_PRUNING_LENGTH = 128_000`: Conversation history pruning threshold
+  - `DEFAULT_REASONING_TOKENS = 2048`: Reasoning-mode token budget
+
+- **Inference Parameters**:
+  - `DEFAULT_TEMPERATURE = 0.5`: Sampling temperature (0=deterministic, 1=creative)
+  - `DEFAULT_MAX_CHUNK_SIZE = 500`: Chunking size for embeddings (512 - 12 buffer)
+  - `DEFAULT_MAX_BATCH_SIZE = 64`: Batch size for embedding operations
+
+- **Infrastructure**:
+  - `PROXY_URL = "http://localhost:65433"`: Local proxy for LLM requests
+
+- **Enums**:
+  - `LLMConfigurationStatuses`: VALID, MISSING_API_KEY, MISSING_ENV_SECRET
+  - `NEXT_EDIT_MODELS`: MERCURY_CODER, INSTINCT (specialized edit candidates)
+
+**Message Utilities (messages.ts)**
+
+- **Detection Functions**:
+  - `messageHasToolCalls(msg)`: Check if assistant message has non-empty toolCalls array
+  - `messageIsEmpty(msg)`: True if message content is blank (string or text array items)
+  - `isUserOrToolMsg(msg)`: True if role is "user" or "tool"
+  - `isToolMessageForId(msg, id)`: True if message is tool response for specific toolCallId
+  - `messageHasToolCallId(msg, id)`: True if assistant message contains tool call with ID
+  - `chatMessageIsEmpty(msg)`: Role-aware empty check (system/user: no text; assistant: no text + no tools; thinking/tool: never empty)
+
+### File Details
+
+**llm/constants.ts** (37 lines)
+
+**Exports**:
+- `DEFAULT_MAX_TOKENS` (4096)
+- `DEFAULT_CONTEXT_LENGTH` (32768)
+- `DEFAULT_TEMPERATURE` (0.5)
+- `DEFAULT_PRUNING_LENGTH` (128000)
+- `DEFAULT_REASONING_TOKENS` (2048)
+- `DEFAULT_MAX_CHUNK_SIZE` (500)
+- `DEFAULT_MAX_BATCH_SIZE` (64)
+- `PROXY_URL` ("http://localhost:65433")
+- `LLMConfigurationStatuses` enum: VALID, MISSING_API_KEY, MISSING_ENV_SECRET
+- `NEXT_EDIT_MODELS` enum: MERCURY_CODER="mercury-coder", INSTINCT="instinct"
+- `DEFAULT_ARGS` object: { maxTokens, temperature }
+
+**llm/messages.ts** (73 lines)
+
+**Exports**:
+- `messageHasToolCalls(msg: ChatMessage): boolean` (lines 3-5)
+- `messageIsEmpty(msg: ChatMessage): boolean` (lines 7-17)
+- `addSpaceToAnyEmptyMessages(messages: ChatMessage[]): ChatMessage[]` (lines 20-29) - Workaround for providers that reject empty content
+- `isUserOrToolMsg(msg: ChatMessage | undefined): boolean` (lines 31-36)
+- `isToolMessageForId(msg: ChatMessage | undefined, toolCallId: string): boolean` (lines 38-43)
+- `messageHasToolCallId(msg: ChatMessage | undefined, toolCallId: string): boolean` (lines 45-54)
+- `chatMessageIsEmpty(msg: ChatMessage): boolean` (lines 56-73) - Advanced: considers message role
+
+### Dependencies
+
+**llm/constants.ts** imports:
+- No external dependencies (pure data export)
+- Exported from union in module tail
+
+**llm/messages.ts** imports:
+- `./..` (index.d.ts): `ChatMessage` type
+- No external dependencies
+
+### Usage Patterns
+
+**In LLM Configuration**:
+```ts
+const config = {
+  maxTokens: DEFAULT_MAX_TOKENS,
+  temperature: DEFAULT_TEMPERATURE,
+  contextLength: DEFAULT_CONTEXT_LENGTH,
+};
+```
+
+**In Chat Message Processing**:
+```ts
+// Filter out empty user messages before sending to LLM
+const messagesForLLM = messages.filter(msg => !chatMessageIsEmpty(msg));
+
+// Check if assistant response has any tool calls to execute
+if (messageHasToolCalls(lastAssistantMsg)) {
+  // Dispatch tool execution
+}
+
+// Find tool response for specific tool call
+const toolResponse = messages.find(msg => isToolMessageForId(msg, toolCallId));
+```
+
+**Provider Compatibility Workaround**:
+```ts
+// Some providers (Claude, etc.) reject empty message content
+if (messageIsEmpty(msg)) {
+  addSpaceToAnyEmptyMessages(msgs); // Insert " " placeholder
+}
+```
+
+### Integration Points
+
+1. **LLM implementations** (anthropic.ts, openai.ts, etc.):
+   - Use DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE for model initialization
+   - Use messageHasToolCalls() to route tool request creation
+   - Use chatMessageIsEmpty() to filter message arrays pre-LLM submission
+
+2. **Redux thunks** (streamNormalInput, streamResponseAfterToolCall):
+   - Call messageHasToolCalls() to detect tool calls in LLM response
+   - Use isToolMessageForId() to link tool outputs to calls
+   - Call chatMessageIsEmpty() before building message arrays
+
+3. **GUI message rendering** (Chat.tsx, sessionSlice):
+   - Query messageIsEmpty() to conditionally render message containers
+   - Use messageHasToolCalls() for styling (show tool call indicators)
+
+---
+
+## 🟦 TOOL CONSTANTS
+
+### Overview
+
+One tiny constants file (4 lines) defines the three standard output messages for tool call state:
+
+- **No output**: When tool hasn't produced content yet
+- **Cancelled**: When user rejected tool call
+- **Errored**: When tool execution failed
+
+### File Details
+
+**tools/constants.ts** (4 lines)
+
+**Exports**:
+- `NO_TOOL_CALL_OUTPUT_MESSAGE = "No tool output"` (line 1)
+- `CANCELLED_TOOL_CALL_MESSAGE = "The user cancelled this tool call."` (line 2)
+- `ERRORED_TOOL_CALL_OUTPUT_MESSAGE = "There was an error calling the tool."` (line 3)
+
+### Usage
+
+**In callToolById (Redux thunk)**:
+```ts
+if (toolCallError) {
+  setToolOutput(ERRORED_TOOL_CALL_OUTPUT_MESSAGE);
+}
+```
+
+**In Tool Call UI (ToolCallDiv)**:
+```ts
+const displayText = toolOutput || NO_TOOL_CALL_OUTPUT_MESSAGE;
+if (toolCallStatus === "cancelled") {
+  return CANCELLED_TOOL_CALL_MESSAGE;
+}
+```
+
+### Integration
+
+1. **GUI tool call rendering**: Display when tool has no output or failed
+2. **Redux tool state management**: Set output text on error/cancel
+3. **Telemetry**: Log tool outcome with these messages as fallbacks
+
+---
+
+## ⚠️ ERROR HANDLING
+
+### Overview
+
+Two core error utilities provide type-safe error handling with explicit error reasons and root cause unwrapping:
+
+**errors.ts** (71 lines): 
+- `getRootCause()`: Recursive error cause chain traversal
+- `ContinueError`: Typed error class with reason enumeration
+- `ContinueErrorReason`: 19 categorized error codes (find/replace, edit, file, command, search, rules, skills)
+
+### Key Concepts
+
+**Error Cause Chain**
+
+JavaScript Error objects can have a `cause` property (Error.cause or .cause field) for error nesting. `getRootCause()` recursively unwraps to find the original source:
+
+```ts
+getRootCause(err)
+  ↓ if err.cause exists
+getRootCause(err.cause)
+  ↓ recurse
+getRootCause(err.cause.cause)
+  ↓ ...
+return rootErr // when no .cause found
+```
+
+**ContinueError Class**
+
+Typed error with semantic reason:
+```ts
+try {
+  // ...
+} catch (e) {
+  throw new ContinueError(
+    ContinueErrorReason.FileNotFound,
+    `/path/to/file: file not found`
+  );
+}
+```
+
+**ContinueErrorReason Enum** (19 values)
+
+Organized by category:
+
+- **Find & Replace** (8 codes):
+  - FindAndReplaceIdenticalOldAndNewStrings, FindAndReplaceMissingOldString, FindAndReplaceNonFirstEmptyOldString, FindAndReplaceMissingNewString, FindAndReplaceInvalidReplaceAll, FindAndReplaceOldStringNotFound, FindAndReplaceMultipleOccurrences, FindAndReplaceMissingFilepath
+
+- **Multi-Edit** (4 codes):
+  - MultiEditEditsArrayRequired, MultiEditEditsArrayEmpty, MultiEditSubsequentEditsOnCreation, MultiEditEmptyOldStringNotFirst
+
+- **General Edit** (1 code):
+  - EditToolFileNotRead
+
+- **General File** (8 codes):
+  - FileAlreadyExists, FileNotFound, FileWriteError, FileIsSecurityConcern, ParentDirectoryNotFound, FileTooLarge, PathResolutionFailed, InvalidLineNumber, DirectoryNotFound
+
+- **Terminal/Command** (2 codes):
+  - CommandExecutionFailed, CommandNotAvailableInRemote
+
+- **Search** (1 code):
+  - SearchExecutionFailed
+
+- **Rules** (1 code):
+  - RuleNotFound
+
+- **Skills** (1 code):
+  - SkillNotFound
+
+- **Other** (2 codes):
+  - Unspecified (known error, no specific code), Unknown (unexpected error)
+
+### File Details
+
+**util/errors.ts** (71 lines)
+
+**Exports**:
+- `getRootCause(err: any): any` (lines 7-12)
+- `ContinueError` class (lines 14-22):
+  - Constructor: `(reason: ContinueErrorReason, message?: string)`
+  - Property: `reason: ContinueErrorReason`
+  - Property: `name = "ContinueError"`
+- `ContinueErrorReason` enum (lines 24-71): 19 string literal values
+
+### Usage Patterns
+
+**Extracting Root Cause**:
+```ts
+try {
+  await callTool();
+} catch (err) {
+  const root = getRootCause(err);
+  console.error("Original error:", root.message);
+}
+```
+
+**Throwing Typed Errors**:
+```ts
+if (!fs.existsSync(filepath)) {
+  throw new ContinueError(
+    ContinueErrorReason.FileNotFound,
+    `File not found: ${filepath}`
+  );
+}
+```
+
+**Handling by Reason**:
+```ts
+try {
+  edit();
+} catch (err) {
+  if (err instanceof ContinueError) {
+    switch (err.reason) {
+      case ContinueErrorReason.FindAndReplaceMultipleOccurrences:
+        // Prompt user for disambiguation
+        break;
+      case ContinueErrorReason.FileNotFound:
+        // Offer to create file
+        break;
+    }
+  }
+}
+```
+
+**GUI Error Display**:
+```tsx
+if (error instanceof ContinueError) {
+  return <ErrorAlert reason={error.reason} message={error.message} />;
+}
+```
+
+### Integration Points
+
+1. **Tool implementations** (callTool.ts, client tool helpers):
+   - Throw `ContinueError` with reason code
+   - Allows tool-specific error handling in GUI
+
+2. **GUI error analysis** (errorAnalysis.ts):
+   - Inspect `ContinueErrorReason` to show provider-specific guidance
+   - Map error reasons to help links or recovery actions
+
+3. **Redux error slices**:
+   - Store error + reason in Redux state
+   - Dispatch UI updates based on reason (retry, config, etc.)
+
+4. **IDE bridge** (core.ts):
+   - Catch `ContinueError` and serialize reason to IDE
+   - IDE can localize error messages by reason code
+
