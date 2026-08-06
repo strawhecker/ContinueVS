@@ -828,6 +828,36 @@ reference/continue-src/gui/
 
 | `LanceDbDocsRow` | `core/indexing/docs/DocsService.ts` | 41-51 | Interface | Type | LanceDB row schema (title, starturl, content, path, vector, line ranges) |
 
+| `cacheElementType` | `core/autocomplete/util/openedFilesLruCache.ts` | 4 | Type | Cache | Type alias for string (cache key and value for open files) |
+
+| `openedFilesLruCache` | `core/autocomplete/util/openedFilesLruCache.ts` | 10-15 | Export | Cache | QuickLRU instance (max 20 open files by viewing order) |
+
+| `prevFilepaths` | `core/autocomplete/util/openedFilesLruCache.ts` | 18-20 | Export | State | Tracks previous filepaths for change detection in core.ts |
+
+| `GitDiffCache` | `core/autocomplete/snippets/gitDiffCache.ts` | 5-63 | Class (Singleton) | Cache | Git diff cache with 60s TTL; request deduplication |
+
+| `GitDiffCache.getInstance()` | `core/autocomplete/snippets/gitDiffCache.ts` | 18-26 | Method | Accessor | Get or create singleton with optional custom getDiffFn and cacheTimeSeconds |
+
+| `GitDiffCache.get()` | `core/autocomplete/snippets/gitDiffCache.ts` | 42-57 | Method | Query | Return cached diff if fresh; reuse pending request if in-flight; else fetch new |
+
+| `GitDiffCache.invalidate()` | `core/autocomplete/snippets/gitDiffCache.ts` | 59-62 | Method | Mutation | Clear cache and abort pending request |
+
+| `getDiffFn()` | `core/autocomplete/snippets/gitDiffCache.ts` | 66-68 | Function | Factory | Adapter: return closure calling ide.getDiff(true) |
+
+| `getDiffsFromCache()` | `core/autocomplete/snippets/gitDiffCache.ts` | 70-73 | Function | Helper | Convenience: call GitDiffCache.getInstance().get() |
+
+| `CompletionProvider` | `core/autocomplete/CompletionProvider.ts` | 33-316 | Class | Generator | Tab completion orchestrator with caching, debouncing, context retrieval |
+
+| `CompletionProvider.provideInlineCompletionItems()` | `core/autocomplete/CompletionProvider.ts` | 150-309 | Method | Generate | Main completion flow: prepare LLM, get context, render prompt, stream, postprocess |
+
+| `CompletionProvider.accept()` | `core/autocomplete/CompletionProvider.ts` | 119-128 | Method | Handler | Mark completion accepted; update bracket matching state |
+
+| `CompletionProvider.cancel()` | `core/autocomplete/CompletionProvider.ts` | 115-117 | Method | Handler | Cancel current logging state |
+
+| `CompletionProvider.markDisplayed()` | `core/autocomplete/CompletionProvider.ts` | 130-132 | Method | Logging | Log completion display for telemetry |
+
+| `CompletionProvider.dispose()` | `core/autocomplete/CompletionProvider.ts` | 311-315 | Method | Lifecycle | Close autocomplete cache on shutdown |
+
 | `MCPManagerSingleton` | `core/context/mcp/MCPManagerSingleton.ts` | 6-204 | Class (Singleton) | Manager | Lifecycle for all MCP connections |
 
 | `ContinueConfig` | `core/index.d.ts` | 1820-1841 | Interface | Type | Runtime config (core-side) WITH functions |
