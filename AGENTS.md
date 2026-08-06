@@ -1278,6 +1278,32 @@ reference/continue-src/gui/
 
 | `THEME_CSS_VAR_DEFAULTS` | `gui/src/styles/theme.ts` | 192-200 | Record | Config | CSS var name → default color value mapping |
 
+| `THEME_DEFAULTS` | `gui/src/styles/theme.ts` | 202-208 | Record | Config | Color name → default color value mapping |
+
+| `getRecursiveVar()` | `gui/src/styles/theme.ts` | 212-216 | Function | Utility | Generate recursive CSS var fallback: var(--a, var(--b, #hex)) |
+
+| `varWithFallback()` | `gui/src/styles/theme.ts` | 218-224 | Function | Getter | Get CSS var with fallback chain for color name |
+
+| `setDocumentStylesFromTheme()` | `gui/src/styles/theme.ts` | 226-266 | Function | Setter | Apply theme colors to document style; cache values; strip alpha from hex |
+
+| `setDocumentStylesFromLocalStorage()` | `gui/src/styles/theme.ts` | 268-280 | Function | Setter | Restore cached theme colors from localStorage |(checkCache flag) |
+
+| `clearThemeLocalCache()` | `gui/src/styles/theme.ts` | 282-286 | Function | Cleanup | Clear all theme color entries from localStorage |
+
+| `.fade-in-span` | `gui/index.css` | 65-67 | Class | Animation | Fade-in animation (0.3s ease-in-out) |
+
+| `.no-scrollbar` | `gui/index.css` | 74-82 | Class | Scrollbar | Hide scrollbar (Chrome/Safari/Opera/-webkit-, IE/Edge/Firefox) |
+
+| `.rerender-flash` | `gui/index.css` | 133-135 | Class | Debug | Flash animation (red inset box-shadow, 180ms) on component re-render |
+
+| `.render-count` | `gui/index.css` | 137-146 | Class | Debug | Inline badge: red background, render count display |
+
+| `.scroll-container` | `gui/index.css` | 94-121 | Class | Scrollbar | Styled scrollbar container (8px width, thin, hover-reveal) |
+
+| `.thin-scrollbar` | `gui/index.css` | 69-71 | Class | Scrollbar | Firefox thin scrollbar style |
+
+| `.truncate-start` | `gui/index.css` | 84-92 | Class | Text | RTL text truncation with ellipsis (inline-block, direction: rtl) |
+
 | `parseHexColor()` | `gui/src/styles/utils.ts` | 1-19 | Function | Utility | Parse hex color string → {r, g, b} |
 
 | `parseColorForHex()` | `gui/src/styles/utils.ts` | 21-45 | Function | Utility | Parse CSS color var (hex/rgb/rgba) → hex string |
