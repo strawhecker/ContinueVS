@@ -390,49 +390,20 @@ reference/continue-src/gui/src/redux/slices/uiSlice.ts
 
 ```
 reference/continue-src/gui/src/redux/thunks/streamThunkWrapper.tsx
-  └─ Deps: redux/slices/sessionSlice, external
-
 reference/continue-src/gui/src/redux/thunks/callToolById.ts
-  └─ Deps: redux/store, core types, external
-
 reference/continue-src/gui/src/redux/thunks/preprocessToolCallArgs.ts
-  └─ Deps: redux/store, external
-
 reference/continue-src/gui/src/redux/thunks/evaluateToolPolicies.ts
-  └─ Deps: redux/store, core types, external
-
 reference/continue-src/gui/src/redux/thunks/cancelStream.ts
-  └─ Deps: redux/store, external
-
 reference/continue-src/gui/src/redux/thunks/cancelToolCall.ts
-  └─ Deps: redux/store, external
-
 reference/continue-src/gui/src/redux/thunks/moveTerminalProcessToBackground.ts
-  └─ Deps: redux/store, external
-
 reference/continue-src/gui/src/redux/thunks/updateFileSymbols.ts
-  └─ Deps: redux/store, external
-
 reference/continue-src/gui/src/redux/thunks/updateSelectedModelByRole.ts
-  └─ Deps: redux/store, external
-
 reference/continue-src/gui/src/redux/thunks/streamNormalInput.ts
-  └─ Deps: redux/store, redux/slices/sessionSlice, external
-
 reference/continue-src/gui/src/redux/thunks/streamResponseAfterToolCall.ts
-  └─ Deps: redux/store, redux/slices/sessionSlice, external
-
 reference/continue-src/gui/src/redux/thunks/handleApplyStateUpdate.ts
-  └─ Deps: redux/store, redux/slices/sessionSlice, external
-
 reference/continue-src/gui/src/redux/thunks/streamResponse.ts
-  └─ Deps: redux/store, redux/slices/sessionSlice, core types, IdeMessenger, external
-
 reference/continue-src/gui/src/redux/thunks/edit.ts
-  └─ Deps: redux/store, redux/slices/sessionSlice, redux/slices/editState, external
-
 reference/continue-src/gui/src/redux/thunks/session.ts
-  └─ Deps: redux/store, redux/slices/sessionSlice, external
 ```
 
 ---
@@ -441,8 +412,6 @@ reference/continue-src/gui/src/redux/thunks/session.ts
 
 ```
 reference/continue-src/gui/src/redux/store.ts
-  └─ Deps: @reduxjs/toolkit, redux-persist, IdeMessenger, all slices, all thunks, external
-  └─ PURPOSE: Central state management
 ```
 
 ---
@@ -451,16 +420,9 @@ reference/continue-src/gui/src/redux/store.ts
 
 ```
 reference/continue-src/gui/src/pages/error.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/stats.tsx
-  └─ Deps: react, redux/selectors, external
-
 reference/continue-src/gui/src/pages/history/index.tsx
-  └─ Deps: react, redux, core types, external
-
 reference/continue-src/gui/src/pages/config/index.tsx
-  └─ Deps: react, redux, core types, IdeMessenger, external
 ```
 
 ---
@@ -469,73 +431,28 @@ reference/continue-src/gui/src/pages/config/index.tsx
 
 ```
 reference/continue-src/gui/src/pages/gui/EmptyChatBody.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ExploreDialogWatcher.tsx
-  └─ Deps: react, redux, external
-
 reference/continue-src/gui/src/pages/gui/StreamError.tsx
-  └─ Deps: react, redux, external
-
 reference/continue-src/gui/src/pages/gui/useAutoScroll.ts
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolCallArgs.tsx
-  └─ Deps: react, core types, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolCallDisplay.tsx
-  └─ Deps: react, styled, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolCallStatusMessage.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolTruncateHistoryIcon.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToggleWithIcon.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/IndicatorBar.tsx
-  └─ Deps: react, styled, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/TerminalCollapsibleContainer.tsx
-  └─ Deps: react, styled, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/CreateFile.tsx
-  └─ Deps: react, core types, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/EditFile.tsx
-  └─ Deps: react, core types, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/FindAndReplace.tsx
-  └─ Deps: react, core types, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/RunTerminalCommand.tsx
-  └─ Deps: react, core types, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/MCPAppRenderer.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/SimpleToolCallUI.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/GroupedToolCallHeader.tsx
-  └─ Deps: react, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/FunctionSpecificToolCallDiv.tsx
-  └─ Deps: react, core types, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/utils.tsx
-  └─ Deps: core types, redux, external
-
 reference/continue-src/gui/src/pages/gui/ToolCallDiv/index.tsx
-  └─ Deps: react, core types, redux, all ToolCall* files, external
-
 reference/continue-src/gui/src/pages/gui/Chat.tsx
-  └─ Deps: react, redux, core types, IdeMessenger, all ToolCall* files, external
-
 reference/continue-src/gui/src/pages/gui/index.tsx
-  └─ Deps: react, redux, core types, pages/gui/Chat, external
 ```
 
 ---
@@ -544,13 +461,8 @@ reference/continue-src/gui/src/pages/gui/index.tsx
 
 ```
 reference/continue-src/gui/src/styles/ThemePage.tsx
-  └─ Deps: react, styled, external
-
 reference/continue-src/gui/src/components/Layout.tsx
-  └─ Deps: react, react-router-dom, core types, contexts, hooks, redux, thunks, pages, components, external
-
 reference/continue-src/gui/src/App.tsx
-  └─ Deps: react-router-dom, components/Layout, components/mainInput/TipTapEditor/TipTapEditor.tsx, contexts, hooks/ParallelListeners, pages, styles, util, external
 ```
 
 ---
@@ -559,8 +471,6 @@ reference/continue-src/gui/src/App.tsx
 
 ```
 reference/continue-src/gui/src/main.tsx
-  └─ Deps: react, react-dom, react-redux, redux-persist, App.tsx, redux/store.ts, index.css, external
-  └─ PURPOSE: React app entry point
 ```
 
 ---
@@ -569,8 +479,6 @@ reference/continue-src/gui/src/main.tsx
 
 ```
 reference/continue-src/gui/index.html
-  └─ Deps: src/main.tsx (as ES module)
-  └─ PURPOSE: HTML entry point, mounts React app
 ```
 
 ---
