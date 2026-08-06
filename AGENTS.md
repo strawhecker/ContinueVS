@@ -49,6 +49,9 @@
 | `reference/continue-src/core/llm/llms/Lemonade.ts` | 12 | 🟡 Provider | `Lemonade` class | OpenAI-compatible wrapper (extends OpenAI) |
 | `reference/continue-src/core/llm/llms/Ollama.ts` | 833 | 🟡 Provider | `Ollama` class | Ollama API adapter (local model inference) |
 | `reference/continue-src/core/tools/constants.ts` | 4 | 🟡 Config | `NO_TOOL_CALL_OUTPUT_MESSAGE`, `CANCELLED_TOOL_CALL_MESSAGE` | Tool output status strings |
+| `reference/continue-src/core/autocomplete/util/openedFilesLruCache.ts` | 20 | 🟡 Cache | `openedFilesLruCache`, `cacheElementType`, `prevFilepaths` | LRU cache of open files (max 20) in viewing order |
+| `reference/continue-src/core/autocomplete/snippets/gitDiffCache.ts` | 73 | 🟡 Cache | `GitDiffCache`, `getDiffFn`, `getDiffsFromCache` | Singleton git diff cache (60s TTL) |
+| `reference/continue-src/core/autocomplete/CompletionProvider.ts` | 316 | 🟠 Generator | `CompletionProvider`, `provideInlineCompletionItems()` | Inline completion orchestration + caching |
 | `reference/continue-src/core/nextEdit/context/aggregateEdits.ts` | 628 | 🟠 Aggregator | `EditAggregator`, `EditClusterConfig` | Time/line-based edit clustering for small edits |
 | `reference/continue-src/core/nextEdit/context/diffFormatting.ts` | 247 | 🟡 Formatter | `createDiff()`, `createBeforeAfterDiff()`, `DiffFormatType` | Unified diff + before/after formatting |
 | `reference/continue-src/core/nextEdit/context/processSmallEdit.ts` | 53 | 🟡 Utilities | `processSmallEdit()` | Small edit processing pipeline entry point |
