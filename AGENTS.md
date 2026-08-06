@@ -57,6 +57,11 @@
 | `reference/continue-src/core/nextEdit/context/processSmallEdit.ts` | 53 | 🟡 Utilities | `processSmallEdit()` | Small edit processing pipeline entry point |
 | `reference/continue-src/core/nextEdit/NextEditPrefetchQueue.ts` | 152 | 🟡 Queue | `PrefetchQueue`, `ProcessedItem` | Singleton queue for prefetch (disabled) |
 | `reference/continue-src/core/nextEdit/NextEditProvider.ts` | 628 | 🟠 Generator | `NextEditProvider`, `provideInlineCompletionItemsWithChain()` | Next edit prediction orchestrator + chains |
+| `reference/continue-src/core/diff/myers.ts` | 211 | 🟡 Diff | `myersDiff()`, `myersCharDiff()`, `convertMyersChangeToDiffLines()` | Line/char-level diff using Myers algorithm |
+| `reference/continue-src/core/edit/applyAbortManager.ts` | 37 | 🟡 Manager | `ApplyAbortManager` (singleton) | Manage AbortController instances per apply ID |
+| `reference/continue-src/core/edit/streamDiffLines.ts` | 190 | 🟠 Streaming | `streamDiffLines()`, `addIndentation()` | Stream diff lines for edit operations with rule support |
+| `reference/continue-src/core/indexing/CodebaseIndexer.ts` | 872 | 🟠 Orchestrator | `CodebaseIndexer`, `PauseToken` | Orchestrate codebase indexing (chunk, embeddings, FTS, snippets) |
+| `reference/continue-src/core/indexing/docs/DocsService.ts` | 1292 | 🟠 Orchestrator | `DocsService`, `LanceDbDocsRow`, `embedModelsAreEqual()` | Documentation site indexing with LanceDB + SQLite storage |
 | `reference/continue-src/core/util/errors.ts` | 71 | 🟠 Error | `ContinueError`, `ContinueErrorReason`, `getRootCause` | Error taxonomy (29 codes) |
 | `reference/continue-src/gui/index.html` | 16 | 🟢 Bootstrap | (html) | WebView2 mount point |
 | `reference/continue-src/gui/src/main.tsx` | 24 | 🟢 Bootstrap | `App`, Redux `Provider`, `PersistGate` | React root + Redux setup |
