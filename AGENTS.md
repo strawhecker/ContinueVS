@@ -124,6 +124,8 @@
 | `reference/continue-src/gui/src/styles/ThemePage.tsx` | 232 | 🎨 Theme | `ThemePage` | Theme debugger: visual tests for all colors, missing variable detection, JetBrains/VS Code diffs |
 | `reference/continue-src/gui/src/components/Layout.tsx` | 234 | 🧩 Component | `Layout` | Root container: listens to IDE events, manages edit mode, dialogs, auth/storage context wrapping |
 | `reference/continue-src/gui/src/App.tsx` | 66 | 🚀 App | `App` | Entry point: router setup, provider stack (VscThemeProvider, MainEditorProvider, SubmenuContextProviders) |
+| `reference/continue-src/gui/src/main.tsx` | 24 | 🚀 Entry | React DOM mounting, Redux store initialization, PersistGate hydration wrapping |
+| `reference/continue-src/gui/index.html` | 13 | 📄 HTML | HTML5 doc: root div mount point, favicon, title, deferred src/main.tsx loader |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -751,6 +753,7 @@ reference/continue-src/gui/
 | `ThemeTailwindClassExample` | `gui/src/styles/ThemePage.tsx` | 19-55 | Component | Theme | Individual color swatch with CSS var names + default fallback |
 | `Layout` | `gui/src/components/Layout.tsx` | 40-232 | Component | Root | Root layout: IDE event listeners, edit/dialog state, provider wrapper (Auth, LocalStorage) |
 | `App` | `gui/src/App.tsx` | 53-66 | Component | Root | App entry point: router initialization, provider stack (VscTheme, MainEditor, SubmenuContextProviders, ParallelListeners) |
+| main | `gui/src/main.tsx` | 9-24 | Bootstrap | Entry | React DOM root creation, Redux store/persistor wrapping, IIFE async mount |
 | `editToolImpl`
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -4962,3 +4965,151 @@ Platform-specific logic:
    - Core message events trigger webview listeners
    - Listeners dispatch Redux thunks
    - UI re-renders on state changes
+---
+
+## 🆎 BOOTSTRAP & ENTRY POINTS
+
+### Overview
+
+Two minimal files form the entry layer that bootstraps the entire Continue GUI application:
+
+1. **index.html** (13 lines): HTML5 document that provides the DOM mount point and loads the TypeScript entry
+2. **main.tsx** (24 lines): React DOM initialization, Redux store setup, and PersistGate wrapping
+
+Together, they form the **lowest-level entry surface** for the webview-rendered application, connecting the static HTML page to the React component tree and Redux state management.
+
+### Key Concepts
+
+**HTML Page Structure (index.html)**
+- Single-page application HTML template
+- Mount point: `<div id="root">` (line 10)
+- Script loader: Vite module script pointing to `/src/main.tsx` (line 11)
+- Favicon: Play button image `/play_button.png` (line 5)
+- Title: "Continue" (displayed in IDE webview tab)
+- Minimal head metadata (UTF-8, viewport, favicon)
+
+**React DOM Entry (main.tsx)**
+- **IIFE async pattern** (line 9): Wraps entire initialization in async closure for future async operations
+- **Container lookup** (line 10): Gets `#root` element from HTML, typed as HTMLElement
+- **React 18 root creation** (line 13): Uses `ReactDOM.createRoot(container)` for concurrent features
+- **Provider nesting** (lines 16-21):
+  - `React.StrictMode`: Development checks (unmount/remount, warnings on lifecycle issues)
+  - `Provider` from react-redux: Injects Redux store into all child components
+  - `PersistGate` from redux-persist: Delays rendering until persisted state hydrates (loading={null} = no fallback UI)
+  - `App`: Main application component (router, layouts, pages)
+
+### File Details
+
+**index.html** (13 lines)
+- Lines 1-7: Standard HTML5 boilerplate (doctype, lang, meta, favicon, viewport, title)
+- Line 10: React mount point `<div id="root"></div>`
+- Line 11: Deferred module script loading `src/main.tsx` (Vite will transform to bundle)
+- No inline styles or content; completely delegated to React
+
+**main.tsx** (24 lines)
+- Lines 1-7: Imports (React, ReactDOM, redux-persist, redux, App, styles)
+- Lines 9-24: IIFE async function containing:
+  - Line 10: Query and type-cast `document.getElementById("root")`
+  - Line 13: Create React 18 root via `ReactDOM.createRoot(container)`
+  - Lines 15-22: JSX tree with provider nesting and final `root.render()` call
+
+### Dependencies
+
+**index.html** depends on:
+- Vite build system (processes `src/main.tsx` module script)
+- Browser DOM API (getElementById, script module loading)
+- Favicon asset: `/play_button.png`
+
+**main.tsx** imports:
+- `react`: React, StrictMode
+- `react-dom/client`: ReactDOM.createRoot
+- `react-redux`: Provider
+- `redux-persist/integration/react`: PersistGate
+- `./App`: Application root component (see GUI APPLICATION SHELL section)
+- `./index.css`: Global styles (animations, scrollbars, theme)
+- `./redux/store`: setupStore(), persistor, store (see REDUX STORE section)
+
+### Provider Stack Initialization Sequence
+
+1. **HTML loads** (`index.html`)
+   - Browser parses HTML; creates `<div id="root"></div>`
+   - Encounters deferred module script: `/src/main.tsx`
+
+2. **main.tsx IIFE executes**
+   - Async function begins
+   - Queries DOM for `#root` container
+   - Creates React 18 root
+
+3. **Provider nesting (inside-out initialization)**
+   - React.StrictMode wraps all
+   - Provider (redux) initializes store (loaded from localStorage via redux-persist)
+   - PersistGate hydrates persisted state before rendering children
+   - App component mounts once all state ready
+
+4. **App mounts**
+   - Router setup (createMemoryRouter in App.tsx)
+   - Layout component mounts (global listeners, webview setup)
+   - First route (/ or /) renders Chat or home page
+   - All contexts available: VscThemeProvider, MainEditorProvider, SubmenuContextProviders, IdeMessenger, Auth, LocalStorage
+
+### Integration Points
+
+1. **index.html ↔ Webview Host (IDE)**:
+   - IDE loads HTML in webview container
+   - Favicon displayed in tab
+   - Title "Continue" shown in webview tab
+   - Script module loading handled by Vite dev server or bundled assets
+
+2. **main.tsx ↔ Redux Store**:
+   - Retrieves `store` and `persistor` from `./redux/store`
+   - PersistGate hydrates persisted slices (ui, session, profiles, etc.)
+   - Provider gives all descendants access to `useAppSelector` and `useAppDispatch`
+
+3. **main.tsx ↔ Global React Context**:
+   - StrictMode enables concurrent features and development warnings
+   - App component accesses all providers set up in App.tsx (VscTheme, MainEditor, SubmenuContextProviders, ParallelListeners)
+
+4. **main.tsx ↔ CSS Assets**:
+   - Imports `./index.css` (global styles with Tailwind directives, custom animations)
+   - Applied to all rendered components via React
+
+### Mount Flow Diagram
+
+```
+┌─────────────────────────────────────────┐
+│  Browser / IDE Webview                  │
+│  ├─ index.html                          │
+│  │  └─ <div id="root"></div>           │
+│  │  └─ <script src="/src/main.tsx">    │
+│  └─ (loads main.tsx via Vite)          │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  main.tsx IIFE async                    │
+│  ├─ document.getElementById("root")     │
+│  ├─ ReactDOM.createRoot(container)      │
+│  └─ root.render(JSX tree)               │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  React.StrictMode                       │
+│  ├─ Provider (Redux store)              │
+│  │  └─ PersistGate (hydrate state)      │
+│  │     └─ App (router + layout)         │
+│  └─ (all child components mount)        │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  GUI Rendered                           │
+│  ├─ Layout (root shell)                 │
+│  ├─ Outlet (current route: Chat/etc)    │
+│  └─ All contexts ready (IDE, Theme)     │
+└─────────────────────────────────────────┘
+```
+
+### Lifecycle Implications
+
+- **Cold Start**: HTML loaded → main.tsx IIFE runs → Redux hydrates → App mounts → First route renders (Chat is default)
+- **Hot Reload** (dev): CSS/JS changes re-import; React hot-module-replacement re-renders tree; Redux state persists
+- **Persist Rehydration**: PersistGate prevents flashing of old UI; waits for localStorage restore before rendering
+- **StrictMode Effects**: In development, components mount/unmount/remount twice to catch side-effect cleanup issues
