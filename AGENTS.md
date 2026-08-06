@@ -1034,6 +1034,26 @@ reference/continue-src/gui/
 
 | `shareSession()` | `core/util/historyUtils.ts` | 67-105 | Function | Exporter | Export session to timestamped .md file; support ~/. and relative paths |
 
+| `createNewPromptFileV2()` | `core/promptFiles/createNewPromptFile.ts` | 38-76 | AsyncFunction | Generator | Create ~/.continue/prompts/new-prompt-file.prompt with template (YAML frontmatter + body) |
+
+| `Core` | `core/core.ts` | 89-1460 | Class | Orchestrator | Main backend class: routes IDE/Webview messages, manages config/indexing/LLM/tools/history/sessions |
+
+| `Core.constructor()` | `core/core.ts` | 128-272 | Method | Lifecycle | Initialize messenger, ide, configHandler, codeBaseIndexer, completionProvider, nextEditProvider; register message handlers |
+
+| `Core.invoke()` | `core/core.ts` | 111-116 | Method | Messenger | Send typed request to IDE/Webview; return response (synchronous) |
+
+| `Core.send()` | `core/core.ts` | 118-124 | Method | Messenger | Send typed message from Core to IDE/Webview; return messageId |
+
+| `Core.configHandler` | `core/core.ts` | 90 | Property | Config | ConfigHandler instance (profile lifecycle, config loading, listeners) |
+
+| `Core.codeBaseIndexer` | `core/core.ts` | 91 | Property | Index | CodebaseIndexer instance (multi-strategy indexing) |
+
+| `Core.completionProvider` | `core/core.ts` | 92 | Property | Autocomplete | CompletionProvider instance (tab completion) |
+
+| `Core.nextEditProvider` | `core/core.ts` | 93 | Property | Edit | NextEditProvider instance (inline edits) |
+
+| `Core.llmLogger` | `core/core.ts` | 96 | Property | Logging | LLMLogger instance (tracks LLM usage) |
+
 | `MCPManagerSingleton` | `core/context/mcp/MCPManagerSingleton.ts` | 6-204 | Class (Singleton) | Manager | Lifecycle for all MCP connections |
 
 | `ContinueConfig` | `core/index.d.ts` | 1820-1841 | Interface | Type | Runtime config (core-side) WITH functions |
@@ -1042,7 +1062,29 @@ reference/continue-src/gui/
 
 | `IDE` | `core/index.d.ts` | 831-936 | Interface | Type | IDE abstraction (read/write files, git, LSP, etc.) |
 
-| `ILLM` | `core/index.d.ts` | (var lines) | Interface | Type | LLM provider interface (chat, complete, etc.) |
+| `ILLM` | `core/index.d.ts` | 98-169 | Interface | Type | LLM provider interface (providerName, methods: chat, streamChat, streamFim, streamComplete, embed, rerank, countTokens, etc.) |
+
+| `ILLM.chat()` | `core/index.d.ts` | 134-138 | Method | LLM | Synchronous chat request: messages + AbortSignal => Promise<ChatMessage> |
+
+| `ILLM.streamChat()` | `core/index.d.ts` | 127-132 | Method | LLM | Streaming chat: messages + AbortSignal => AsyncGenerator<ChatMessage, PromptLog> |
+
+| `ILLM.streamFim()` | `core/index.d.ts` | 120-125 | Method | LLM | Fill-in-middle: prefix + suffix + AbortSignal => AsyncGenerator<string, PromptLog> |
+
+| `ILLM.streamComplete()` | `core/index.d.ts` | 114-118 | Method | LLM | Text completion: prompt + AbortSignal => AsyncGenerator<string, PromptLog> |
+
+| `ILLM.complete()` | `core/index.d.ts` | 108-112 | Method | LLM | Synchronous completion: prompt + AbortSignal => Promise<string> |
+
+| `ILLM.embed()` | `core/index.d.ts` | 145 | Method | LLM | Batch embedding: chunks[] => Promise<number[][]> (vectors) |
+
+| `ILLM.rerank()` | `core/index.d.ts` | 147 | Method | LLM | Semantic ranking: query + Chunk[] => Promise<number[]> (scores) |
+
+| `ILLM.countTokens()` | `core/index.d.ts` | 149 | Method | LLM | Text => token count (integer) |
+
+| `ILLM.listModels()` | `core/index.d.ts` | 159 | Method | LLM | Promise<string[]> available model IDs |
+
+| `ILLM.renderPromptTemplate()` | `core/index.d.ts` | 161-166 | Method | LLM | Execute PromptTemplate function (template + history + otherData) |
+
+| `ILLM.getConfigurationStatus()` | `core/index.d.ts` | 168 | Method | LLM | LLMConfigurationStatuses enum (setup status) |
 
 | `ModelDescription` | `core/index.d.ts` | 1226-1250 | Interface | Type | Serializable model metadata (for GUI) |
 
@@ -1053,6 +1095,40 @@ reference/continue-src/gui/
 | `ContextProviderDescription` | `core/index.d.ts` | (var lines) | Type | Type | Metadata sent to GUI |
 
 | `ContextProviderExtras` | `core/index.d.ts` | (var lines) | Type | Type | Runtime passed to provider |
+
+| `ChunkWithoutID` | `core/index.d.ts` | 37-43 | Interface | Type | Base chunk metadata (content, startLine, endLine, signature) |
+
+| `Chunk` | `core/index.d.ts` | 45-49 | Interface | Type | ChunkWithoutID + digest, filepath, index (for codebase indexing) |
+
+| `IndexingProgressUpdate` | `core/index.d.ts` | 51-66 | Interface | Type | Progress signal for indexing (progress %, status, debug info) |
+
+| `IndexingStatus` | `core/index.d.ts` | 69-81 | Interface | Type | V2 indexing status for docs (id, type, progress, EmbeddingsProviderId) |
+
+| `PromptTemplateFunction` | `core/index.d.ts` | 83-86 | Type | Type | (history, otherData) => string \| ChatMessage[] |
+
+| `PromptTemplate` | `core/index.d.ts` | 88 | Type | Type | string \| PromptTemplateFunction (for role-specific prompts) |
+
+| `ModelInstaller` | `core/index.d.ts` | 171-179 | Interface | Type | installModel(), isInstallingModel() (for local LLM providers) |
+
+| `ContextProviderType` | `core/index.d.ts` | 181 | Type | Type | "normal" \| "query" \| "submenu" |
+
+| `ContextIndexingType` | `core/index.d.ts` | 182-186 | Type | Type | "chunk" \| "embeddings" \| "fullTextSearch" \| "codeSnippets" |
+
+| `CustomContextProvider` | `core/index.d.ts` | 217-231 | Interface | Type | Register custom context provider with loadSubmenuItems()/getContextItems() |
+
+| `IContextProvider` | `core/index.d.ts` | 261-272 | Interface | Type | Runtime context provider (description, getContextItems, loadSubmenuItems) |
+
+| `Session` | `core/index.d.ts` | 279-290 | Interface | Type | Chat session (sessionId, title, history, mode, chatModelTitle, usage) |
+
+| `BaseSessionMetadata` | `core/index.d.ts` | 292-298 | Interface | Type | Session metadata (id, title, dateCreated, workspace, messageCount) |
+
+| `ChatMessageRole` | `core/index.d.ts` | 335-340 | Type | Type | "user" \| "assistant" \| "thinking" \| "system" \| "tool" |
+
+| `ToolCall` | `core/index.d.ts` | 356-363 | Interface | Type | LLM tool invocation (id, type: "function", function: {name, arguments}) |
+
+| `ToolCallDelta` | `core/index.d.ts` | 365-372 | Interface | Type | Partial tool call update (for streaming) |
+
+| `ToolResultChatMessage` | `core/index.d.ts` | 374-380 | Interface | Type | Tool execution result (role: "tool", content, toolCallId) |
 
 | `getBaseToolDefinitions()` | `core/tools/index.ts` | 6-16 | Function | Factory | Returns 9 base tools (readFile, createFile, etc.) |
 
