@@ -43,6 +43,10 @@
 | `reference/continue-src/gui/src/util/navigation.ts` | 35 | 🟡 Router | `ROUTES`, `ConfigTab`, `buildConfigRoute()`, `CONFIG_ROUTES` | Route definitions and config tab navigation builders |
 | `reference/continue-src/gui/src/util/migrateLocalStorage.ts` | 68 | 🟡 Migration | `migrateLocalStorage()`, `migrateToolPolicies()` | Migrate legacy tool settings to new ToolPolicy names |
 | `reference/continue-src/gui/src/util/index.ts` | 89 | 🟡 Platform | `getPlatform()`, `isMetaEquivalentKeyPressed()`, `getMetaKeyLabel()`, `getFontSize()`, `isJetBrains()`, `isWebEnvironment()`, `isPrerelease()` | Platform detection; keyboard/UI helpers; IDE checks |
+| `reference/continue-src/gui/src/util/compactConversation.ts` | 58 | 🟡 Hook | `useCompactConversation()`, `useDeleteCompaction()` | React hooks for conversation compaction + state management |
+| `reference/continue-src/gui/src/util/editOutcomeLogger.ts` | 208 | 🟡 Logger | `assembleEditOutcomeData()`, `logAgentModeEditOutcome()`, `extractModelInfo()`, `extractPromptAndCompletion()`, `extractCodeChanges()` | Edit outcome telemetry assembly and logging to devdata |
+| `reference/continue-src/gui/src/util/errorAnalysis.ts` | 177 | 🟡 Analyzer | `analyzeError()`, `ErrorAnalysis` type | LLM error parsing with provider-specific messaging + help links |
+| `reference/continue-src/gui/src/util/toolCallState.ts` | 79 | 🟡 Utilities | `addToolCallDeltaToState()`, `isEditTool()` | Merge streamed tool call deltas; edit tool detection |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🟡 Tool | `editToolImpl` | Client-side implementation of EditExistingFile tool (dispatch applyForEditTool) |
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -412,6 +416,18 @@ reference/continue-src/gui/
 | `isWebEnvironment()` | `gui/src/util/index.ts` | 64-70 | Function | Environment | Check if NOT Electron (web browser environment) |
 | `isPrerelease()` | `gui/src/util/index.ts` | 72-85 | Function | Version | Check if minor version is odd (prerelease) |
 | `isLocalProfile()` | `gui/src/util/index.ts` | 87-89 | Function | Profile | Always returns true (TODO: implement profile check) |
+| `useCompactConversation()` | `gui/src/util/compactConversation.ts` | 10-43 | Hook | Session | React hook for compacting conversation at specified index; handles loading state via `ideMessenger.request()` and `loadSession()` |
+| `useDeleteCompaction()` | `gui/src/util/compactConversation.ts` | 45-58 | Hook | Session | React hook for deleting compaction; dispatches Redux action and saves current session |
+| `assembleEditOutcomeData()` | `gui/src/util/editOutcomeLogger.ts` | 151-181 | Function | Logger | Assemble edit outcome telemetry object from history, config, tool call, and apply state |
+| `logAgentModeEditOutcome()` | `gui/src/util/editOutcomeLogger.ts` | 186-208 | Function | Logger | Log Agent Mode edit to devdata via `ideMessenger.post("devdata/log", ...)` |
+| `extractModelInfo()` | `gui/src/util/editOutcomeLogger.ts` | 12-50 | Function | Logger | Extract model provider/name from assistant message or config |
+| `extractPromptAndCompletion()` | `gui/src/util/editOutcomeLogger.ts` | 55-117 | Function | Logger | Extract user prompt and assistant completion from history |
+| `extractCodeChanges()` | `gui/src/util/editOutcomeLogger.ts` | 122-146 | Function | Logger | Extract code diffs and line counts from ApplyState |
+| `ErrorAnalysis` | `gui/src/util/errorAnalysis.ts` | 3-12 | Interface | Analyzer | Error breakdown: parsedError, statusCode, message, model/provider info, help/API key URLs, custom error message |
+| `analyzeError()` | `gui/src/util/errorAnalysis.ts` | 38-177 | Function | Analyzer | Analyze LLM error with provider detection; map error patterns (401/invalid API key, 402/insufficient balance, OpenAI org verification, Ollama tool call parsing, etc.) to custom messages |
+| `parseErrorMessage()` | `gui/src/util/errorAnalysis.ts` | 14-36 | Function | Analyzer | Parse multi-line error message; split on `\n\n`, extract JSON error/message fields |
+| `addToolCallDeltaToState()` | `gui/src/util/toolCallState.ts` | 8-70 | Function | Utilities | Merge streamed tool call delta into tool call state; handle incremental name/args streaming with JSON validation |
+| `isEditTool()` | `gui/src/util/toolCallState.ts` | 77-79 | Function | Utilities | Check if tool name is EditExistingFile, SingleFindAndReplace, or MultiEdit |
 | `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-53 | ClientToolImpl | Tool | Execute EditExistingFile: resolve path, dispatch applyForEditTool |
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -2313,7 +2329,94 @@ state.config = config  // Stores BrowserSerializedContinueConfig
 - **Dependencies**: Core validation (`validateMultiEdit`, `executeMultiFindAndReplace`, `validateSearchAndReplaceFilepath`), Redux thunk
 - **Note**: `validateMultiEdit` is deliberately duplicated at both arg-preprocessing stage (core) and here (to handle race conditions if file changes while tool call is pending)
 
-### Cross-Cutting Concerns
+### 6. Conversation & Session Management
+
+**compactConversation.ts (58 lines)** — Conversation Compaction Hooks
+- React hooks for managing conversation compaction and deletion
+- **Key Exports**:
+  - `useCompactConversation(): (index: number) => Promise<void>` - Compact conversation at index
+  - `useDeleteCompaction(): (index: number) => void` - Delete compaction at index
+- **useCompactConversation Flow**:
+  1. Extract current session ID from Redux state
+  2. Dispatch `setCompactionLoading({ index, loading: true })`
+  3. Call `ideMessenger.request("conversation/compact", { index, sessionId })`
+  4. Reload session via `loadSession({ sessionId, saveCurrentSession: false })`
+  5. Finally: Dispatch `setCompactionLoading({ index, loading: false })`
+- **useDeleteCompaction Flow**:
+  1. Dispatch `deleteCompaction(index)` Redux action
+  2. Dispatch `saveCurrentSession({openNewSession: false, generateTitle: false})`
+- **Dependencies**: `IdeMessengerContext`, Redux hooks/thunks, `sessionSlice` actions
+
+### 7. Edit Outcome Telemetry
+
+**editOutcomeLogger.ts (208 lines)** — Edit Outcome Logging & Assembly
+- Core telemetry for edit tool acceptance/rejection in Agent Mode
+- **Key Exports**:
+  - `assembleEditOutcomeData(history, config, toolCallState, applyState, accepted)` - Assemble telemetry object
+  - `logAgentModeEditOutcome(...)` - Send telemetry to devdata logger
+  - `extractModelInfo()`, `extractPromptAndCompletion()`, `extractCodeChanges()` - Decomposed helpers
+- **Telemetry Fields** (assembled in object):
+  - `streamId` - Apply state ID
+  - `timestamp` - ISO timestamp
+  - `modelProvider`, `modelName`, `modelTitle` - LLM details (from assistant message or config fallback)
+  - `prompt` - User message text (reconstructed from content array, handling text parts)
+  - `completion` - Assistant message text
+  - `previousCode`, `newCode` - Before/after file contents (from `applyState.originalFileContent` and `applyState.fileContent`)
+  - `filepath` - Target file path
+  - `previousCodeLines`, `newCodeLines`, `lineChange` - Code metrics (proper empty-string handling)
+  - `accepted` - Boolean outcome flag
+- **Model Extraction**:
+  - Search assistant message history for tool call by ID
+  - Extract `provider::model` string from message, split on `::` 
+  - Fallback to `config.selectedModelByRole.chat` if not in message
+- **Prompt/Completion Extraction**:
+  - Walk history backward from assistant message to find prior user message
+  - Handle both string and content array formats
+  - For content arrays, extract text parts and join
+- **Code Changes**:
+  - Calculate line counts: empty string = 0 lines, else split on `\n`
+  - Compute `lineChange = newCodeLines - previousCodeLines`
+- **Dispatch**: Posts to devdata via `ideMessenger.post("devdata/log", { name: "editOutcome", data: editOutcomeData })`
+
+### 8. Error Analysis & Provider-Specific Messaging
+
+**errorAnalysis.ts (177 lines)** — Smart Error Classification & Messaging
+- Contextual error analysis for LLM failures with provider-specific help
+- **Key Exports**:
+  - `analyzeError(error: unknown, selectedModel: any): ErrorAnalysis` - Analyze and classify error
+  - `ErrorAnalysis` (interface): `parsedError`, `statusCode`, `message`, `modelTitle`, `providerName`, `apiKeyUrl`, `helpUrl`, `customErrorMessage`
+  - `parseErrorMessage(fullErrMsg: string): string` - Extract core error from multi-line messages
+- **Error Classification Logic**:
+  1. **Parse Error Format**: Split on `\n\n`, extract JSON if present, otherwise return raw text
+  2. **Extract Status Code**: Parse HTTP status from message (e.g., "401 Unauthorized" → 401)
+  3. **Provider Detection**: Match against `selectedModel.underlyingProviderName` and provider registry
+  4. **Custom Message Mapping** (pattern matching on `message + parsedError`):
+     - **OpenAI Org Verification** (`organization must be verified to generate reasoning summaries|stream`): Add link + suggest `useResponsesApi: false`
+     - **Invalid API Key** (`incorrect|invalid api key|invalid x-api-key`): Check for `secrets.` string templating failure
+     - **Missing Auth** (`missing bearer or basic authentication`): Suggest adding `apiKey` to model config
+     - **Ollama Tool Parse** (`error parsing tool call`): Suggest resubmit + system-message-only tools workaround
+     - **402 Insufficient Balance**: Personalized message with provider label
+- **Provider Lookup**: Search `providers` config for `foundProvider.title`, `foundProvider.apiKeyUrl`
+
+### 9. Tool Call Streaming & Merging
+
+**toolCallState.ts (79 lines)** — Streamed Tool Call Delta Merging
+- Low-level utilities for handling OpenAI-style streamed tool calls
+- **Key Exports**:
+  - `addToolCallDeltaToState(toolCallDelta: ToolCallDelta, currentState?: ToolCallState): ToolCallState` - Merge delta into state
+  - `isEditTool(toolName: string): boolean` - Check if tool is edit-related
+- **Delta Merging Logic (for name)**:
+  - If delta name starts with current name: use delta (progressive streaming case)
+  - Else if current name doesn't start with delta: concatenate
+  - Else: use current name (delta is already contained)
+- **Delta Merging Logic (for args)**:
+  - Try to parse current args as JSON
+  - If successful: args complete, don't add delta
+  - If parse fails: concatenate current + delta, then attempt incremental parse via `incrementalParseJson()`
+- **State Return**: Full `ToolCallState` with `status: "generating"`, merged `function.name/arguments`, and `parsedArgs` (result of incremental parse)
+- **Edit Tool Detection**: List of 3 hardcoded names: `EditExistingFile`, `SingleFindAndReplace`, `MultiEdit` from `BuiltInToolNames`
+
+### Cross-Cutting Concerns (Expanded)
 
 **GUI/Core Integration**:
 - Client tools depend on core edit/search-and-replace validators (`core/edit/searchAndReplace/*`)
