@@ -926,6 +926,114 @@ reference/continue-src/gui/
 
 | `NextEditProvider.addDiffToContext()` | `core/nextEdit/NextEditProvider.ts` | 122-127 | Method | Context | Add finalized diff to rolling context (max 5) |
 
+| `GlobalContextType` | `core/util/GlobalContext.ts` | 22-57 | Type | Type | Global state schema (indexing, profiles, model selections, OAuth, warnings) |
+
+| `GlobalContextModelSelections` | `core/util/GlobalContext.ts` | 18-20 | Type | Type | Per-role model selection (chat, edit, autocomplete) |
+
+| `GlobalContext` | `core/util/GlobalContext.ts` | 62-185 | Class | Storage | Persistent JSON state manager; supports get/update with corrupted-file salvage |
+
+| `GlobalContext.update()` | `core/util/GlobalContext.ts` | 63-116 | Method | Mutate | Write typed key-value pair; create/update file; recover from corruption |
+
+| `GlobalContext.get()` | `core/util/GlobalContext.ts` | 118-144 | Method | Query | Read typed value; delete corrupted file on parse error |
+
+| `GlobalContext.getSharedConfig()` | `core/util/GlobalContext.ts` | 146-159 | Method | Query | Load and validate sharedConfig; salvage if schema fails |
+
+| `GlobalContext.updateSharedConfig()` | `core/util/GlobalContext.ts` | 161-168 | Method | Mutate | Merge partial updates into existing sharedConfig |
+
+| `GlobalContext.updateSelectedModel()` | `core/util/GlobalContext.ts` | 170-184 | Method | Mutate | Update per-role model selection for a profile ID |
+
+| `getContinueGlobalPath()` | `core/util/paths.ts` | 69-76 | Function | PathMgr | Get/create ~/.continue directory (or CONTINUE_GLOBAL_DIR env) |
+
+| `getSessionsFolderPath()` | `core/util/paths.ts` | 78-84 | Function | PathMgr | Get/create sessions/ directory |
+
+| `getIndexFolderPath()` | `core/util/paths.ts` | 86-92 | Function | PathMgr | Get/create index/ directory |
+
+| `getGlobalContextFilePath()` | `core/util/paths.ts` | 94-96 | Function | PathMgr | Return globalContext.json path |
+
+| `getSessionFilePath()` | `core/util/paths.ts` | 102-104 | Function | PathMgr | Return session file path for ID |
+
+| `getSessionsListPath()` | `core/util/paths.ts` | 106-112 | Function | PathMgr | Get/create sessions.json (session metadata list) |
+
+| `getConfigYamlPath()` | `core/util/paths.ts` | 119-130 | Function | PathMgr | Get config.yaml; create with defaults if missing/empty |
+
+| `getPrimaryConfigFilePath()` | `core/util/paths.ts` | 132-138 | Function | PathMgr | Return config.yaml if exists, else config.json |
+
+| `getConfigTsPath()` | `core/util/paths.ts` | 140-169 | Function | PathMgr | Get/create config.ts; setup types/ and package.json |
+
+| `getTsConfigPath()` | `core/util/paths.ts` | 176-200+ | Function | PathMgr | Get/create tsconfig.json for config compilation |
+
+| `setConfigFilePermissions()` | `core/util/paths.ts` | 17-25 | Function | PathMgr | Set file mode 0o600 on Unix (skip Windows) |
+
+| `markProcessAsBackgrounded()` | `core/util/processTerminalStates.ts` | 19-21 | Function | StateTracker | Mark process by toolCallId as backgrounded |
+
+| `isProcessBackgrounded()` | `core/util/processTerminalStates.ts` | 23-25 | Function | StateTracker | Check if process is backgrounded |
+
+| `removeBackgroundedProcess()` | `core/util/processTerminalStates.ts` | 27-29 | Function | StateTracker | Remove from backgrounded process map |
+
+| `markProcessAsRunning()` | `core/util/processTerminalStates.ts` | 32-46 | Function | StateTracker | Track foreground process with output callback and initial output |
+
+| `isProcessRunning()` | `core/util/processTerminalStates.ts` | 48-50 | Function | StateTracker | Check if process is currently running (foreground) |
+
+| `getRunningProcess()` | `core/util/processTerminalStates.ts` | 52-57 | Function | StateTracker | Return ChildProcess object for toolCallId |
+
+| `updateProcessOutput()` | `core/util/processTerminalStates.ts` | 59-64 | Function | StateTracker | Update accumulated output for running process |
+
+| `removeRunningProcess()` | `core/util/processTerminalStates.ts` | 66-68 | Function | StateTracker | Remove from foreground process map |
+
+| `killTerminalProcess()` | `core/util/processTerminalStates.ts` | 70-86 | Function | Lifecycle | Kill process via SIGTERM; escalate to SIGKILL after 5s |
+
+| `killMultipleTerminalProcesses()` | `core/util/processTerminalStates.ts` | 89-96 | Function | Lifecycle | Kill multiple processes in parallel |
+
+| `killAllRunningTerminalProcesses()` | `core/util/processTerminalStates.ts` | 99-105 | Function | Lifecycle | Kill all running processes; return list of killed IDs |
+
+| `getAllRunningProcessIds()` | `core/util/processTerminalStates.ts` | 108-110 | Function | Query | Return array of all currently running toolCallIds |
+
+| `getAllBackgroundedProcessIds()` | `core/util/processTerminalStates.ts` | 112-114 | Function | Query | Return array of all backgrounded toolCallIds |
+
+| `LanguageName` | `core/util/treeSitter.ts` | 8-36 | Enum | Type | 22 supported languages (TS, JS, Python, C, C++, Rust, Go, Java, etc.) |
+
+| `supportedLanguages` | `core/util/treeSitter.ts` | 38-114 | Object | Map | File extension→LanguageName mapping (70+ extensions) |
+
+| `getParserForFile()` | `core/util/treeSitter.ts` | 121-138 | Function | Parser | Load Tree-sitter parser for file; cache language wasm |
+
+| `getLanguageForFile()` | `core/util/treeSitter.ts` | 145-167 | Function | Parser | Load Language object for file extension; avoid reloading wasm |
+
+| `getFullLanguageName()` | `core/util/treeSitter.ts` | 169-172 | Function | Parser | Get LanguageName enum value for file path |
+
+| `getQueryForFile()` | `core/util/treeSitter.ts` | 174-198 | Function | Parser | Load Tree-sitter query from .scm file for AST extraction |
+
+| `TTS` | `core/util/tts.ts` | 34-106 | Class (Static) | Audio | Cross-platform text-to-speech (macOS, Windows PowerShell, Linux) |
+
+| `TTS.read()` | `core/util/tts.ts` | 39-78 | Method | Action | Execute TTS command; kill any prior process; set active state |
+
+| `TTS.kill()` | `core/util/tts.ts` | 80-101 | Method | Lifecycle | Gracefully kill TTS; escalate to force-kill on timeout |
+
+| `TTS.setup()` | `core/util/tts.ts` | 103-105 | Method | Lifecycle | Initialize TTS.os from node:os |
+
+| `sanitizeMessageForTTS()` | `core/util/tts.ts` | 18-32 | Function | Sanitizer | Remove shell metacharacters; collapse whitespace for safe exec() |
+
+| `CompactionParams` | `core/util/conversationCompaction.ts` | 5-10 | Interface | Type | Parameters for conversation summarization (sessionId, index, manager, model) |
+
+| `compactConversation()` | `core/util/conversationCompaction.ts` | 19-112 | Function | Summary | Generate LLM summary of conversation history; preserve technical context; update session |
+
+| `HistoryManager` | `core/util/history.ts` | 24-193 | Class | SessionMgr | Session file I/O; corrupted-file recovery; list/load/save/delete operations |
+
+| `HistoryManager.list()` | `core/util/history.ts` | 25-58 | Method | Query | Filter sessions by workspace/limit/offset; reverse chronological order |
+
+| `HistoryManager.load()` | `core/util/history.ts` | 91-109 | Method | Query | Load session from JSON; return empty session on error |
+
+| `HistoryManager.save()` | `core/util/history.ts` | 111-192 | Method | Mutate | Write session JSON; update sessions.json metadata; validate schema |
+
+| `HistoryManager.delete()` | `core/util/history.ts` | 60-85 | Method | Mutate | Delete session file and entry from sessions.json |
+
+| `HistoryManager.clearAll()` | `core/util/history.ts` | 87-89 | Method | Mutate | Recursively delete entire sessions directory |
+
+| `safeParseArray()` | `core/util/history.ts` | 12-22 | Function | Parser | Parse generic array from JSON with fallback on error |
+
+| `toMarkDown()` | `core/util/historyUtils.ts` | 41-65 | Function | Exporter | Convert ChatMessage[] to markdown (blockquotes, timestamp) |
+
+| `shareSession()` | `core/util/historyUtils.ts` | 67-105 | Function | Exporter | Export session to timestamped .md file; support ~/. and relative paths |
+
 | `MCPManagerSingleton` | `core/context/mcp/MCPManagerSingleton.ts` | 6-204 | Class (Singleton) | Manager | Lifecycle for all MCP connections |
 
 | `ContinueConfig` | `core/index.d.ts` | 1820-1841 | Interface | Type | Runtime config (core-side) WITH functions |
