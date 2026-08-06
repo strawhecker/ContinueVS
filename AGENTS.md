@@ -794,6 +794,40 @@ reference/continue-src/gui/
 
 | `addIndentation()` | `core/edit/streamDiffLines.ts` | 61-71 | AsyncGenerator | Transform | Add indentation prefix to each DiffLine in stream |
 
+| `PauseToken` | `core/indexing/CodebaseIndexer.ts` | 36-46 | Class | Control | Pause/resume state token for indexing lifecycle |
+
+| `CodebaseIndexer` | `core/indexing/CodebaseIndexer.ts` | 48-872 | Class | Orchestrator | Multi-strategy codebase indexing (chunk, embeddings, FTS, snippets) |
+
+| `CodebaseIndexer.getIndexesToBuild()` | `core/indexing/CodebaseIndexer.ts` | 146-210 | Method | Accessor | Determine which index types to build based on context providers |
+
+| `CodebaseIndexer.refreshCodebaseIndex()` | `core/indexing/CodebaseIndexer.ts` | 724-769 | Method | Orchestrator | Acquire lock, walk dirs, index files, emit progress, release lock |
+
+| `CodebaseIndexer.refreshDirs()` | `core/indexing/CodebaseIndexer.ts` | 334-457 | AsyncGenerator | Stream | Walk dirs, batch indexing with pause/abort/error handling |
+
+| `CodebaseIndexer.refreshFiles()` | `core/indexing/CodebaseIndexer.ts` | 293-332 | AsyncGenerator | Stream | Index individual files and emit progress updates |
+
+| `CodebaseIndexer.indexFiles()` | `core/indexing/CodebaseIndexer.ts` | 552-670 | AsyncGenerator | Stream | Batch index operations per codebase index type; collect warnings |
+
+| `CodebaseIndexer.handleConfigUpdate()` | `core/indexing/CodebaseIndexer.ts` | 840-871 | Method | Handler | Catch embeddings model changes, trigger reindex if needed |
+
+| `DocsService` | `core/indexing/docs/DocsService.ts` | 167-1292 | Class (Singleton) | Orchestrator | Documentation site indexing (crawl, chunk, embed, store in LanceDB+SQLite) |
+
+| `DocsService.indexAndAdd()` | `core/indexing/docs/DocsService.ts` | 435-739 | Method | Orchestrator | Crawl docs, chunk, embed, store; emit progress; handle embeddings provider changes |
+
+| `DocsService.syncDocs()` | `core/indexing/docs/DocsService.ts` | 927-1020 | Method | Handler | On config update: reindex changed docs, add new ones, update metadata |
+
+| `DocsService.retrieveChunks()` | `core/indexing/docs/DocsService.ts` | 824-854 | Method | Query | Vector similarity search in LanceDB; filter by startUrl |
+
+| `DocsService.retrieveChunksFromQuery()` | `core/indexing/docs/DocsService.ts` | 742-763 | Method | Query | Convert text query → embedding → retrieve chunks via retrieveChunks() |
+
+| `DocsService.getEmbeddingsProvider()` | `core/indexing/docs/DocsService.ts` | 344-364 | Method | Accessor | Return config embeddings provider OR default TransformersJs OR undefined |
+
+| `DocsService.delete()` | `core/indexing/docs/DocsService.ts` | 1282-1291 | Method | Delete | Remove from LanceDB, SQLite, config; abort pending indexing |
+
+| `embedModelsAreEqual()` | `core/indexing/docs/DocsService.ts` | 93-102 | Function | Equality | Compare embeddings models by provider/title/chunk-size |
+
+| `LanceDbDocsRow` | `core/indexing/docs/DocsService.ts` | 41-51 | Interface | Type | LanceDB row schema (title, starturl, content, path, vector, line ranges) |
+
 | `MCPManagerSingleton` | `core/context/mcp/MCPManagerSingleton.ts` | 6-204 | Class (Singleton) | Manager | Lifecycle for all MCP connections |
 
 | `ContinueConfig` | `core/index.d.ts` | 1820-1841 | Interface | Type | Runtime config (core-side) WITH functions |
@@ -9969,6 +10003,246 @@ DiffLine Stream
 |------|-------|----------|----------|
 | **edit** | highlighted selection + prefix/suffix context | gptEditPrompt | User asks to modify (non-apply) |
 | **apply** | original code + new code | defaultApplyPrompt | Agent mode: validate/merge changes |
+
+---
+
+## Layer 2A-9: Indexing Orchestration (CodebaseIndexer, DocsService)
+
+### Purpose
+Asynchronous orchestration of two parallel indexing pipelines: codebase file indexing (multi-strategy: chunk, embeddings, full-text search, code snippets) and documentation site indexing (crawl → chunk → embed → store in LanceDB+SQLite). Both accept config updates, emit progress, and respect pause/abort signals.
+
+### Key Components
+
+**CodebaseIndexer** (`core/indexing/CodebaseIndexer.ts:48-872`)  
+Orchestrates multi-strategy indexing of workspace files with batching, pause/abort, and progress tracking.
+
+- **Constructor** (lines 85-104): Initialize with ConfigHandler, IDE, messenger; create PauseToken; set up config listener via `init()`
+- **getIndexesToBuild()** (lines 146-210): Query context providers for required index types (chunk, embeddings, FTS, snippets); instantiate matching CodebaseIndex implementations
+- **refreshCodebaseIndex(dirs)** (lines 724-769): Main entry point — acquire IndexLock, wait if locked (timeout 10s), yield waitForDBIndex updates, call refreshDirs, release lock
+- **refreshDirs(dirs, abortSignal)** (lines 334-457): Walk directories via walkDirAsync, discover files, yield progress, call indexFiles per directory, handle abort/pause, collect and emit warnings
+- **refreshFiles(files)** (lines 293-332): Index array of files (not dirs); for each file call refreshFile; emit progress per file; handle empty files list
+- **refreshFile(file, workspaceDirs)** (lines 241-291): Single-file update — find in workspace dirs, get file stats, for each index type call getComputeDeleteAddRemove, apply singleFileIndexOps filters, update index
+- **indexFiles(directory, files, branch, repoName)** (lines 552-670): Batch-mode indexing — for each codebase index type: compute/delete/add/removeTag ops, batch in filesPerBatch (200), handle and collect sub-errors as warnings, emit progress
+- **handleConfigUpdate(configResult)** (lines 840-871): On config change (via ConfigHandler listener), check if embeddings model changed; if yes, trigger full reindex via refreshCodebaseIndex
+
+**PauseToken** (`core/indexing/CodebaseIndexer.ts:36-46`)  
+Simple state holder for pause/resume lifecycle control.
+- **paused property** (getter/setter): Read/write boolean flag
+- Used by CodebaseIndexer to support user pause of indexing (without losing progress)
+
+**DocsService** (`core/indexing/docs/DocsService.ts:167-1292`)  
+Orchestrates crawl → chunk → embed → store pipeline for documentation sites with dual LanceDB+SQLite storage and singleton pattern.
+
+- **Constructor & Singleton** (lines 186-229):
+  - Instance state: config, ideInfo promise, github token, sqlite DB, Lance table names set, indexing queue (Set), status map
+  - `createSingleton(configHandler, ide, messenger)`: Create and store singleton
+  - `getSingleton()`: Retrieve global singleton
+  - `isInitialized` promise waits for config load
+- **indexAndAdd(siteIndexingConfig, forceReindex)** (lines 435-739): Main crawl-to-storage pipeline
+  - Check if already indexing (queue.has); deterministic embeddings provider test
+  - Instantiate DocsCrawler (local or remote) with maxDepth/useLocalCrawling
+  - Crawl pages via async generator (emit progress 0-15%)
+  - Chunk into articles (select chunker based on crawler type: markdown vs HTML)
+  - Generate embeddings per article (emit progress 50-80%)
+  - Finalize: delete old if reindexing, add favicon, store to LanceDB+SQLite (emit progress 85-100%)
+  - Remove from failedDocs on success; mark failed on error
+- **syncDocs(oldConfig, newConfig, forceReindex)** (lines 927-1020): On config update handler
+  - Compare old/new config docs; determine added/changed/removed
+  - For changed: reindex if URL/depth changed; update metadata if only title/favicon changed
+  - For added: call indexAndAdd (not force reindex)
+  - For removed: delete via delete()
+  - Emit submenu refresh to GUI
+- **retrieveChunks(startUrl, vector, nRetrieve, isRetry)** (lines 824-854): Vector similarity query
+  - Get embedding provider and Lance table (embedded table name by provider ID)
+  - Search by vector, filter by startUrl, limit nRetrieve
+  - Convert LanceDbDocsRow[] → Chunk[]
+- **retrieveChunksFromQuery(query, startUrl, nRetrieve)** (lines 742-763): Text query helper
+  - Call getEmbeddingsProvider → embed([query])
+  - Call retrieveChunks(startUrl, vector, nRetrieve)
+- **getEmbeddingsProvider()** (lines 344-364): Provider resolution
+  - Return config embeddings if set
+  - Else return TransformersJs default if supported (not JetBrains IDE)
+  - Else return undefined
+- **delete(startUrl)** (lines 1282-1291): Complete removal
+  - Delete from queue, abort pending indexing, delete from LanceDB, delete metadata from SQLite, remove from config, refresh GUI
+- **abort(startUrl)** (lines 301-314): Cancel indexing for startUrl; mark status as aborted
+- **shouldCancel(startUrl, startedWithEmbedder)** (lines 317-332): Check abort or embeddings provider change mid-indexing
+- **hasMetadata(startUrl)** (lines 396-408): Query SQLite for indexed doc with current embeddings provider ID
+- **listMetadata()** (lines 410-423): List all indexed docs for current embeddings provider
+- **getOrCreateSqliteDb()** (lines 878-902): Lazy init of SQLite DB at DocsSqlitePath; create docs table if missing; run migrations
+- **getOrCreateLanceTable(initVector, startUrl)** (lines 1071-1116): Lazy init of LanceDB table (name sanitized by provider ID); create if no vector provided; run migrations
+- **add(params)** (lines 1221-1224): Internal — add to both LanceDB and SQLite
+- **addToLance(params)** (lines 1119-1143): Map chunks + embeddings → LanceDbDocsRow[] (lowercase schema); insert into Lance table
+- **addMetadataToSqlite** / **updateMetadataInSqlite** (lines 1145-1184): Insert or update SQLite metadata row
+
+**embedModelsAreEqual(llm1, llm2)** (`core/indexing/docs/DocsService.ts:93-102`)  
+Utility to detect embeddings provider changes:
+- Compare provider name, title, max chunk size
+- Returns boolean; false if either is null/undefined
+
+**LanceDbDocsRow** (`core/indexing/docs/DocsService.ts:41-51`)  
+LanceDB table row schema (lowercase field names per LanceDB convention):
+- title, starturl, content, path, startline, endline, vector, [key: string]: any
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     INDEXING ORCHESTRATORS                       │
+└─────────────────────────────────────────────────────────────────┘
+
+═══ CODEBASE INDEXING FLOW ════════════════════════════════════════
+
+IDE/Config Change
+   ↓
+ConfigHandler.onConfigUpdate()
+   ↓
+CodebaseIndexer.handleConfigUpdate()
+   ├─ Detect embeddings model change?
+   └─ YES → refreshCodebaseIndex(workspaceDirs)
+      ↓
+   IndexLock.lock() [prevent concurrent writes]
+      ↓
+   walkDirAsync(dir) → discover files
+      ↓
+   getIndexesToBuild() → [ChunkIndex, LanceDbIndex, FtsIndex, SnippetsIndex]
+      ↓
+   For each index type:
+      ├─ getComputeDeleteAddRemove(tag, stats, readFile, repoName)
+      │    Returns: {compute[], del[], addTag[], removeTag[]}
+      ├─ batchRefreshIndexResults(results) [200 files/batch]
+      │    ↓
+      │    For each batch:
+      │       ├─ index.update(tag, subResult, markComplete, repoName)
+      │       └─ → async generator (emit desc per operation)
+      │       ↓
+      │       yield progress update
+      └─ markComplete(lastUpdated, UpdateLastUpdated)
+         ↓
+   IndexLock.unlock()
+      ↓
+   messenger.send("refreshSubmenuItems")
+
+═══ DOCS INDEXING FLOW ════════════════════════════════════════════
+
+GUI / DocsService.indexAndAdd(siteConfig, forceReindex=false)
+   ↓
+Queue check: if already indexing → return
+   ↓
+Embeddings provider test: provider.embed(["continue-test-run"])
+   ↓
+DocsCrawler.crawl(new URL(startUrl))
+   └─ Local walk OR Remote fetch per useLocalCrawling flag
+      ↓ [emit progress 0-15%]
+      Yields: PageData[] {path, title, content, subpath}
+   ↓
+For each page:
+   ├─ htmlPageToArticleWithChunks() OR markdownPageToArticleWithChunks()
+   │    → ArticleWithChunks {article, chunks: Chunk[]}
+   └─ → articles: ArticleWithChunks[]
+      ↓ [emit progress 50-80%]
+   ↓
+For each article:
+   ├─ provider.embed(chunks.map(c => c.content))
+   └─ → embeddings: number[][]
+   ↓
+Check shouldCancel(startUrl, embedderIdAtStart)
+   ├─ Abort status?
+   └─ Embeddings provider changed?
+   ↓
+addToLance(chunks, siteConfig, embeddings)
+   ├─ Create table if not exists
+   ├─ Map chunks → LanceDbDocsRow[] (vectors, starturl, content, path, lines)
+   └─ table.add(rows)
+   ↓
+addMetadataToSqlite(siteConfig, favicon)
+   └─ INSERT docs metadata (title, startUrl, favicon, embeddingsProviderId)
+   ↓ [emit progress 100%, status: complete]
+   ↓
+removeFromFailedGlobalContext(siteConfig)
+
+═══ DUAL DATABASE STRATEGY ════════════════════════════════════════
+
+SQLite (docs/../docs_db.db):
+  - Fast metadata lookup (title, startUrl, favicon, embeddingsProviderId)
+  - Persists doc ownership info
+  - Supports across multiple embeddings providers (provider ID column)
+
+LanceDB (vectordb/<providerId>_docs):
+  - Vector index for similarity search
+  - Chunk details (content, path, line ranges)
+  - Separate table per embeddings provider (sanitized table name)
+  - Enables provider switch without data loss
+```
+
+### Dependencies
+
+| From | To | Purpose |
+|------|----|---------| 
+| CodebaseIndexer | ConfigHandler | Config load, update listener |
+| CodebaseIndexer | IDE | Read files, get stats, workspace dirs, git branch/repo |
+| CodebaseIndexer | ChunkCodebaseIndex, LanceDbIndex, FullTextSearchCodebaseIndex, CodeSnippetsCodebaseIndex | Multi-strategy index implementations |
+| CodebaseIndexer | walkDirAsync | Directory traversal with .gitignore/.continueignore |
+| CodebaseIndexer | IndexLock (refreshIndex module) | DB lock acquire/release/timeout |
+| CodebaseIndexer | messenger (IMessenger) | Send progress/errors to IDE |
+| CodebaseIndexer | getComputeDeleteAddRemove | Compute index operations (compute, delete, addTag, removeTag) |
+| DocsService | ConfigHandler | Config load, update listener |
+| DocsService | IDE | Get IDE info, read files, show toast, git info |
+| DocsService | DocsCrawler | Fetch pages (local fs walk OR remote HTTP crawl) |
+| DocsService | htmlPageToArticleWithChunks / markdownPageToArticleWithChunks | Parse pages into chunks |
+| DocsService | embedModelsAreEqual | Detect embeddings provider changes |
+| DocsService | TransformersJsEmbeddingsProvider | Default embeddings fallback |
+| DocsService | ILLM (embeddings models) | provider.embed(texts[]) for vector generation |
+| DocsService | sqlite3 / open() | SQLite metadata DB |
+| DocsService | vectordb (LanceDB) | LanceDB vector index |
+| DocsService | editConfigFile | Persist doc config to .continue/config.json |
+| DocsService | GlobalContext | failedDocs tracking across sessions |
+| DocsService | messenger (IMessenger) | Send status updates, report errors to IDE |
+
+### Integration Points
+
+1. **Config Update Trigger**: 
+   - ConfigHandler.onConfigUpdate() calls both CodebaseIndexer.handleConfigUpdate() and DocsService.handleConfigUpdate()
+   - Detects embeddings model change → trigger full reindex or sync
+
+2. **Progress Communication**:
+   - CodebaseIndexer.updateProgress(IndexingProgressUpdate) → messenger.request("indexProgress", update)
+   - DocsService.handleStatusUpdate(IndexingStatus) → messenger.send("indexing/statusUpdate", update)
+   - GUI subscribed to both channels; UI shows progress bar
+
+3. **Pause/Abort**:
+   - User pauses codebase indexing → CodebaseIndexer.paused = true
+   - CodebaseIndexer.refreshDirs() checks pauseToken, yields "Indexing Paused", waits in loop
+   - User cancels docs indexing → abort(startUrl) marks status aborted, queue.delete()
+   - indexAndAdd checks shouldCancel(startUrl, embedderId) periodically
+
+4. **Error Handling**:
+   - CodebaseIndexer: SQLite errors matching errorsRegexesToClearIndexesOn → shouldClearIndexes flag; collect non-fatal index type errors as warnings
+   - DocsService: LLMError special handling via messenger.request("reportError", error); other errors mark config as "failed" in GlobalContext
+
+5. **Lock Mechanism** (CodebaseIndexer only):
+   - IndexLock.lock(dirs) stores timestamp at lock file
+   - If lock stale (>10s since last timestamp), auto-unlock
+   - Prevents SQLite concurrent writes across multiple IDE windows
+
+### Performance Considerations
+
+| Aspect | Strategy |
+|--------|----------|
+| **Batching** | CodebaseIndexer: 200 files per batch (limit RAM usage for local embeddings) |
+| **Concurrency** | Both single-threaded async generators; promise gates via IndexLock or docsIndexingQueue |
+| **Pause Throttle** | CodebaseIndexer: 100ms loop check; DocsService: 20-100ms per operation based on queue size |
+| **Embeddings Calls** | Batch per article to reduce API calls; test embeddings provider at start |
+| **Dual DB Trade-off** | SQLite fast metadata, LanceDB fast vectors; both queried independently via startUrl + provider ID filters |
+
+### Edit vs Reindex Distinction
+
+| Flow | Trigger | Scope | Reset DB? |
+|------|---------|-------|-----------|
+| **Initial Index** | First config load OR added doc in GUI | New doc | Create tables |
+| **Re-sync (Config Change)** | Config update (doc URL/depth changed) | Affected doc | No; delete old + insert new |
+| **Force Reindex (GUI)** | User clicks "Reindex" | Specific doc | Yes; deleteIndexes() then indexAndAdd(forceReindex=true) |
+| **Embeddings Switch** | Embeddings model changed | All docs | Implicit; new provider ID → new LanceDB table |
 
 ---
 
