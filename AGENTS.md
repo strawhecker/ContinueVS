@@ -254,11 +254,11 @@
 
 | `reference/continue-src/gui/index.html` | 13 | 📄 HTML | HTML5 doc: root div mount point, favicon, title, deferred src/main.tsx loader |
 
-| `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
+| `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🔧 Tool | `editImpl` | Client-side implementation of EditExistingFile tool (resolve path + dispatch apply) |
 
-| `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
+| `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🔧 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 
-| `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
+| `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts`
 
 | `reference/continue-src/gui/src/util/clientTools/callClientTool.ts` | 68 | 🟡 Dispatcher | `callClientTool()`, `ClientToolImpl`, `ClientToolExtras`, `ClientToolOutput`, `ClientToolResult` | Route client tool calls to implementations (EditExistingFile, SingleFindAndReplace, MultiEdit) |
 
@@ -1870,7 +1870,7 @@ reference/continue-src/gui/
 
 | main | `gui/src/main.tsx` | 9-24 | Bootstrap | Entry | React DOM root creation, Redux store/persistor wrapping, IIFE async mount |
 
-| `editToolImpl`
+| `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-52 | ClientToolImpl | Tool | Execute EditExistingFile: resolve filepath, dispatch apply for edit tool |
 
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 
