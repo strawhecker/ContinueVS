@@ -47,6 +47,11 @@
 | `reference/continue-src/gui/src/util/editOutcomeLogger.ts` | 208 | 🟡 Logger | `assembleEditOutcomeData()`, `logAgentModeEditOutcome()`, `extractModelInfo()`, `extractPromptAndCompletion()`, `extractCodeChanges()` | Edit outcome telemetry assembly and logging to devdata |
 | `reference/continue-src/gui/src/util/errorAnalysis.ts` | 177 | 🟡 Analyzer | `analyzeError()`, `ErrorAnalysis` type | LLM error parsing with provider-specific messaging + help links |
 | `reference/continue-src/gui/src/util/toolCallState.ts` | 79 | 🟡 Utilities | `addToolCallDeltaToState()`, `isEditTool()` | Merge streamed tool call deltas; edit tool detection |
+| `reference/continue-src/gui/src/util/test/config.ts` | 61 | 🟢 Test | `triggerConfigUpdate()`, `addAndSelectChatModel()`, `addAndSelectMockLlm()` | Test config mutations (config updates, model selection) |
+| `reference/continue-src/gui/src/util/test/setupTests.ts` | 72 | 🟢 Test | Vitest setup (afterEach, afterAll hooks) | DOM mocks for ProseMirror, matchMedia, bounding rectangles |
+| `reference/continue-src/gui/src/util/test/utils.ts` | 102 | 🟢 Test | `logAllTestIds()`, `getElementByTestId()`, `verifyNotPresentByTestId()`, `getElementByText()`, `getMainEditor()`, `sendInputWithMockedResponse()` | DOM query helpers and input simulation |
+| `reference/continue-src/gui/src/util/test/mockStore.ts` | 114 | 🟢 Test | `getEmptyRootState()`, `createMockStore()` | Redux store mock with action tracking & thunk injection |
+| `reference/continue-src/gui/src/util/test/render.tsx` | 77 | 🟢 Test | `renderWithProviders()`, `ExtendedRenderOptions` type | RTL wrapper with Redux, router, auth, editor providers |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🟡 Tool | `editToolImpl` | Client-side implementation of EditExistingFile tool (dispatch applyForEditTool) |
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -428,6 +433,19 @@ reference/continue-src/gui/
 | `parseErrorMessage()` | `gui/src/util/errorAnalysis.ts` | 14-36 | Function | Analyzer | Parse multi-line error message; split on `\n\n`, extract JSON error/message fields |
 | `addToolCallDeltaToState()` | `gui/src/util/toolCallState.ts` | 8-70 | Function | Utilities | Merge streamed tool call delta into tool call state; handle incremental name/args streaming with JSON validation |
 | `isEditTool()` | `gui/src/util/toolCallState.ts` | 77-79 | Function | Utilities | Check if tool name is EditExistingFile, SingleFindAndReplace, or MultiEdit |
+| `triggerConfigUpdate()` | `gui/src/util/test/config.ts` | 15-33 | Function | Test | Test helper to trigger config update via ideMessenger.mockMessageToWebview() |
+| `addAndSelectChatModel()` | `gui/src/util/test/config.ts` | 35-49 | Function | Test | Add model to config and select as chat role (uses triggerConfigUpdate) |
+| `addAndSelectMockLlm()` | `gui/src/util/test/config.ts` | 51-61 | Function | Test | Add mock LLM to config for testing (provider="mock") |
+| `logAllTestIds()` | `gui/src/util/test/utils.ts` | 26-35 | Function | Test | Log all data-testid attributes in DOM to console |
+| `getElementByTestId()` | `gui/src/util/test/utils.ts` | 36-45 | Function | Test | Async wrapper around screen.findByTestId with fallback error logging |
+| `verifyNotPresentByTestId()` | `gui/src/util/test/utils.ts` | 47-50 | Function | Test | Assert element with testId is not in DOM |
+| `getElementByText()` | `gui/src/util/test/utils.ts` | 52-66 | Function | Test | Async wrapper around screen.findByText with logDomText fallback |
+| `getMainEditor()` | `gui/src/util/test/utils.ts` | 68-75 | Function | Test | Get Tiptap Editor instance from editor container |
+| `sendInputWithMockedResponse()` | `gui/src/util/test/utils.ts` | 77-102 | Function | Test | Simulate user input with mocked LLM response (set ideMessenger.chatResponse, click send button) |
+| `getEmptyRootState()` | `gui/src/util/test/mockStore.ts` | 26-51 | Function | Test | Create Redux root state with all slices initialized; handles non-serializable streamAborter |
+| `createMockStore()` | `gui/src/util/test/mockStore.ts` | 53-114 | Function | Test | Create Redux store with mock ideMessenger extra, action tracking, and thunk dispatch override |
+| `ExtendedRenderOptions` | `gui/src/util/test/render.tsx` | 17-21 | Type | Test | RTL render options extended with store, routerProps, mockIdeMessenger |
+| `renderWithProviders()` | `gui/src/util/test/render.tsx` | 31-77 | Function | Test | Async RTL render wrapper with Redux Provider, MemoryRouter, AuthProvider, IdeMessengerProvider, MainEditorProvider, and ResizeObserver mock |
 | `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-53 | ClientToolImpl | Tool | Execute EditExistingFile: resolve path, dispatch applyForEditTool |
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -2415,6 +2433,114 @@ state.config = config  // Stores BrowserSerializedContinueConfig
   - If parse fails: concatenate current + delta, then attempt incremental parse via `incrementalParseJson()`
 - **State Return**: Full `ToolCallState` with `status: "generating"`, merged `function.name/arguments`, and `parsedArgs` (result of incremental parse)
 - **Edit Tool Detection**: List of 3 hardcoded names: `EditExistingFile`, `SingleFindAndReplace`, `MultiEdit` from `BuiltInToolNames`
+
+### 10. Testing Utilities & Fixtures
+
+**setupTests.ts (72 lines)** — Vitest Environment Setup
+- Global setup file for test environment initialization
+- **Key Exports**: None (runs as side effect during test startup)
+- **Vitest Lifecycle Hooks**:
+  - `afterEach()` (line 3): Clears all mock calls and return values
+  - `afterAll()` (line 7): Resets all mocks completely
+- **DOM Mocks**:
+  - **matchMedia** (lines 33-45): Mock `window.matchMedia()` required for CSS media queries; returns object with `matches: false`, event listeners, etc.
+  - **getClientRects** (lines 48-61): Mock Element.prototype for ProseMirror compatibility; returns array-like object with single rect `[0]` and `item()` method (metrics: top/bottom/left/right/width/height)
+  - **getBoundingClientRect** (lines 63-71): Mock Element.prototype for layout calculations
+- **Error Suppression** (lines 12-30):
+  - Catches `error` events and `unhandledrejection` events
+  - Filters for ProseMirror-related errors (`getClientRects`, `prosemirror`)
+  - Prevents them from failing tests (calls `event.preventDefault()`)
+
+**config.ts (61 lines)** — Redux Config Test Helpers
+- Utilities for simulating config changes during tests
+- **Key Exports**:
+  - `triggerConfigUpdate(params: TestConfigUpdateParams)` - Simulate config update message
+  - `addAndSelectChatModel(store, ideMessenger, llmDesc)` - Add model to config
+  - `addAndSelectMockLlm(store, ideMessenger)` - Add hard-coded mock LLM
+- **triggerConfigUpdate Flow**:
+  1. Extract current store state
+  2. Call `ideMessenger.mockMessageToWebview("configUpdate", { ... })`
+  3. Pass `profileId`, `profiles`, and edited config via `result` object
+  4. Optional `editConfig` callback allows mutation of config before send
+- **Model Selection**:
+  - `addAndSelectChatModel()` uses `editConfig` to add model to `modelsByRole.chat` and set as `selectedModelByRole.chat`
+  - `addAndSelectMockLlm()` selects a hard-coded mock with `provider: "mock"`, `model: "mock"`
+- **Dependencies**: `MockIdeMessenger`, Redux store, core config types
+
+**utils.ts (102 lines)** — DOM Query & Interaction Helpers
+- Testing library utilities for querying and interacting with rendered UI
+- **Key Exports**:
+  - `logDomText()` - Log cleaned body text (filters common fixture noise)
+  - `logAllTestIds()` - Log all `data-testid` attributes in DOM
+  - `getElementByTestId(testId: string): Promise<HTMLElement>` - Assert element with testId exists
+  - `verifyNotPresentByTestId(testId: string): Promise<void>` - Assert element NOT in DOM
+  - `verifyNotPresentByText(text: string): Promise<void>` - Assert text NOT in DOM
+  - `getElementByText(text: string): Promise<HTMLElement>` - Assert element with text exists
+  - `getMainEditor(): Promise<Editor>` - Get Tiptap editor instance from container
+  - `sendInputWithMockedResponse(ideMessenger, input, response)` - Simulate user message + receive LLM response
+- **logDomText Cleanup** (lines 12-22):
+  - Removes noise like "No results", "Aa", "Models", "Rules", keyboard shortcuts
+  - Filters common UI labels (Select model, Mock LLM, Chat)
+- **Element Lookup** (lines 36-75):
+  - `getElementByTestId()`: Uses `screen.findByTestId()` with `waitFor()`; logs all testIds if not found
+  - `getElementByText()`: Uses `screen.findByText()` with `waitFor()`; logs DOM text if not found
+  - `getMainEditor()`: Gets element by testId `editor-input-main`, accesses `element.editor` property
+- **User Interaction** (lines 77-102):
+  - `sendInputWithMockedResponse()`: 
+    1. Set `ideMessenger.chatResponse` before action
+    2. Get main editor, find send button by testId
+    3. Use `editor.commands.insertContent(input)` to add text
+    4. Wait for text to appear in DOM
+    5. Click send button with `act()`
+
+**mockStore.ts (114 lines)** — Redux Store Mock Factory
+- Factory for creating Redux store with mocked ideMessenger and action tracking
+- **Key Exports**:
+  - `getEmptyRootState(): RootState` - Create fresh Redux root state
+  - `createMockStore(initialState?, mockMessenger?): EnhancedStore + { mockIdeMessenger, getActions, clearActions }`
+- **getEmptyRootState Logic** (lines 26-51):
+  - Initialize all 6 slices with INITIAL_* constants `(config, ui, editModeState, indexing, profiles, tabs, session)`
+  - Handle non-serializable `streamAborter` by:
+    1. Destructure `{ streamAborter, ...serializableSession }` from INITIAL_SESSION_STATE
+    2. Deep copy both with `copyOf()`
+    3. Reconnect with fresh `new AbortController()` in result
+- **createMockStore Logic** (lines 53-114):
+  - Set up `configureStore()` with 6 reducers
+  - Merge preloaded state with `getEmptyRootState()` and optional `initialState`
+  - Configure middleware:
+    - Serializable check: ignore `session.streamAborter` and `ui.dialogMessage`
+    - Thunk extra argument: inject `{ ideMessenger: mockIdeMessenger }`
+  - Override `store.dispatch()` with `vi.fn()` to:
+    1. Detect if action is thunk (function)
+    2. If thunk: call with `store.dispatch`, `store.getState`, and ideMessenger extra
+    3. If normal action: track in `actions` array, then call `originalDispatch()`
+  - Expose helper methods:
+    - `getActions()` - Return tracked action array
+    - `clearActions()` - Splice array to reset
+- **Return**: Enhanced store + `{ mockIdeMessenger, getActions, clearActions }`
+
+**render.tsx (77 lines)** — React Testing Library Render Wrapper
+- Custom render function wrapping component with all required providers for testing
+- **Key Exports**:
+  - `ExtendedRenderOptions` (type) - RTL render options extended with `store`, `routerProps`, `mockIdeMessenger`
+  - `renderWithProviders(ui: React.ReactElement, options?: ExtendedRenderOptions): Promise<...>` - Async render with providers
+- **Provider Stack** (lines 50-63):
+  - `<MemoryRouter>` - React Router (in-memory history for navigation testing)
+  - `<IdeMessengerProvider>` - IDEMessenger context
+  - `<Provider store={store}>` - Redux store provider
+  - `<AuthProvider>` - Authentication context
+  - `<MainEditorProvider>` - Tiptap editor provider
+  - `<ParallelListeners />` - Global event listener hook
+- **setupMocks** (lines 23-29):
+  - Mock `global.ResizeObserver` with `vi.fn()` returning `{ observe, unobserve, disconnect }` mocks
+- **renderWithProviders Flow** (lines 31-77):
+  1. Call `setupMocks()` to initialize ResizeObserver mock
+  2. Use provided `mockIdeMessenger` or create new `MockIdeMessenger()`
+  3. Merge render options: create store if not provided (via `setupStore()`), default to empty `routerProps`
+  4. Set up `userEvent.setup()` for user interaction simulation
+  5. Create Wrapper component with full provider stack
+  6. Call `render(ui, { wrapper: Wrapper, ...renderOptions })` inside `act()`
+  7. Return object with `{ user, store, ideMessenger, ...rendered }`
 
 ### Cross-Cutting Concerns (Expanded)
 
