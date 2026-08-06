@@ -98,6 +98,29 @@
 | `reference/continue-src/gui/src/pages/stats.tsx` | 141 | 📄 Page | `Stats` | Token usage analytics: per-day and per-model telemetry with table export |
 | `reference/continue-src/gui/src/pages/history/index.tsx` | 18 | 📄 Page | `HistoryPage` | Session history browser; wraps History component with page header |
 | `reference/continue-src/gui/src/pages/config/index.tsx` | 92 | 📄 Page | `ConfigPage` | Settings hub with tabbed sidebar; models, tools, rules, account preferences |
+| `reference/continue-src/gui/src/pages/gui/EmptyChatBody.tsx` | 22 | 🧩 Component | `EmptyChatBody` | Conditional render: onboarding card OR conversation starters when chat empty |
+| `reference/continue-src/gui/src/pages/gui/ExploreDialogWatcher.tsx` | 40 | 🧩 Component | `ExploreDialogWatcher` | Detects tutorial file closes, shows explore dialog if not dismissed |
+| `reference/continue-src/gui/src/pages/gui/StreamError.tsx` | 300 | 🧩 Component | `StreamErrorDialog` | Error modal with status-specific guidance (429/404/401/403); actions to resubmit, check API keys, view config |
+| `reference/continue-src/gui/src/pages/gui/useAutoScroll.ts` | 61 | 🪝 Hook | `useAutoScroll` | Auto-scroll to bottom on new user messages; pause on manual scroll up; resume on scroll to bottom |
+| `reference/continue-src/gui/src/pages/gui/Chat.tsx` | 453 | 🧩 Component | `Chat` | Main chat UI: message history, input box, tool calls, edit mode, error boundaries, keyboard shortcuts |
+| `reference/continue-src/gui/src/pages/gui/index.tsx` | 15 | 📄 Page | `GUI` | Root page layout: two-column (sidebar history + main chat) with responsive hide |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolCallArgs.tsx` | 49 | 🧩 Component | `ArgsToggleIcon`, `ArgsItems` | Toggle button + display for tool call arguments |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolCallDisplay.tsx` | 63 | 🧩 Component | `ToolCallDisplay` | Header with icon, tool favicon, status message, truncate button; clickable context items |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolCallStatusMessage.tsx` | 62 | 🧩 Component | `ToolCallStatusMessage` | Renders status-specific message (will/wants/is/tried) using tool metadata templates |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToolTruncateHistoryIcon.tsx` | 48 | 🧩 Component | `ToolTruncateHistoryIcon` | Truncate-history button (disabled while streaming) |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/ToggleWithIcon.tsx` | 58 | 🧩 Component | `ToggleWithIcon` | Chevron toggle with optional icon; hover-reveal chevron |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/IndicatorBar.tsx` | 19 | 🧩 Component | `IndicatorBar` | Collapsed/expanded state indicator with callout badge |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/TerminalCollapsibleContainer.tsx` | 61 | 🧩 Component | `TerminalCollapsibleContainer` | Collapsible terminal output with gradient fade + indicator bar |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/CreateFile.tsx` | 25 | 🧩 Component | `CreateFile` | Render file creation in styled markdown preview |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/EditFile.tsx` | 34 | 🧩 Component | `EditFile` | Render file changes in collapsible diff preview |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/FindAndReplace.tsx` | 343 | 🧩 Component | `FindAndReplaceDisplay` | Multi-diff viewer with stats, apply/reject buttons, collapsible edits |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/RunTerminalCommand.tsx` | 43 | 🧩 Component | `RunTerminalCommand` | Terminal output wrapper with status (running/completed/failed/background) |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/MCPAppRenderer.tsx` | 425 | 🧩 Component | `MCPAppRenderer` | MCP app iframe with AppBridge, CSP config, sandbox permissions, message routing |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/SimpleToolCallUI.tsx` | 90 | 🧩 Component | `SimpleToolCallUI` | Collapsible tool output with icon toggle + context items peek |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/GroupedToolCallHeader.tsx` | 37 | 🧩 Component | `GroupedToolCallHeader` | Collapsible header for grouped tool calls (Performing/Generating/Pending/Performed) |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/FunctionSpecificToolCallDiv.tsx` | 82 | 🧩 Component | `FunctionSpecificToolCallDiv` | Router to tool-specific renderers (CreateFile, EditFile, FindAndReplace, RunTerminalCommand) |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/utils.tsx` | 109 | 🧩 Utilities | `getStatusIntro`, `getGroupActionVerb`, `getStatusIcon`, `toolCallStateToContextItems` | Tool call rendering helpers: status verbs, icons, context item conversion |
+| `reference/continue-src/gui/src/pages/gui/ToolCallDiv/index.tsx` | 137 | 🧩 Component | `ToolCallDiv` | Master tool call renderer: routes to MCP, SimpleUI, or FunctionSpecific; grouped/ungrouped modes |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -692,6 +715,35 @@ reference/continue-src/gui/
 | `Stats` | `gui/src/pages/stats.tsx` | 36-141 | Component | Page | Token usage analytics: fetch/display per-day and per-model token counts from IDE |
 | `HistoryPage` | `gui/src/pages/history/index.tsx` | 6-18 | Component | Page | Session history page wrapper; renders History component with page header |
 | `ConfigPage` | `gui/src/pages/config/index.tsx` | 11-92 | Component | Page | Settings hub: tab-based sidebar with top/bottom sections; responsive desktop/mobile layout |
+| `EmptyChatBody` | `gui/src/pages/gui/EmptyChatBody.tsx` | 8-22 | Component | GUI | Render onboarding card (if first visit) OR conversation starter cards (empty chat) |
+| `ExploreDialogWatcher` | `gui/src/pages/gui/ExploreDialogWatcher.tsx` | 29-40 | Component | GUI | Listener for tutorial file closes; dispatch `setIsExploreDialogOpen` if tutorial dismissed |
+| `StreamErrorDialog` | `gui/src/pages/gui/StreamError.tsx` | 26-300 | Component | GUI | Multi-status error modal with resubmit/check-keys/view-config actions; custom messages per status code |
+| `useAutoScroll` | `gui/src/pages/gui/useAutoScroll.ts` | 12-61 | Hook | GUI | Detect new user messages, auto-scroll to bottom, pause on manual scroll up, resume on scroll to bottom |
+| `Chat` | `gui/src/pages/gui/Chat.tsx` | 106-453 | Component | GUI | Main chat interface: history rendering, input box, tool calls, edit mode, keyboard handlers, error boundary |
+| `GUI` | `gui/src/pages/gui/index.tsx` | 4-15 | Component | Page | Root page layout: sidebar (History) + main (Chat) with responsive hide on small screens |
+| `ArgsToggleIcon` | `gui/src/pages/gui/ToolCallDiv/ToolCallArgs.tsx` | 9-23 | Component | Tool | Toggle button to show/hide tool call arguments |
+| `ArgsItems` | `gui/src/pages/gui/ToolCallDiv/ToolCallArgs.tsx` | 30-49 | Component | Tool | Display tool arguments as key-value pairs in code format |
+| `ToolCallDisplay` | `gui/src/pages/gui/ToolCallDiv/ToolCallDisplay.tsx` | 17-62 | Component | Tool | Composite: icon + favicon + status message + truncate button + children content |
+| `ToolCallStatusMessage` | `gui/src/pages/gui/ToolCallDiv/ToolCallStatusMessage.tsx` | 10-62 | Component | Tool | Status text using tool.wouldLikeTo/isCurrently/hasAlready templates + Mustache render |
+| `ToolTruncateHistoryIcon` | `gui/src/pages/gui/ToolCallDiv/ToolTruncateHistoryIcon.tsx` | 10-48 | Component | Tool | Truncate-history button; disabled during streaming |
+| `ToggleWithIcon` | `gui/src/pages/gui/ToolCallDiv/ToggleWithIcon.tsx` | 13-58 | Component | Tool | Chevron + optional icon; hover-reveal chevron for toggleable sections |
+| `IndicatorBar` | `gui/src/pages/gui/ToolCallDiv/IndicatorBar.tsx` | 8-19 | Component | Tool | Collapsed/expanded indicator badge at top of container |
+| `TerminalCollapsibleContainer` | `gui/src/pages/gui/ToolCallDiv/TerminalCollapsibleContainer.tsx` | 12-61 | Component | Tool | Collapsible terminal output with gradient fade + indicator; supports hidden lines count |
+| `CreateFile` | `gui/src/pages/gui/ToolCallDiv/CreateFile.tsx` | 10-25 | Component | Tool | Render new file creation in markdown preview with language highlighting |
+| `EditFile` | `gui/src/pages/gui/ToolCallDiv/EditFile.tsx` | 15-34 | Component | Tool | Render file edits in collapsible markdown preview diff |
+| `FindAndReplaceDisplay` | `gui/src/pages/gui/ToolCallDiv/FindAndReplace.tsx` | 86-343 | Component | Tool | Multi-edit visual diff with stats, apply/reject buttons, collapsible edits, status icon |
+| `RunTerminalCommand` | `gui/src/pages/gui/ToolCallDiv/RunTerminalCommand.tsx` | 10-43 | Component | Tool | Terminal output + status (running/completed/failed/background) via UnifiedTerminal |
+| `McpAppRenderer` | `gui/src/pages/gui/ToolCallDiv/MCPAppRenderer.tsx` | 92-425 | Component | Tool | MCP app iframe renderer: AppBridge protocol, CSP/permissions handling, srcdoc sandbox |
+| `SimpleToolCallUI` | `gui/src/pages/gui/ToolCallDiv/SimpleToolCallUI.tsx` | 20-90 | Component | Tool | Collapsible output with icon + status + context items peek; handles 0/1/multi items |
+| `GroupedToolCallHeader` | `gui/src/pages/gui/ToolCallDiv/GroupedToolCallHeader.tsx` | 13-37 | Component | Tool | Collapsible group header: action verb + count (Performing, Generating, Pending, etc.) |
+| `FunctionSpecificToolCallDiv` | `gui/src/pages/gui/ToolCallDiv/FunctionSpecificToolCallDiv.tsx` | 9-82 | Component | Tool | Router: dispatches to CreateFile, EditFile, FindAndReplace, or RunTerminalCommand |
+| `getStatusIntro` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 13-34 | Function | Tool | Status verb (will, wants to, is, tried to) based on tool call status |
+| `getGroupActionVerb` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 37-57 | Function | Tool | Group header verb (Performing, Generating, Pending, Performed, Attempted) |
+| `getStatusIcon` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 70-83 | Function | Tool | Status icon (Spinner, ArrowRight, Check, XMark) |
+| `toolCallStateToContextItems` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 85-95 | Function | Tool | Convert tool call output to ContextItemWithId array |
+| `getIconByName` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 63-68 | Function | Tool | Dynamically import Heroicons by name |
+| `toolCallCtxItemToCtxItemWithId` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 98-109 | Function | Tool | Wrap ContextItem with toolCall ID metadata |
+| `ToolCallDiv` | `gui/src/pages/gui/ToolCallDiv/index.tsx` | 19-137 | Component | Tool | Master router: MCP vs SimpleUI vs FunctionSpecific; grouped/ungrouped layout; status-based rendering |
 | `editToolImpl`
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
