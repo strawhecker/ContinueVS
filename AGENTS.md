@@ -52,6 +52,10 @@
 | `reference/continue-src/gui/src/util/test/utils.ts` | 102 | 🟢 Test | `logAllTestIds()`, `getElementByTestId()`, `verifyNotPresentByTestId()`, `getElementByText()`, `getMainEditor()`, `sendInputWithMockedResponse()` | DOM query helpers and input simulation |
 | `reference/continue-src/gui/src/util/test/mockStore.ts` | 114 | 🟢 Test | `getEmptyRootState()`, `createMockStore()` | Redux store mock with action tracking & thunk injection |
 | `reference/continue-src/gui/src/util/test/render.tsx` | 77 | 🟢 Test | `renderWithProviders()`, `ExtendedRenderOptions` type | RTL wrapper with Redux, router, auth, editor providers |
+| `reference/continue-src/gui/src/context/VscTheme.tsx` | 184 | 🟡 Provider | `VscThemeContext`, `VscThemeProvider`, `useVscTheme()` | VSCode theme color mapping (hljs→TextMate token rules) |
+| `reference/continue-src/gui/src/context/LocalStorage.tsx` | 68 | 🟡 Provider | `LocalStorageContext`, `LocalStorageProvider`, `useLocalStorage()` | Font size persistence & CustomEvent synchronization |
+| `reference/continue-src/gui/src/context/Auth.tsx` | 66 | 🟡 Provider | `AuthContext`, `AuthProvider`, `useAuth()` | Profile selection, refresh, loading state |
+| `reference/continue-src/gui/src/context/SubmenuContextProviders.tsx` | 628 | 🟡 Provider | `SubmenuContextProvidersContext`, `SubmenuContextProvidersProvider`, `useSubmenuContextProviders()` | Context submenu search with MiniSearch, intelligent file sorting |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🟡 Tool | `editToolImpl` | Client-side implementation of EditExistingFile tool (dispatch applyForEditTool) |
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -446,6 +450,29 @@ reference/continue-src/gui/
 | `createMockStore()` | `gui/src/util/test/mockStore.ts` | 53-114 | Function | Test | Create Redux store with mock ideMessenger extra, action tracking, and thunk dispatch override |
 | `ExtendedRenderOptions` | `gui/src/util/test/render.tsx` | 17-21 | Type | Test | RTL render options extended with store, routerProps, mockIdeMessenger |
 | `renderWithProviders()` | `gui/src/util/test/render.tsx` | 31-77 | Function | Test | Async RTL render wrapper with Redux Provider, MemoryRouter, AuthProvider, IdeMessengerProvider, MainEditorProvider, and ResizeObserver mock |
+| `VscThemeContext` | `gui/src/context/VscTheme.tsx` | 159-161 | Context | Provider | React Context with `theme: Record<string, string>` (hljs className → color hex) |
+| `VscThemeProvider` | `gui/src/context/VscTheme.tsx` | 163-182 | Component | Provider | Context provider that listens for "setTheme" webview messages and updates theme state |
+| `useVscTheme()` | `gui/src/context/VscTheme.tsx` | 184 | Hook | Provider | Hook to access `{ theme }` from VscThemeContext |
+| `constructTheme()` | `gui/src/context/VscTheme.tsx` | 56-85 | Function | Provider | Map VSCode TextMate theme rules to hljs CSS class colors; fallback to light/dark theme |
+| `fallbackTheme()` | `gui/src/context/VscTheme.tsx` | 87-150 | Function | Provider | Fallback to light (avg≥128) or dark theme based on editor background luminance |
+| `LocalStorageContext` | `gui/src/context/LocalStorage.tsx` | 12-14 | Context | Provider | React Context with `fontSize: number` |
+| `LocalStorageProvider` | `gui/src/context/LocalStorage.tsx` | 16-63 | Component | Provider | Context provider syncing fontSize from localStorage; listens for "localStorageChange" custom events |
+| `useLocalStorage()` | `gui/src/context/LocalStorage.tsx` | 65-68 | Hook | Provider | Hook to access `{ fontSize }` from LocalStorageContext |
+| `AuthContext` | `gui/src/context/Auth.tsx` | 17 | Context | Provider | React Context with `selectedProfile`, `profiles`, `refreshProfiles()` |
+| `AuthProvider` | `gui/src/context/Auth.tsx` | 19-58 | Component | Provider | Context provider wrapping profile selection and refresh logic |
+| `useAuth()` | `gui/src/context/Auth.tsx` | 60-66 | Hook | Provider | Hook to access auth context; throws if not within AuthProvider |
+| `refreshProfiles()` | `gui/src/context/Auth.tsx` | 29-45 | Function | Provider | Call core `config/refreshProfiles`, show status toast, manage loading state |
+| `SubmenuContextProvidersContext` | `gui/src/context/SubmenuContextProviders.tsx` | 51-52 | Context | Provider | React Context with `getSubmenuContextItems(providerTitle?, query)` |
+| `SubmenuContextProvidersProvider` | `gui/src/context/SubmenuContextProviders.tsx` | 139-625 | Component | Provider | Context provider with MiniSearch indices, file polling (2s interval), intelligent sorting |
+| `useSubmenuContextProviders()` | `gui/src/context/SubmenuContextProviders.tsx` | 627-628 | Hook | Provider | Hook to access `{ getSubmenuContextItems }` from SubmenuContextProvidersContext |
+| `getSubmenuContextItems()` | `gui/src/context/SubmenuContextProviders.tsx` | 316-465 | Function | Provider | Search context items by provider/query; multi-criteria sort (priority, match quality, score, path length) |
+| `calculateFileSortPriority()` | `gui/src/context/SubmenuContextProviders.tsx` | 224-278 | Function | Provider | 9-tier file sort priority (exact match, recent, starts with, word match, common files, common dirs, camelCase, path starts with, default) |
+| `calculateMatchQuality()` | `gui/src/context/SubmenuContextProviders.tsx` | 280-314 | Function | Provider | Quality score: exact (100), prefix (50), contains (25), short name, dev file extensions |
+| `loadSubmenuItems()` | `gui/src/context/SubmenuContextProviders.tsx` | 467-588 | Function | Provider | Load items for provider(s) via core, deduplicate, build MiniSearch indices, update fallback results |
+| `hasExactWordMatch()` | `gui/src/context/SubmenuContextProviders.tsx` | 55-58 | Function | Provider | Check if text has exact word match for query (token boundary) |
+| `isCommonDevFile()` | `gui/src/context/SubmenuContextProviders.tsx` | 60-92 | Function | Provider | Check if file has common dev extension or name (index, main, app, component, etc.) |
+| `isInCommonDirectory()` | `gui/src/context/SubmenuContextProviders.tsx` | 94-112 | Function | Provider | Check if file path includes common directory (src, lib, components, utils, etc.) |
+| `matchesCamelCaseOrAbbreviation()` | `gui/src/context/SubmenuContextProviders.tsx` | 114-137 | Function | Provider | Match query via camelCase capitals or word-initial abbreviation |
 | `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-53 | ClientToolImpl | Tool | Execute EditExistingFile: resolve path, dispatch applyForEditTool |
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -2540,9 +2567,162 @@ state.config = config  // Stores BrowserSerializedContinueConfig
   4. Set up `userEvent.setup()` for user interaction simulation
   5. Create Wrapper component with full provider stack
   6. Call `render(ui, { wrapper: Wrapper, ...renderOptions })` inside `act()`
-  7. Return object with `{ user, store, ideMessenger, ...rendered }`
+     7. Return object with `{ user, store, ideMessenger, ...rendered }`
 
-### Cross-Cutting Concerns (Expanded)
+  ---
+
+  ## 🎨 GUI CONTEXT PROVIDERS (4 files, 946 lines)
+
+  **Overview**: React Context/Provider layer enabling theme, local storage, authentication, and context submenu functionality across the GUI. Supports webview/IDE messaging, Redux integration, and MiniSearch-based intelligent search/sorting.
+
+  ### 1. Theme Context & Provider (VscTheme.tsx - 184 lines)
+
+  **Purpose**: Map VSCode TextMate theme data to Highlight.js CSS class colors; provide fallback light/dark theme.
+
+  **Core Components**:
+  - `VscThemeContext` (lines 159-161): Context wrapping `{ theme: Record<string, string> }`
+  - `VscThemeProvider` (lines 163-182): Provider listening to `useWebviewListener("setTheme")` events; updates `window.fullColorTheme` and re-renders theme state
+  - `useVscTheme()` (line 184): Hook to consume theme context
+
+  **Key Logic**:
+  - `constructTheme(tmTheme)` (lines 56-85): Map VSCode TextMate theme rules to hljs class names via `hljsToTextMate` lookup table (54 className→scopes mappings)
+  - `fallbackTheme()` (lines 87-150): Parse editor background color via `--vscode-editor-background` CSS var; if luminance ≥128 (light), use Windows light theme; else use Windows dark theme
+  - Webview integration: Listens for `setTheme` messages with `data.theme`, updates global `window.fullColorTheme`, triggers re-render
+
+  **Dependencies**:
+  - `../hooks/useWebviewListener`
+  - `../styles/utils.parseHexColor`
+  - Used by: code rendering, syntax highlighting, comment folding
+
+  ---
+
+  ### 2. Local Storage Context & Provider (LocalStorage.tsx - 68 lines)
+
+  **Purpose**: Expose selected localStorage values (currently `fontSize`) as a React Context; synchronize state across tabs via CustomEvent.
+
+  **Core Components**:
+  - `LocalStorageContext` (lines 12-14): Context wrapping `{ fontSize: number }`
+  - `LocalStorageProvider` (lines 16-63): Provider with two `useEffect` hooks
+  - `useLocalStorage()` (lines 65-68): Hook to consume localStorage context
+
+  **Key Logic**:
+  - `syncWithLocalStorage()` (lines 22-30): Read `getLocalStorage("ide")` and `getLocalStorage("fontSize")`; default fontSize to 15 for JetBrains, 14 for VSCode
+  - Initial sync (useEffect, lines 33-35): Call on mount
+  - Tab sync (useEffect, lines 38-56): Listen for `localStorageChange` CustomEvent with `event.detail.key === "fontSize"`; resync state if key matches
+  - Dispatch pattern: Code outside this provider can emit `localStorageChange` events to trigger provider re-sync
+
+  **Dependencies**:
+  - `../util/localStorage.getLocalStorage`
+  - Used by: editor font sizing, UI layout
+
+  ---
+
+  ### 3. Authentication Context & Provider (Auth.tsx - 66 lines)
+
+  **Purpose**: Expose current profile selection and config-refresh action; integrate with Redux and IDE messenger.
+
+  **Core Components**:
+  - `AuthContext` (line 17): Context wrapping `{ selectedProfile, profiles, refreshProfiles }`
+  - `AuthProvider` (lines 19-58): Provider returning Redux-backed state + callback thunk
+  - `useAuth()` (lines 60-66): Hook with error if not within provider
+
+  **Key Logic**:
+  - Redux integration (lines 26-27): Selectors `selectProfiles` and `selectSelectedProfile` read `store.config.profiles` and `store.config.selectedProfile`
+  - `refreshProfiles(reason?)` (lines 29-45): 
+    1. Dispatch `setConfigLoading(true)`
+    2. Call `ideMessenger.request("config/refreshProfiles", { reason })`
+    3. Post success toast `["info", "Config refreshed"]` on success or error toast on failure
+    4. Finally dispatch `setConfigLoading(false)`
+  - Error handling: Logs error, shows error toast if refresh fails
+
+  **Dependencies**:
+  - `core/config/ProfileLifecycleManager.ProfileDescription`
+  - Redux hooks: `useAppDispatch`, `useAppSelector`, `setConfigLoading`, `selectProfiles`, `selectSelectedProfile`
+  - `IdeMessengerContext`
+  - Used by: profile selector UI, config refresh actions
+
+  ---
+
+  ### 4. Submenu Context Provider (SubmenuContextProviders.tsx - 628 lines)
+
+  **Purpose**: Power searchable context submenu (file browser, providers, etc.) with MiniSearch-backed search, intelligent file sorting, periodic open-file refresh, and loading state management.
+
+  **Core Components**:
+  - `SubmenuContextProvidersContext` (lines 51-52): Context wrapping `{ getSubmenuContextItems(providerTitle?, query, limit?) }`
+  - `SubmenuContextProvidersProvider` (lines 139-625): Provider with MiniSearch indices, fallback results, periodic file polling, loading set, abort controller map
+  - `useSubmenuContextProviders()` (lines 627-628): Hook to get `getSubmenuContextItems` function
+
+  **Key Features**:
+
+  *MiniSearch Integration (lines 151-156, 525-537)*:
+  - Build one `MiniSearch` index per provider (file, web, code docs, etc.)
+  - Config: prefix matching + fuzzy(2) scoring
+  - Custom tokenizer: concat default tokens + `splitCamelCaseAndNonAlphaNumeric()` tokens
+
+  *Open Files Polling (lines 159-217)*:
+  - `useEffect` with 2-second interval
+  - Call `ideMessenger.ide.getOpenFiles()` + `getWorkspaceDirs()`, compute unique relative paths
+  - Update `lastOpenFilesRef.current` and fallback results if set changed (deduplicated by id)
+  - Cleanup: unsubscribe mounted flag, clear interval
+
+  *Intelligent File Sorting (lines 224-278, 280-314)*:
+  - `calculateFileSortPriority()` (9 tiers): exact filename, recent (open files), starts with, word match, common dev extensions, common dirs (src/lib/components/etc.), camelCase/abbreviation, path starts with, default
+  - `calculateMatchQuality()`: exact match (100) + prefix (50) + contains (25) + short name bonus + dev file extension bonus
+
+  *Search & Sort (lines 316-465)*:
+  - `getSubmenuContextItems(providerTitle?, query, limit=70)`: 
+    1. Search all or one provider's MiniSearch index
+    2. If file provider: enhance results with sort priority + match quality; multi-key sort by priority→quality→score→path length
+    3. Else: sort by MiniSearch score descending
+    4. If no results: return fallback items (used by file or provider) or loading placeholder
+
+  *Loading & Refresh (lines 467-588, 590-596)*:
+  - `loadSubmenuItems(providers: "dependsOnIndexing" | "all" | string[])`: Async load and index items per provider
+    - Skip if provider not marked `dependsOnIndexing` and indexing disabled
+    - Use separate `AbortController` per provider; cancel on new request
+    - Call `ideMessenger.request("context/loadSubmenuItems", { title })`
+    - Build MiniSearch index, deduplicate, store in `fallbackResults`
+    - Manage `providersLoading` set for loading state
+  - Webview listener `refreshSubmenuItems` triggers `loadSubmenuItems` on demand
+  - `useEffect` (lines 599-614): Auto-refresh when new provider titles detected
+
+  *Helper Functions*:
+  - `hasExactWordMatch(text, query)` (lines 55-58): Token-boundary word match
+  - `isCommonDevFile(fileName)` (lines 60-92): Check common extensions (.ts, .tsx, .js, etc.) + names (index, main, app, component, service, util, helper, config, types)
+  - `isInCommonDirectory(filePath)` (lines 94-112): Check common dirs (src, lib, components, utils, helpers, services, pages, views, hooks, store, types, interfaces, models, api)
+  - `matchesCamelCaseOrAbbreviation(fileName, query)` (lines 114-137): Camel-case capital extraction or word-initial abbreviation
+
+  **Dependencies**:
+  - Core types: `ContextProviderDescription`, `ContextProviderName`, `ContextSubmenuItemWithProvider`
+  - Core utils: `deduplicateArray`, `splitCamelCaseAndNonAlphaNumeric`, `getShortestUniqueRelativeUriPaths`, `getUriPathBasename`
+  - `minisearch` (external dependency)
+  - Redux: `useAppSelector`, `selectSubmenuContextProviders`, config.disableIndexing
+  - Webview: `useWebviewListener`
+  - IDE messenger: `IdeMessengerContext`, `ideMessenger.ide.getOpenFiles()`, `ideMessenger.ide.getWorkspaceDirs()`, `ideMessenger.request("context/loadSubmenuItems")`
+  - Used by: context submenu, file picker, provider menus
+
+  ---
+
+  ### Cross-provider Coordination
+
+  **Theme + Rendering**:
+  - `VscThemeContext.theme` is consumed by rendering layers to style code blocks and UI elements
+  - Populated from VSCode's TextMate color scheme on webview load
+
+  **Local Storage + Other Contexts**:
+  - `LocalStorageProvider` and other providers can coordinate state via Redux or localStorage events
+  - If settings change via IDE, emit `localStorageChange` to trigger re-sync
+
+  **Auth + Submenu/Config**:
+  - `AuthContext.selectedProfile` + `refreshProfiles()` let UI track and refresh the active profile
+  - `SubmenuContextProvidersProvider` is independent but can show profile-based context items
+
+  **Submenu + Redux**:
+  - Provider reads `selectSubmenuContextProviders` selector to determine available context providers
+  - Respects `config.disableIndexing` to skip non-essential providers when indexing is off
+  - Loading state integrated via `providersLoading` set; fallback results cached for fast UI response
+
+  ### Cross-Cutting Concerns (Expanded)
 
 **GUI/Core Integration**:
 - Client tools depend on core edit/search-and-replace validators (`core/edit/searchAndReplace/*`)
