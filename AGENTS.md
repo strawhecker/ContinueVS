@@ -37,6 +37,16 @@
 | `reference/continue-src/gui/index.css` | 146 | 🎨 Styles | Tailwind directives + custom classes | Global styles: animations (fadeIn, rerenderFlash), scrollbars, text truncation, theming |
 | `reference/continue-src/gui/src/styles/theme.ts` | 286 | 🎨 Theme | `THEME_COLORS` object, `THEME_CSS_VARS`, `THEME_CSS_VAR_DEFAULTS` | VSCode theme variable mapping (30+ colors); dark mode defaults; blue accent palette |
 | `reference/continue-src/gui/src/styles/utils.ts` | 45 | 🎨 Utilities | `parseHexColor()`, `parseColorForHex()` | Hex↔RGB color conversion; CSS var→hex parsing from DOM |
+| `reference/continue-src/gui/src/util/cn.ts` | 20 | 🎨 Utilities | `cn()` | Merge Tailwind CSS classes with intelligent conflict resolution (clsx + tailwind-merge) |
+| `reference/continue-src/gui/src/util/isContinueTeamMember.ts` | 7 | 🟡 Validator | `isContinueTeamMember()` | Check if user email is @continue.dev team member |
+| `reference/continue-src/gui/src/util/localStorage.ts` | 58 | 🟡 Storage | `getLocalStorage()`, `setLocalStorage()`, `LocalStorageKey` enum | Type-safe localStorage with JSON parsing/serialization; custom events |
+| `reference/continue-src/gui/src/util/navigation.ts` | 35 | 🟡 Router | `ROUTES`, `ConfigTab`, `buildConfigRoute()`, `CONFIG_ROUTES` | Route definitions and config tab navigation builders |
+| `reference/continue-src/gui/src/util/migrateLocalStorage.ts` | 68 | 🟡 Migration | `migrateLocalStorage()`, `migrateToolPolicies()` | Migrate legacy tool settings to new ToolPolicy names |
+| `reference/continue-src/gui/src/util/index.ts` | 89 | 🟡 Platform | `getPlatform()`, `isMetaEquivalentKeyPressed()`, `getMetaKeyLabel()`, `getFontSize()`, `isJetBrains()`, `isWebEnvironment()`, `isPrerelease()` | Platform detection; keyboard/UI helpers; IDE checks |
+| `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🟡 Tool | `editToolImpl` | Client-side implementation of EditExistingFile tool (dispatch applyForEditTool) |
+| `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
+| `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
+| `reference/continue-src/gui/src/util/clientTools/callClientTool.ts` | 68 | 🟡 Dispatcher | `callClientTool()`, `ClientToolImpl`, `ClientToolExtras`, `ClientToolOutput`, `ClientToolResult` | Route client tool calls to implementations (EditExistingFile, SingleFindAndReplace, MultiEdit) |
 | `reference/continue-src/core/protocol/util.ts` | 53 | 🟢 Schema | `ErrorWebviewMessage`, `WebviewSingleMessage`, `WebviewGeneratorMessage`, `WebviewMessage`, generator type helpers | Envelope types for single/streaming responses; error payloads (status+error) |
 | `reference/continue-src/core/protocol/passThrough.ts` | 109 | 🟢 Router | `WEBVIEW_TO_CORE_PASS_THROUGH` (80 types), `CORE_TO_WEBVIEW_PASS_THROUGH` (12 types) | Message whitelist for bidirectional routing; KT enum sync required |
 | `reference/continue-src/core/llm/constants.ts` | 37 | 🟡 Config | `DEFAULT_MAX_TOKENS`, `DEFAULT_CONTEXT_LENGTH`, `DEFAULT_TEMPERATURE`, `PROXY_URL`, `LLMConfigurationStatuses`, `NEXT_EDIT_MODELS` | LLM defaults (4k tokens, 32k context, 0.5°, 128k pruning); config enums |
@@ -380,6 +390,36 @@ reference/continue-src/gui/
 | `THEME_CSS_VAR_DEFAULTS` | `gui/src/styles/theme.ts` | 192-200 | Record | Config | CSS var name → default color value mapping |
 | `parseHexColor()` | `gui/src/styles/utils.ts` | 1-19 | Function | Utility | Parse hex color string → {r, g, b} |
 | `parseColorForHex()` | `gui/src/styles/utils.ts` | 21-45 | Function | Utility | Parse CSS color var (hex/rgb/rgba) → hex string |
+| `cn()` | `gui/src/util/cn.ts` | 18-20 | Function | Utility | Merge Tailwind CSS classes (clsx + tailwind-merge) |
+| `isContinueTeamMember()` | `gui/src/util/isContinueTeamMember.ts` | 4-6 | Function | Validator | Check if email includes @continue.dev |
+| `getLocalStorage()` | `gui/src/util/localStorage.ts` | 26-44 | Function | Storage | Type-safe localStorage getter with JSON parsing |
+| `setLocalStorage()` | `gui/src/util/localStorage.ts` | 46-58 | Function | Storage | Type-safe localStorage setter with event dispatch |
+| `LocalStorageKey` | `gui/src/util/localStorage.ts` | 21-24 | Enum | Storage | Type-safe keys for localStorage (IsExploreDialogOpen, HasDismissedExploreDialog) |
+| `LocalStorageTypes` | `gui/src/util/localStorage.ts` | 4-19 | Type | Storage | 8+ typed fields (onboarding, dismissals, ide, font size, etc.) |
+| `ConfigTab` | `gui/src/util/navigation.ts` | 2-9 | Type | Router | Union of config tab names (models, rules, tools, configs, indexing, settings, help) |
+| `ROUTES` | `gui/src/util/navigation.ts` | 12-19 | Const | Router | Route constants (HOME, CONFIG, THEME, STATS) |
+| `buildConfigRoute()` | `gui/src/util/navigation.ts` | 22-24 | Function | Router | Build config URL with optional tab parameter |
+| `CONFIG_ROUTES` | `gui/src/util/navigation.ts` | 27-35 | Record | Router | Pre-built config route URLs for all tabs |
+| `migrateLocalStorage()` | `gui/src/util/migrateLocalStorage.ts` | 66-68 | Function | Migration | Migrate legacy tool settings to new names |
+| `getPlatform()` | `gui/src/util/index.ts` | 7-18 | Function | Platform | Detect OS (mac/linux/windows/unknown) |
+| `isMetaEquivalentKeyPressed()` | `gui/src/util/index.ts` | 20-34 | Function | Keyboard | Platform-aware meta/ctrl detection |
+| `getMetaKeyLabel()` | `gui/src/util/index.ts` | 36-38 | Function | Keyboard | Platform-aware meta key label (⌘ or Ctrl) |
+| `getAltKeyLabel()` | `gui/src/util/index.ts` | 40-48 | Function | Keyboard | Platform-aware alt key label (⌥ or Alt) |
+| `getFontSize()` | `gui/src/util/index.ts` | 50-52 | Function | UI | Get font size from localStorage (JetBrains: 15px, else: 14px) |
+| `fontSize()` | `gui/src/util/index.ts` | 54-56 | Function | UI | Return computed font size with offset in px |
+| `isJetBrains()` | `gui/src/util/index.ts` | 58-60 | Function | IDE | Check if running in JetBrains IDE |
+| `isShareSessionSupported()` | `gui/src/util/index.ts` | 62 | Function | Feature | Share sessions NOT supported in JetBrains |
+| `isWebEnvironment()` | `gui/src/util/index.ts` | 64-70 | Function | Environment | Check if NOT Electron (web browser environment) |
+| `isPrerelease()` | `gui/src/util/index.ts` | 72-85 | Function | Version | Check if minor version is odd (prerelease) |
+| `isLocalProfile()` | `gui/src/util/index.ts` | 87-89 | Function | Profile | Always returns true (TODO: implement profile check) |
+| `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-53 | ClientToolImpl | Tool | Execute EditExistingFile: resolve path, dispatch applyForEditTool |
+| `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
+| `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
+| `callClientTool()` | `gui/src/util/clientTools/callClientTool.ts` | 31-68 | Function | Dispatcher | Route client tool calls (EditExistingFile→editImpl, SingleFindAndReplace→singleImpl, MultiEdit→multiImpl) |
+| `ClientToolExtras` | `gui/src/util/clientTools/callClientTool.ts` | 10-14 | Interface | Tool | Extras object: getState, dispatch (AppThunkDispatch), ideMessenger (IIdeMessenger) |
+| `ClientToolImpl` | `gui/src/util/clientTools/callClientTool.ts` | 25-29 | Type | Tool | Function type: (args, toolCallId, extras) → Promise<ClientToolOutput> |
+| `ClientToolOutput` | `gui/src/util/clientTools/callClientTool.ts` | 16-19 | Interface | Tool | output (ContextItem[] | undefined), respondImmediately (boolean) |
+| `ClientToolResult` | `gui/src/util/clientTools/callClientTool.ts` | 21-23 | Interface | Tool | Extends ClientToolOutput + optional error (ContinueError) |
 
 ---
 
@@ -2146,6 +2186,145 @@ state.config = config  // Stores BrowserSerializedContinueConfig
 - Line 15 `tools: []` in EMPTY_CONFIG is the fallback when core fails
 - Line 66 `state.config = config` is where core's serialized tools should appear
 - If core sends `tools: []`, this slice receives and stores it as-is
+
+---
+
+## 🎨 GUI UTILITIES & CLIENT TOOLS (10 files, 405 lines)
+
+**Overview**: GUI helper utilities spanning CSS composition, localStorage abstraction, navigation routing, platform detection, and client-side tool implementations for edit/search/replace operations.
+
+### 1. CSS & Component Utilities
+
+**cn.ts (20 lines)**
+- Combines `clsx` (conditional class composition) with `tailwind-merge` (intelligent Tailwind conflict resolution)
+- **Export**: `cn(...inputs: ClassValue[])`
+- **Usage**: GUI components that need conditional Tailwind classes without duplicates or conflicts
+- **Example**: `cn('px-2 py-1', { 'px-4': isActive })` → merges and removes conflicting padding classes
+
+**isContinueTeamMember.ts (7 lines)**
+- Simple email validator for Continue team membership
+- **Export**: `isContinueTeamMember(email?: string): boolean`
+- **Logic**: Returns true only if email includes `@continue.dev`
+- **Usage**: Feature gating, admin UI, internal tools visibility
+
+### 2. Storage & Persistence Layer
+
+**localStorage.ts (58 lines)**
+- Strongly-typed localStorage wrapper with JSON parsing, serialization, and custom events
+- **Key Exports**:
+  - `LocalStorageTypes` (8+ typed fields): onboarding status, IDE type, font size, extension version, input history, indexing toggle, deprecation banner state
+  - `LocalStorageKey` enum: `IsExploreDialogOpen`, `HasDismissedExploreDialog`
+  - `getLocalStorage<T>(key: T): LocalStorageTypes[T] | undefined` - JSON parse with error handling
+  - `setLocalStorage<T>(key: T, value: LocalStorageTypes[T]): void` - JSON stringify + emit `localStorageChange` CustomEvent
+- **Dependencies**: `OnboardingStatus` type from components; used by GUI utilities and Redux
+
+**migrateLocalStorage.ts (68 lines)**
+- Migration routine for legacy GUI tool settings in localStorage/Redux
+- **Key Exports**: 
+  - `migrateLocalStorage(dispatch: AppDispatch)` - Public entry point
+  - `migrateToolPolicies(dispatch)` - Internal migration logic
+- **Migration Logic**: Maps legacy builtin tool keys (e.g., `builtin_read_file`, `builtin_edit_existing_file`) to new `BuiltInToolNames` enum values
+- **Policy Values**: Only migrates valid `ToolPolicy` values (`allowedWithPermission`, `allowedWithoutPermission`, `disabled`)
+- **Dispatch**: Calls `setToolPolicy(...)` and `clearToolPolicy(...)` via Redux `uiSlice`
+
+### 3. Navigation & Routing
+
+**navigation.ts (35 lines)**
+- Route definitions and config-panel navigation utilities
+- **Key Exports**:
+  - `ConfigTab` (union type): `models | rules | tools | configs | indexing | settings | help`
+  - `ROUTES` (const object): HOME, HOME_INDEX, CONFIG, THEME, STATS
+  - `buildConfigRoute(tab?: ConfigTab): string` - Builds `/config?tab=...` or `/config`
+  - `CONFIG_ROUTES` (record): Pre-built URLs for all config tabs
+- **Usage**: URL generation, route guards, tab-based navigation in config pages
+
+### 4. Platform & Environment Detection
+
+**index.ts (89 lines)**
+- Miscellaneous GUI environment helpers and cross-platform adapters
+- **Key Exports**:
+  - `Platform` (type): `mac | linux | windows | unknown`
+  - `getPlatform(): Platform` - Detects OS via `window.navigator.platform`
+  - `isMetaEquivalentKeyPressed({ metaKey, ctrlKey }): boolean` - Platform-aware: mac → metaKey, else → ctrlKey
+  - `getMetaKeyLabel(): string` - Returns `⌘` (mac) or `Ctrl` (else)
+  - `getAltKeyLabel(): string` - Returns `⌥` (mac) or `Alt` (else)
+  - `getFontSize(): number` - Reads from localStorage; defaults to 15px (JetBrains) or 14px
+  - `fontSize(n: number): string` - Returns computed size as CSS px string
+  - `isJetBrains(): boolean` - IDE type check (localStorage `ide === jetbrains`)
+  - `isShareSessionSupported(): boolean` - Share sessions NOT supported in JetBrains; true for VSCode
+  - `isWebEnvironment(): boolean` - True if NOT Electron (native web browser)
+  - `isPrerelease(): boolean` - True if extension minor version is odd
+  - `isLocalProfile(_profile: ProfileDescription): boolean` - Always returns true (TODO implementation)
+
+### 5. Client-Side Tool Implementations
+
+**callClientTool.ts (68 lines)** — Dispatcher & Type Definitions
+- Main dispatcher for GUI-side builtin client tools (EditExistingFile, SingleFindAndReplace, MultiEdit)
+- **Key Types**:
+  - `ClientToolExtras` (interface): `getState`, `dispatch: AppThunkDispatch`, `ideMessenger: IIdeMessenger`
+  - `ClientToolImpl` (type): `(args, toolCallId, extras) → Promise<ClientToolOutput>`
+  - `ClientToolOutput` (interface): `output: ContextItem[] | undefined`, `respondImmediately: boolean`
+  - `ClientToolResult` (interface): Extends ClientToolOutput + optional `error: ContinueError`
+- **Export**: `callClientTool(toolCallState: ToolCallState, extras: ClientToolExtras): Promise<ClientToolResult>`
+- **Routing Logic** (switch on `toolCall.function.name`):
+  - `BuiltInToolNames.EditExistingFile` → `editToolImpl(...)`
+  - `BuiltInToolNames.SingleFindAndReplace` → `singleFindAndReplaceImpl(...)`
+  - `BuiltInToolNames.MultiEdit` → `multiEditImpl(...)`
+- **Error Normalization**: Converts `Error` → `ContinueError(ContinueErrorReason.Unspecified)` or `.Unknown`
+
+**editImpl.ts (53 lines)** — EditExistingFile Implementation
+- Client-side handler for `BuiltInToolNames.EditExistingFile`
+- **Export**: `editToolImpl: ClientToolImpl`
+- **Execution Flow**:
+  1. Validate `args.filepath` and `args.changes` required
+  2. Strip leading `./` from filepath
+  3. Resolve relative path via `resolveRelativePathInDir(...)`
+  4. Fallback: check open files if path not found
+  5. Throw error if file does not exist
+  6. Generate `streamId` via `uuid()`
+  7. Dispatch Redux thunk `applyForEditTool({ streamId, text, toolCallId, filepath })`
+  8. Return `{ respondImmediately: false, output: undefined }` (completion via apply-state)
+- **Dependencies**: `resolveRelativePathInDir`, `extras.ideMessenger.ide.getOpenFiles()`, Redux thunk `applyForEditTool`
+
+**singleFindAndReplaceImpl.ts (51 lines)** — SingleFindAndReplace Implementation
+- Client-side handler for `BuiltInToolNames.SingleFindAndReplace`
+- **Export**: `singleFindAndReplaceImpl: ClientToolImpl`
+- **Execution Flow**:
+  1. Validate args via `validateSingleEdit(old_string, new_string, replace_all)`
+  2. Validate filepath via `validateSearchAndReplaceFilepath(...)`
+  3. Read file contents via `extras.ideMessenger.ide.readFile(fileUri)`
+  4. Execute replacement via `executeFindAndReplace(contents, oldString, newString, replaceAll, startIndex=0)`
+  5. Generate `streamId` via `uuid()`
+  6. Dispatch Redux thunk `applyForEditTool({ streamId, text, toolCallId, filepath, isSearchAndReplace: true })`
+  7. Return `{ respondImmediately: false, output: undefined }` (completion via apply-state)
+- **Dependencies**: Core validation (`validateSingleEdit`, `executeFindAndReplace`, `validateSearchAndReplaceFilepath`), Redux thunk
+
+**multiEditImpl.ts (43 lines)** — MultiEdit Implementation
+- Client-side handler for `BuiltInToolNames.MultiEdit`
+- **Export**: `multiEditImpl: ClientToolImpl`
+- **Execution Flow**:
+  1. Validate edits via `validateMultiEdit(args)`
+  2. Validate filepath via `validateSearchAndReplaceFilepath(...)`
+  3. Read file contents via `extras.ideMessenger.ide.readFile(fileUri)`
+  4. Execute multi-replace via `executeMultiFindAndReplace(contents, edits)` (list of find-replace pairs)
+  5. Generate `streamId` via `uuid()`
+  6. Dispatch Redux thunk `applyForEditTool({ streamId, text, toolCallId, filepath, isSearchAndReplace: true })`
+  7. Return `{ respondImmediately: false, output: undefined }` (completion via apply-state)
+- **Dependencies**: Core validation (`validateMultiEdit`, `executeMultiFindAndReplace`, `validateSearchAndReplaceFilepath`), Redux thunk
+- **Note**: `validateMultiEdit` is deliberately duplicated at both arg-preprocessing stage (core) and here (to handle race conditions if file changes while tool call is pending)
+
+### Cross-Cutting Concerns
+
+**GUI/Core Integration**:
+- Client tools depend on core edit/search-and-replace validators (`core/edit/searchAndReplace/*`)
+- All three edit tools coordinate through a single Redux thunk `applyForEditTool`
+- `migrateLocalStorage` depends on `BuiltInToolNames` from `core/tools/builtIn` to ensure naming consistency
+- `localStorage.ts` event dispatch allows tab-wide synchronization of settings changes
+
+**Redux Coordination**:
+- Tool policies persisted in `ui.toolSettings` slice
+- Migration routine re-dispatches policies via `uiSlice` reducers
+- Client tool extras pass `AppThunkDispatch` for apply thunk execution
 
 ---
 
