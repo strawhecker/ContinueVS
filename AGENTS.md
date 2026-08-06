@@ -121,6 +121,9 @@
 | `reference/continue-src/gui/src/pages/gui/ToolCallDiv/FunctionSpecificToolCallDiv.tsx` | 82 | 🧩 Component | `FunctionSpecificToolCallDiv` | Router to tool-specific renderers (CreateFile, EditFile, FindAndReplace, RunTerminalCommand) |
 | `reference/continue-src/gui/src/pages/gui/ToolCallDiv/utils.tsx` | 109 | 🧩 Utilities | `getStatusIntro`, `getGroupActionVerb`, `getStatusIcon`, `toolCallStateToContextItems` | Tool call rendering helpers: status verbs, icons, context item conversion |
 | `reference/continue-src/gui/src/pages/gui/ToolCallDiv/index.tsx` | 137 | 🧩 Component | `ToolCallDiv` | Master tool call renderer: routes to MCP, SimpleUI, or FunctionSpecific; grouped/ungrouped modes |
+| `reference/continue-src/gui/src/styles/ThemePage.tsx` | 232 | 🎨 Theme | `ThemePage` | Theme debugger: visual tests for all colors, missing variable detection, JetBrains/VS Code diffs |
+| `reference/continue-src/gui/src/components/Layout.tsx` | 234 | 🧩 Component | `Layout` | Root container: listens to IDE events, manages edit mode, dialogs, auth/storage context wrapping |
+| `reference/continue-src/gui/src/App.tsx` | 66 | 🚀 App | `App` | Entry point: router setup, provider stack (VscThemeProvider, MainEditorProvider, SubmenuContextProviders) |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -744,6 +747,10 @@ reference/continue-src/gui/
 | `getIconByName` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 63-68 | Function | Tool | Dynamically import Heroicons by name |
 | `toolCallCtxItemToCtxItemWithId` | `gui/src/pages/gui/ToolCallDiv/utils.tsx` | 98-109 | Function | Tool | Wrap ContextItem with toolCall ID metadata |
 | `ToolCallDiv` | `gui/src/pages/gui/ToolCallDiv/index.tsx` | 19-137 | Component | Tool | Master router: MCP vs SimpleUI vs FunctionSpecific; grouped/ungrouped layout; status-based rendering |
+| `ThemePage` | `gui/src/styles/ThemePage.tsx` | 57-232 | Component | Theme | Theme debugger page: visual color samples, missing variables detector, refresh/cache clear controls |
+| `ThemeTailwindClassExample` | `gui/src/styles/ThemePage.tsx` | 19-55 | Component | Theme | Individual color swatch with CSS var names + default fallback |
+| `Layout` | `gui/src/components/Layout.tsx` | 40-232 | Component | Root | Root layout: IDE event listeners, edit/dialog state, provider wrapper (Auth, LocalStorage) |
+| `App` | `gui/src/App.tsx` | 53-66 | Component | Root | App entry point: router initialization, provider stack (VscTheme, MainEditor, SubmenuContextProviders, ParallelListeners) |
 | `editToolImpl`
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -4817,3 +4824,141 @@ Inject provider models (OpenAI/Anthropic/Gemini) + apiKey
 4. To messenger: Send config updates to IDE/Webview
 5. Workspace changes → ConfigHandler.refreshAll()
 6. Profile selection → setSelectedProfileId() → cascadeInit()
+---
+
+## 🚀 GUI APPLICATION SHELL & LAYOUT
+
+### Overview
+
+The top-level GUI application is composed of three layers:
+
+1. **App.tsx**: Entry point; memory-router initialization; provider composition stack
+2. **Layout.tsx**: Root container shell; global webview event listeners; IDE-driven state orchestration (edit mode, dialogs, session transitions)
+3. **ThemePage.tsx**: Theme debugger page; visual testing and validation of CSS theme variables; platform-specific theme injection (JetBrains vs VS Code)
+
+These files coordinate to provide the global application runtime, connect the IDE (via webview messages), manage major state transitions, and ensure theme consistency across all UI surfaces.
+
+### Key Concepts
+
+**Provider Stack (App.tsx)**  
+Wraps the router in a multi-layer context provider tower for global state distribution:
+- `VscThemeProvider`: VSCode theme color mapping (hljs token rules→TextMate)
+- `MainEditorProvider`: TipTap editor instance and global editor state
+- `SubmenuContextProvidersProvider`: Context submenu search & intelligent sorting
+- `ParallelListeners`: Master event listener (Redux dispatch wrapper)
+
+**Webview Message Routing (Layout.tsx)**  
+`useWebviewListener` handlers respond to IDE events with Redux actions:
+- `newSession`: Clear chat, optionally exit edit mode
+- `focusContinueInputWithNewSession`: Navigate home, clear session, open new
+- `addModel`: Navigate to /models config
+- `navigateTo`: Toggle-navigate or force specific route
+- `setupLocalConfig`, `setupApiKey`: Open onboarding card with mode
+- `focusEdit`: Add current file selection, enter edit mode, focus editor
+- `setCodeToEdit`: Update code buffer for edit mode
+- `exitEditMode`: Clean exit from edit mode
+
+**Theme State (ThemePage.tsx)**  
+Platform-specific logic:
+- **JetBrains**: Request colors via `jetbrains/getColors` message; inject into DOM; mark missing
+- **VS Code**: Read computed CSS variables from document root; validate against `THEME_COLORS` defaults
+
+### File Details
+
+**App.tsx** (66 lines)
+- `createMemoryRouter`: Route tree with Layout as root, ErrorPage error boundary
+- Routes: `/` (chat), `/index.html` (chat), `/history`, `/stats`, `/config`, `/theme`
+- App component: Nests RouterProvider inside provider stack
+- Exports: `App` (default)
+
+**Layout.tsx** (234 lines)
+- `LayoutTopDiv`: Styled scrollable container with stable scrollbar gutter
+- `GridDiv`: Template grid (1fr auto) for main content + error indicator
+- `Layout` component:
+  - useWebviewListener hooks (8 handlers): newSession, focusContinueInputWithNewSession, addModel, navigateTo, setupLocalConfig, setupApiKey, focusEdit, setCodeToEdit, exitEditMode
+  - Copy-to-clipboard Cmd+C handler
+  - Onboarding card auto-open on new user + home route
+  - Wraps Outlet in LocalStorageProvider → AuthProvider → custom grid div
+  - Renders TextDialog (dispatch setShowDialog), Outlet (route content), FatalErrorIndicator (non-home only), tooltip portal div
+- Exports: `Layout` (default)
+
+**ThemePage.tsx** (232 lines)
+- `ThemeTailwindClassExample` component (19-55):
+  - Props: colorName, varNames, defaultColor, isMissing?
+  - Renders: color name + CSS var list + default hex in 3-column layout
+  - Styling: Text error red if missing
+- `ThemePage` component (57-232):
+  - State: listToggled (demo), missingVars (`useState<string[]>`)
+  - refreshColors():
+    - JetBrains: Call `jetbrains/getColors`, invoke `setDocumentStylesFromTheme(result.content)`, collect missing
+    - VS Code: Iterate `THEME_COLORS`, read getComputedStyle(), mark CSS vars not found
+  - useEffect: Call refreshColors() on mount
+  - JSX: Back to Chat link, theme tester UI (30+ color swatches), Missing Colors section, All Theme Colors grid
+  - Button: Refresh Missing Colors
+  - Conditional button: Clear Theme Cache (JetBrains only)
+- Exports: `ThemePage` (default)
+
+### Dependencies
+
+`App.tsx` imports:
+- `react-router-dom`: RouterProvider, createMemoryRouter
+- `./components/Layout`
+- Page components: ConfigPage, ErrorPage, Chat, History, Stats, ThemePage
+- Providers: MainEditorProvider, SubmenuContextProvidersProvider, VscThemeProvider, ParallelListeners
+- `./util/navigation`: ROUTES
+
+`Layout.tsx` imports:
+- `react`: useContext, useEffect
+- `react-router-dom`: Outlet, useLocation, useNavigate
+- `styled-components`
+- Contexts: IdeMessengerContext, AuthProvider, LocalStorageProvider
+- Hooks: useWebviewListener, useMainEditor, useOnboardingCard, useAppDispatch, useAppSelector
+- Redux: setCodeToEdit, setShowDialog, enterEdit, exitEdit, saveCurrentSession
+- UI: CustomScrollbarDiv, FatalErrorIndicator, TextDialog, OSRContextMenu
+- Utils: fontSize, isMetaEquivalentKeyPressed, ROUTES
+
+`ThemePage.tsx` imports:
+- `react`: useState, useContext, useEffect, useMemo
+- `react-router-dom`: useNavigate
+- `@heroicons/react/24/outline`: CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon
+- Contexts: IdeMessengerContext
+- Components: Button
+- Utils: isJetBrains, ROUTES
+- Theme: clearThemeLocalCache, setDocumentStylesFromTheme, THEME_COLORS, varWithFallback
+
+### Call Chain Example: "setCodeToEdit" Event
+
+1. IDE sends message: `{messageType: "setCodeToEdit", payload: "const x = 1;"}`
+2. `ParallelListeners` receives & dispatches `PostedCoreMessage` to Redux
+3. `Layout.tsx` `useWebviewListener("setCodeToEdit")` fires async handler
+4. Handler calls `dispatch(setCodeToEdit({codeToEdit: payload}))`
+5. `editState` slice updates `state.editState.codeToEdit`
+6. `TipTapEditor` (wrapped in MainEditorProvider) reflects change; user may modify
+7. Editor submit → `streamEditThunk` → Core receives code
+
+### Integration Points
+
+1. **App.tsx ↔ React Router**:
+   - Setup memory-based router with catch-all error boundary
+   - Lazy-load pages by route
+   - Provide `useNavigate` hook to all child components
+
+2. **Layout.tsx ↔ IDE (Webview)**:
+   - Hook all major IDE-originated events
+   - Dispatch Redux actions (edit mode, session, dialog)
+   - Trigger theming/editor focus/copy operations
+
+3. **Layout.tsx ↔ Redux Store**:
+   - Listen to state changes (showDialog, isInEdit)
+   - Dispatch thunks (saveCurrentSession, enterEdit, exitEdit)
+   - Update slices (editState, session, ui)
+
+4. **ThemePage.tsx ↔ IDE**:
+   - Request platform-specific theme colors (JetBrains: jetbrains/getColors)
+   - Inject CSS variables into document root
+   - Validate against fallback defaults; report missing
+
+5. **ParallelListeners ↔ Layout**:
+   - Core message events trigger webview listeners
+   - Listeners dispatch Redux thunks
+   - UI re-renders on state changes
