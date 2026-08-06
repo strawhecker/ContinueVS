@@ -44,7 +44,29 @@
 | `reference/continue-src/core/llm/toolSupport.ts` | 523 | 🟡 Utilities | `PROVIDER_TOOL_SUPPORT` | Tool calling capability detection (20+ providers) |
 | `reference/continue-src/core/llm/defaultSystemMessages.ts` | 91 | 🟡 Config | Chat/Agent/Plan mode system prompts | Default instructions for each mode |
 | `reference/continue-src/core/llm/fetchModels.ts` | 258 | 🟡 Utilities | `fetchOllamaModels`, `fetchOpenRouterModels`, `FetchedModel` | Model discovery from registries |
-| `reference/continue-src/core/llm/streamChat.ts` | 147 | 🟢 Protocol | `llmStreamChat()` generator | Orchestrate slash-command or model chat requests |
+| `reference/continue-src/core/protocol/core.ts` | 348 | 🟢 Schema | `ToCoreFromIdeOrWebviewProtocol`, `OnboardingModes`, `ListHistoryOptions` | Core→IDE/Webview message types (100+ routes: history, config, context, MCP, autocomplete, nextEdit) |
+| `reference/continue-src/core/protocol/webview.ts` | 44 | 🟢 Schema | `ToWebviewFromIdeOrCoreProtocol` | Webview←IDE/Core messages (config, indexing, menu refresh, context items, sessions) |
+| `reference/continue-src/core/protocol/coreWebview.ts` | 7 | 🟢 Combiner | `ToCoreFromWebviewProtocol`, `ToWebviewFromCoreProtocol` | Union types: webview↔core with profile selection |
+| `reference/continue-src/core/protocol/ideWebview.ts` | 82 | 🟢 Schema | `ToIdeFromWebviewProtocol`, `ToWebviewFromIdeProtocol` | IDE←→Webview (file ops, UI state, apply/edit, session share) |
+| `reference/continue-src/core/protocol/ide.ts` | 95 | 🟢 Schema | `ToIdeFromWebviewOrCoreProtocol`, `ToWebviewOrCoreFromIdeProtocol` | IDE←Webview/Core (50+ LSP/file/git/debug methods); IDE→both (activity) |
+| `reference/continue-src/core/protocol/ideCore.ts` | 5 | 🟢 Combiner | `ToIdeFromCoreProtocol`, `ToCoreFromIdeProtocol` | Union types: IDE↔core |
+| `reference/continue-src/core/protocol/index.ts` | 32 | 🟢 Router | `IProtocol`, `ToIdeProtocol`, `FromIdeProtocol`, `ToWebviewProtocol`, `FromWebviewProtocol`, `ToCoreProtocol`, `FromCoreProtocol` | Protocol endpoint combinations (IDE/Webview/Core) |
+| `reference/continue-src/core/protocol/messenger/index.ts` | 185 | 🟠 Bus | `IMessenger`, `InProcessMessenger`, `Message` | Generic in-process messenger with send/request/invoke/on pattern |
+| `reference/continue-src/core/protocol/messenger/messageIde.ts` | 230 | 🟠 Bridge | `MessageIde` | IDE implementation via messenger requests (wraps protocol as method calls) |
+| `reference/continue-src/core/protocol/messenger/reverseMessageIde.ts` | 172 | 🟠 Bridge | `ReverseMessageIde` | Handler for incoming IDE requests; delegates to concrete IDE instance |
+| `reference/continue-src/core/llm/autodetect.ts` | 537 | 🟡 Detector | `autodetectTemplateType()`, `modelSupportsImages()`, `modelSupportsReasoning()`, provider/model lists | Model→template mapping; 30+ providers; vision/reasoning capability detection |
+| `reference/continue-src/core/llm/openaiTypeConverters.ts` | 1120 | 🟡 Converter | `toChatMessage()`, `toOpenAIFunction()`, `appendReasoningFieldsIfSupported()` | OpenAI message format conversion; handle thinking/reasoning/tool-calls |
+| `reference/continue-src/core/llm/logFormatter.ts` | 426 | 🟡 Formatter | `LLMLogFormatter` (class) | Human-readable LLM stream logging with overlapping interaction tracking & text wrapping |
+| `reference/continue-src/core/llm/logger.ts` | 43 | 🟡 Logger | `LLMLogger`, `LLMInteractionLog` (singleton + instance) | Event bus for LLM interactions; log items with timestamps |
+| `reference/continue-src/core/llm/countTokens.ts` | 570 | 🟡 Counter | `countTokens()`, `countTokensAsync()`, `countToolsTokens()`, `countChatMessageTokens()` | Tiktoken/Llama encoders; image/tool/message token accounting |
+| `reference/continue-src/core/llm/getAdjustedTokenCount.ts` | 38 | 🟡 Adjuster | `getAdjustedTokenCountFromModel()` | Safety multipliers for Claude/Gemini/Mistral tokenizers (1.18–1.26x) |
+| `reference/continue-src/core/llm/toolSupport.ts` | 523 | 🟡 Detector | `PROVIDER_TOOL_SUPPORT` (provider-dispatch map) | Per-provider model→tool-calling capability detection (20+ providers) |
+| `reference/continue-src/core/llm/defaultSystemMessages.ts` | 91 | 🟡 Prompts | System message constants (Chat/Agent/Plan modes) | Mode-specific instructions (edit, codeblock, lazy comments) |
+| `reference/continue-src/core/llm/fetchModels.ts` | 258 | 🟡 Registry | `fetchOllamaModels()`, `fetchOpenRouterModels()`, `FetchedModel` | Model discovery from Ollama/OpenRouter/Anthropic/Gemini APIs |
+| `reference/continue-src/core/llm/streamChat.ts` | 147 | 🟢 Orchestrator | `llmStreamChat()` async generator | Route to slash-command or model streamChat; yield messages; TTS integration |
+| `reference/continue-src/core/llm/index.ts` | 1504 | 🟠 Base | `BaseLLM` (abstract), `LLMError`, `isModelInstaller()` | LLM base class; model registry; chat/fim/completion methods; tool overrides |
+| `reference/continue-src/core/llm/llms/Lemonade.ts` | 12 | 🟡 Provider | `Lemonade` class | OpenAI-compatible wrapper (extends OpenAI; localhost:8000) |
+| `reference/continue-src/core/llm/llms/Ollama.ts` | 833 | 🟡 Provider | `Ollama` class, `OllamaChatMessage`, `OllamaModelFileParams` | Ollama API adapter; FIM/chat/tool support; model installer; streaming chat |
 | `reference/continue-src/core/llm/index.ts` | 1504 | 🟢 Core | `BaseLLM`, `LLMError`, `isModelInstaller()` | Abstract LLM base class + model registry |
 | `reference/continue-src/core/llm/llms/Lemonade.ts` | 12 | 🟡 Provider | `Lemonade` class | OpenAI-compatible wrapper (extends OpenAI) |
 | `reference/continue-src/core/llm/llms/Ollama.ts` | 833 | 🟡 Provider | `Ollama` class | Ollama API adapter (local model inference) |
