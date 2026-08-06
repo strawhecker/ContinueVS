@@ -78,6 +78,22 @@
 | `reference/continue-src/gui/src/redux/slices/sessionSlice.ts` | 1097 | 🟢 Slice | `sessionSlice`, `streamUpdate`, `newSession`, `submitEditorAndInitAtIndex`, `setToolGenerated`, `updateToolCallOutput`, `cancelToolCall`, `deleteMessage`, `updateApplyState`, `setMode`, `setIsInEdit`, `setHasReasoningEnabled`, `selectApplyStateByStreamId`, `selectApplyStateByToolCallId` | Core chat session: history, tool calls, streaming, apply states, reasoning |
 | `reference/continue-src/gui/src/redux/slices/configSlice.ts` | 109 | 🟢 Slice | `configSlice`, `setConfigResult`, `updateConfig`, `setConfigLoading`, `selectSelectedChatModel`, `selectSelectedChatModelContextLength`, `selectUIConfig` | Configuration state: models, tools, rules, context providers, errors |
 | `reference/continue-src/gui/src/redux/slices/uiSlice.ts` | 171 | 🟢 Slice | `uiSlice`, `setToolPolicy`, `toggleToolSetting`, `toggleToolGroupSetting`, `toggleRuleSetting`, `setReasoningSetting`, `setTTSActive`, `setOnboardingCard` | UI settings: tool/rule/reasoning policies, dialogs, onboarding, TTS |
+| `reference/continue-src/gui/src/redux/thunks/streamThunkWrapper.tsx` | 61 | 🟡 Thunk | `streamThunkWrapper` | Error handling + retry wrapper for LLM streams (overloaded server retries + error dialog) |
+| `reference/continue-src/gui/src/redux/thunks/callToolById.ts` | 150 | 🟡 Thunk | `callToolById` | Execute tool (client-side or via core); set output/error; log usage; stream response |
+| `reference/continue-src/gui/src/redux/thunks/preprocessToolCallArgs.ts` | 65 | 🟡 Thunk | `preprocessToolCalls` | Validate tool arguments via core; dispatch error/processed args |
+| `reference/continue-src/gui/src/redux/thunks/evaluateToolPolicies.ts` | 121 | 🟡 Thunk | `evaluateToolPolicies` | Dynamic tool policy evaluation per args; enforce policy hierarchy; mark disabled/allowed calls |
+| `reference/continue-src/gui/src/redux/thunks/cancelStream.ts` | 18 | 🟡 Thunk | `cancelStream` | Abort LLM stream; clear dangling messages/tools |
+| `reference/continue-src/gui/src/redux/thunks/cancelToolCall.ts` | 47 | 🟡 Thunk | `cancelToolCallThunk` | User rejection of tool call; optional message; stream response |
+| `reference/continue-src/gui/src/redux/thunks/moveTerminalProcessToBackground.ts` | 82 | 🟡 Thunk | `moveTerminalProcessToBackground` | Preserve terminal output; mark process as backgrounded; continue LLM |
+| `reference/continue-src/gui/src/redux/thunks/updateFileSymbols.ts` | 113 | 🟡 Thunk | `updateFileSymbolsFromFiles`, `updateFileSymbolsFromHistory` | Request symbols for file URIs from IDE; cache in state |
+| `reference/continue-src/gui/src/redux/thunks/updateSelectedModelByRole.ts` | 58 | 🟡 Thunk | `updateSelectedModelByRole` | Update config with selected model; post to IDE |
+| `reference/continue-src/gui/src/redux/thunks/streamNormalInput.ts` | 398 | 🟡 Thunk | `streamNormalInput` | Complete LLM pipeline: build messages, compile, stream, handle tool calls with policy evaluation |
+| `reference/continue-src/gui/src/redux/thunks/streamResponseAfterToolCall.ts` | 88 | 🟡 Thunk | `streamResponseAfterToolCall` | Create tool message; check completion; continue stream if all done |
+| `reference/continue-src/gui/src/redux/thunks/handleApplyStateUpdate.ts` | 217 | 🟡 Thunk | `handleApplyStateUpdate`, `applyForEditTool` | Track edit/apply states; auto-accept diffs; log outcomes; handle auto-format |
+| `reference/continue-src/gui/src/redux/thunks/streamResponse.ts` | 104 | 🟡 Thunk | `streamResponseThunk` | Resolve editor content; submit user message; construct symbols; dispatch stream |
+| `reference/continue-src/gui/src/redux/thunks/edit.ts` | 156 | 🟡 Thunk | `streamEditThunk`, `enterEdit`, `exitEdit` | Manage edit mode: enter/exit, resolve content, send to core, restore session |
+| `reference/continue-src/gui/src/redux/thunks/session.ts` | 262 | 🟡 Thunk | `saveCurrentSession`, `loadLastSession`, `loadSession`, `selectChatModelForProfile`, `refreshSessionMetadata`, `deleteSession`, `updateSession` | Session lifecycle: load/save, title generation, metadata refresh |
+| `reference/continue-src/gui/src/redux/store.ts` | 153 | 🔧 Config | `setupStore`, `RootState`, `AppDispatch`, `AppThunkDispatch`, `ThunkExtrasType`, `ThunkApiType`, `store`, `persistor` | Redux store setup: root reducer combiner, persist config, middleware, type exports |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -627,6 +643,47 @@ reference/continue-src/gui/
 | `setDialogMessage` | `gui/src/redux/slices/uiSlice.ts` | 64-69 | Action | Slice | Set dialog content (JSX element) |
 | `setShowDialog` | `gui/src/redux/slices/uiSlice.ts` | 70-72 | Action | Slice | Show/hide dialog |
 | `setIsExploreDialogOpen` | `gui/src/redux/slices/uiSlice.ts` | 73-78 | Action | Slice | Show/hide explore samples dialog |
+| `streamThunkWrapper` | `gui/src/redux/thunks/streamThunkWrapper.tsx` | 20-61 | Thunk | Thunk | Wrap stream thunk; retry on "overloaded" errors up to 3x with exponential backoff; show error dialog |
+| `callToolById` | `gui/src/redux/thunks/callToolById.ts` | 19-150 | Thunk | Thunk | Execute tool call; route to client/core; log output; log usage; stream response if needed |
+| `preprocessToolCalls` | `gui/src/redux/thunks/preprocessToolCallArgs.ts` | 12-65 | Function | Thunk | Validate tool args via core; dispatch error/processed args for all pending tool calls |
+| `evaluateToolPolicies` | `gui/src/redux/thunks/evaluateToolPolicies.ts` | 74-121 | Function | Thunk | Evaluate dynamic tool policies; enforce policy hierarchy (disabled > permission > no-permission); return evaluated policies |
+| `cancelStream` | `gui/src/redux/thunks/cancelStream.ts` | 9-18 | Thunk | Thunk | Abort stream; clear dangling messages and incomplete tool calls |
+| `cancelToolCallThunk` | `gui/src/redux/thunks/cancelToolCall.ts` | 16-47 | Thunk | Thunk | User rejects tool call; add rejection message if continueAfterToolRejection enabled; stream response |
+| `moveTerminalProcessToBackground` | `gui/src/redux/thunks/moveTerminalProcessToBackground.ts` | 20-82 | Thunk | Thunk | Preserve terminal output; abort stream; mark as backgrounded; accept tool; stream response |
+| `updateFileSymbolsFromFiles` | `gui/src/redux/thunks/updateFileSymbols.ts` | 42-68 | Thunk | Thunk | Request symbols for specific file paths; dedup; dispatch to state |
+| `updateFileSymbolsFromHistory` | `gui/src/redux/thunks/updateFileSymbols.ts` | 74-113 | Thunk | Thunk | Extract file URIs from history context items; skip existing; request symbols |
+| `getContextItemsFromHistory` | `gui/src/redux/thunks/updateFileSymbols.ts` | 7-36 | Function | Thunk | Extract file context items from history (normal + toolbar code blocks) |
+| `updateSelectedModelByRole` | `gui/src/redux/thunks/updateSelectedModelByRole.ts` | 7-58 | Thunk | Thunk | Update config with selected model; post to IDE for persistence |
+| `streamNormalInput` | `gui/src/redux/thunks/streamNormalInput.ts` | 72-398 | Thunk | Thunk | Complete LLM chat pipeline: compile messages, stream, track tool calls, evaluate policies, execute/wait for approval |
+| `buildReasoningCompletionOptions` | `gui/src/redux/thunks/streamNormalInput.ts` | 48-70 | Function | Thunk | Extend completion options with reasoning config (enable/budget) |
+| `streamResponseAfterToolCall` | `gui/src/redux/thunks/streamResponseAfterToolCall.ts` | 37-88 | Thunk | Thunk | Create tool message; check if all tools done; continue stream if so |
+| `areAllToolsDoneStreaming` | `gui/src/redux/thunks/streamResponseAfterToolCall.ts` | 17-35 | Function | Thunk | Check if all tool calls completed (done/errored/canceled) |
+| `handleApplyStateUpdate` | `gui/src/redux/thunks/handleApplyStateUpdate.ts` | 21-153 | Thunk | Thunk | Track edit mode or chat apply states; auto-accept diffs; log outcomes; continue stream |
+| `applyForEditTool` | `gui/src/redux/thunks/handleApplyStateUpdate.ts` | 155-217 | Thunk | Thunk | Apply code changes to file via IDE; handle errors; add auto-format context |
+| `streamResponseThunk` | `gui/src/redux/thunks/streamResponse.ts` | 18-104 | Thunk | Thunk | Resolve editor content (context + slash commands); submit message; get symbols; dispatch stream |
+| `streamEditThunk` | `gui/src/redux/thunks/edit.ts` | 29-74 | Thunk | Thunk | Resolve editor content; send prompt to IDE; set inactive |
+| `enterEdit` | `gui/src/redux/thunks/edit.ts` | 118-156 | Thunk | Thunk | Enter edit mode: save Editor content, set mode, dispatch new session |
+| `exitEdit` | `gui/src/redux/thunks/edit.ts` | 76-116 | Thunk | Thunk | Exit edit mode: restore session, editor content, mode; optionally load last session |
+| `saveCurrentSession` | `gui/src/redux/thunks/session.ts` | 186-262 | Thunk | Thunk | Save session with title generation; optionally open new session |
+| `loadLastSession` | `gui/src/redux/thunks/session.ts` | 140-170 | Thunk | Thunk | Load previous session with retry logic; restore model selection |
+| `loadSession` | `gui/src/redux/thunks/session.ts` | 87-114 | Thunk | Thunk | Load specific session; optionally save current; restore model |
+| `selectChatModelForProfile` | `gui/src/redux/thunks/session.ts` | 116-138 | Thunk | Thunk | Dispatch updateSelectedModelByRole from session chat model title |
+| `refreshSessionMetadata` | `gui/src/redux/thunks/session.ts` | 34-52 | Thunk | Thunk | Request session list from IDE; update Redux state |
+| `deleteSession` | `gui/src/redux/thunks/session.ts` | 54-68 | Thunk | Thunk | Delete session optimistically; load last if current; refresh metadata |
+| `updateSession` | `gui/src/redux/thunks/session.ts` | 70-82 | Thunk | Thunk | Save session to IDE; optimistic metadata update; refresh list |
+| `getSession` | `gui/src/redux/thunks/session.ts` | 23-32 | Function | Thunk | Request specific session from IDE history |
+| `getChatTitleFromMessage` | `gui/src/redux/thunks/session.ts` | 172-184 | Function | Thunk | Extract title from last non-empty line of chat message (max 100 chars) |
+| `setupStore` | `gui/src/redux/store.ts` | 106-131 | Function | Config | Initialize Redux store with persisted reducers, middleware, thunk extras, and logger |
+| `RootState` | `gui/src/redux/store.ts` | 149 | Type | Config | Return type of rootReducer; used by all selectors and thunks |
+| `AppDispatch` | `gui/src/redux/store.ts` | 151 | Type | Config | Store dispatch type for actions; used in hooks (useAppDispatch) |
+| `AppThunkDispatch` | `gui/src/redux/store.ts` | 141-145 | Type | Config | Thunk dispatch type with state/extra/action generics; used in async thunks |
+| `ThunkExtrasType` | `gui/src/redux/store.ts` | 134 | Type | Config | Shape of extra argument passed to thunks (IdeMessenger) |
+| `ThunkApiType` | `gui/src/redux/store.ts` | 136-139 | Type | Config | Thunk API config: state + extra + dispatch |
+| `persistor` | `gui/src/redux/store.ts` | 153 | Export | Config | redux-persist persistor instance; used with PersistGate wrapper |
+| `rootReducer` | `gui/src/redux/store.ts` | 26-34 | Constant | Config | Combined reducer from all slices (session, ui, editModeState, config, indexing, tabs, profiles) |
+| `persistConfig` | `gui/src/redux/store.ts` | 92-99 | Constant | Config | redux-persist configuration: version, storage, transforms, migration manifest |
+| `migrations` | `gui/src/redux/store.ts` | 66-90 | Constant | Config | State migration manifest (v0: old sessionId → new session.id) |
+| `saveSubsetFilters` | `gui/src/redux/store.ts` | 36-64 | Constant | Config | redux-persist-transform-filter array; specifies which slices/fields to persist |
 | `editToolImpl`
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -3683,7 +3740,364 @@ state.config = config  // Stores BrowserSerializedContinueConfig
 
   ---
 
-        ### Redux \u0026 Hooks Cross-Coordination
+        ## 🔄 REDUX THUNKS (15 files, 1542 lines)
+
+        **Overview**: Async side effect handlers orchestrating IDE messaging, LLM streaming, tool execution, and session management. Thunks compose lower-level actions and selectors into complex workflows with error handling and retry logic.
+
+        ### 1. Stream Orchestration & Error Handling
+
+        **streamThunkWrapper** (61 lines):
+        - Wraps all LLM streaming operations
+        - Detects "overloaded" errors (HTTP 529); retries up to 3× with exponential backoff (2s, 4s, 8s)
+        - Shows StreamErrorDialog on final failure
+        - Saves session after successful stream
+
+        **streamNormalInput** (398 lines):
+        - **Core LLM chat pipeline**:
+          1. Build messages with `constructMessages()` (system + rules + context)
+          2. Add tool framework (system message tools OR native tools)
+          3. Build reasoning options if enabled
+          4. Compile messages via `llm/compileChat` (IDE side)
+          5. Stream from IDE and accumulate chunks
+          6. Detect context pruning + apply rules indices
+          7. Intercept system tool calls if needed
+          8. Handle generation errors (premature close, etc.)
+
+        - **Tool call sequence**:
+          1. Mark generating calls as "generated" (line 295)
+          2. Preprocess args via `preprocessToolCalls()` (line 309)
+          3. Evaluate policies via `evaluateToolPolicies()` (line 318)
+          4. Filter: auto-approved (dispatch immediately), needs-approval (stop), all-approved (dispatch all)
+          5. Execute via `callToolById()` for auto-approved readonly built-in tools
+          6. Return and wait for UI approval for others
+
+        **streamResponse & streamResponseThunk** (104 lines):
+        - Resolve editor content (slash commands, context providers, selected code)
+        - Gather symbols for files
+        - Submit user message to history
+        - Dispatch `streamNormalInput`
+
+        ---
+
+        ### 2. Tool Call Execution Pipeline
+
+        **callToolById** (150 lines):
+        - Dispatch state change: generating → calling
+        - Route: client-side tools (edit/search-replace) → call directly
+        - Route: core tools → Messenger.request("tools/call")
+        - Collect output + mcpUiState
+        - Log usage telemetry
+        - Dispatch `streamResponseAfterToolCall` if streamResponse=true
+        - **Auto-approval logic**: edit tools always allowed; others depend on policies
+
+        **preprocessToolCalls** (65 lines):
+        - Promise.all() validate all tool args in parallel
+        - Use core `tools/preprocessArgs` RPC
+        - Dispatch errors/processed args via session actions
+        - Errors marked as "errored" with user message
+
+        **evaluateToolPolicies** (121 lines):
+        - Dynamic policy evaluation: auth args + base policies
+        - Edit tools: always allowedWithoutPermission
+        - Non-edit: use tool policy + default fallback
+        - Policy hierarchy enforcement:
+          - disabled (most restrictive) cannot be overridden
+          - allowedWithPermission cannot become allowedWithoutPermission
+        - Return evaluated results + displayValue per policy
+        - Mark disabled tools as errored with security violation message
+
+        **streamResponseAfterToolCall** (88 lines):
+        - Create tool message with output
+        - Check if all tool calls in assistant message are complete (done/errored/canceled)
+        - If all done: dispatch `streamNormalInput` (depth + 1) to continue conversation
+        - Handles race conditions gracefully
+
+        **cancelStream** (18 lines):
+        - Abort streaming via `abortStream()` action
+        - Clear any dangling messages/incomplete tool calls
+        - Mark session as inactive
+
+        **cancelToolCall** (47 lines):
+        - User rejects tool call via UI
+        - Add rejection context message (configurable)
+        - Dispatch `streamResponseAfterToolCall` to continue
+
+        ---
+
+        ### 3. Edit Mode Management
+
+        **enterEdit** (156 lines):
+        - Validate code to edit exists
+        - Save current editor content
+        - Set return-to mode
+        - Dispatch `saveCurrentSession` (to save context before switching)
+        - Set `isInEdit = true`
+
+        **exitEdit** (156 lines):
+        - Clear code to edit
+        - Restore editor content from saved state
+        - Reject any pending diffs
+        - Post `clearDecorations` to IDE
+        - Decide: open new session OR load last session OR just clear
+        - Restore mode
+
+        **streamEditThunk** (156 lines):
+        - Resolve editor content (no slash commands/context in edit mode)
+        - Send prompt + code range to IDE via `edit/sendPrompt`
+        - Set inactive
+
+        **handleApplyStateUpdate** (217 lines):
+        - Route by streamId:
+          - **Edit mode** (EDIT_MODE_STREAM_ID): update editState, log on close → dispatch `exitEdit`
+          - **Chat/Agent**: update session apply states
+        - On done status + allowedWithoutPermission: auto-accept diff via IDE
+        - On closed status:
+          - Log tool outcome (accepted/errored)
+          - Log edit outcome for Agent mode
+          - If accepted: add auto-format context if present
+          - Dispatch `streamResponseAfterToolCall` (depth + 1)
+
+        **applyForEditTool** (217 lines):
+        - Dispatch apply state: not-started
+        - Request file application via IDE `applyToFile`
+        - On error: dispatch errorToolCall + update with error message
+        - On success: (handled by handleApplyStateUpdate via IDE callback)
+
+        ---
+
+        ### 4. File & Symbol Management
+
+        **updateFileSymbols(FromFiles|FromHistory)** (113 lines):
+        - `updateFileSymbolsFromFiles()`: Request symbols for specific file paths
+        - `updateFileSymbolsFromHistory()`: Extract file URIs from context items in history; skip already-cached; request new
+        - `getContextItemsFromHistory()`: Collect file references from normal context + toolbar code blocks
+
+        ---
+
+        ### 5. Session Lifecycle
+
+        **saveCurrentSession** (262 lines):
+        - Skip if history empty
+        - Optionally open new session first
+        - Generate title (fallback: first assistant response; fallback: from message)
+        - Respect disableSessionTitles config
+        - Format session object (id, title, workspaceDir, history, mode, chatModelTitle)
+        - Request IDE save via `history/save`
+        - Refresh metadata list
+
+        **loadLastSession** (170 lines):
+        - Get lastSessionId from session state
+        - Request session from IDE (with retry on failure)
+        - Dispatch `newSession()` with loaded session
+        - Restore model selection
+
+        **loadSession** (114 lines):
+        - Optionally save current session first
+        - Load specific session by ID
+        - Dispatch `newSession()` + restore model
+
+        **selectChatModelForProfile** (138 lines):
+        - Wrapper to dispatch `updateSelectedModelByRole` with current profile
+
+        **refreshSessionMetadata** (52 lines):
+        - Request session list from IDE
+        - Update Redux state with metadata
+
+        **deleteSession** (68 lines):
+        - Optimistic delete from metadata
+        - Load last session if current is deleted
+        - Request IDE delete
+        - Refresh metadata
+
+        **updateSession** (82 lines):
+        - Optimistic metadata update
+        - Request IDE save
+        - Refresh metadata
+
+        **updateSelectedModelByRole** (58 lines):
+        - Update config with selected model for role
+        - Post to IDE for persistence
+
+        ---
+
+        ### 6. Utility Functions & Helpers
+
+        **buildReasoningCompletionOptions()** (70 lines):
+        - Extend completion options with reasoning settings
+        - Set reasoning=true if enabled
+        - Add reasoningBudgetTokens if provider supports (skip Ollama)
+
+        **areAllToolsDoneStreaming()** (35 lines):
+        - Check all tool calls completed or optionally canceled (continueAfterToolRejection)
+        - Determine if LLM should stream next response
+
+        **moveTerminalProcessToBackground** (82 lines):
+        - Preserve existing terminal output
+        - Mark process as backgrounded in IDE
+        - Accept tool call
+        - Continue stream
+
+        ---
+
+        ### Thunk Cross-Coordination
+
+        **Streaming Pipeline**:
+        - User submits → `streamResponseThunk` → resolve content
+        - `streamNormalInput` → compile + stream
+        - Tool calls generated → preprocess → evaluate policies
+        - Auto-approved → `callToolById` (parallel)
+        - Streams response → `streamResponseAfterToolCall`
+        - All done → cycle back to `streamNormalInput` (depth + 1)
+
+        **Edit Mode**:
+        - `enterEdit` → save session → stream edits
+        - `streamEditThunk` → send to IDE
+        - IDE applies → `handleApplyStateUpdate` → `exitEdit` → restore session
+
+        **Session Management**:
+        - `saveCurrentSession` generates title (title describer or fallback)
+        - `loadLastSession` restores model selection
+        - `refreshSessionMetadata` keeps list in sync
+
+        **Error Handling**:
+        - `streamThunkWrapper` catches and retries overloaded errors
+        - Tool policy evaluation disables unsafe calls
+        - Argument validation prevents execution errors
+        - Apply errors logged with outcomes
+
+        ---
+
+              ---
+
+              ## 🏪 REDUX STORE (1 file, 153 lines)
+
+              **Overview**: Central Redux configuration, combining all slices into a persistent store with middleware setup, state migrations, and type exports for thunks and components.
+
+              ### Store Architecture
+
+              **Root Reducer Composition** (lines 26-34):
+              ```
+              rootReducer = combineReducers({
+                session,           // Chat history, tool calls, edit state
+                ui,                // Tool policies, settings, dialogs
+                editModeState,     // Temporary edit mode metadata
+                config,            // Models, tools, rules, LLM settings
+                indexing,          // Codebase indexing status
+                tabs,              // Multi-tab chat session tracking
+                profiles,          // User workspace/profile preferences
+              })
+              ```
+
+              ### Persistence Configuration
+
+              **redux-persist Setup** (lines 92-99):
+              - **Key**: `"root"` (identifies localStorage entry)
+              - **Version**: 1 (enables state schema migrations)
+              - **Storage**: Browser localStorage
+              - **Transforms**: `saveSubsetFilters` (selective persistence, see below)
+              - **stateReconciler**: `autoMergeLevel2` (merge loaded state with runtime defaults)
+              - **Migrate**: `createMigrate()` with migration manifest for schema upgrades
+
+              **Selective Persistence** (lines 36-64):
+              - **session**: Save only `id`, `lastSessionId`, `title`, `mode` (not `history` or `symbols` due to size/risk)
+              - **editModeState**: Save `returnToMode`, `lastNonEditSessionWasEmpty`, `codeToEdit`
+              - **config**: Persist nothing (rebuilt from IDE on load)
+              - **ui**: Save `toolSettings`, `toolGroupSettings`, `ruleSettings`, `reasoningSettings`
+              - **indexing**: Persist nothing
+              - **tabs**: Save `tabs` array (tab IDs and titles)
+              - **profiles**: Save `preferencesByProfileId`, `selectedProfileId`
+
+              **State Migrations** (lines 66-90):
+              - **v0→v1**: Convert old `oldState.state.sessionId` → new `session.id` structure; initialize `tabs` array
+              - Provides forward compatibility for localStorage upgrades
+
+              ### Store Setup & Middleware
+
+              **setupStore(options)** (lines 106-131):
+              - Configures Redux Toolkit with:
+                - **Reducer**: `persistedReducer` (wraps `rootReducer` with redux-persist)
+                - **Middleware**:
+                  - Redux Toolkit defaults (exceptions: `serializableCheck: false` for non-serializable thunk extras)
+                  - **Thunk extras**: `ideMessenger` passed to all async thunks via `extra` argument
+                - **Optional**: Redux logger middleware (commented out by default)
+
+              **Logger Configuration** (lines 109-114):
+              - `collapsed: true` – Collapse action logs in console
+              - `timestamp: false` – Omit timestamps
+              - `diff: true` – Show state diff after each action
+
+              ### Type Exports for Type Safety
+
+              **ThunkExtrasType** (line 134):
+              ```typescript
+              type ThunkExtrasType = { ideMessenger: IIdeMessenger }
+              ```
+              - Shape of extra argument in `createAsyncThunk`
+              - Enables IDE messaging in thunks via `extra.ideMessenger`
+
+              **ThunkApiType** (lines 136-139):
+              ```typescript
+              type ThunkApiType = {
+                state: RootState,
+                extra: ThunkExtrasType
+              }
+              ```
+              - Complete thunk API configuration
+              - Used in `createAsyncThunk({ ..., asyncThunkCreator(arg, thunkApi) })`
+
+              **AppThunkDispatch** (lines 141-145):
+              ```typescript
+              type AppThunkDispatch = ThunkDispatch<RootState, ThunkExtrasType, UnknownAction>
+              ```
+              - Dispatch type for async thunks
+              - Includes thunk handling + normal action dispatch
+              - Used in client tools and utility functions
+
+              **RootState** (line 149):
+              ```typescript
+              type RootState = ReturnType<typeof rootReducer>
+              ```
+              - Entire Redux state tree shape
+              - Used in all selectors and thunk type signatures
+
+              **AppDispatch** (line 151):
+              ```typescript
+              type AppDispatch = typeof store.dispatch
+              ```
+              - Regular (non-thunk) dispatch type
+              - Used in React hooks: `useAppDispatch()`, `useAppSelector()`
+
+              ### Store Instances
+
+              **store** (line 147):
+              - Global Redux store instance created via `setupStore({})`
+              - Default: no custom IdeMessenger (uses global instance from IdeMessenger constructor)
+              - Used to dispatch actions/thunks throughout the app
+
+              **persistor** (line 153):
+              - redux-persist persistor instance
+              - Wrapped in `PersistGate` in root App component
+              - Delays app render until persisted state rehydrates from localStorage
+              - Handles purge/flush operations for logout/session clear
+
+              ### Integration Points
+
+              **Thunk Access to IdeMessenger**:
+              - All async thunks receive `extra.ideMessenger` as 3rd parameter
+              - Enables request/post to IDE without coupling slices to context
+              - Example: `extra.ideMessenger.request("tools/call", ...)`
+
+              **Selector Type Safety**:
+              - `RootState` type enables compile-time safety for `useAppSelector(state => ...)`
+              - TypeScript auto-completes paths within state tree
+
+              **Dispatch Type Safety**:
+              - `AppDispatch` ensures only valid actions/thunks can be dispatched
+              - `AppThunkDispatch` in utilities provides thunk-specific types
+
+              ---
+
+                    ### Redux & Hooks Cross-Coordination
 
   **useAppDispatch + useAppSelector**:
   - Used throughout GUI to access/modify Redux state
