@@ -62,6 +62,12 @@
 | `reference/continue-src/gui/src/components/config/FatalErrorNotice.tsx` | 75 | 🟢 Component | `FatalErrorIndicator` | Config error alert with profile name & reload/help links |
 | `reference/continue-src/gui/src/components/dialogs/index.tsx` | 81 | 🟢 Component | `TextDialog` | Modal dialog with backdrop, Markdown rendering, Esc/close handlers |
 | `reference/continue-src/gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 349 | 🟢 Component | `TipTapEditor`, `TipTapEditorProps` interface, `TipTapEditorInner` | Rich text editor with image drag-drop, toolbar, focus/blur management, Tiptap integration |
+| `reference/continue-src/gui/src/hooks/useWebviewListener.ts` | 39 | 🔵 Hook | `useWebviewListener()` | Register typed message listeners on webview; handle IDE→GUI messages with auto-respond |
+| `reference/continue-src/gui/src/hooks/ParallelListeners.tsx` | 264 | 🔵 Hook | `ParallelListeners` component | Master event listener for all IDE/Core messages; dispatches Redux actions for config, session, indexing |
+| `reference/continue-src/gui/src/redux/hooks.ts` | 5 | 🟢 Utils | `useAppDispatch`, `useAppSelector` | Typed Redux hooks with AppDispatch and RootState |
+| `reference/continue-src/gui/src/redux/util/getBaseSystemMessage.ts` | 32 | 🟢 Utils | `getBaseSystemMessage()`, `NO_TOOL_WARNING` constant | Select mode-specific system prompt; append no-tools warning |
+| `reference/continue-src/gui/src/redux/util/constructMessages.ts` | 230 | 🟢 Utils | `constructMessages()` | Build LLM message array from history; apply rules; handle tool calls; append summaries |
+| `reference/continue-src/gui/src/redux/util/index.ts` | 126 | 🟢 Utils | `hasCurrentToolCalls()`, `findAllCurToolCalls()`, `findToolCallById()`, `findChatHistoryItemByToolCallId()`, `logToolUsage()` | Tool call state query functions; devdata logging |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🟡 Tool | `editToolImpl` | Client-side implementation of EditExistingFile tool (dispatch applyForEditTool) |
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -500,6 +506,21 @@ reference/continue-src/gui/
 | `createEditorConfig()` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 60-64 | Function | Component | (imported from utils) Create Tiptap editor config with extensions and handlers |
 | `useEditorEventHandlers()` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 168-173 | Hook | Component | (imported from utils) Return handleKeyUp, handleKeyDown for editor keyboard/autocomplete behavior |
 | `handleImageFile()` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 252, 284 | Function | Component | (imported from utils) Process dropped/selected image file; return [fileName, dataUrl] |
+| `useWebviewListener()` | `gui/src/hooks/useWebviewListener.ts` | 6-39 | Hook | Hook | Generic webview message listener; set up window message handler, auto-respond, cleanup on unmount |
+| `ParallelListeners` | `gui/src/hooks/ParallelListeners.tsx` | 37-264 | Component | Hook | Master global event listener; coordinates all webview message handlers + Redux dispatch |
+| `handleConfigUpdate()` | `gui/src/hooks/ParallelListeners.tsx` | 55-102 | Function | Hook | Process config updates from IDE; dispatch profiles, config, reasoning settings to Redux |
+| `useAppDispatch()` | `gui/src/redux/hooks.ts` | 4 | Hook | Utils | Typed Redux dispatch hook (returns AppDispatch type) |
+| `useAppSelector()` | `gui/src/redux/hooks.ts` | 5 | Hook | Utils | Typed Redux selector hook (accepts RootState type parameter) |
+| `getBaseSystemMessage()` | `gui/src/redux/util/getBaseSystemMessage.ts` | 11-32 | Function | Utils | Select base system message by mode (agent/plan/chat); append NO_TOOL_WARNING if no tools |
+| `NO_TOOL_WARNING` | `gui/src/redux/util/getBaseSystemMessage.ts` | 8-9 | Constant | Utils | Text warning: "THE USER HAS NOT PROVIDED ANY TOOLS..." (appended when agent/plan mode has no tools) |
+| `constructMessages()` | `gui/src/redux/util/constructMessages.ts` | 37-230 | Function | Utils | Build LLM message array from history; filter by conversation summary; apply rules; convert tool calls to text if system-tools framework; return { messages, appliedRules, appliedRuleIndex } |
+| `MessageWithContextItems` | `gui/src/redux/util/constructMessages.ts` | 33-36 | Type | Utils | `{ ctxItems: ContextItemWithId[], message: ChatMessage }` - helper for constructing messages |
+| `hasCurrentToolCalls()` | `gui/src/redux/util/index.ts` | 12-16 | Function | Utils | Check if most recent assistant message has tool call states |
+| `findAllCurToolCalls()` | `gui/src/redux/util/index.ts` | 40-64 | Function | Utils | Get all tool call states from most recent assistant message (scanning backward; stop at user message) |
+| `findAllCurToolCallsByStatus()` | `gui/src/redux/util/index.ts` | 25-32 | Function | Utils | Get tool call states with specific status (pending, executing, succeeded, canceled, errored) |
+| `findToolCallById()` | `gui/src/redux/util/index.ts` | 73-90 | Function | Utils | Find tool call state anywhere in history by toolCallId (reverse scan) |
+| `findChatHistoryItemByToolCallId()` | `gui/src/redux/util/index.ts` | 92-100 | Function | Utils | Find chat history item (tool role) with matching toolCallId |
+| `logToolUsage()` | `gui/src/redux/util/index.ts` | 102-126 | Function | Utils | Post devdata/log message with tool call details (function name, params, args, accepted, output, success status) |
 | `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-53 | ClientToolImpl | Tool | Execute EditExistingFile: resolve path, dispatch applyForEditTool |
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -3004,6 +3025,240 @@ state.config = config  // Stores BrowserSerializedContinueConfig
   - Toolbar (InputToolbar): Renders with hidden/shown state, context/command insertion
   - Drag overlay: Visual feedback during file drag
   - Input styling: StyledComponents (InputBoxDiv)
+
+     ---
+
+  ## ⚙️ GUI HOOKS & MESSAGE LISTENERS (2 files, 303 lines)
+
+  **Overview**: React hooks for webview message subscription and global event coordination. `useWebviewListener` provides typed message registration; `ParallelListeners` orchestrates all IDE/Core messages into Redux actions.
+
+  ### 1. Webview Message Listener Hook (useWebviewListener.ts - 39 lines)
+
+  **Purpose**: Generic React hook for subscribing to typed webview messages from IDE/Core; auto-responds with handler result.
+
+  **Implementation** (lines 6-39):
+  - `useWebviewListener<T extends keyof ToWebviewProtocol>(messageType, handler, dependencies?, skip?)`
+  - Generic over message type T (from protocol)
+  - Handler signature: `(data: ToWebviewProtocol[T][0]) => Promise<ToWebviewProtocol[T][1]>`
+
+  **Behavior**:
+  1. Get IdeMessenger from context (line 12)
+  2. In useEffect (lines 14-38):
+     - If not skipped, create listener for window "message" event
+     - On message: check messageType match, call handler, auto-respond with result
+     - If skipped, listener not registered
+     - Cleanup: remove listener on unmount
+  3. Dependency array: `[...dependencies, skip, ideMessenger]`
+
+  **Key Pattern**:
+  - Automatically responds using `ideMessenger.respond(messageType, result, messageId)`
+  - Enables request/response semantics without boilerplate
+  - Allows conditional listener registration via `skip` parameter
+
+  **Usage Examples** (from ParallelListeners):
+  - `useWebviewListener("configUpdate", handleConfigUpdate, [handleConfigUpdate])`
+  - `useWebviewListener("jetbrains/setColors", (data) => { setDocumentStylesFromTheme(data); }, [])`
+  - `useWebviewListener("getWebviewHistoryLength", async () => history.length, [history])`
+
+  ---
+
+  ### 2. Parallel Event Listeners & Dispatcher (ParallelListeners.tsx - 264 lines)
+
+  **Purpose**: Global event listener component; coordinates all IDE↔GUI messages and dispatches appropriate Redux actions. Runs once at app bootstrap.
+
+  **Component Exports**:
+  - `ParallelListeners` (lines 37-264): React component (returns empty fragment)
+  - Default export: ParallelListeners
+
+  **Key Responsibilities**:
+
+  *Initial Configuration Load* (lines 48-102):
+  - `handleConfigUpdate(isInitial, result)` callback:
+    1. Skip if already loaded and isInitial = true
+    2. Dispatch `setProfiles(profiles)`, `setSelectedProfile(profileId)`, `setConfigResult(configResult)`
+    3. If new profile: dispatch `initializeProfilePreferences`
+    4. Set fontSize in localStorage + DOM style
+    5. Check reasoning model support + prior settings
+    6. Dispatch `setHasReasoningEnabled` based on capability + past preference
+
+  *Config Loading & Initial Session* (lines 105-142):
+  - Call `ideMessenger.request("config/getSerializedProfileInfo")` on mount
+  - Load initial session if `initialSessionId` exists
+  - Poll every 2 seconds until initial load complete:
+    - Post "docs/initStatuses" to core
+    - Dispatch `updateFileSymbolsFromHistory`
+    - Dispatch `refreshSessionMetadata`
+    - Clear interval
+
+  *Message Listeners* (registered via useWebviewListener):
+
+  | Message Type | Handler | Action |
+  |--------------|---------|--------|
+  | `configUpdate` | `handleConfigUpdate` | Dispatch config + profile updates |
+  | `jetbrains/setColors` | `setDocumentStylesFromTheme` | Apply JetBrains theme colors |
+  | `getWebviewHistoryLength` | Return `history.length` | Respond with history count |
+  | `getCurrentSessionId` | Return `sessionId` | Respond with current session |
+  | `setInactive` | `cancelStream()` | Cancel LLM streaming |
+  | `setTTSActive` | `setTTSActive(status)` | Dispatch TTS state |
+  | `addContextItem` | `addContextItemsAtIndex` | Dispatch add context at index |
+  | `indexing/statusUpdate` | `updateIndexingStatus` | Dispatch indexing progress |
+  | `updateApplyState` | `handleApplyStateUpdate` | Dispatch apply state update |
+
+  *JetBrains-Specific Initialization* (lines 162-195):
+  - Load theme colors: `ideMessenger.request("jetbrains/getColors")` → `setDocumentStylesFromTheme`
+  - Call `ideMessenger.request("jetbrains/onLoad")` → store windowId, serverUrl, workspacePaths, vscMachineId, vscMediaUrl in window globals
+
+  *Session & History Tracking* (lines 155-259):
+  - `updateFileSymbolsFromHistory` on session ID change
+  - `setLastNonEditSessionEmpty` when exiting edit mode
+  - `migrateLocalStorage` on mount
+
+  ---
+
+  ## 📋 REDUX UTILITIES (4 files, 393 lines)
+
+  **Overview**: Redux hooks and utility functions for system messages, message construction, and tool call state queries. Support LLM prompt assembly, rule application, and tool execution tracking.
+
+  ### 1. Redux Typed Hooks (hooks.ts - 5 lines)
+
+  **Purpose**: Provide typed Redux hooks bound to AppDispatch and RootState.
+
+  **Exports**:
+  - `useAppDispatch()` (line 4): Hook that returns `AppDispatch` type
+  - `useAppSelector()` (line 5): TypedUseSelectorHook<RootState>; selector hook with RootState type inference
+
+  **Usage**:
+  ```typescript
+  const dispatch = useAppDispatch();  // Typed to AppDispatch
+  const value = useAppSelector(state => state.slice.field);  // RootState inferred
+  ```
+
+  ---
+
+  ### 2. Base System Message Selector (getBaseSystemMessage.ts - 32 lines)
+
+  **Purpose**: Select mode-specific system prompt; optionally append tool warning.
+
+  **Constants**:
+  - `NO_TOOL_WARNING` (lines 8-9): String constant warning agent/plan modes when no tools available
+
+  **Function** (lines 11-32):
+  ```typescript
+  function getBaseSystemMessage(
+    messageMode: string,
+    model: ModelDescription,
+    activeTools?: Tool[],
+  ): string
+  ```
+
+  **Logic**:
+  1. Select base message by mode:
+     - "agent" → `model.baseAgentSystemMessage ?? DEFAULT_AGENT_SYSTEM_MESSAGE`
+     - "plan" → `model.basePlanSystemMessage ?? DEFAULT_PLAN_SYSTEM_MESSAGE`
+     - else (chat) → `model.baseChatSystemMessage ?? DEFAULT_CHAT_SYSTEM_MESSAGE`
+  2. If mode !== "chat" AND no tools: append `NO_TOOL_WARNING`
+  3. Return final message
+
+  **Usage**: Called in LLM message construction to establish system user message
+
+  ---
+
+  ### 3. Message Constructor (constructMessages.ts - 230 lines)
+
+  **Purpose**: Convert Redux chat history into LLM-ready message array; apply rules; handle tool call rendering; append summaries.
+
+  **Type** (lines 33-36):
+  - `MessageWithContextItems`: `{ ctxItems: ContextItemWithId[], message: ChatMessage }`
+
+  **Function** (lines 37-230):
+  ```typescript
+  function constructMessages(
+    history: ChatHistoryItem[],
+    baseSystemMessage: string | undefined,
+    availableRules: RuleWithSource[],
+    rulePolicies: RulePolicies,
+    useSystemToolsFramework?: SystemMessageToolsFramework,
+  ): { messages: ChatMessage[], appliedRules: RuleMetadata[], appliedRuleIndex: number }
+  ```
+
+  **Algorithm**:
+
+  1. **Summary Detection** (lines 48-60):
+     - Scan history backward for most recent `conversationSummary`
+     - Keep only messages AFTER the summary
+
+  2. **History Processing** (lines 64-176):
+     - Filter out system/tool/empty messages initially
+     - For user messages:
+       - Normalize content to message parts
+       - Add context items as prepended text parts
+       - Track index for rule application
+     - For thinking messages: pass through
+     - For assistant messages:
+       - If `useSystemToolsFramework`: convert tool calls to system message tool format (assistant + user message pair)
+       - Else: keep assistant message + insert tool call result messages per `toolCallState`:
+         - No output → `NO_TOOL_CALL_OUTPUT_MESSAGE`
+         - Canceled → `CANCELLED_TOOL_CALL_MESSAGE`
+         - Errored → `ERRORED_TOOL_CALL_OUTPUT_MESSAGE`
+         - Output + RunTerminalCommand → `renderContextItemsWithStatus(output)` (per-item status)
+         - Output + other → `renderContextItems(output)`
+
+  3. **Rule Application** (lines 178-204):
+     - Find last user/tool message (for rule context)
+     - Collect context items from last user message to end
+     - Call `getSystemMessageWithRules()` to merge system message with filter rules
+     - Get `systemMessage` + `appliedRules` array
+
+  4. **Summary Append** (lines 206-212):
+     - If `summaryContent` exists: prepend "Previous conversation summary: {summary}"
+     - Merge with system message
+
+  5. **Final Assembly** (lines 214-229):
+     - If final system message not empty: prepend as system role message
+     - Extract just messages (drop contextItems)
+     - Return `{ messages, appliedRules, appliedRuleIndex }`
+
+  ---
+
+  ### 4. Tool Call State Utilities (util/index.ts - 126 lines)
+
+  **Purpose**: Query tool call states in history; log tool execution.
+
+  **Functions**:
+
+  | Function | Lines | Purpose | Behavior |
+  |----------|-------|---------|----------|
+  | `hasCurrentToolCalls()` | 12-16 | Check for current tool calls | Return `findAllCurToolCalls().length > 0` |
+  | `findAllCurToolCalls()` | 40-64 | Get all current tool calls | Scan history backward; stop at user message; return tool call states array from most recent assistant |
+  | `findAllCurToolCallsByStatus()` | 25-32 | Filter tool calls by status | Call `findAllCurToolCalls()`, filter by status param (pending/executing/succeeded/canceled/errored) |
+  | `findToolCallById()` | 73-90 | Find tool call anywhere | Reverse scan history; search each message's toolCallStates array; return match or undefined |
+  | `findChatHistoryItemByToolCallId()` | 92-100 | Find tool message | Find first match: `message.role === "tool"` AND `message.toolCallId === toolCallId` |
+  | `logToolUsage()` | 102-126 | Log tool execution telemetry | Post `ideMessenger.post("devdata/log", { name: "toolUsage", data: {...} })` with tool call details |
+
+  **Tool Usage Logging** (lines 102-126):
+  - Posts to "devdata/log" with telemetry:
+    - toolCallId, functionName, functionParams, toolCallArgs
+    - accepted (boolean), output (ContextItem[]), succeeded (boolean)
+  - Used for analytics/debugging
+
+  ---
+
+  ### Redux & Hooks Cross-Coordination
+
+  **useAppDispatch + useAppSelector**:
+  - Used throughout GUI to access/modify Redux state
+  - TypeSafe: AppDispatch + RootState types prevent misuse
+  - Combined with thunks for async operations
+
+  **System Message + Message Construction**:
+  - `getBaseSystemMessage()` called within `constructMessages()` workflow
+  - Establishes initial system context; rules layer additional guidance
+  - Tool call rendering handles framework-specific formatting
+
+  **Tool Call Utilities + ParallelListeners**:
+  - `ParallelListeners` dispatches actions that modify chat history
+  - Tool call functions query resulting history state
+  - `logToolUsage()` sends telemetry to IDE via IdeMessenger
 
   ---
 
