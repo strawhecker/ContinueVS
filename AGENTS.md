@@ -71,6 +71,13 @@
 | `reference/continue-src/gui/src/redux/selectors/selectActiveTools.ts` | 35 | 🟢 Selectors | `selectActiveTools` | Mode-aware tool filtering based on policies and groups |
 | `reference/continue-src/gui/src/redux/selectors/selectToolCalls.ts` | 68 | 🟢 Selectors | `selectCurrentToolCalls`, `selectHasCurrentToolCalls`, `selectToolCallsByStatus`, `selectFirstPendingToolCall`, `selectToolCallById`, `selectApplyStateByToolCallId`, `selectPendingToolCalls`, `selectDoneApplyStates` | Tool call state queries and apply state tracking |
 | `reference/continue-src/gui/src/redux/selectors/index.ts` | 56 | 🟢 Selectors | `selectSlashCommandComboBoxInputs`, `selectSlashCommands`, `selectSubmenuContextProviders`, `selectDefaultContextProviders`, `selectUseActiveFile` | Slash commands, context providers, and default context configuration |
+| `reference/continue-src/gui/src/redux/slices/editState.ts` | 87 | 🟢 Slice | `editStateSlice`, `setReturnToModeAfterEdit`, `setCodeToEdit`, `clearCodeToEdit`, `updateEditStateApplyState`, `setLastNonEditSessionEmpty`, `setPreviousModeEditorContent` | Edit mode state: code to edit, apply state, return mode, editor content |
+| `reference/continue-src/gui/src/redux/slices/indexingSlice.ts` | 66 | 🟢 Slice | `indexingSlice`, `updateIndexingStatus`, `setIndexingChatPeekHidden` | Indexing status tracking and chat peek visibility |
+| `reference/continue-src/gui/src/redux/slices/profilesSlice.ts` | 151 | 🟢 Slice | `profilesSlice`, `setProfiles`, `setSelectedProfile`, `initializeProfilePreferences`, `bookmarkSlashCommand`, `unbookmarkSlashCommand`, `selectSelectedProfile`, `selectProfiles`, `selectBookmarkedSlashCommands` | Profile management, slash command bookmarks, preferences per profile |
+| `reference/continue-src/gui/src/redux/slices/tabsSlice.ts` | 140 | 🟢 Slice | `tabsSlice`, `setTabs`, `updateTab`, `addTab`, `removeTab`, `setActiveTab`, `handleSessionChange` | Chat tabs with session linking and intelligent tab switching |
+| `reference/continue-src/gui/src/redux/slices/sessionSlice.ts` | 1097 | 🟢 Slice | `sessionSlice`, `streamUpdate`, `newSession`, `submitEditorAndInitAtIndex`, `setToolGenerated`, `updateToolCallOutput`, `cancelToolCall`, `deleteMessage`, `updateApplyState`, `setMode`, `setIsInEdit`, `setHasReasoningEnabled`, `selectApplyStateByStreamId`, `selectApplyStateByToolCallId` | Core chat session: history, tool calls, streaming, apply states, reasoning |
+| `reference/continue-src/gui/src/redux/slices/configSlice.ts` | 109 | 🟢 Slice | `configSlice`, `setConfigResult`, `updateConfig`, `setConfigLoading`, `selectSelectedChatModel`, `selectSelectedChatModelContextLength`, `selectUIConfig` | Configuration state: models, tools, rules, context providers, errors |
+| `reference/continue-src/gui/src/redux/slices/uiSlice.ts` | 171 | 🟢 Slice | `uiSlice`, `setToolPolicy`, `toggleToolSetting`, `toggleToolGroupSetting`, `toggleRuleSetting`, `setReasoningSetting`, `setTTSActive`, `setOnboardingCard` | UI settings: tool/rule/reasoning policies, dialogs, onboarding, TTS |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -538,6 +545,88 @@ reference/continue-src/gui/
 | `selectSubmenuContextProviders` | `gui/src/redux/selectors/index.ts` | 39-44 | Selector | Selectors | Filter context providers by type === "submenu" |
 | `selectDefaultContextProviders` | `gui/src/redux/selectors/index.ts` | 46-51 | Selector | Selectors | Extract default context providers from config.experimental.defaultContext |
 | `selectUseActiveFile` | `gui/src/redux/selectors/index.ts` | 53-56 | Selector | Selectors | Check if "activeFile" in default context (boolean) |
+| `EditState` | `gui/src/redux/slices/editState.ts` | 6-14 | Type | Slice | `{ codeToEdit: SetCodeToEditPayload[], applyState: ApplyState, returnToMode: MessageModes, lastNonEditSessionWasEmpty: boolean, previousModeEditorContent?: JSONContent }` |
+| `INITIAL_EDIT_STATE` | `gui/src/redux/slices/editState.ts` | 21-27 | Constant | Slice | Default edit state with empty code, not-started apply state, chat mode |
+| `setReturnToModeAfterEdit` | `gui/src/redux/slices/editState.ts` | 33-38 | Action | Slice | Set message mode to return to after exiting edit mode |
+| `setCodeToEdit` | `gui/src/redux/slices/editState.ts` | 48-59 | Action | Slice | Set code to edit (normalizes single item or array) |
+| `clearCodeToEdit` | `gui/src/redux/slices/editState.ts` | 60-62 | Action | Slice | Clear code to edit array |
+| `updateEditStateApplyState` | `gui/src/redux/slices/editState.ts` | 39-47 | Action | Slice | Merge apply state updates into current edit apply state |
+| `setLastNonEditSessionEmpty` | `gui/src/redux/slices/editState.ts` | 63-68 | Action | Slice | Track if non-edit session was empty on exit |
+| `setPreviousModeEditorContent` | `gui/src/redux/slices/editState.ts` | 69-74 | Action | Slice | Save editor content before entering edit mode |
+| `IndexingState` | `gui/src/redux/slices/indexingSlice.ts` | 4-9 | Type | Slice | `{ indexing: { statuses: Record<string, IndexingStatus>, hiddenChatPeekTypes: Record<IndexingStatus["type"], boolean> } }` |
+| `updateIndexingStatus` | `gui/src/redux/slices/indexingSlice.ts` | 24-45 | Action | Slice | Update indexing status by ID; auto-unhide peek when all indexing of type complete |
+| `setIndexingChatPeekHidden` | `gui/src/redux/slices/indexingSlice.ts` | 46-59 | Action | Slice | Toggle chat peek visibility for indexing type (docs, etc.) |
+| `ProfilesState` | `gui/src/redux/slices/profilesSlice.ts` | 15-19 | Type | Slice | `{ profiles: ProfileDescription[], selectedProfileId: string | null, preferencesByProfileId: Record<string, PreferencesState> }` |
+| `PreferencesState` | `gui/src/redux/slices/profilesSlice.ts` | 11-13 | Type | Slice | `{ bookmarkedSlashCommands: string[] }` |
+| `setProfiles` | `gui/src/redux/slices/profilesSlice.ts` | 47-49 | Action | Slice | Set array of available profiles |
+| `setSelectedProfile` | `gui/src/redux/slices/profilesSlice.ts` | 44-46 | Action | Slice | Set currently selected profile ID |
+| `initializeProfilePreferences` | `gui/src/redux/slices/profilesSlice.ts` | 50-80 | Action | Slice | Initialize preferences for profile (backfill old preferences, bookmark default commands) |
+| `bookmarkSlashCommand` | `gui/src/redux/slices/profilesSlice.ts` | 81-94 | Action | Slice | Add slash command name to bookmarks (no duplicates) |
+| `unbookmarkSlashCommand` | `gui/src/redux/slices/profilesSlice.ts` | 95-111 | Action | Slice | Remove slash command name from bookmarks |
+| `selectSelectedProfile` | `gui/src/redux/slices/profilesSlice.ts` | 114-120 | Selector | Slice | Find current profile by selectedProfileId |
+| `selectProfiles` | `gui/src/redux/slices/profilesSlice.ts` | 122-124 | Selector | Slice | Get all profiles array |
+| `selectBookmarkedSlashCommands` | `gui/src/redux/slices/profilesSlice.ts` | 126-130 | Selector | Slice | Get bookmarked slash commands for current profile |
+| `Tab` | `gui/src/redux/slices/tabsSlice.ts` | 3-8 | Type | Slice | `{ id: string, title: string, isActive: boolean, sessionId?: string }` |
+| `setTabs` | `gui/src/redux/slices/tabsSlice.ts` | 28-30 | Action | Slice | Replace entire tabs array |
+| `updateTab` | `gui/src/redux/slices/tabsSlice.ts` | 31-39 | Action | Slice | Merge partial updates into tab by ID |
+| `addTab` | `gui/src/redux/slices/tabsSlice.ts` | 40-47 | Action | Slice | Add new tab; deactivate others if new tab is active |
+| `removeTab` | `gui/src/redux/slices/tabsSlice.ts` | 48-50 | Action | Slice | Remove tab by ID |
+| `setActiveTab` | `gui/src/redux/slices/tabsSlice.ts` | 51-56 | Action | Slice | Set active tab; deactivate others |
+| `handleSessionChange` | `gui/src/redux/slices/tabsSlice.ts` | 57-127 | Action | Slice | Smart session→tab matching: reuse existing tab, create new, or relink if no-session tab |
+| `SessionState` | `gui/src/redux/slices/sessionSlice.ts` | 203-226 | Type | Slice | Comprehensive session dict: history, streaming, mode, symbols, apply states, reasoning, metadata |
+| `ChatHistoryItemWithMessageId` | `gui/src/redux/slices/sessionSlice.ts` | 199-201 | Type | Slice | `ChatHistoryItem & { message: ChatMessage & { id: string } }` - adds UUID to message |
+| `handleToolCallsInMessage` | `gui/src/redux/slices/sessionSlice.ts` | 77-103 | Function | Slice | Initialize tool call states from message; filter duplicate edit tools |
+| `handleStreamingToolCallUpdates` | `gui/src/redux/slices/sessionSlice.ts` | 166-195 | Function | Slice | Apply tool call deltas during streaming; match by ID or update most recent |
+| `streamUpdate` | `gui/src/redux/slices/sessionSlice.ts` | 524-684 | Action | Slice | Process streamed message chunks; accumulate content, handle thinking tags, update tool calls |
+| `newSession` | `gui/src/redux/slices/sessionSlice.ts` | 686-711 | Action | Slice | Create new or load existing session (save old ID, reset history/symbols/apply states) |
+| `submitEditorAndInitAtIndex` | `gui/src/redux/slices/sessionSlice.ts` | 357-413 | Action | Slice | Submit user input; truncate history and append empty assistant message for streaming |
+| `truncateHistoryToMessage` | `gui/src/redux/slices/sessionSlice.ts` | 414-438 | Action | Slice | Truncate history to message; reset apply state index and error messages |
+| `deleteMessage` | `gui/src/redux/slices/sessionSlice.ts` | 439-445 | Action | Slice | Delete user+assistant pair; reset error state |
+| `deleteCompaction` | `gui/src/redux/slices/sessionSlice.ts` | 446-455 | Action | Slice | Remove conversation summary from message |
+| `updateHistoryItemAtIndex` | `gui/src/redux/slices/sessionSlice.ts` | 456-477 | Action | Slice | Merge partial updates into history item |
+| `setAppliedRulesAtIndex` | `gui/src/redux/slices/sessionSlice.ts` | 498-510 | Action | Slice | Set applied rules metadata for message |
+| `addContextItemsAtIndex` | `gui/src/redux/slices/sessionSlice.ts` | 478-497 | Action | Slice | Append context items to message's context list |
+| `addHighlightedCode` | `gui/src/redux/slices/sessionSlice.ts` | 764-806 | Action | Slice | Add selected code range as context item with file/line info |
+| `setToolGenerated` | `gui/src/redux/slices/sessionSlice.ts` | 832-854 | Action | Slice | Mark tool call as "generated"; set tool from available tools |
+| `updateToolCallOutput` | `gui/src/redux/slices/sessionSlice.ts` | 855-884 | Action | Slice | Set tool output context items; update corresponding tool message |
+| `setProcessedToolCallArgs` | `gui/src/redux/slices/sessionSlice.ts` | 885-899 | Action | Slice | Store processed arguments for tool call (e.g., post-validation) |
+| `cancelToolCall` | `gui/src/redux/slices/sessionSlice.ts` | 900-913 | Action | Slice | Set tool call status to "canceled" |
+| `errorToolCall` | `gui/src/redux/slices/sessionSlice.ts` | 914-931 | Action | Slice | Set tool call status to "errored"; optionally set output |
+| `acceptToolCall` | `gui/src/redux/slices/sessionSlice.ts` | 932-945 | Action | Slice | Set tool call status to "done" |
+| `setToolCallCalling` | `gui/src/redux/slices/sessionSlice.ts` | 946-959 | Action | Slice | Set tool call status to "calling" |
+| `updateApplyState` | `gui/src/redux/slices/sessionSlice.ts` | 807-826 | Action | Slice | Insert or merge apply state; increment curIndex on "done" |
+| `resetNextCodeBlockToApplyIndex` | `gui/src/redux/slices/sessionSlice.ts` | 827-829 | Action | Slice | Reset apply state cursor to 0 |
+| `setMode` | `gui/src/redux/slices/sessionSlice.ts` | 960-962 | Action | Slice | Set message mode (chat/agent/plan) |
+| `setIsInEdit` | `gui/src/redux/slices/sessionSlice.ts` | 963-965 | Action | Slice | Set whether currently in edit mode |
+| `setHasReasoningEnabled` | `gui/src/redux/slices/sessionSlice.ts` | 966-968 | Action | Slice | Set reasoning capability flag |
+| `selectApplyStateByStreamId` | `gui/src/redux/slices/sessionSlice.ts` | 1028-1036 | Selector | Slice | Find apply state by streamId (edit mode, etc.) |
+| `selectApplyStateByToolCallId` | `gui/src/redux/slices/sessionSlice.ts` | 1038-1048 | Selector | Slice | Find apply state by tool call ID |
+| `ConfigState` | `gui/src/redux/slices/configSlice.ts` | 6-10 | Type | Slice | `{ configError?: ConfigValidationError[], config: BrowserSerializedContinueConfig, loading: boolean }` |
+| `EMPTY_CONFIG` | `gui/src/redux/slices/configSlice.ts` | 12-38 | Constant | Slice | Default config with empty arrays for commands/providers/tools/models |
+| `setConfigResult` | `gui/src/redux/slices/configSlice.ts` | 50-73 | Action | Slice | Load config+ validation errors from ConfigResult; invalidate on error |
+| `updateConfig` | `gui/src/redux/slices/configSlice.ts` | 74-79 | Action | Slice | Replace config state |
+| `setConfigLoading` | `gui/src/redux/slices/configSlice.ts` | 80-82 | Action | Slice | Set config loading state |
+| `selectSelectedChatModel` | `gui/src/redux/slices/configSlice.ts` | 91-93 | Selector | Slice | Get selected chat model from config |
+| `selectSelectedChatModelContextLength` | `gui/src/redux/slices/configSlice.ts` | 85-90 | Selector | Slice | Get chat model context length or DEFAULT_CONTEXT_LENGTH |
+| `selectUIConfig` | `gui/src/redux/slices/configSlice.ts` | 94-96 | Selector | Slice | Get UI config object (or null) |
+| `UIState` | `gui/src/redux/slices/uiSlice.ts` | 20-32 | Type | Slice | Dialog, onboarding, explore, file editing, tool/rule/reasoning settings, TTS |
+| `RulePolicy` | `gui/src/redux/slices/uiSlice.ts` | 11 | Type | Slice | `"on" | "off"` - rule enable/disable setting |
+| `ToolGroupPolicy` | `gui/src/redux/slices/uiSlice.ts` | 13 | Type | Slice | `"include" | "exclude"` - tool group membership setting |
+| `DEFAULT_TOOL_SETTING` | `gui/src/redux/slices/uiSlice.ts` | 34 | Constant | Slice | `"allowedWithPermission"` - default tool policy |
+| `DEFAULT_RULE_SETTING` | `gui/src/redux/slices/uiSlice.ts` | 35 | Constant | Slice | `"on"` - default rule policy |
+| `addTool` | `gui/src/redux/slices/uiSlice.ts` | 80-83 | Action | Slice | Add tool to settings with default policy |
+| `setToolPolicy` | `gui/src/redux/slices/uiSlice.ts` | 84-92 | Action | Slice | Set tool policy (allowedWithPermission/allowedWithoutPermission/disabled) |
+| `clearToolPolicy` | `gui/src/redux/slices/uiSlice.ts` | 93-95 | Action | Slice | Delete tool setting (revert to default) |
+| `toggleToolSetting` | `gui/src/redux/slices/uiSlice.ts` | 96-113 | Action | Slice | Cycle tool policy: allowedWithPermission → allowedWithoutPermission → disabled → allowedWithPermission |
+| `toggleToolGroupSetting` | `gui/src/redux/slices/uiSlice.ts` | 114-122 | Action | Slice | Toggle tool group: include ↔ exclude |
+| `addRule` | `gui/src/redux/slices/uiSlice.ts` | 124-126 | Action | Slice | Add rule setting with default "on" |
+| `toggleRuleSetting` | `gui/src/redux/slices/uiSlice.ts` | 127-141 | Action | Slice | Toggle rule policy: on ↔ off |
+| `setTTSActive` | `gui/src/redux/slices/uiSlice.ts` | 142-144 | Action | Slice | Set text-to-speech active state |
+| `setReasoningSetting` | `gui/src/redux/slices/uiSlice.ts` | 145-151 | Action | Slice | Enable/disable reasoning for model |
+| `setOnboardingCard` | `gui/src/redux/slices/uiSlice.ts` | 58-63 | Action | Slice | Merge partial onboarding state |
+| `setDialogMessage` | `gui/src/redux/slices/uiSlice.ts` | 64-69 | Action | Slice | Set dialog content (JSX element) |
+| `setShowDialog` | `gui/src/redux/slices/uiSlice.ts` | 70-72 | Action | Slice | Show/hide dialog |
+| `setIsExploreDialogOpen` | `gui/src/redux/slices/uiSlice.ts` | 73-78 | Action | Slice | Show/hide explore samples dialog |
 | `editToolImpl`
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -3374,9 +3463,227 @@ state.config = config  // Stores BrowserSerializedContinueConfig
   - `selectDefaultContextProviders` → Sidebar default context panel
   - `selectUseActiveFile` → Configuration-driven feature flag
 
+     ---
+
+  ## 📦 REDUX STATE SLICES (7 files, 722 lines)
+
+  **Overview**: Core Redux slices managing GUI application state. Covers session history/streaming, configuration, profiles, tabs, tools/rules policies, edit mode, and indexing. Each slice exports reducers (actions) and selectors for memoized queries.
+
+  ### 1. Edit State Slice (editState.ts - 87 lines)
+
+  **Purpose**: Manage edit mode state, code changes, and apply state tracking.
+
+  **State** (lines 6-14):
+  - `codeToEdit: SetCodeToEditPayload[]` - Array of code ranges to edit
+  - `applyState: ApplyState` - Status of edit application (not-started/pending/done)
+  - `returnToMode: MessageModes` - Mode to return to after editing (chat/agent/plan)
+  - `lastNonEditSessionWasEmpty: boolean` - Track if exit from empty non-edit session
+  - `previousModeEditorContent?: JSONContent` - Save editor state before entering edit
+
+  **Key Actions**:
+  - `setCodeToEdit()` - Normalize single/array to array
+  - `updateEditStateApplyState()` - Merge apply state updates
+  - `clearCodeToEdit()` - Reset code array
+  - `setReturnToModeAfterEdit()` - Set exit mode
+  - `setPreviousModeEditorContent()` - Save editor state
+
   ---
 
-     ### Redux & Hooks Cross-Coordination
+  ### 2. Indexing Slice (indexingSlice.ts - 66 lines)
+
+  **Purpose**: Track background indexing progress and visibility state.
+
+  **State** (lines 4-9):
+  - `statuses: Record<string, IndexingStatus>` - Map of indexing ID → status details
+  - `hiddenChatPeekTypes: Record<IndexingStatus["type"], boolean>` - Track hidden "peek" notifications per type (docs, etc.)
+
+  **Key Actions**:
+  - `updateIndexingStatus()` - Add/update status by ID; auto-unhide peek when all indexing of type complete
+  - `setIndexingChatPeekHidden()` - Toggle visibility per indexing type
+
+  ---
+
+  ### 3. Profiles Slice (profilesSlice.ts - 151 lines)
+
+  **Purpose**: Manage LLM profiles and user preferences per profile.
+
+  **State** (lines 15-19):
+  - `profiles: ProfileDescription[]` - Available profiles from config
+  - `selectedProfileId: string | null` - Currently active profile
+  - `preferencesByProfileId: Record<string, PreferencesState>` - Per-profile bookmarks and settings
+
+  **Preferences** (lines 11-13):
+  - `bookmarkedSlashCommands: string[]` - Top 5 frequently used commands
+
+  **Key Actions**:
+  - `setProfiles()` - Load profiles from config
+  - `setSelectedProfile()` - Switch active profile
+  - `initializeProfilePreferences()` - Initialize preferences for profile (backfill, bookmark defaults)
+  - `bookmarkSlashCommand()` / `unbookmarkSlashCommand()` - Add/remove from bookmarks
+
+  **Selectors**:
+  - `selectSelectedProfile()` - Current profile object
+  - `selectProfiles()` - All profiles array
+  - `selectBookmarkedSlashCommands()` - Bookmarks for current profile
+
+  ---
+
+  ### 4. Tabs Slice (tabsSlice.ts - 140 lines)
+
+  **Purpose**: Multi-tab chat sessions with intelligent session linking.
+
+  **Tab Type** (lines 3-8):
+  ```typescript
+  interface Tab {
+    id: string;               // Unique tab identifier
+    title: string;            // Tab display title
+    isActive: boolean;        // Currently rendered tab
+    sessionId?: string;       // Linked session ID (optional)
+  }
+  ```
+
+  **Key Actions**:
+  - `addTab()` - Create new tab; deactivate others
+  - `setActiveTab()` - Switch active tab
+  - `removeTab()` / `setTabs()` - Remove/replace tabs
+  - `handleSessionChange()` - Smart session↔tab matching logic (lines 57-127):
+    1. If session matches active tab → update title
+    2. If existing unlinked tab has session → reuse + clean
+    3. If active tab has no session → link to active tab
+    4. Otherwise → create new tab with session
+
+  ---
+
+  ### 5. Session Slice (sessionSlice.ts - 1097 lines)
+
+  **Purpose**: Core chat session state: history, streaming, tool calls, apply states, reasoning.
+
+  **SessionState** (lines 203-226): Comprehensive dict with:
+  - `history: ChatHistoryItemWithMessageId[]` - Chat messages + context + tool call states
+  - `isStreaming: boolean` - LLM response streaming active
+  - `mode: MessageModes` - chat/agent/plan
+  - `symbols: FileSymbolMap` - Current workspace file symbols cache
+  - `codeBlockApplyStates: { states: ApplyState[], curIndex: number }` - Track edits
+  - `hasReasoningEnabled?: boolean` - Extended thinking
+  - `allSessionMetadata: BaseSessionMetadata[]` - History of past sessions
+
+  **Message Streaming** (lines 524-684):
+  - `streamUpdate()` processes message chunks:
+    1. Create new message if role differs
+    2. Handle `<think>...</think>` tags → reasoning state
+    3. Accumulate content
+    4. Apply tool call deltas
+    5. Handle OpenAI Responses API output item IDs
+
+  **Tool Call Management** (lines 832-959):
+  - `setToolGenerated()` - Mark tool as "generated" phase
+  - `updateToolCallOutput()` - Set output context + update tool message
+  - `cancelToolCall()` / `errorToolCall()` / `acceptToolCall()` - Status transitions
+  - `setToolCallCalling()` - Status = "calling"
+
+  **History Manipulation**:
+  - `submitEditorAndInitAtIndex()` (lines 357-413) - Append user/assistant pair for streaming
+  - `truncateHistoryToMessage()` (lines 414-438) - Truncate to message; reset apply states
+  - `deleteMessage()` - Delete user+assistant pair
+  - `updateHistoryItemAtIndex()` - Merge updates
+  - `addContextItemsAtIndex()` - Append context
+  - `addHighlightedCode()` (lines 764-806) - Add code range as context with metadata
+
+  **Apply State Tracking** (lines 807-826):
+  - `updateApplyState()` - Insert or merge apply state; auto-increment index on "done"
+  - Selectors: `selectApplyStateByStreamId()`, `selectApplyStateByToolCallId()`
+
+  **Helper Functions**:
+  - `handleToolCallsInMessage()` (lines 77-103) - Initialize tool states; filter duplicate edit tools
+  - `handleStreamingToolCallUpdates()` (lines 166-195) - Apply deltas matching by ID
+  - `filterMultipleEditToolCalls()` (lines 51-66) - Drop duplicate edit tool generation
+
+  ---
+
+  ### 6. Config Slice (configSlice.ts - 109 lines)
+
+  **Purpose**: Store parsed configuration (models, tools, rules, context providers).
+
+  **ConfigState** (lines 6-10):
+  - `config: BrowserSerializedContinueConfig` - Full config object
+  - `configError?: ConfigValidationError[]` - Parse/validation errors
+  - `loading: boolean` - Loading state
+
+  **EMPTY_CONFIG** (lines 12-38): Default structure with empty arrays and model role mappings.
+
+  **Key Actions**:
+  - `setConfigResult()` - Load config + errors from ConfigResult
+  - `updateConfig()` - Replace config state
+  - `setConfigLoading()` - Set loading flag
+
+  **Selectors**:
+  - `selectSelectedChatModel()` - Currently selected chat model
+  - `selectSelectedChatModelContextLength()` - Context window (or default)
+  - `selectUIConfig()` - UI-specific config object
+
+  ---
+
+  ### 7. UI Slice (uiSlice.ts - 171 lines)
+
+  **Purpose**: UI settings, policies, dialogs, onboarding, and TTS state.
+
+  **UIState** (lines 20-32):
+  - `toolSettings: ToolPolicies` - Per-tool execution policies
+  - `toolGroupSettings: ToolGroupPolicies` - Per-group include/exclude
+  - `ruleSettings: RulePolicies` - Per-rule on/off
+  - `reasoningSettings: ReasoningSettings` - Per-model reasoning enabled
+  - `showDialog: boolean` + `dialogMessage: JSX.Element` - Modal dialog
+  - `onboardingCard: OnboardingCardState` - First-run UI
+  - `isExploreDialogOpen: boolean` - Samples/docs explore panel
+  - `ttsActive: boolean` - Text-to-speech on/off
+
+  **Policy Types**:
+  - `ToolPolicy: "allowedWithPermission" | "allowedWithoutPermission" | "disabled"`
+  - `RulePolicy: "on" | "off"`
+  - `ToolGroupPolicy: "include" | "exclude"`
+
+  **Key Actions**:
+  - Tool settings:
+    - `addTool()` - Add tool with default policy
+    - `setToolPolicy()` - Set explicit policy
+    - `toggleToolSetting()` - Cycle permissions
+    - `clearToolPolicy()` - Delete (revert to default)
+    - `toggleToolGroupSetting()` - Toggle group
+  - Rule settings:
+    - `addRule()` - Add with default "on"
+    - `toggleRuleSetting()` - Toggle on/off
+  - Other:
+    - `setReasoningSetting()` - Enable reasoning per model
+    - `setTTSActive()` - Toggle TTS
+    - `setOnboardingCard()`, `setDialogMessage()`, `setShowDialog()` - Dialog/onboarding
+
+  ---
+
+  ### Redux Slices Cross-Coordination
+
+  **Config → Selection → Message Construction**:
+  - Config slice loads models, tools, rules
+  - Selector slices filter active tools (via policies)
+  - Message construction includes active tools in LLM prompt
+
+  **Session → Apply State → UI Feedback**:
+  - Session tracks apply states for code edits
+  - UI queries apply states to show accept/reject buttons
+  - Tab slice links sessions for multi-tab workflow
+
+  **Streaming Pipeline**:
+  - Session `streamUpdate()` appends/updates history
+  - Tool actions modify tool call states in-place
+  - Selectors memoize tool call queries for UI
+
+  **Profile → Preferences → Slash Commands**:
+  - Profiles slice manages bookmarks per profile
+  - Selectors return bookmarks for autocomplete
+  - Config slice provides all available commands
+
+  ---
+
+        ### Redux \u0026 Hooks Cross-Coordination
 
   **useAppDispatch + useAppSelector**:
   - Used throughout GUI to access/modify Redux state
