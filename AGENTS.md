@@ -56,6 +56,12 @@
 | `reference/continue-src/gui/src/context/LocalStorage.tsx` | 68 | 🟡 Provider | `LocalStorageContext`, `LocalStorageProvider`, `useLocalStorage()` | Font size persistence & CustomEvent synchronization |
 | `reference/continue-src/gui/src/context/Auth.tsx` | 66 | 🟡 Provider | `AuthContext`, `AuthProvider`, `useAuth()` | Profile selection, refresh, loading state |
 | `reference/continue-src/gui/src/context/SubmenuContextProviders.tsx` | 628 | 🟡 Provider | `SubmenuContextProvidersContext`, `SubmenuContextProvidersProvider`, `useSubmenuContextProviders()` | Context submenu search with MiniSearch, intelligent file sorting |
+| `reference/continue-src/gui/src/context/IdeMessenger.tsx` | 277 | 🟡 Provider | `IdeMessengerContext`, `IdeMessengerProvider`, `IIdeMessenger` interface, `IdeMessenger` class | Webview↔IDE message routing (request/response, streaming, IDE API wrapper) |
+| `reference/continue-src/gui/src/components/OnboardingCard/OnboardingCard.tsx` | 57 | 🟢 Component | `OnboardingCard`, `OnboardingCardState` type | LLM provider/model setup UI with tabs (API key, local) |
+| `reference/continue-src/gui/src/components/OSRContextMenu.tsx` | 222 | 🟢 Component | `OSRContextMenu` | On-screen reader context menu (copy, cut, dev tools) for non-Mac platforms |
+| `reference/continue-src/gui/src/components/config/FatalErrorNotice.tsx` | 75 | 🟢 Component | `FatalErrorIndicator` | Config error alert with profile name & reload/help links |
+| `reference/continue-src/gui/src/components/dialogs/index.tsx` | 81 | 🟢 Component | `TextDialog` | Modal dialog with backdrop, Markdown rendering, Esc/close handlers |
+| `reference/continue-src/gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 349 | 🟢 Component | `TipTapEditor`, `TipTapEditorProps` interface, `TipTapEditorInner` | Rich text editor with image drag-drop, toolbar, focus/blur management, Tiptap integration |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🟡 Tool | `editToolImpl` | Client-side implementation of EditExistingFile tool (dispatch applyForEditTool) |
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -473,6 +479,27 @@ reference/continue-src/gui/
 | `isCommonDevFile()` | `gui/src/context/SubmenuContextProviders.tsx` | 60-92 | Function | Provider | Check if file has common dev extension or name (index, main, app, component, etc.) |
 | `isInCommonDirectory()` | `gui/src/context/SubmenuContextProviders.tsx` | 94-112 | Function | Provider | Check if file path includes common directory (src, lib, components, utils, etc.) |
 | `matchesCamelCaseOrAbbreviation()` | `gui/src/context/SubmenuContextProviders.tsx` | 114-137 | Function | Provider | Match query via camelCase capitals or word-initial abbreviation |
+| `IIdeMessenger` | `gui/src/context/IdeMessenger.tsx` | 26-60 | Interface | Provider | IDE messenger interface: post(), respond(), request(), streamRequest(), llmStreamChat(), ide property |
+| `IdeMessenger` | `gui/src/context/IdeMessenger.tsx` | 62-262 | Class | Provider | Implementation of IIdeMessenger; routes messages to VSCode/JetBrains, handles retries (exponential backoff), streams protocol |
+| `IdeMessengerContext` | `gui/src/context/IdeMessenger.tsx` | 264-266 | Context | Provider | React Context wrapping IIdeMessenger instance |
+| `IdeMessengerProvider` | `gui/src/context/IdeMessenger.tsx` | 268-277 | Component | Provider | Context provider that wraps children with IdeMessenger context |
+| `_postToIde()` | `gui/src/context/IdeMessenger.tsx` | 78-112 | Method | Provider | Send message to VSCode (via vscode.postMessage) or JetBrains (via postIntellijMessage) |
+| `post()` | `gui/src/context/IdeMessenger.tsx` | 114-136 | Method | Provider | One-way message send with retry logic (5 attempts, exponential backoff) |
+| `respond()` | `gui/src/context/IdeMessenger.tsx` | 138-144 | Method | Provider | Respond to a specific IDE request message using messageId |
+| `request()` | `gui/src/context/IdeMessenger.tsx` | 146-163 | Method | Provider | Async request: send, wait for response with matching messageId, return promise |
+| `streamRequest()` | `gui/src/context/IdeMessenger.tsx` | 173-247 | Method | Provider | Async generator streaming requests; yields buffered chunks, supports AbortSignal cancellation |
+| `llmStreamChat()` | `gui/src/context/IdeMessenger.tsx` | 249-261 | Method | Provider | Wrapper over streamRequest("llm/streamChat"); yields ChatMessage arrays, returns PromptLog |
+| `OnboardingCard` | `gui/src/components/OnboardingCard/OnboardingCard.tsx` | 20-57 | Component | Component | Tabs for LLM provider setup (API key vs local); reads/writes onboarding status to localStorage |
+| `OnboardingCardState` | `gui/src/components/OnboardingCard/OnboardingCard.tsx` | 11-14 | Type | Component | `{ show?, activeTab? }` state for onboarding card visibility/tab selection |
+| `OSRContextMenu` | `gui/src/components/OSRContextMenu.tsx` | 13-220 | Component | Component | Context menu on right-click (Windows/Linux only); copy/cut/paste/dev-tools with smart positioning |
+| `FatalErrorIndicator` | `gui/src/components/config/FatalErrorNotice.tsx` | 9-75 | Component | Component | Shows error alert if config has fatal errors; links to help docs and reload/view config buttons |
+| `TextDialog` | `gui/src/components/dialogs/index.tsx` | 43-79 | Component | Component | Modal with semitransparent backdrop, centered container, Markdown/JSX rendering, Esc key handler |
+| `TipTapEditor` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 343-349 | Component | Component | Rich text editor wrapper (memo-wrapped TipTapEditorInner) |
+| `TipTapEditorInner` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 48-314 | Component | Component | Tiptap editor with image drag-drop, toolbar, focus/blur, keyboard handlers, streaming state |
+| `TipTapEditorProps` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 27-44 | Type | Component | Editor props: availableContextProviders, availableSlashCommands, isMainInput, onEnter, editorState, toolbarOptions, placeholder, historyKey, inputId |
+| `createEditorConfig()` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 60-64 | Function | Component | (imported from utils) Create Tiptap editor config with extensions and handlers |
+| `useEditorEventHandlers()` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 168-173 | Hook | Component | (imported from utils) Return handleKeyUp, handleKeyDown for editor keyboard/autocomplete behavior |
+| `handleImageFile()` | `gui/src/components/mainInput/TipTapEditor/TipTapEditor.tsx` | 252, 284 | Function | Component | (imported from utils) Process dropped/selected image file; return [fileName, dataUrl] |
 | `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-53 | ClientToolImpl | Tool | Execute EditExistingFile: resolve path, dispatch applyForEditTool |
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -2720,9 +2747,285 @@ state.config = config  // Stores BrowserSerializedContinueConfig
   **Submenu + Redux**:
   - Provider reads `selectSubmenuContextProviders` selector to determine available context providers
   - Respects `config.disableIndexing` to skip non-essential providers when indexing is off
-  - Loading state integrated via `providersLoading` set; fallback results cached for fast UI response
+     - Loading state integrated via `providersLoading` set; fallback results cached for fast UI response
 
-  ### Cross-Cutting Concerns (Expanded)
+  ---
+
+  ## 🌉 IDE MESSENGER (1 file, 277 lines)
+
+  **Overview**: Bridge layer between GUI webview and IDE (VSCode/JetBrains) using bidirectional message passing. Supports request/response patterns, async streaming with cancellation, and transparent access to core IDE APIs.
+
+  ### IDE Messenger Protocol & Implementation (IdeMessenger.tsx - 277 lines)
+
+  **Purpose**: Implement `IIdeMessenger` interface; send/receive messages to VSCode (vscode API) or JetBrains (postIntellijMessage); handle message routing, retries, streaming.
+
+  **Core Interfaces & Types**:
+  - `IIdeMessenger` (lines 26-60): Interface defining post(), respond(), request(), streamRequest(), llmStreamChat(), ide property
+  - Message structure: `{ messageId, messageType, data }` (core/protocol/messenger.Message)
+  - Protocol: `FromWebviewProtocol`, `ToWebviewProtocol` (core/protocol)
+
+  **IdeMessenger Class** (lines 62-262):
+
+  *Properties*:
+  - `ide: IDE` (line 63): IDE API wrapper (MessageIde instance)
+
+  *Methods*:
+
+  | Method | Lines | Purpose | Behavior |
+  |--------|-------|---------|----------|
+  | `constructor()` | 65-76 | Create IDE API wrapper | Init MessageIde with request adapter, pass-through post callback |
+  | `_postToIde()` | 78-112 | Low-level message dispatch | Check vscode vs JetBrains; validate postIntellijMessage; build Message object; vscode.postMessage() |
+  | `post()` | 114-136 | One-way async send + retry | Try _postToIde with error catch; if error and attempts < 5, setTimeout retry with exponential backoff (2^n * 1000ms) |
+  | `respond()` | 138-144 | Respond to request | Send response using messageId (for request/response pairing) |
+  | `request()` | 146-163 | Promise-based request/response | Send message, return Promise that resolves when matching messageId received; add/remove window message listener |
+  | `streamRequest()` | 173-247 | Streaming request with cancellation | Async generator; post message, buffer incoming chunks, yield when buffer fills; support AbortSignal to cancel |
+  | `llmStreamChat()` | 249-261 | LLM streaming shortcut | Call streamRequest("llm/streamChat"); unwrap generator; yield ChatMessage arrays, return PromptLog |
+
+  *Error Handling*:
+  - Max 5 retry attempts on send failure (exponential backoff)
+  - Stream errors logged, not thrown (lines 200-202, 222-223)
+  - AbortSignal cleanup: remove event listeners on cancel or stream end
+
+  **Context Integration**:
+  - `IdeMessengerContext` (lines 264-266): React Context wrapping IIdeMessenger
+  - `IdeMessengerProvider` (lines 268-277): Provider component accepting optional custom messenger
+  - Used throughout GUI for: IDE requests (`ide.getOpenFiles()`, `getWorkspaceDirs()`), LLM streaming (`llm/streamChat`), core config operations (`config/refreshProfiles`), UI operations (`openUrl`, `toggleDevTools`)
+
+  **Key Patterns**:
+  1. **Lazy Initialization**: `window.postIntellijMessage` checked at send time, not init time (JetBrains may not inject early)
+  2. **UUID Message IDs**: Unique per request/stream; enables parallel requests
+  3. **Generator Buffering**: Stream chunks buffered; yielded in batches (not per-chunk) to reduce overhead
+  4. **Platform Detection**: VSCode uses `vscode.postMessage()`, JetBrains uses `window.postIntellijMessage()`
+
+  ---
+
+  ## 🎨 GUI COMPONENTS (5 files, 784 lines)
+
+  **Overview**: React components for onboarding, error handling, context menu, dialogs, and rich text editing. Integrate with Redux, IDE Messenger, theme/auth contexts, and Tiptap editor framework.
+
+  ### 1. Onboarding Card (OnboardingCard.tsx - 57 lines)
+
+  **Purpose**: First-run setup wizard for LLM provider configuration; tab-based UI for API key or local model setup.
+
+  **Core Components**:
+  - `OnboardingCard` (lines 20-57): Renders ReusableCard with OnboardingCardTabs and dynamic tab content
+  - `OnboardingCardState` type (lines 11-14): `{ show?, activeTab? }`
+
+  **Key Logic**:
+  - Redux integration (line 22): `useAppSelector(store => store.config.config)` to read model list
+  - localStorage tracking (lines 24-26): Set `onboardingStatus = "Started"` on first render
+  - Tab selection (lines 28-32): Default to `OnboardingModes.API_KEY` if no tab selected
+  - Tab rendering (lines 34-43): Switch on `activeTab` to render `OnboardingProvidersTab` or `OnboardingLocalTab`
+  - Close button visibility (line 49): Only show if not dialog-mode AND models available
+
+  **Sub-components**:
+  - `OnboardingCardTabs` — Tab switcher UI
+  - `OnboardingProvidersTab` — API key entry (LLM provider config)
+  - `OnboardingLocalTab` — Local model download/setup
+
+  **Used by**: Initial app bootstrap; can also be shown as a dialog on config errors
+
+  ---
+
+  ### 2. OSR Context Menu (OSRContextMenu.tsx - 222 lines)
+
+  **Purpose**: Right-click context menu for copy/cut/dev-tools on Windows/Linux (not Mac); respects OSR (On-Screen Reader) enabled state.
+
+  **Core Component**:
+  - `OSRContextMenu` (lines 13-220): Exports default; memo-optimized
+
+  **Key Features**:
+
+  *State Management* (lines 18-25):
+  - `position`: Menu coordinates (top/left/bottom/right) for smart positioning (open towards window center)
+  - `canCopy`, `canCut`, `canPaste`: Availability based on selection state
+  - `selectedTextRef`, `selectedRangeRef`: Preserve DOM selection during menu interaction
+  - `menuRef`: Reference for click-outside detection
+
+  *Event Handlers* (lines 27-153):
+  - `onMenuItemClick()` (27-41): Restore selection on menu click, hide menu
+  - `contextMenuHandler()` (47-49): Prevent default right-click
+  - `clickHandler()` (50-142):
+    1. Detect right-click (event.button === 2)
+    2. Extract selected text + range from DOM selection API
+    3. Check click was within selection (via getClientRects)
+    4. Check if right-clicked on editable content (isContentEditable)
+    5. Compute menu position: smart positioning on 4 screen quadrants
+  - `leaveWindowHandler()` (44-46): Hide menu on mouse leave
+
+  *Conditional Rendering* (line 156):
+  - Skip entire component if macOS (platform.current === "mac") or OSR disabled or no position
+
+  *Menu Items* (lines 159-218):
+  - Copy (lines 168-177): `document.execCommand("copy")` if text selected
+  - Cut (lines 179-188): `document.execCommand("cut")` if editable + selected
+  - Open Dev Tools (lines 209-217): `ideMessenger.post("toggleDevTools", undefined)`
+
+  **Dependencies**:
+  - `useIsOSREnabled()` hook
+  - `IdeMessengerContext` for dev tools
+  - Platform detection via `getPlatform()`
+
+  ---
+
+  ### 3. Fatal Error Notice (FatalErrorNotice.tsx - 75 lines)
+
+  **Purpose**: Alert UI for config loading errors; shows profile name, reload/help buttons, link to config page.
+
+  **Core Component**:
+  - `FatalErrorIndicator` (lines 9-75): Exports as component (no props)
+
+  **Key Logic**:
+
+  *State Assembly* (lines 10-14):
+  - `useAuth()`: Get `refreshProfiles`, `selectedProfile`
+  - `useAppSelector`: Read `configError` array, `configLoading` flag
+  - `useLocation(), useNavigate()`: Navigation within config pages
+
+  *Fatality Check* (lines 16-18):
+  - `useMemo`: Compute `hasFatalErrors = configError.some(e => e.fatal)`
+  - Early return null if no fatal errors
+
+  *Display Name* (lines 32-35):
+  - Prefer `selectedProfile.title`
+  - Fallback to `${ownerSlug}/${packageSlug}` from fullSlug
+  - Fallback to literal "config"
+
+  *UI Rendering* (lines 37-73):
+  - Alert type "error" with message: "Error loading {displayName}. Chat is disabled until a model is available."
+  - Three action buttons:
+    1. Help (lines 44-54): `ideMessenger.post("openUrl", "https://docs.continue.dev/troubleshooting")`
+    2. Reload (lines 55-66): Conditionally show "Reloading..." or Reload button; call `refreshProfiles("Clicked reload in fatal indicator")`
+    3. View (lines 67-71): Show if not already on config page; navigate via `CONFIG_ROUTES.CONFIGS`
+
+  **Dependencies**:
+  - Auth context for profile + refresh
+  - Redux config slice (error, loading)
+  - React Router navigation
+  - IDE Messenger for help link
+
+  ---
+
+  ### 4. Text Dialog (dialogs/index.tsx - 81 lines)
+
+  **Purpose**: Modal dialog with centered content, backdrop blur, Markdown/JSX rendering, keyboard/click handlers.
+
+  **Core Components**:
+  - `TextDialog` (lines 43-79): Main dialog component
+  - `ScreenCover` (lines 19-27): Styled backdrop div (fixed, full-screen, blur)
+  - `DialogContainer` (lines 29-41): Styled centered container
+
+  **Props**:
+  - `showDialog: boolean` — Visibility toggle
+  - `onEnter: () => void` — Enter key callback
+  - `onClose: () => void` — Close callback
+  - `message?: string | JSX.Element` — Content (Markdown string or React element)
+
+  **Key Logic**:
+
+  *Validation* (lines 50-52):
+  - Skip rendering if message is neither string nor valid JSX element
+
+  *Keyboard Handler* (lines 44-48):
+  - Esc key calls `props.onClose()`
+
+  *Rendering* (lines 54-78):
+  - ScreenCover: fixed backdrop with click-to-close, tabIndex=-1
+  - DialogContainer: centered, auto-positioned, overflow-auto with responsive width (xs: 90%, sm: 88%, md: 80%, max 600px)
+  - CloseButton: XMarkIcon (Heroicons) top-right
+  - Content: ReactMarkdown for string, or direct JSX element
+
+  **Styling**:
+  - `vscBackground`, `vscForeground` colors
+  - Backdrop: rgba(0, 0, 0, 0.35) with 0.5px blur
+  - Border radius: `defaultBorderRadius`
+  - Box shadow: 0 0 10px rgba(0, 0, 0, 0.5)
+
+  ---
+
+  ### 5. TipTap Editor (mainInput/TipTapEditor/TipTapEditor.tsx - 349 lines)
+
+  **Purpose**: Rich text editor for chat input; Tiptap with image drag-drop, toolbar, slash commands, context providers, focus/blur management.
+
+  **Props** (lines 27-44):
+  - `availableContextProviders: ContextProviderDescription[]` — For @ snippets
+  - `availableSlashCommands: ComboBoxItem[]` — For / commands
+  - `isMainInput: boolean` — Main vs history editor
+  - `onEnter(editorState, modifiers, editor)` — Submit handler
+  - `editorState?: JSONContent` — Controlled content
+  - `toolbarOptions?: ToolbarOptions` — Toolbar config (hide buttons)
+  - `placeholder?: string` — Placeholder text
+  - `historyKey: string` — For state persistence
+  - `inputId: string` — DOM/logging identifier
+
+  **Key Architecture**:
+
+  *Editor Initialization* (lines 48-64):
+  - `createEditorConfig({ props, ideMessenger, dispatch })` — Build Tiptap Editor with extensions
+  - `useMainEditor()` context — Register main editor instance
+  - Register as main if `isMainInput`
+
+  *State Management* (lines 82-145):
+  - `shouldHideToolbar`: Show only when focused or main input
+  - `isStreaming`: Lock editing during LLM response
+  - `isInEdit`: Track edit mode (prevents blur hiding)
+  - History/editing state from Redux
+
+  *Focus/Blur Behavior* (lines 183-206):
+  - `handleBlur()`: Skip if in-edit mode; 100ms delay before hiding toolbar (allows listbox/combobox interaction)
+  - `handleFocus()`: Cancel blur timeout, show toolbar
+  - Auto-focus main input after streaming (lines 124-128)
+  - Recovery: Re-enable historical editors after streaming ends (lines 131-145)
+
+  *Image Handling*:
+  - Drop handler (lines 238-265): Check model supports images; extract dataUrl; insert via schema
+  - Toolbar upload (lines 283-298): Same logic for file input
+  - Utility: `handleImageFile(ideMessenger, file)` → Promise<[fileName, dataUrl]>
+
+  *Keyboard & Interaction*:
+  - `useEditorEventHandlers()` — Slash commands, @ autocomplete, keyboard focus
+  - `insertCharacterWithWhitespace()` (151-166) — Insert @ or / with smart spacing
+  - Drag-over feedback (lines 222-237): Show "drag me" overlay when hovering
+
+  *Component Memoization* (lines 317-341):
+  - Shallow comparison of toolbar options, command/provider arrays
+  - `MemoInner` wrapper prevents re-renders on prop churn
+  - Exported `TipTapEditor` wraps memoized inner (lines 343-349)
+
+  **Dependencies**:
+  - Tiptap: `@tiptap/react`, `EditorContent`, `Editor`
+  - Redux: dispatch, selectors for model/streaming/edit state
+  - IDE Messenger: image file encoding
+  - Theme/auth contexts (not used directly, but passed through)
+  - Custom hook: `useUpdatingRef`, `useMainEditor`, `useEditorEventHandlers`
+  - Utilities: `createEditorConfig`, `handleImageFile`, `getPlaceholderText`
+
+  **Integration Points**:
+  - Toolbar (InputToolbar): Renders with hidden/shown state, context/command insertion
+  - Drag overlay: Visual feedback during file drag
+  - Input styling: StyledComponents (InputBoxDiv)
+
+  ---
+
+  ### Component Cross-Coordination
+
+  **IdeMessenger in Components**:
+  - `OSRContextMenu` toggles dev tools
+  - `FatalErrorNotice` opens docs links
+  - `TipTapEditor` encodes images for insertion
+  - `OnboardingCard` (indirectly via Redux/auth dispatch)
+
+  **Theme/Auth in Components**:
+  - `FatalErrorNotice` uses Auth context to refresh profiles
+  - `TipTapEditor` reads selectedModel for image support check
+  - Dialog uses VSCode theme colors
+
+  **Redux in Components**:
+  - `OnboardingCard` reads config.modelsByRole
+  - `FatalErrorNotice` reads config error/loading state
+  - `TipTapEditor` reads session (streaming, isInEdit), config (selectedModel)
+
+     ### Cross-Cutting Concerns (Expanded)
 
 **GUI/Core Integration**:
 - Client tools depend on core edit/search-and-replace validators (`core/edit/searchAndReplace/*`)
