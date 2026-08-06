@@ -49,6 +49,11 @@
 | `reference/continue-src/core/llm/llms/Lemonade.ts` | 12 | 🟡 Provider | `Lemonade` class | OpenAI-compatible wrapper (extends OpenAI) |
 | `reference/continue-src/core/llm/llms/Ollama.ts` | 833 | 🟡 Provider | `Ollama` class | Ollama API adapter (local model inference) |
 | `reference/continue-src/core/tools/constants.ts` | 4 | 🟡 Config | `NO_TOOL_CALL_OUTPUT_MESSAGE`, `CANCELLED_TOOL_CALL_MESSAGE` | Tool output status strings |
+| `reference/continue-src/core/nextEdit/context/aggregateEdits.ts` | 628 | 🟠 Aggregator | `EditAggregator`, `EditClusterConfig` | Time/line-based edit clustering for small edits |
+| `reference/continue-src/core/nextEdit/context/diffFormatting.ts` | 247 | 🟡 Formatter | `createDiff()`, `createBeforeAfterDiff()`, `DiffFormatType` | Unified diff + before/after formatting |
+| `reference/continue-src/core/nextEdit/context/processSmallEdit.ts` | 53 | 🟡 Utilities | `processSmallEdit()` | Small edit processing pipeline entry point |
+| `reference/continue-src/core/nextEdit/NextEditPrefetchQueue.ts` | 152 | 🟡 Queue | `PrefetchQueue`, `ProcessedItem` | Singleton queue for prefetch (disabled) |
+| `reference/continue-src/core/nextEdit/NextEditProvider.ts` | 628 | 🟠 Generator | `NextEditProvider`, `provideInlineCompletionItemsWithChain()` | Next edit prediction orchestrator + chains |
 | `reference/continue-src/core/util/errors.ts` | 71 | 🟠 Error | `ContinueError`, `ContinueErrorReason`, `getRootCause` | Error taxonomy (29 codes) |
 | `reference/continue-src/gui/index.html` | 16 | 🟢 Bootstrap | (html) | WebView2 mount point |
 | `reference/continue-src/gui/src/main.tsx` | 24 | 🟢 Bootstrap | `App`, Redux `Provider`, `PersistGate` | React root + Redux setup |
