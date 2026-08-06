@@ -31,10 +31,10 @@
 | `reference/continue-src/core/config/ConfigHandler.ts` | 369 | 🟠 Orchestrator | `ConfigHandler` (class) | Profile lifecycle, cascading reload, listener dispatch |
 | `reference/continue-src/core/config/onboarding.ts` | 171 | 🟡 Setup | `setupBestConfig()`, `setupLocalConfig()`, `setupProviderConfig()` | Onboarding model templates + defaults |
 | `reference/continue-src/core/index.d.ts` | 2022 | 📘 Types | `Tool`, `ContinueConfig`, `BrowserSerializedContinueConfig`, `IDE`, `ILLM` | Complete type system (runtime & serializable) |
-| `reference/continue-src/core/protocol/util.ts` | 53 | 🟢 Protocol | `ErrorWebviewMessage`, `WebviewMessage`, `WebviewGeneratorMessage` | Webview message envelope types |
-| `reference/continue-src/core/protocol/passThrough.ts` | 109 | 🟢 Protocol | `WEBVIEW_TO_CORE_PASS_THROUGH`, `CORE_TO_WEBVIEW_PASS_THROUGH` | Message routing rules (90 GUI→Core, 12 Core→GUI) |
-| `reference/continue-src/core/llm/constants.ts` | 37 | 🟡 Config | `DEFAULT_MAX_TOKENS`, `DEFAULT_CONTEXT_LENGTH`, `LLMConfigurationStatuses` | LLM defaults & enums |
-| `reference/continue-src/core/llm/messages.ts` | 73 | 🟡 Utilities | `messageHasToolCalls`, `messageIsEmpty`, `chatMessageIsEmpty` | Chat message validation helpers |
+| `reference/continue-src/core/protocol/util.ts` | 53 | 🟢 Schema | `ErrorWebviewMessage`, `WebviewSingleMessage`, `WebviewGeneratorMessage`, `WebviewMessage`, generator type helpers | Envelope types for single/streaming responses; error payloads (status+error) |
+| `reference/continue-src/core/protocol/passThrough.ts` | 109 | 🟢 Router | `WEBVIEW_TO_CORE_PASS_THROUGH` (80 types), `CORE_TO_WEBVIEW_PASS_THROUGH` (12 types) | Message whitelist for bidirectional routing; KT enum sync required |
+| `reference/continue-src/core/llm/constants.ts` | 37 | 🟡 Config | `DEFAULT_MAX_TOKENS`, `DEFAULT_CONTEXT_LENGTH`, `DEFAULT_TEMPERATURE`, `PROXY_URL`, `LLMConfigurationStatuses`, `NEXT_EDIT_MODELS` | LLM defaults (4k tokens, 32k context, 0.5°, 128k pruning); config enums |
+| `reference/continue-src/core/llm/messages.ts` | 73 | 🟡 Validators | `messageHasToolCalls()`, `messageIsEmpty()`, `chatMessageIsEmpty()`, `addSpaceToAnyEmptyMessages()`, `isUserOrToolMsg()`, `isToolMessageForId()`, `messageHasToolCallId()` | Role-specific message validation; empty content detection; space-padding for providers |
 | `reference/continue-src/core/llm/autodetect.ts` | 537 | 🟡 Utilities | `autodetectTemplateType`, provider/model capability lists | Model detection; prompt template mapping |
 | `reference/continue-src/core/llm/openaiTypeConverters.ts` | 1120 | 🟡 Utilities | `toChatMessage`, `toOpenAIFunction`, reasoning field handlers | OpenAI API message conversion |
 | `reference/continue-src/core/llm/logFormatter.ts` | 426 | 🟡 Utilities | `LLMLogFormatter` | Human-readable LLM interaction logging |
@@ -70,7 +70,7 @@
 | `reference/continue-src/core/llm/index.ts` | 1504 | 🟢 Core | `BaseLLM`, `LLMError`, `isModelInstaller()` | Abstract LLM base class + model registry |
 | `reference/continue-src/core/llm/llms/Lemonade.ts` | 12 | 🟡 Provider | `Lemonade` class | OpenAI-compatible wrapper (extends OpenAI) |
 | `reference/continue-src/core/llm/llms/Ollama.ts` | 833 | 🟡 Provider | `Ollama` class | Ollama API adapter (local model inference) |
-| `reference/continue-src/core/tools/constants.ts` | 4 | 🟡 Config | `NO_TOOL_CALL_OUTPUT_MESSAGE`, `CANCELLED_TOOL_CALL_MESSAGE` | Tool output status strings |
+| `reference/continue-src/core/tools/constants.ts` | 4 | 🟡 Config | `NO_TOOL_CALL_OUTPUT_MESSAGE`, `CANCELLED_TOOL_CALL_MESSAGE`, `ERRORED_TOOL_CALL_OUTPUT_MESSAGE` | Tool execution status strings (no output, user cancel, error) |
 | `reference/continue-src/core/autocomplete/util/openedFilesLruCache.ts` | 20 | 🟡 Cache | `openedFilesLruCache`, `cacheElementType`, `prevFilepaths` | LRU cache of open files (max 20) in viewing order |
 | `reference/continue-src/core/autocomplete/snippets/gitDiffCache.ts` | 73 | 🟡 Cache | `GitDiffCache`, `getDiffFn`, `getDiffsFromCache` | Singleton git diff cache (60s TTL) |
 | `reference/continue-src/core/autocomplete/CompletionProvider.ts` | 316 | 🟠 Generator | `CompletionProvider`, `provideInlineCompletionItems()` | Inline completion orchestration + caching |
@@ -93,7 +93,7 @@
 | `reference/continue-src/core/config/onboarding.ts` | 171 | 🟡 Setup | `setupBestConfig()`, `setupLocalConfig()`, `setupProviderConfig()`, model constants | Onboarding model templates for Anthropic/OpenAI/Gemini + Ollama defaults |
 | `reference/continue-src/core/context/mcp/MCPManagerSingleton.ts` | 204 | 🟠 Manager | `MCPManagerSingleton`, `setConnections()`, `refreshConnections()`, `getStatuses()` | Singleton MCP client lifecycle + transport comparison + connection lifecycle |
 | `reference/continue-src/core/context/mcp/MCPOauth.ts` | 349 | 🟡 Auth | `MCPConnectionOauthProvider`, `handleMCPOauthCode()`, OAuth state/token storage | OAuth2 redirect handler (port 3000); client info & token persistence via GlobalContext |
-| `reference/continue-src/core/util/errors.ts` | 71 | 🟠 Error | `ContinueError`, `ContinueErrorReason`, `getRootCause` | Error taxonomy (29 codes) |
+| `reference/continue-src/core/util/errors.ts` | 71 | 🟠 Error | `ContinueError` (custom class), `ContinueErrorReason` (enum), `getRootCause()` (recursive cause traversal) | Error taxonomy: 29 codes covering Find&Replace, Multi-Edit, Files, Terminal, Search, Rules, Skills |
 | `reference/continue-src/gui/index.html` | 16 | 🟢 Bootstrap | (html) | WebView2 mount point |
 | `reference/continue-src/gui/src/main.tsx` | 24 | 🟢 Bootstrap | `App`, Redux `Provider`, `PersistGate` | React root + Redux setup |
 | `reference/continue-src/gui/src/redux/store.ts` | 145 | 🟢 Redux | `store`, `persistor`, `RootState`, middleware | Redux store with IdeMessenger thunk extra |
