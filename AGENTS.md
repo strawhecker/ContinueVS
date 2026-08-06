@@ -31,6 +31,12 @@
 | `reference/continue-src/core/config/ConfigHandler.ts` | 369 | 🟠 Orchestrator | `ConfigHandler` (class) | Profile lifecycle, cascading reload, listener dispatch |
 | `reference/continue-src/core/config/onboarding.ts` | 171 | 🟡 Setup | `setupBestConfig()`, `setupLocalConfig()`, `setupProviderConfig()` | Onboarding model templates + defaults |
 | `reference/continue-src/core/index.d.ts` | 2022 | 📘 Types | `Tool`, `ContinueConfig`, `BrowserSerializedContinueConfig`, `IDE`, `ILLM` | Complete type system (runtime & serializable) |
+| `reference/continue-src/core/promptFiles/createNewPromptFile.ts` | 76 | 🟡 Generator | `createNewPromptFileV2()`, prompt file templates | Create onboarding .prompt files in .continue/prompts; YAML frontmatter + body parsing |
+| `reference/continue-src/core/core.ts` | 1460 | 🔴 Orchestrator | `Core` (main class), message routing/abort control, IDE lifecycle init | Core brain: config/indexing/LLM/tools/history/session/MCP wiring; messenger recv/send dispatch |
+| `reference/continue-src/gui/vite-env.d.ts` | 1 | 🟢 TypeDef | Vite client types reference | Vite build environment type definitions |
+| `reference/continue-src/gui/index.css` | 146 | 🎨 Styles | Tailwind directives + custom classes | Global styles: animations (fadeIn, rerenderFlash), scrollbars, text truncation, theming |
+| `reference/continue-src/gui/src/styles/theme.ts` | 286 | 🎨 Theme | `THEME_COLORS` object, `THEME_CSS_VARS`, `THEME_CSS_VAR_DEFAULTS` | VSCode theme variable mapping (30+ colors); dark mode defaults; blue accent palette |
+| `reference/continue-src/gui/src/styles/utils.ts` | 45 | 🎨 Utilities | `parseHexColor()`, `parseColorForHex()` | Hex↔RGB color conversion; CSS var→hex parsing from DOM |
 | `reference/continue-src/core/protocol/util.ts` | 53 | 🟢 Schema | `ErrorWebviewMessage`, `WebviewSingleMessage`, `WebviewGeneratorMessage`, `WebviewMessage`, generator type helpers | Envelope types for single/streaming responses; error payloads (status+error) |
 | `reference/continue-src/core/protocol/passThrough.ts` | 109 | 🟢 Router | `WEBVIEW_TO_CORE_PASS_THROUGH` (80 types), `CORE_TO_WEBVIEW_PASS_THROUGH` (12 types) | Message whitelist for bidirectional routing; KT enum sync required |
 | `reference/continue-src/core/llm/constants.ts` | 37 | 🟡 Config | `DEFAULT_MAX_TOKENS`, `DEFAULT_CONTEXT_LENGTH`, `DEFAULT_TEMPERATURE`, `PROXY_URL`, `LLMConfigurationStatuses`, `NEXT_EDIT_MODELS` | LLM defaults (4k tokens, 32k context, 0.5°, 128k pruning); config enums |
@@ -333,6 +339,47 @@ reference/continue-src/gui/
 | `InProcessMessenger<ToP, FromP>` | `core/protocol/messenger/index.ts` | 51-149 | Class | Messenger | In-memory messenger (local protocol handler) |
 | `MessageIde` | `core/protocol/messenger/messageIde.ts` | 21-230 | Class | Messenger | IDE proxy that sends requests over protocol |
 | `ReverseMessageIde` | `core/protocol/messenger/reverseMessageIde.ts` | 6-172 | Class | Messenger | IDE listener that handles incoming protocol requests |
+| `constructMcpSlashCommand()` | `core/commands/slash/mcpSlashCommand.ts` | 5-17 | Function | Builder | Construct SlashCommandWithSource from MCP client/name/description |
+| `stringifyMcpPrompt()` | `core/commands/slash/mcpSlashCommand.ts` | 19-42 | Function | Formatter | Format MCP prompt messages with role tags (user/assistant) |
+| `ChatDescriber` | `core/util/chatDescriber.ts` | 10-116 | Class (Static) | Generator | Auto-title sessions via LLM (16-token limit, 3-4 words) |
+| `describe()` | `core/util/chatDescriber.ts` | 16-48 | StaticAsync | Generator | Generate title from chat history via model.chat() |
+| `describeWithBaseLlmApi()` | `core/util/chatDescriber.ts` | 51-108 | StaticAsync | Generator | Generate title via BaseLlmApi (CLI fallback) |
+| `GlobalContext` | `core/util/GlobalContext.ts` | 62-185 | Class | Storage | Persistent global state: workspace/model/OAuth/doc configs |
+| `GlobalContext.update()` | `core/util/GlobalContext.ts` | 63-116 | Method | Storage | Write key→value to globalContext.json with salvage on corruption |
+| `GlobalContext.get()` | `core/util/GlobalContext.ts` | 118-144 | Method | Storage | Read key from globalContext.json with recovery |
+| `GlobalContext.getSharedConfig()` | `core/util/GlobalContext.ts` | 146-159 | Method | Storage | Load sharedConfig with validation; repair on error |
+| `getContinueGlobalPath()` | `core/util/paths.ts` | 69-76 | Function | Paths | Get ~/.continue (or CONTINUE_GLOBAL_DIR env) ✓create if missing |
+| `getSessionsFolderPath()` | `core/util/paths.ts` | 78-84 | Function | Paths | Get ~/.continue/sessions ✓create if missing |
+| `getIndexFolderPath()` | `core/util/paths.ts` | 86-92 | Function | Paths | Get ~/.continue/index ✓create if missing |
+| `getGlobalContextFilePath()` | `core/util/paths.ts` | 94-96 | Function | Paths | Get ~/.continue/index/globalContext.json |
+| `getConfigYamlPath()` | `core/util/paths.ts` | 119-130 | Function | Paths | Get ~/.continue/config.yaml; create with defaults if missing |
+| `getPrimaryConfigFilePath()` | `core/util/paths.ts` | 132-138 | Function | Paths | Prefer config.yaml over config.json |\r\n| `getTsConfigPath()` | `core/util/paths.ts` | 176-200 | Function | Paths | Setup tsconfig.json for user config.ts compilation |
+| `getConfigTsPath()` | `core/util/paths.ts` | 140-169 | Function | Paths | Get ~/.continue/config.ts; setup types/ + package.json |
+| `markProcessAsBackgrounded()` | `core/util/processTerminalStates.ts` | 19-21 | Function | StateTracker | Mark tool call as backgrounded (skip kill-on-abort) |
+| `markProcessAsRunning()` | `core/util/processTerminalStates.ts` | 32-46 | Function | StateTracker | Track foreground process with output callback |
+| `killTerminalProcess()` | `core/util/processTerminalStates.ts` | 70-86 | AsyncFunction | StateTracker | SIGTERM→5s→SIGKILL escalation for process |
+| `getParserForFile()` | `core/util/treeSitter.ts` | 121-138 | AsyncFunction | Parser | Load tree-sitter parser for file extension |
+| `getLanguageForFile()` | `core/util/treeSitter.ts` | 145-167 | AsyncFunction | Parser | Detect language name from file ext; load wasm (cached) |
+| `getQueryForFile()` | `core/util/treeSitter.ts` | 174-198 | AsyncFunction | Parser | Load tree-sitter query (.scm file) for language |
+| `LanguageName` | `core/util/treeSitter.ts` | 8-36 | Enum | Config | 22 languages (cpp, c_sharp, python, typescript, rust, etc.) |
+| `supportedLanguages` | `core/util/treeSitter.ts` | 38-114 | Record | Config | File extension → LanguageName map (100+ entries) |
+| `TTS` | `core/util/tts.ts` | 34-106 | Class (Static) | Audio | Cross-platform TTS (say/PowerShell/espeak) |
+| `sanitizeMessageForTTS()` | `core/util/tts.ts` | 18-32 | Function | Audio | Remove unsafe chars for exec context |\r\n| `compactConversation()` | `core/util/conversationCompaction.ts` | 19-112 | AsyncFunction | Summary | Generate LLM summary of conversation history |
+| `HistoryManager` | `core/util/history.ts` | 24-197 | Class | SessionMgr | Load/save/list/delete sessions from ~/.continue/sessions/ |
+| `HistoryManager.list()` | `core/util/history.ts` | 25-58 | Method | SessionMgr | List sessions with filtering (workspace/limit/offset); reverse chronological |
+| `HistoryManager.load()` | `core/util/history.ts` | 91-109 | Method | SessionMgr | Load session JSON; return NEW_SESSION_TITLE on missing |
+| `HistoryManager.save()` | `core/util/history.ts` | 111-192 | Method | SessionMgr | Persist session + update sessions.json metadata |
+| `toMarkDown()` | `core/util/historyUtils.ts` | 41-65 | Function | Exporter | Convert ChatMessage[] → markdown with blockquote format |
+| `shareSession()` | `core/util/historyUtils.ts` | 67-105 | AsyncFunction | Exporter | Export session to markdown file; workspace-relative paths |
+| `createNewPromptFileV2()` | `core/promptFiles/createNewPromptFile.ts` | 38-76 | AsyncFunction | Generator | Create ~/.continue/prompts/new-prompt-file.prompt with template |
+| `Core` | `core/core.ts` | 89-1460 | Class (🔴 Main) | Orchestrator | Main Continue orchestrator: config/indexing/LLM/tools/history wiring |
+| `Core.invoke()` | `core/core.ts` | 111-116 | Method | Protocol | Type-safe invoke on messenger (ToCoreProtocol) |
+| `Core.send()` | `core/core.ts` | 118-124 | Method | Protocol | Fire-and-forget send to IDE/Webview (FromCoreProtocol) |
+| `THEME_COLORS` | `gui/src/styles/theme.ts` | 5-183 | Object | Config | 30+ VSCode CSS vars with dark mode defaults (blue accent palette) |
+| `THEME_CSS_VARS` | `gui/src/styles/theme.ts` | 188-190 | Const[] | Config | Flat array of all CSS variable names from THEME_COLORS |
+| `THEME_CSS_VAR_DEFAULTS` | `gui/src/styles/theme.ts` | 192-200 | Record | Config | CSS var name → default color value mapping |
+| `parseHexColor()` | `gui/src/styles/utils.ts` | 1-19 | Function | Utility | Parse hex color string → {r, g, b} |
+| `parseColorForHex()` | `gui/src/styles/utils.ts` | 21-45 | Function | Utility | Parse CSS color var (hex/rgb/rgba) → hex string |
 
 ---
 
