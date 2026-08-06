@@ -62,6 +62,15 @@
 | `reference/continue-src/core/edit/streamDiffLines.ts` | 190 | 🟠 Streaming | `streamDiffLines()`, `addIndentation()` | Stream diff lines for edit operations with rule support |
 | `reference/continue-src/core/indexing/CodebaseIndexer.ts` | 872 | 🟠 Orchestrator | `CodebaseIndexer`, `PauseToken` | Orchestrate codebase indexing (chunk, embeddings, FTS, snippets) |
 | `reference/continue-src/core/indexing/docs/DocsService.ts` | 1292 | 🟠 Orchestrator | `DocsService`, `LanceDbDocsRow`, `embedModelsAreEqual()` | Documentation site indexing with LanceDB + SQLite storage |
+| `reference/continue-src/core/config/util.ts` | 210 | 🟡 Utilities | `addModel()`, `deleteModel()`, `getModelByRole()`, `isSupportedLanceDbCpuTargetForLinux()` | Model config mutations + CPU target validation + prompt template serialization |
+| `reference/continue-src/core/config/createNewAssistantFile.ts` | 69 | 🟡 Utility | `createNewAssistantFile()` | Create onboarding config file in .continue/agents/ |
+| `reference/continue-src/core/config/loadLocalAssistants.ts` | 156 | 🟡 Loader | `isContinueConfigRelatedUri()`, `getAllDotContinueDefinitionFiles()`, `getDotContinueSubDirs()` | Scan .continue/{agents,assistants,configs,prompts} + colocated rules |
+| `reference/continue-src/core/config/markdown/loadCodebaseRules.ts` | 129 | 🟡 Loader | `loadCodebaseRules()`, `CodebaseRulesCache` (singleton) | Load rules.md files; parse & cache codebase-colocated rules |
+| `reference/continue-src/core/config/workspace/workspaceBlocks.ts` | 213 | 🟡 Creator | `createNewWorkspaceBlockFile()`, `createNewGlobalRuleFile()`, `getFileContent()`, `findAvailableFilename()` | Create/manage .continue block files (rules, prompts, context, models, etc.) |
+| `reference/continue-src/core/config/ConfigHandler.ts` | 369 | 🟠 Orchestrator | `ConfigHandler` (class), `cascadeInit()`, `getLocalProfiles()`, lifecycle methods | Config lifecycle manager; profile loading, cascading reload, listener dispatch |
+| `reference/continue-src/core/config/onboarding.ts` | 171 | 🟡 Setup | `setupBestConfig()`, `setupLocalConfig()`, `setupProviderConfig()`, model constants | Onboarding model templates for Anthropic/OpenAI/Gemini + Ollama defaults |
+| `reference/continue-src/core/context/mcp/MCPManagerSingleton.ts` | 204 | 🟠 Manager | `MCPManagerSingleton`, `setConnections()`, `refreshConnections()`, `getStatuses()` | Singleton MCP client lifecycle + transport comparison + connection lifecycle |
+| `reference/continue-src/core/context/mcp/MCPOauth.ts` | 349 | 🟡 Auth | `MCPConnectionOauthProvider`, `handleMCPOauthCode()`, OAuth state/token storage | OAuth2 redirect handler (port 3000); client info & token persistence via GlobalContext |
 | `reference/continue-src/core/util/errors.ts` | 71 | 🟠 Error | `ContinueError`, `ContinueErrorReason`, `getRootCause` | Error taxonomy (29 codes) |
 | `reference/continue-src/gui/index.html` | 16 | 🟢 Bootstrap | (html) | WebView2 mount point |
 | `reference/continue-src/gui/src/main.tsx` | 24 | 🟢 Bootstrap | `App`, Redux `Provider`, `PersistGate` | React root + Redux setup |
