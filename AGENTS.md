@@ -858,6 +858,74 @@ reference/continue-src/gui/
 
 | `CompletionProvider.dispose()` | `core/autocomplete/CompletionProvider.ts` | 311-315 | Method | Lifecycle | Close autocomplete cache on shutdown |
 
+| `EditClusterConfig` | `core/nextEdit/context/aggregateEdits.ts` | 29-36 | Interface | Config | Clustering thresholds (deltaT, deltaL, maxEdits, maxDuration, contextLines) |
+
+| `EditAggregator` | `core/nextEdit/context/aggregateEdits.ts` | 38-628 | Class (Singleton) | Aggregator | Clusters small edits by time/line proximity; singleton state per file |
+
+| `EditAggregator.getInstance()` | `core/nextEdit/context/aggregateEdits.ts` | 51-88 | Method | Accessor | Singleton factory with config/callback injection |
+
+| `EditAggregator.processEdit()` | `core/nextEdit/context/aggregateEdits.ts` | 110-144 | Method | Process | Queue edit processing; handles file transitions |
+
+| `EditAggregator.finalizeCluster()` | `core/nextEdit/context/aggregateEdits.ts` | (methods) | Method | Finalize | Emit cluster via onComparisonFinalized callback |
+
+| `EditAggregator.identifyClustersToFinalize()` | `core/nextEdit/context/aggregateEdits.ts` | (methods) | Method | Query | Return clusters exceeding time/line/edit thresholds |
+
+| `EditAggregator.findSuitableCluster()` | `core/nextEdit/context/aggregateEdits.ts` | (methods) | Method | Query | Locate active cluster matching edit proximity/time |
+
+| `DiffFormatType` | `core/nextEdit/context/diffFormatting.ts` | 4-8 | Enum | Type | Diff format variants: Unified, RawBeforeAfter, TokenLineDiff |
+
+| `BeforeAfterDiff` | `core/nextEdit/context/diffFormatting.ts` | 10-14 | Type | Type | Object with filePath, beforeContent, afterContent |
+
+| `CreateDiffArgs` | `core/nextEdit/context/diffFormatting.ts` | 16-23 | Interface | Type | Arguments for diff creation with format, context lines, workspace |
+
+| `createDiff()` | `core/nextEdit/context/diffFormatting.ts` | 25-46 | Function | Generator | Router to format-specific diff generators (unified/token) |
+
+| `createBeforeAfterDiff()` | `core/nextEdit/context/diffFormatting.ts` | 83-102 | Function | Generator | Normalize and return raw before/after diff object |
+
+| `extractMetadataFromUnifiedDiff()` | `core/nextEdit/context/diffFormatting.ts` | 138-247 | Function | Parser | Extract hunks, file metadata, line numbers from unified diff |
+
+| `DiffMetadata` | `core/nextEdit/context/diffFormatting.ts` | 113-136 | Interface | Type | Parsed diff structure (hunks, filenames, binary flags, rename status) |
+
+| `processSmallEdit()` | `core/nextEdit/context/processSmallEdit.ts` | 10-53 | Function | Utilities | Entry point: adds diff to NextEditProvider context, calls processNextEditData |
+
+| `ProcessedItem` | `core/nextEdit/NextEditPrefetchQueue.ts` | 5-8 | Interface | Type | Queued item with location and NextEditOutcome from model |
+
+| `PrefetchQueue` | `core/nextEdit/NextEditPrefetchQueue.ts` | 18-152 | Class (Singleton) | Queue | Manages unprocessed/processed diff queue (prefetch disabled; chain store) |
+
+| `PrefetchQueue.getInstance()` | `core/nextEdit/NextEditPrefetchQueue.ts` | 33-39 | Method | Accessor | Singleton factory with configurable prefetch limit |
+
+| `PrefetchQueue.enqueueUnprocessed()` | `core/nextEdit/NextEditPrefetchQueue.ts` | 46-48 | Method | Mutate | Add RangeInFile to unprocessed queue |
+
+| `PrefetchQueue.dequeueProcessed()` | `core/nextEdit/NextEditPrefetchQueue.ts` | 58-60 | Method | Mutate | Remove and return first ProcessedItem from processed queue |
+
+| `PrefetchQueue.process()` | `core/nextEdit/NextEditPrefetchQueue.ts` | 63-109 | Method | Process | Batch-process unprocessed items; call model via NextEditProvider |
+
+| `PrefetchQueue.abort()` | `core/nextEdit/NextEditPrefetchQueue.ts` | 112-118 | Method | Lifecycle | Abort pending operations; clear queues; reset AbortController |
+
+| `NextEditProvider` | `core/nextEdit/NextEditProvider.ts` | 57-628 | Class (Singleton) | Generator | Next-edit prediction orchestrator; manages chains, context, model providers |
+
+| `NextEditProvider.initialize()` | `core/nextEdit/NextEditProvider.ts` | 92-111 | Method | Lifecycle | Singleton factory; requires config, IDE, LLM, LSP, error handlers |
+
+| `NextEditProvider.getInstance()` | `core/nextEdit/NextEditProvider.ts` | 113-120 | Method | Accessor | Get singleton; fail if not initialized |
+
+| `NextEditProvider.provideInlineCompletionItems()` | `core/nextEdit/NextEditProvider.ts` | 260-302 | Method | Generate | Main entry: check security, init request, generate prompts, handle completion |
+
+| `NextEditProvider.provideInlineCompletionItemsWithChain()` | `core/nextEdit/NextEditProvider.ts` | 557-599 | Method | Generate | Chain wrapper: reuse previous outcome as input for next prediction |
+
+| `NextEditProvider.accept()` | `core/nextEdit/NextEditProvider.ts` | 183-188 | Method | Handler | Mark completion accepted; route to loggingService |
+
+| `NextEditProvider.reject()` | `core/nextEdit/NextEditProvider.ts` | 190-195 | Method | Handler | Mark completion rejected; route to loggingService |
+
+| `NextEditProvider.cancel()` | `core/nextEdit/NextEditProvider.ts` | 179-181 | Method | Handler | Cancel current operation; route to loggingService |
+
+| `NextEditProvider.markDisplayed()` | `core/nextEdit/NextEditProvider.ts` | 197-199 | Method | Logging | Log outcome display for telemetry |
+
+| `NextEditProvider.startChain()` | `core/nextEdit/NextEditProvider.ts` | 245-247 | Method | Chain | Begin a prediction chain with UUID or custom ID |
+
+| `NextEditProvider.deleteChain()` | `core/nextEdit/NextEditProvider.ts` | 222-243 | Method | Chain | Abort queue, reset state, save document history |
+
+| `NextEditProvider.addDiffToContext()` | `core/nextEdit/NextEditProvider.ts` | 122-127 | Method | Context | Add finalized diff to rolling context (max 5) |
+
 | `MCPManagerSingleton` | `core/context/mcp/MCPManagerSingleton.ts` | 6-204 | Class (Singleton) | Manager | Lifecycle for all MCP connections |
 
 | `ContinueConfig` | `core/index.d.ts` | 1820-1841 | Interface | Type | Runtime config (core-side) WITH functions |
