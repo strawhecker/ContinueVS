@@ -14,15 +14,15 @@
 | **`src/versions/v2.0.0/core-server.js`** | **673** | **🔴 CRITICAL** | `BridgeServer`, `parseArgs`, `HandlerDispatcher` | Node.js entry point; spawns Continue process; relays stdio messages |
 | `reference/continue-src/core/config/load.ts` | 904 | 🟠 Pipeline | `loadContinueConfigFromJson`, `finalToBrowserConfig`, `intermediateToFinalConfig` | Config JSON → Runtime → Browser serialization |
 | `reference/continue-src/core/tools/index.ts` | 56 | 🟠 Factory | `getBaseToolDefinitions`, `getConfigDependentToolDefinitions`, `serializeTool` | Tool definitions; runtime→browser stripping |
-| `reference/continue-src/core/tools/mcpToolName.ts` | 18 | 🟡 Utilities | `getMCPToolName`, `getToolNameFromMCPServer` | MCP server name → tool name normalization |
-| `reference/continue-src/core/tools/parseArgs.ts` | 153 | 🟡 Utilities | `safeParseToolCallArgs`, `coerceArgsToSchema`, `getStringArg`, `getNumberArg`, `getBooleanArg` | Tool argument parsing & type coercion |
-| `reference/continue-src/core/tools/applyToolOverrides.ts` | 69 | 🟡 Utilities | `applyToolOverrides` | Apply config overrides to tool definitions |
-| `reference/continue-src/core/tools/builtIn.ts` | 32 | 🟡 Config | `BuiltInToolNames` enum, `BUILT_IN_GROUP_NAME`, `CLIENT_TOOLS_IMPLS` | 19 built-in tool enum values + group metadata |
-| `reference/continue-src/core/tools/callTool.ts` | 280 | 🟠 Execution | `callTool`, `callBuiltInTool`, `callToolFromUri`, `encodeMCPToolUri`, `decodeMCPToolUri` | Tool invocation dispatcher (built-in, HTTP, MCP) |
-| `reference/continue-src/core/data/devdataSqlite.ts` | 92 | 🟡 Telemetry | `DevDataSqliteDb` class | Local SQLite token usage tracking (tokens_generated table) |
-| `reference/continue-src/core/data/log.ts` | 238 | 🟡 Telemetry | `DataLogger` (singleton) | Local + remote dev data logging (JSON-L files, HTTPS POST) |
-| `reference/continue-src/core/indexing/shouldIgnore.ts` | 74 | 🟡 Utilities | `shouldIgnore()` | Check if file should be excluded from codebase indexing |
-| `reference/continue-src/core/indexing/walkDir.ts` | 347 | 🟠 Walker | `walkDirAsync()`, `walkDir()`, `walkDirs()`, `getIgnoreContext()` | Depth-first directory traversal with .gitignore/.continueignore filtering + caching |
+| `reference/continue-src/core/tools/mcpToolName.ts` | 18 | 🟡 Driver | `getMCPToolName()`, `getToolNameFromMCPServer()` | Normalize MCP server/tool names: sanitize non-alphanumeric, remove duplicates |
+| `reference/continue-src/core/tools/parseArgs.ts` | 153 | 🟡 Utilities | `safeParseToolCallArgs()`, `coerceArgsToSchema()`, `getStringArg()`, `getNumberArg()`, `getBooleanArg()`, `getOptionalStringArg()` | Tool arg parsing, JSON deep-parse handling, type coercion (string/number/boolean) |
+| `reference/continue-src/core/tools/applyToolOverrides.ts` | 69 | 🟡 Utilities | `applyToolOverrides()`, `ApplyToolOverridesResult` | Apply config tool overrides (disable, rename, re-describe); validation errors |
+| `reference/continue-src/core/tools/builtIn.ts` | 32 | 🟡 Config | `BuiltInToolNames` enum (20 values), `BUILT_IN_GROUP_NAME`, `CLIENT_TOOLS_IMPLS` | Enum: read/edit/search/run/view/rule/fetch/codebase tools + repo map |
+| `reference/continue-src/core/tools/callTool.ts` | 280 | 🟠 Dispatcher | `callTool()`, `callBuiltInTool()`, `callToolFromUri()`, `encodeMCPToolUri()`, `decodeMCPToolUri()` | Route tool calls to HTTP/MCP/built-in; fetch MCP UI resources; handle errors |
+| `reference/continue-src/core/data/devdataSqlite.ts` | 92 | 🟡 Storage | `DevDataSqliteDb` (static class), `logTokensGenerated()`, `getTokensPerDay()`, `getTokensPerModel()` | Local SQLite token accounting (model, provider, prompt/generated counts by day/model) |
+| `reference/continue-src/core/data/log.ts` | 238 | 🟠 Logger | `DataLogger` (singleton), `logDevData()`, `logLocalData()`, `logToOneDestination()`, `parseEventData()` | Local (JSON-L) + remote (HTTPS POST) dev data logging with schema versioning |
+| `reference/continue-src/core/indexing/shouldIgnore.ts` | 74 | 🟡 Matcher | `shouldIgnore()` | Walk up tree from file, check default/.gitignore/.continueignore rules; symlink detection |
+| `reference/continue-src/core/indexing/walkDir.ts` | 347 | 🟠 Walker | `DFSWalker`, `walkDirAsync()`, `walkDir()`, `walkDirs()`, `getIgnoreContext()`, `walkDirCache` | Depth-first traversal with dual-level caching (30s), ignore context chain, relative URI paths |
 | `reference/continue-src/core/config/util.ts` | 210 | 🟡 Utility | `addModel()`, `deleteModel()`, `getModelByRole()` | Model config mutations + CPU target validation |
 | `reference/continue-src/core/config/createNewAssistantFile.ts` | 69 | 🟡 Utility | `createNewAssistantFile()` | Create onboarding config file in .continue/agents/ |
 | `reference/continue-src/core/config/loadLocalAssistants.ts` | 156 | 🟡 Loader | `isContinueConfigRelatedUri()`, `getAllDotContinueDefinitionFiles()` | Scan .continue/{agents,assistants,configs,prompts} + colocated rules |
