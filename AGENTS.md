@@ -94,6 +94,10 @@
 | `reference/continue-src/gui/src/redux/thunks/edit.ts` | 156 | 🟡 Thunk | `streamEditThunk`, `enterEdit`, `exitEdit` | Manage edit mode: enter/exit, resolve content, send to core, restore session |
 | `reference/continue-src/gui/src/redux/thunks/session.ts` | 262 | 🟡 Thunk | `saveCurrentSession`, `loadLastSession`, `loadSession`, `selectChatModelForProfile`, `refreshSessionMetadata`, `deleteSession`, `updateSession` | Session lifecycle: load/save, title generation, metadata refresh |
 | `reference/continue-src/gui/src/redux/store.ts` | 153 | 🔧 Config | `setupStore`, `RootState`, `AppDispatch`, `AppThunkDispatch`, `ThunkExtrasType`, `ThunkApiType`, `store`, `persistor` | Redux store setup: root reducer combiner, persist config, middleware, type exports |
+| `reference/continue-src/gui/src/pages/error.tsx` | 62 | 📄 Page | `ErrorPage` | Global error boundary page; clears localStorage, resets session on recovery |
+| `reference/continue-src/gui/src/pages/stats.tsx` | 141 | 📄 Page | `Stats` | Token usage analytics: per-day and per-model telemetry with table export |
+| `reference/continue-src/gui/src/pages/history/index.tsx` | 18 | 📄 Page | `HistoryPage` | Session history browser; wraps History component with page header |
+| `reference/continue-src/gui/src/pages/config/index.tsx` | 92 | 📄 Page | `ConfigPage` | Settings hub with tabbed sidebar; models, tools, rules, account preferences |
 | `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
@@ -684,6 +688,10 @@ reference/continue-src/gui/
 | `persistConfig` | `gui/src/redux/store.ts` | 92-99 | Constant | Config | redux-persist configuration: version, storage, transforms, migration manifest |
 | `migrations` | `gui/src/redux/store.ts` | 66-90 | Constant | Config | State migration manifest (v0: old sessionId → new session.id) |
 | `saveSubsetFilters` | `gui/src/redux/store.ts` | 36-64 | Constant | Config | redux-persist-transform-filter array; specifies which slices/fields to persist |
+| `ErrorPage` | `gui/src/pages/error.tsx` | 11-62 | Component | Page | Error boundary fallback page; clears persist cache, resets session, navigates to home |
+| `Stats` | `gui/src/pages/stats.tsx` | 36-141 | Component | Page | Token usage analytics: fetch/display per-day and per-model token counts from IDE |
+| `HistoryPage` | `gui/src/pages/history/index.tsx` | 6-18 | Component | Page | Session history page wrapper; renders History component with page header |
+| `ConfigPage` | `gui/src/pages/config/index.tsx` | 11-92 | Component | Page | Settings hub: tab-based sidebar with top/bottom sections; responsive desktop/mobile layout |
 | `editToolImpl`
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
@@ -4146,6 +4154,88 @@ state.config = config  // Stores BrowserSerializedContinueConfig
 - Tool policies persisted in `ui.toolSettings` slice
 - Migration routine re-dispatches policies via `uiSlice` reducers
 - Client tool extras pass `AppThunkDispatch` for apply thunk execution
+
+---
+
+## 📄 PAGES (4 files, 313 lines)
+
+**Overview**: React Router page components rendering top-level UI routes (error boundary, analytics, history browser, settings hub). Each page uses hooks (useNavigationListener), IdeMessenger, selectors, and thunks for lifecycle and state management.
+
+### 1. Error Boundary Page
+
+**ErrorPage** (62 lines):
+- **Route**: `/error` (global error boundary fallback)
+- **Imports**: `useRouteError()` from React Router, `IdeMessengerContext`, `useDispatch`, `useNavigate`
+- **Behavior**:
+  - Displays error status/message text (lines 34-38)
+  - Clears localStorage (`persist:root`, `inputHistory_chat`)
+  - Dispatches `newSession()` to reset Redux state
+  - Navigates back to home (`/`)
+  - Shows FlagIcon initially, then ArrowPathIcon after 500ms (retry animation)
+  - Opens GitHub/discussions links via IdeMessenger.post("openUrl")
+
+### 2. Stats/Analytics Page
+
+**Stats** (141 lines):
+- **Route**: `/stats` (More menu)
+- **Imports**: `useNavigationListener()`, `IdeMessengerContext`, styled-components tables, `CopyIconButton`
+- **State**: `days[]` (day + tokens), `models[]` (model name + tokens)
+- **Lifecycle**:
+  - Line 49: Fetch `stats/getTokensPerDay` from IDE on mount
+  - Line 55: Fetch `stats/getTokensPerModel` from IDE on mount
+- **UI Layout**:
+  - PageHeader with back navigation
+  - Table 1: Tokens per day (day, generated, prompt counts)
+  - Table 2: Tokens per model (model, generated, prompt counts)
+  - CopyIconButton on each table for copy-to-clipboard (formatted via `table()` library)
+  - Hover effect on rows (vscInputBackground color)
+
+### 3. History Page
+
+**HistoryPage** (18 lines):
+- **Route**: `/history` (Chat history browser)
+- **Simplest page**: Just wraps History component with PageHeader
+- **Imports**: History component, PageHeader, `getFontSize()` utility
+- **Props**: Responsive font sizing via `getFontSize()`
+- **Navigation**: Back button in PageHeader goes to home
+
+### 4. Config / Settings Hub
+
+**ConfigPage** (92 lines):
+- **Route**: `/config?tab={tabId}` (Settings, Models, Tools, Rules, etc.)
+- **Imports**: `useNavigationListener()`, `useSearchParams`, `TabGroup`, config tab modules, AccountDropdown
+- **Architecture**:
+  - **Sidebar (left)**: Vertical tab list (desktop: 160px, mobile: 48px compressed)
+    - `topTabSections`: Settings, Models, Tools (top of sidebar)
+    - `bottomTabSections`: Rules, Keyboard Shortcuts, About (bottom of sidebar)
+    - AccountDropdown at very bottom
+  - **Main Content (right)**: Renders active tab component
+- **Layout**:
+  - Desktop (md+): Full sidebar + content visible
+  - Mobile (sm-): Sidebar collapsed (w-12), warning alert that sidebar is too narrow (resize to expand)
+  - Uses CSS grid: `flex h-full flex-row overflow-hidden`
+- **Navigation**:
+  - `handleTabClick()` routing: `tab == "back"` → `/`, else → `/config?tab={tabId}`
+- **Features**:
+  - SearchParams for tab state (survives back/forward)
+  - DeprecationBanner overlay on settings page
+  - Responsive media query alerts for small screens
+
+### Page Integration Pattern
+
+**Hooks Used Across All Pages**:
+- `useNavigationListener()` (Stats, Config) – Sync page state with router history
+- `useNavigate()`, `useRouteError()` – Router navigation
+- `useContext(IdeMessengerContext)` (Error, Stats) – Request IDE data
+- `useSearchParams()` (ConfigPage) – URL state for active tab
+
+**localStorage Access**:
+- ErrorPage clears `persist:root` + `inputHistory_chat` on recovery
+- ConfigPage persists settings via Redux
+
+**IDE Messaging**:
+- Stats page: `stats/getTokensPerDay`, `stats/getTokensPerModel` requests
+- Error page: `openUrl` posts for link handling
 
 ---
 
