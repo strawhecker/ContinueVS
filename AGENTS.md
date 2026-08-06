@@ -387,7 +387,7 @@ reference/continue-src/gui/
 | `ContinueError` | `core/util/errors.ts` | 14-22 | Class | Error | Custom error with reason enum |
 | `ContinueErrorReason` | `core/util/errors.ts` | 24-71 | Enum | Error | 29 error codes (Find&Replace, Multi-Edit, Files, etc.) |
 | `getRootCause()` | `core/util/errors.ts` | 7-12 | Function | Error | Traverse err.cause chain |
-| `Tool` | `core/index.d.ts` | 1132-1168 | Interface | Type | Full tool definition WITH runtime functions |
+| `MCPManagerSingleton` | `core/context/mcp/MCPManagerSingleton.ts` | 6-204 | Class (Singleton) | Manager | Lifecycle for all MCP connections |\r\n| `setConnections()` | `core/context/mcp/MCPManagerSingleton.ts` | 68-109 | Method | Lifecycle | Update connection pool; compare transport options |\r\n| `refreshConnections()` | `core/context/mcp/MCPManagerSingleton.ts` | 155-175 | AsyncMethod | Lifecycle | Race with abort signal; connect all \|\r\n| `getStatuses()` | `core/context/mcp/MCPManagerSingleton.ts` | 177-182 | Method | Query | Return connection statuses + Client objects |\r\n| `MCPConnectionOauthProvider` | `core/context/mcp/MCPOauth.ts` | 70-231 | Class | OAuth | Implements OAuthClientProvider; manages redirect URL \u0026 token storage |\r\n| `performAuth()` | `core/context/mcp/MCPOauth.ts` | 243-271 | AsyncFunction | Auth | Begin OAuth flow for MCP server |\r\n| `handleMCPOauthCode()` | `core/context/mcp/MCPOauth.ts` | 276-344 | AsyncFunction | Auth | Process redirect code; store tokens |\r\n| `getOauthToken()` | `core/context/mcp/MCPOauth.ts` | 233-237 | AsyncFunction | Query | Retrieve cached access_token |\r\n| `removeMCPAuth()` | `core/context/mcp/MCPOauth.ts` | 346-349 | Function | Cleanup | Clear stored tokens for server |\r\n| `Tool` | `core/index.d.ts` | 1132-1168 | Interface | Type | Full tool definition WITH runtime functions |
 | `ContinueConfig` | `core/index.d.ts` | 1820-1841 | Interface | Type | Runtime config (core-side) WITH functions |
 | `BrowserSerializedContinueConfig` | `core/index.d.ts` | 1843-1863 | Interface | Type | Serializable config (GUI-side) WITHOUT functions |
 | `IDE` | `core/index.d.ts` | 831-936 | Interface | Type | IDE abstraction (read/write files, git, LSP, etc.) |
@@ -4827,6 +4827,101 @@ Inject provider models (OpenAI/Anthropic/Gemini) + apiKey
 4. To messenger: Send config updates to IDE/Webview
 5. Workspace changes → ConfigHandler.refreshAll()
 6. Profile selection → setSelectedProfileId() → cascadeInit()
+---
+
+## Layer 2A-2: MCP Context Management (MCPManagerSingleton, MCPOauth)
+
+### Purpose
+Lifecycle management for Model Context Protocol (MCP) server connections, OAuth2 authentication/token persistence, and MCP client pooling for dynamic tool discovery.
+
+### Key Classes
+
+**MCPManagerSingleton** (`core/context/mcp/MCPManagerSingleton.ts:6-204`)  
+Singleton managing the pool of active MCP connections.
+- **getInstance()** — Lazy singleton accessor
+- **setConnections(servers[], forceRefresh, extras?)** — Sync connection pool to config; compare transport options; trigger refreshConnections if changed (lines 68-109)
+- **createConnection(id, options)** — Factory; add new MCPConnection to pool
+- **getConnection(id)** — Retrieve MCPConnection by server id
+- **refreshConnection(serverId)** — Connect single server; notify onConnectionsRefreshed
+- **refreshConnections(force)** — Race all connections against abort signal (lines 155-175)
+- **getStatuses()** — Return MCPServerStatus[] + Client objects
+- **getPrompt(serverName, promptName, args?)** — Call client.getPrompt()
+- **setEnabled(serverId, enabled)** — Toggle server connection on/off
+- **shutdown()** — Close all clients; abort; clear connections
+
+**MCPConnectionOauthProvider** (`core/context/mcp/MCPOauth.ts:70-231`)  
+Implements MCP SDK's OAuthClientProvider interface; manages OAuth state/token storage via GlobalContext.
+- **constructor(oauthServerUrl, ide)** — Initialize with redirect URL (sync default + async IDE override via getExternalUri)
+- **redirectUrl** (getter) — Dynamic or localhost:3000
+- **getRedirectUrlWithState(state)** — URL with state param
+- **ensureRedirectUrl()** — Wait for async init
+- **clientMetadata** (getter) — OAuth client info (Continue branding, auth methods, grant types)
+- **saveClientInformation(info)** / **clientInformation()** — Persist & retrieve OAuth client metadata
+- **saveTokens(tokens)** / **tokens()** — Persist & retrieve OAuth tokens
+- **saveCodeVerifier(v)** / **codeVerifier()** — For PKCE flow
+- **redirectToAuthorization(url)** — Open browser; start localhost:3000 server if needed
+- **clear()** — Erase all stored OAuth data
+
+### Key Functions
+
+**performAuth(serverId, serverUrl, ide)** (`core/context/mcp/MCPOauth.ts:243-271`)  
+Begin OAuth flow for a server.
+- Generate unique state parameter (UUID)
+- Store authenticatingContexts[url] = {serverId, ide, state}
+- Map state → serverUrl for callback matching
+- Call MCP SDK auth(provider, {serverUrl})
+
+**handleMCPOauthCode(authCode, state?)** (`core/context/mcp/MCPOauth.ts:276-344`)  
+OAuth redirect callback handler (invoked from localhost:3000 server).
+- Lookup serverUrl from state param (or fallback to single context)
+- Close localhost server
+- Call MCPManagerSingleton.getInstance().refreshConnection(serverId) if AUTHORIZED
+- Clean up authenticatingContexts & stateToServerUrl
+- Show error toast on IDE if auth failed
+
+**getOauthToken(mcpServerUrl, ide)** (`core/context/mcp/MCPOauth.ts:233-237`)  
+Convenience: retrieve cached access_token for a server.
+
+**removeMCPAuth(serverUrl, ide)** (`core/context/mcp/MCPOauth.ts:346-349`)  
+Clear all stored tokens & client info for a server (e.g., on disable).
+
+### OAuth Redirect Server (localhost:3000)
+
+- Created on-demand by `redirectToAuthorization()` if not already listening
+- Listens for `GET /?code=...&state=...`
+- Parses query params; calls handleMCPOauthCode() asynchronously
+- Returns HTML confirmation; closes after response
+- Singleton `serverInstance` reused across multiple auth flows
+
+### State & Storage
+
+- **authenticatingContexts** — Map<serverUrl, {serverId, ide, state}> (in-memory, short-lived)
+- **stateToServerUrl** — Map<state, serverUrl> (for concurrent auth matching)
+- **GlobalContext.mcpOauthStorage** — Persistent:
+  - `[serverUrl].clientInformation` — OAuthClientInformationFull
+  - `[serverUrl].tokens` — OAuthTokens {access_token, refresh_token, expires_at, ...}
+  - `[serverUrl].codeVerifier` — PKCE verifier
+
+### Dependencies
+
+| From | To | Purpose |
+|------|----|---------| 
+| MCPManagerSingleton | @modelcontextprotocol/sdk | Client class template & MCPConnection transport |
+| MCPManagerSingleton | ./MCPConnection | MCPConnection class for lifecycle |
+| MCPOauth | @modelcontextprotocol/sdk/client/auth | OAuthClientProvider interface, auth() flow |
+| MCPOauth | @modelcontextprotocol/sdk/shared/auth | OAuthClientInformationSchema, OAuthTokensSchema (Zod) |
+| MCPOauth | http, url, uuid | localhost:3000 server, state parameter |
+| handleMCPOauthCode | MCPManagerSingleton | Dynamic import & refreshConnection() call |
+| performAuth | GlobalContext | Store state/tokens |
+
+### Integration Points
+
+1. From `core/config/load.ts` (line ~520): Parse `config.experimental.modelContextProtocolServers` → call `mcpManager.setConnections()`
+2. From `core/core.js` (main loop): MCPManagerSingleton.getInstance().getStatuses() → include in runtime config
+3. From MCP tool execution: MCPManagerSingleton.getInstance().getConnection(serverId).client.callTool()
+4. From OAuth trigger (e.g., tool auth required): performAuth(serverId, url, ide) → localhost:3000 redirect handler
+5. On profile/config change: ConfigHandler.reloadConfig() → triggers setConnections() again
+
 ---
 
 ## 🚀 GUI APPLICATION SHELL & LAYOUT
