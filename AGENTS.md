@@ -68,7 +68,10 @@
 | `reference/continue-src/gui/src/redux/util/getBaseSystemMessage.ts` | 32 | 🟢 Utils | `getBaseSystemMessage()`, `NO_TOOL_WARNING` constant | Select mode-specific system prompt; append no-tools warning |
 | `reference/continue-src/gui/src/redux/util/constructMessages.ts` | 230 | 🟢 Utils | `constructMessages()` | Build LLM message array from history; apply rules; handle tool calls; append summaries |
 | `reference/continue-src/gui/src/redux/util/index.ts` | 126 | 🟢 Utils | `hasCurrentToolCalls()`, `findAllCurToolCalls()`, `findToolCallById()`, `findChatHistoryItemByToolCallId()`, `logToolUsage()` | Tool call state query functions; devdata logging |
-| `reference/continue-src/gui/src/util/clientTools/editImpl.ts` | 53 | 🟡 Tool | `editToolImpl` | Client-side implementation of EditExistingFile tool (dispatch applyForEditTool) |
+| `reference/continue-src/gui/src/redux/selectors/selectActiveTools.ts` | 35 | 🟢 Selectors | `selectActiveTools` | Mode-aware tool filtering based on policies and groups |
+| `reference/continue-src/gui/src/redux/selectors/selectToolCalls.ts` | 68 | 🟢 Selectors | `selectCurrentToolCalls`, `selectHasCurrentToolCalls`, `selectToolCallsByStatus`, `selectFirstPendingToolCall`, `selectToolCallById`, `selectApplyStateByToolCallId`, `selectPendingToolCalls`, `selectDoneApplyStates` | Tool call state queries and apply state tracking |
+| `reference/continue-src/gui/src/redux/selectors/index.ts` | 56 | 🟢 Selectors | `selectSlashCommandComboBoxInputs`, `selectSlashCommands`, `selectSubmenuContextProviders`, `selectDefaultContextProviders`, `selectUseActiveFile` | Slash commands, context providers, and default context configuration |
+| `reference/continue-src/gui/src/util/clientTools/editImpl.ts`
 | `reference/continue-src/gui/src/util/clientTools/multiEditImpl.ts` | 43 | 🟡 Tool | `multiEditImpl` | Client-side implementation of MultiEdit tool (validate + execute multi-find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 51 | 🟡 Tool | `singleFindAndReplaceImpl` | Client-side implementation of SingleFindAndReplace tool (validate + execute find-replace) |
 | `reference/continue-src/gui/src/util/clientTools/callClientTool.ts` | 68 | 🟡 Dispatcher | `callClientTool()`, `ClientToolImpl`, `ClientToolExtras`, `ClientToolOutput`, `ClientToolResult` | Route client tool calls to implementations (EditExistingFile, SingleFindAndReplace, MultiEdit) |
@@ -521,7 +524,21 @@ reference/continue-src/gui/
 | `findToolCallById()` | `gui/src/redux/util/index.ts` | 73-90 | Function | Utils | Find tool call state anywhere in history by toolCallId (reverse scan) |
 | `findChatHistoryItemByToolCallId()` | `gui/src/redux/util/index.ts` | 92-100 | Function | Utils | Find chat history item (tool role) with matching toolCallId |
 | `logToolUsage()` | `gui/src/redux/util/index.ts` | 102-126 | Function | Utils | Post devdata/log message with tool call details (function name, params, args, accepted, output, success status) |
-| `editToolImpl` | `gui/src/util/clientTools/editImpl.ts` | 6-53 | ClientToolImpl | Tool | Execute EditExistingFile: resolve path, dispatch applyForEditTool |
+| `selectActiveTools` | `gui/src/redux/selectors/selectActiveTools.ts` | 7-35 | Selector | Selectors | Mode-aware filter: chat→empty, plan→readonly+built-in only, agent→all enabled tools (based on policies + group settings) |
+| `selectCurrentToolCalls` | `gui/src/redux/selectors/selectToolCalls.ts` | 12-15 | Selector | Selectors | Get all current tool calls from history via `findAllCurToolCalls()` |
+| `selectHasCurrentToolCalls` | `gui/src/redux/selectors/selectToolCalls.ts` | 17-20 | Selector | Selectors | Check if current tool calls exist via `hasCurrentToolCalls()` |
+| `selectToolCallsByStatus` | `gui/src/redux/selectors/selectToolCalls.ts` | 22-28 | Selector | Selectors | Filter current tool calls by status (pending/executing/succeeded/canceled/errored) |
+| `selectFirstPendingToolCall` | `gui/src/redux/selectors/selectToolCalls.ts` | 30-36 | Selector | Selectors | Get first tool call with "generated" status; return undefined if none |
+| `selectToolCallById` | `gui/src/redux/selectors/selectToolCalls.ts` | 39-45 | Selector | Selectors | Find specific tool call by ID via `findToolCallById()` |
+| `selectApplyStateByToolCallId` | `gui/src/redux/selectors/selectToolCalls.ts` | 47-57 | Selector | Selectors | Find most recent apply state for tool call (from `codeBlockApplyStates.states`) |
+| `selectPendingToolCalls` | `gui/src/redux/selectors/selectToolCalls.ts` | 60-63 | Selector | Selectors | Convenience selector for tool calls with "generated" status |
+| `selectDoneApplyStates` | `gui/src/redux/selectors/selectToolCalls.ts` | 65-68 | Selector | Selectors | Filter apply states where status === "done" |
+| `selectSlashCommandComboBoxInputs` | `gui/src/redux/selectors/index.ts` | 8-30 | Selector | Selectors | Transform slash commands → ComboBoxItems (title, description, content, source); handle MCP load failures |
+| `selectSlashCommands` | `gui/src/redux/selectors/index.ts` | 32-37 | Selector | Selectors | Return slash commands array (empty fallback) |
+| `selectSubmenuContextProviders` | `gui/src/redux/selectors/index.ts` | 39-44 | Selector | Selectors | Filter context providers by type === "submenu" |
+| `selectDefaultContextProviders` | `gui/src/redux/selectors/index.ts` | 46-51 | Selector | Selectors | Extract default context providers from config.experimental.defaultContext |
+| `selectUseActiveFile` | `gui/src/redux/selectors/index.ts` | 53-56 | Selector | Selectors | Check if "activeFile" in default context (boolean) |
+| `editToolImpl`
 | `multiEditImpl` | `gui/src/util/clientTools/multiEditImpl.ts` | 8-43 | ClientToolImpl | Tool | Execute MultiEdit: validate, read file, execute find+replace, dispatch apply |
 | `singleFindAndReplaceImpl` | `gui/src/util/clientTools/singleFindAndReplaceImpl.ts` | 8-51 | ClientToolImpl | Tool | Execute SingleFindAndReplace: validate, read file, execute replace, dispatch apply |
 | `callClientTool()` | `gui/src/util/clientTools/callClientTool.ts` | 31-68 | Function | Dispatcher | Route client tool calls (EditExistingFile→editImpl, SingleFindAndReplace→singleImpl, MultiEdit→multiImpl) |
@@ -3241,9 +3258,125 @@ state.config = config  // Stores BrowserSerializedContinueConfig
     - accepted (boolean), output (ContextItem[]), succeeded (boolean)
   - Used for analytics/debugging
 
+     ---
+
+  ## 📊 REDUX SELECTORS (3 files, 159 lines)
+
+  **Overview**: Memoized selectors for mode-aware tool filtering, tool call state queries, slash commands, and context provider configuration. Leverage Redux Toolkit's `createSelector` for efficient memoization and composition.
+
+  ### 1. Active Tools Selector (selectActiveTools.ts - 35 lines)
+
+  **Purpose**: Mode-aware tool filtering based on mode, policies, and group settings.
+
+  **Selector** (lines 7-35):
+  ```typescript
+  export const selectActiveTools = createSelector(
+    [
+      (store: RootState) => store.session.mode,
+      (store: RootState) => store.config.config.tools,
+      (store: RootState) => store.ui.toolSettings,
+      (store: RootState) => store.ui.toolGroupSettings,
+    ],
+    (mode, tools, policies, groupPolicies): Tool[] => { ... }
+  )
+  ```
+
+  **Filtering Logic**:
+  1. **Chat Mode** (line 15-16): Return empty array (no tools available in chat)
+  2. **Agent/Plan Mode** (line 18-32):
+     - Filter tools where:
+       - `toolPolicy !== "disabled"` (check individual tool settings or default)
+       - `groupPolicies[tool.group] !== "exclude"` (group not excluded)
+     - If plan mode: additional filter for readonly tools + built-in tools only (line 28-30)
+     - Otherwise (agent mode): return all enabled tools
+
+  **Policy Resolution Precedence**:
+  1. `policies[tool.function.name]` (individual tool setting)
+  2. `tool.defaultToolPolicy` (tool-level default)
+  3. `DEFAULT_TOOL_SETTING` (global constant fallback)
+
   ---
 
-  ### Redux & Hooks Cross-Coordination
+  ### 2. Tool Call Selectors (selectToolCalls.ts - 68 lines)
+
+  **Purpose**: Memoized queries for tool call state inspection and apply state tracking.
+
+  **Primary Selectors**:
+
+  | Selector | Lines | Purpose | Behavior |
+  |----------|-------|---------|----------|
+  | `selectCurrentToolCalls` | 12-15 | Get all current tool calls | Call `findAllCurToolCalls(history)` (most recent assistant message's tool calls) |
+  | `selectHasCurrentToolCalls` | 17-20 | Boolean: any current tool calls? | Call `hasCurrentToolCalls(history)` (length > 0) |
+  | `selectToolCallsByStatus` | 22-28 | Filter by status (param) | Call `findAllCurToolCallsByStatus(history, status)` with status param |
+  | `selectFirstPendingToolCall` | 30-36 | Get first "generated" tool call | Find all "generated" status; return [0] or undefined |
+
+  **ID-Based Selectors**:
+
+  | Selector | Lines | Purpose | Behavior |
+  |----------|-------|---------|----------|
+  | `selectToolCallById` | 39-45 | Lookup by toolCallId (param) | Call `findToolCallById(history, toolCallId)` |
+  | `selectApplyStateByToolCallId` | 47-57 | Apply state for tool call (param) | Find most recent apply state in `codeBlockApplyStates.states` matching toolCallId |
+
+  **Convenience Status Selectors**:
+
+  | Selector | Lines | Purpose | Returns |
+  |----------|-------|---------|---------|
+  | `selectPendingToolCalls` | 60-63 | Alias for "generated" status | All pending tool calls |
+  | `selectDoneApplyStates` | 65-68 | Filter apply states by status | All apply states where status === "done" |
+
+  ---
+
+  ### 3. Command & Context Selectors (index.ts - 56 lines)
+
+  **Purpose**: Slash commands and context provider configuration selectors.
+
+  **Slash Command Selectors**:
+
+  | Selector | Lines | Purpose |
+  |----------|-------|---------|
+  | `selectSlashCommandComboBoxInputs` | 8-30 | Transform slash commands → ComboBoxItems for input autocomplete |
+  | `selectSlashCommands` | 32-37 | Return raw slash commands array (empty fallback) |
+
+  **selectSlashCommandComboBoxInputs Logic** (lines 8-30):
+  - Map each command to ComboBoxItem:
+    - title: `cmd.name`
+    - description: `cmd.description`
+    - type: `"slashCommand"` (literal type)
+    - content: `cmd.prompt` (or fallback "[MCP Prompt - failed to load...]" if MCP source + no content)
+    - source: `cmd.source` (e.g., "mcp-prompt", "config", etc.)
+  - Returns empty array if slashCommands falsy
+
+  **Context Provider Selectors**:
+
+  | Selector | Lines | Purpose |
+  |----------|-------|---------|
+  | `selectSubmenuContextProviders` | 39-44 | Filter providers by type === "submenu" |
+  | `selectDefaultContextProviders` | 46-51 | Extract `config.experimental.defaultContext` array |
+  | `selectUseActiveFile` | 53-56 | Boolean: "activeFile" in default context? |
+
+  ---
+
+  ### Selectors in Redux Signal Chain
+
+  **Tool Filtering Flow**:
+  - `selectActiveTools` read by LLM message construction
+  - Tool policies updated via config slice
+  - Memoization prevents unnecessary UI rerenders on history change
+
+  **Tool Call Queries**:
+  - `selectCurrentToolCalls` → UI components displaying tool execution status
+  - `selectFirstPendingToolCall` → Tool execution manager
+  - `selectApplyStateByToolCallId` → Apply state UI (accept/reject/retry)
+  - All backed by efficient history scanning via `redux/util` functions
+
+  **Command & Context**:
+  - `selectSlashCommandComboBoxInputs` → Input autocomplete dropdown
+  - `selectDefaultContextProviders` → Sidebar default context panel
+  - `selectUseActiveFile` → Configuration-driven feature flag
+
+  ---
+
+     ### Redux & Hooks Cross-Coordination
 
   **useAppDispatch + useAppSelector**:
   - Used throughout GUI to access/modify Redux state
