@@ -18,6 +18,7 @@ namespace ContinueVS.Handlers.Config
         public Task HandleAsync(Message message, CancellationToken cancellationToken)
         {
             System.Diagnostics.Debug.WriteLine($"[c10-HANDLER-ENTRY] messageId={message.MessageId}");
+            System.Diagnostics.Debug.WriteLine($"[c11-MESSAGE-DATA] {Newtonsoft.Json.JsonConvert.SerializeObject(message, Newtonsoft.Json.Formatting.Indented)}");
             // Try to read models from ~/.continue/config.json
             object[] models = new object[0];
             object? tabAutocompleteModel = null;
