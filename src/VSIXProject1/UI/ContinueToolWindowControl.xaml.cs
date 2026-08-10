@@ -1,4 +1,5 @@
 ﻿using ContinueVS.Binary;
+using ContinueVS.Core.Config;
 using ContinueVS.Editor;
 using System.Collections.Concurrent;
 using ContinueVS.Handlers;
@@ -133,7 +134,7 @@ namespace ContinueVS.UI
                     _dispatcher.Register("config/addOpenAiKey", new ConfigAddOpenAiKeyHandler(this));
                     _dispatcher.Register("config/ideSettingsUpdate", new ConfigIdeSettingsUpdateHandler(this));
                     _dispatcher.Register("config/deleteModel", new ConfigDeleteModelHandler(this));
-                    _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this));
+                    _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this, ConfigCache.Instance));
                     _dispatcher.Register("config/addModel", new ConfigAddModelHandler(this));
                     _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
                     _dispatcher.Register("config/addGlobalRule", new ConfigAddGlobalRuleHandler(this));

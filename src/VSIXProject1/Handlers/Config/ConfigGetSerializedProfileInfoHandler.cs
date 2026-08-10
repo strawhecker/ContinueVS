@@ -1,4 +1,5 @@
 ﻿using System;
+using ContinueVS.Core.Config;
 using ContinueVS.IPC;
 using ContinueVS.UI;
 using System.Threading;
@@ -9,10 +10,13 @@ namespace ContinueVS.Handlers.Config
     internal sealed class ConfigGetSerializedProfileInfoHandler : IMessageHandler
     {
         private readonly ContinueToolWindowControl _control;
+        private readonly ConfigCache _cache;
 
-        public ConfigGetSerializedProfileInfoHandler(ContinueToolWindowControl control)
+        public ConfigGetSerializedProfileInfoHandler(ContinueToolWindowControl control, ConfigCache cache)
         {
             _control = control;
+            _cache = cache;
+            System.Diagnostics.Debug.WriteLine($"[c14-CACHE-INJECTED] cache instance={_cache.GetHashCode()}");
         }
 
         public Task HandleAsync(Message message, CancellationToken cancellationToken)
