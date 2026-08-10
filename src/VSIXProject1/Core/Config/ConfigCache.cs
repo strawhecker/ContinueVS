@@ -27,21 +27,43 @@ namespace ContinueVS.Core.Config
         }
 
         private readonly object _lock = new object();
-        private ConfigSnapshot _currentSnapshot;
+        private ConfigSnapshot _currentSnapshot = null!;
 
         private ConfigCache()
         {
-            System.Diagnostics.Debug.WriteLine("[c13-INIT] ConfigCache singleton initialized");
+            System.Diagnostics.Debug.WriteLine("[c13-CACHE-INIT-START] ConfigCache singleton initialization starting");
 
-            // Seed cache with mock tools for testing
-            var mockTools = CreateMockTools();
-            SetConfig(tools: mockTools);
+            try
+            {
+                // Seed cache with mock tools for testing
+                var mockTools = CreateMockTools();
+                SetConfig(tools: mockTools);
+                System.Diagnostics.Debug.WriteLine("[c15-CACHE-SEEDED] Cache initialized with 3 mock tools");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[c13-CACHE-INIT-ERROR] Exception during initialization: {ex.Message}");
 
-            System.Diagnostics.Debug.WriteLine("[c15-CACHE-SEEDED] Cache initialized with 3 mock tools");
+                // Ensure _currentSnapshot is set to safe default
+                _currentSnapshot = new ConfigSnapshot
+                {
+                    Models = new object[0],
+                    TabAutocompleteModel = null,
+                    Tools = new object[0],
+                    SlashCommands = new object[0],
+                    ContextProviders = new object[0],
+                    McpServerStatuses = new object[0],
+                    Rules = new object[0],
+                    ModelsByRole = null,
+                    SelectedModelByRole = null
+                };
+                System.Diagnostics.Debug.WriteLine("[c13-CACHE-INIT-FALLBACK] Using safe default snapshot");
+            }
         }
 
         /// <summary>
         /// Create 3 mock tools for testing cache plumbing.
+        /// Format matches OpenAI function calling spec used by Continue.
         /// </summary>
         private object[] CreateMockTools()
         {
@@ -49,21 +71,33 @@ namespace ContinueVS.Core.Config
             {
                 new
                 {
-                    name = "read_file",
-                    description = "Read contents of a file",
-                    type = "tool"
+                    type = "function",
+                    function = new
+                    {
+                        name = "read_file",
+                        description = "Read contents of a file",
+                        parameters = new { type = "object", properties = new { } }
+                    }
                 },
                 new
                 {
-                    name = "search_codebase",
-                    description = "Search codebase for patterns",
-                    type = "tool"
+                    type = "function",
+                    function = new
+                    {
+                        name = "search_codebase",
+                        description = "Search codebase for patterns",
+                        parameters = new { type = "object", properties = new { } }
+                    }
                 },
                 new
                 {
-                    name = "edit_existing_file",
-                    description = "Edit an existing file",
-                    type = "tool"
+                    type = "function",
+                    function = new
+                    {
+                        name = "edit_existing_file",
+                        description = "Edit an existing file",
+                        parameters = new { type = "object", properties = new { } }
+                    }
                 }
             };
         }
@@ -115,6 +149,23 @@ namespace ContinueVS.Core.Config
         {
             lock (_lock)
             {
+                if (_currentSnapshot == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[c13-SNAPSHOT-UNINITIALIZED] _currentSnapshot is null, returning safe default");
+                    return new ConfigSnapshot
+                    {
+                        Models = new object[0],
+                        TabAutocompleteModel = null,
+                        Tools = new object[0],
+                        SlashCommands = new object[0],
+                        ContextProviders = new object[0],
+                        McpServerStatuses = new object[0],
+                        Rules = new object[0],
+                        ModelsByRole = null,
+                        SelectedModelByRole = null
+                    };
+                }
+
                 System.Diagnostics.Debug.WriteLine(
                     $"[c13-SNAPSHOT-READ] returning snapshot with " +
                     $"{_currentSnapshot.Models?.Length} models, " +

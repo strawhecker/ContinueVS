@@ -1026,14 +1026,20 @@ namespace ContinueVS.UI
             {
                 MessageType = messageType,
                 MessageId = messageId,
-                Data = JToken.FromObject(wrappedData),
-            };
+                    Data = JToken.FromObject(wrappedData),
+                };
 
-            // [b13-JTOKEN-SERIALIZE] Log JToken creation
-            System.Diagnostics.Debug.WriteLine($"[b13-JTOKEN-SERIALIZE] JToken created from payload");
+                // [b13-JTOKEN-SERIALIZE] Log JToken creation
+                System.Diagnostics.Debug.WriteLine($"[b13-JTOKEN-SERIALIZE] JToken created from payload");
 
-            var json = JsonConvert.SerializeObject(msg);
-            System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Message serialized: {json}");
+                var json = JsonConvert.SerializeObject(msg);
+                System.Diagnostics.Debug.WriteLine($"[b12-RESPONSE] Message serialized: {json}");
+
+                // [CONFIG-DEBUG] Log the full wrapped message for config responses
+                if (messageType == "config/getSerializedProfileInfo")
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG-FINAL-MESSAGE]\n{json}");
+                }
 
             // [b13-JSON-VALID] Validate JSON structure
             var isValidJson = IsValidJson(json);
