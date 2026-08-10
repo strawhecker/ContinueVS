@@ -17,6 +17,7 @@ namespace ContinueVS.Handlers.Config
 
         public Task HandleAsync(Message message, CancellationToken cancellationToken)
         {
+            System.Diagnostics.Debug.WriteLine($"[c10-HANDLER-ENTRY] messageId={message.MessageId}");
             // Try to read models from ~/.continue/config.json
             object[] models = new object[0];
             object? tabAutocompleteModel = null;
@@ -48,6 +49,7 @@ namespace ContinueVS.Handlers.Config
 
             var firstModel = models.Length > 0 ? models[0] : null;
 
+            System.Diagnostics.Debug.WriteLine($"[c10-TOOLS-HARDCODED] returning empty array");
             _control.SendReplyToGui(message.MessageType, message.MessageId,
                 new
                 {
