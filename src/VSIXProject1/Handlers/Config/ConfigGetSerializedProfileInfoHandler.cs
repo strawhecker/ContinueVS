@@ -23,6 +23,7 @@ namespace ContinueVS.Handlers.Config
 
         public Task HandleAsync(Message message, CancellationToken cancellationToken)
         {
+            try { _cache?.WaitForInitialization(5000); System.Diagnostics.Debug.WriteLine("[c16.2-INIT-WAIT] Handler waited for cache initialization"); } catch(TimeoutException ex) { System.Diagnostics.Debug.WriteLine($"[c16.2-INIT-TIMEOUT] Cache init timed out: {ex.Message}"); }
             System.Diagnostics.Debug.WriteLine($"[c10-HANDLER-ENTRY] messageId={message.MessageId}");
             System.Diagnostics.Debug.WriteLine($"[c11-MESSAGE-DATA] {Newtonsoft.Json.JsonConvert.SerializeObject(message, Newtonsoft.Json.Formatting.Indented)}");
             // Try to read models from ~/.continue/config.json
