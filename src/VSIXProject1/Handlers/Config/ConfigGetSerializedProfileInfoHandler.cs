@@ -50,6 +50,54 @@ namespace ContinueVS.Handlers.Config
 
             var firstModel = models.Length > 0 ? models[0] : null;
 
+            // [c12-rev] Log complete response before sending to GUI
+            var responseJson = Newtonsoft.Json.JsonConvert.SerializeObject(
+                new
+                {
+                    result = new
+                    {
+                        config = new
+                        {
+                            models = models,
+                            tabAutocompleteModels = tabAutocompleteModel != null ? new[] { tabAutocompleteModel } : new object[0],
+                            allowAnonymousTelemetry = true,
+                            slashCommands = new object[0],
+                            contextProviders = new object[0],
+                            tools = new object[0],
+                            mcpServerStatuses = new object[0],
+                            rules = new object[0],
+                            modelsByRole = new
+                            {
+                                chat = firstModel != null ? new[] { firstModel } : new object[0],
+                                apply = firstModel != null ? new[] { firstModel } : new object[0],
+                                edit = firstModel != null ? new[] { firstModel } : new object[0],
+                                summarize = firstModel != null ? new[] { firstModel } : new object[0],
+                                autocomplete = tabAutocompleteModel != null ? new[] { tabAutocompleteModel } : new object[0],
+                                rerank = new object[0],
+                                embed = new object[0],
+                                subagent = new object[0]
+                            },
+                            selectedModelByRole = new
+                            {
+                                chat = firstModel,
+                                edit = firstModel,
+                                apply = firstModel,
+                                summarize = firstModel,
+                                autocomplete = tabAutocompleteModel,
+                                rerank = (object?)null,
+                                embed = (object?)null,
+                                subagent = (object?)null
+                            }
+                        },
+                        errors = (object?)null,
+                        configLoadInterrupted = false
+                    },
+                    profileId = "local",
+                    profiles = new[] { new { id = "local", title = "Local" } }
+                },
+                Newtonsoft.Json.Formatting.Indented);
+            System.Diagnostics.Debug.WriteLine($"[c12-RESPONSE-JSON] {responseJson}");
+
             System.Diagnostics.Debug.WriteLine($"[c10-TOOLS-HARDCODED] returning empty array");
             _control.SendReplyToGui(message.MessageType, message.MessageId,
                 new
