@@ -27,6 +27,7 @@ namespace ContinueVS.Core.Config
         }
 
         private readonly object _lock = new object();
+        private readonly ManualResetEvent _initComplete = new ManualResetEvent(false);
         private ConfigSnapshot _currentSnapshot = null!;
 
         private ConfigCache()
@@ -39,6 +40,8 @@ namespace ContinueVS.Core.Config
                 var mockTools = CreateMockTools();
                 SetConfig(tools: mockTools);
                 System.Diagnostics.Debug.WriteLine("[c15-CACHE-SEEDED] Cache initialized with 3 mock tools");
+                _initComplete.Set();
+                System.Diagnostics.Debug.WriteLine("[c16.1-INIT-COMPLETE] ConfigCache initialization barrier released");
             }
             catch (Exception ex)
             {
@@ -58,6 +61,8 @@ namespace ContinueVS.Core.Config
                     SelectedModelByRole = null
                 };
                 System.Diagnostics.Debug.WriteLine("[c13-CACHE-INIT-FALLBACK] Using safe default snapshot");
+                _initComplete.Set();
+                System.Diagnostics.Debug.WriteLine("[c16.1-INIT-COMPLETE-FALLBACK] Barrier released after fallback initialization");
             }
         }
 
@@ -253,6 +258,16 @@ namespace ContinueVS.Core.Config
                     selectedModelByRole = snapshot.SelectedModelByRole
                 }
             };
+        }
+
+        public void WaitForInitialization(int timeoutMs = 5000)
+        {
+            System.Diagnostics.Debug.WriteLine($"[c16.1-WAIT-START] Waiting for cache initialization (timeout={timeoutMs}ms)");
+            if (!_initComplete.WaitOne(timeoutMs))
+            {
+                throw new TimeoutException("ConfigCache initialization did not complete within timeout period");
+            }
+            System.Diagnostics.Debug.WriteLine("[c16.1-WAIT-COMPLETE] Cache initialization confirmed");
         }
 
         // Singleton instance
