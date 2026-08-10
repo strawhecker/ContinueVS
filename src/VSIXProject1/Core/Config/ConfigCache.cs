@@ -33,18 +33,38 @@ namespace ContinueVS.Core.Config
         {
             System.Diagnostics.Debug.WriteLine("[c13-INIT] ConfigCache singleton initialized");
 
-            // Initialize with empty/mock snapshot
-            _currentSnapshot = new ConfigSnapshot
+            // Seed cache with mock tools for testing
+            var mockTools = CreateMockTools();
+            SetConfig(tools: mockTools);
+
+            System.Diagnostics.Debug.WriteLine("[c15-CACHE-SEEDED] Cache initialized with 3 mock tools");
+        }
+
+        /// <summary>
+        /// Create 3 mock tools for testing cache plumbing.
+        /// </summary>
+        private object[] CreateMockTools()
+        {
+            return new object[]
             {
-                Models = new object[0],
-                TabAutocompleteModel = null,
-                Tools = new object[0],
-                SlashCommands = new object[0],
-                ContextProviders = new object[0],
-                McpServerStatuses = new object[0],
-                Rules = new object[0],
-                ModelsByRole = null,
-                SelectedModelByRole = null
+                new
+                {
+                    name = "read_file",
+                    description = "Read contents of a file",
+                    type = "tool"
+                },
+                new
+                {
+                    name = "search_codebase",
+                    description = "Search codebase for patterns",
+                    type = "tool"
+                },
+                new
+                {
+                    name = "edit_existing_file",
+                    description = "Edit an existing file",
+                    type = "tool"
+                }
             };
         }
 
