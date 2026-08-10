@@ -54,6 +54,11 @@ namespace ContinueVS.Handlers.Config
 
             var firstModel = models.Length > 0 ? models[0] : null;
 
+            // [c16-rev] Retrieve tools from cache
+            var snapshot = _cache?.GetSnapshot();
+            var tools = snapshot?.Tools ?? new object[0];
+            System.Diagnostics.Debug.WriteLine($"[c16-TOOLS-FROM-CACHE] count={tools?.Length ?? 0}");
+
             // [c12-rev] Log complete response before sending to GUI
             var responseJson = Newtonsoft.Json.JsonConvert.SerializeObject(
                 new
@@ -67,7 +72,7 @@ namespace ContinueVS.Handlers.Config
                             allowAnonymousTelemetry = true,
                             slashCommands = new object[0],
                             contextProviders = new object[0],
-                            tools = new object[0],
+                            tools = tools,
                             mcpServerStatuses = new object[0],
                             rules = new object[0],
                             modelsByRole = new
@@ -102,7 +107,7 @@ namespace ContinueVS.Handlers.Config
                 Newtonsoft.Json.Formatting.Indented);
             System.Diagnostics.Debug.WriteLine($"[c12-RESPONSE-JSON] {responseJson}");
 
-            System.Diagnostics.Debug.WriteLine($"[c10-TOOLS-HARDCODED] returning empty array");
+
             _control.SendReplyToGui(message.MessageType, message.MessageId,
                 new
                 {
@@ -117,7 +122,7 @@ namespace ContinueVS.Handlers.Config
                             allowAnonymousTelemetry = true,
                             slashCommands = new object[0],
                             contextProviders = new object[0],
-                            tools = new object[0],
+                            tools = tools,
                             mcpServerStatuses = new object[0],
                             rules = new object[0],
                             modelsByRole = new
