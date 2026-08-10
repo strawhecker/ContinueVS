@@ -103,6 +103,10 @@ namespace ContinueVS.UI
                     scope43?.Dispose();
                 }
 
+                // c16.3-rev: Eager ConfigCache initialization before handler registration
+                ConfigCache.Instance.GetSnapshot();
+                System.Diagnostics.Debug.WriteLine("[c16.3-EAGER-INIT] ConfigCache singleton eagerly initialized before handlers registered");
+
                 // t4.4 - Handler registration (t5 entry point)
                 System.Diagnostics.Debug.WriteLine("[CV-t4.4] Registering message handlers (t5 begins)...");
                 IDisposable? scope44 = tracer?.BeginScope("t4.4", "ContinueToolWindowControl.HandlerRegistration");
