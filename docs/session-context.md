@@ -42,11 +42,12 @@
 - **Depends on:** Step 1
 - **Status:** Completed
 
-### step4: Define Tool Types
+### step4: Define Tool Types ✅
 - **Action:** Create `Core/Types/ToolDefinition.cs`, `ToolResult.cs`, `ToolError.cs`
 - **Content:** Tool registry, arguments, results
 - **Depends on:** Step 1
 - **Existing reference:** Use/adapt from `Handlers/builtIn.ts` concept
+- **Status:** Completed
 
 ### step5: Define Session Types
 - **Action:** Create `Core/Types/Session.cs`, `SessionMetadata.cs`
