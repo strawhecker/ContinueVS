@@ -29,16 +29,18 @@
 - **Files created:** (folder only)
 - **Status:** ✅ Completed
 
-### step2: Define Chat Message Type
+### step2: Define Chat Message Type ✅
 - **Action:** Create `Core/Types/ChatMessage.cs`
 - **Content:** Class with Role, Content, ToolCalls properties
 - **Depends on:** Step 1
 - **Existing reference:** Likely partial in Handlers/Llm/*
+- **Status:** Completed
 
-### step3: Define LLM Completion Chunk Type
+### step3: Define LLM Completion Chunk Type ✅
 - **Action:** Create `Core/Types/CompletionChunk.cs`
 - **Content:** Type, Content, ToolCall data; supports streaming
 - **Depends on:** Step 1
+- **Status:** Completed
 
 ### step4: Define Tool Types
 - **Action:** Create `Core/Types/ToolDefinition.cs`, `ToolResult.cs`, `ToolError.cs`
