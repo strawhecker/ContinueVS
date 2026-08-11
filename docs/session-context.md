@@ -49,60 +49,71 @@
 - **Existing reference:** Use/adapt from `Handlers/builtIn.ts` concept
 - **Status:** Completed
 
-### step5: Define Session Types
+### step5: Define Session Types ✅
 - **Action:** Create `Core/Types/Session.cs`, `SessionMetadata.cs`
 - **Content:** Session state, turns, metadata
 - **Depends on:** Step 2 (ChatMessage)
+- **Status:** Completed
 
-### step6: Define Config Types
+### step6: Define Config Types ✅
 - **Action:** Create `Core/Types/ContinueConfig.cs`, `ModelInfo.cs`, `ProfileInfo.cs`
 - **Content:** Configuration schema
 - **Depends on:** Step 1
 - **Existing reference:** Refactor from `ConfigCache.cs` if possible
+- **Status:** Completed
 
-### step7: Define Indexing Types
+### step7: Define Indexing Types ✅
 - **Action:** Create `Core/Types/IndexingStatus.cs`, `IndexingProgressUpdate.cs`
 - **Content:** Progress tracking, status enums
 - **Depends on:** Step 1
+- **Status:** Completed
 
-### step8: Define Context Types
+### step8: Define Context Types ✅
 - **Action:** Create `Core/Types/ContextItem.cs`, `CodeSymbol.cs`
 - **Content:** Context retrieval results
 - **Depends on:** Step 1
+- **Status:** Completed
 
-### step9: Define Event Argument Types
+### step9: Define Event Argument Types ✅
 - **Action:** Create `Core/Types/ConfigChangedEventArgs.cs`, `LlmErrorEventArgs.cs`, etc.
 - **Content:** Event payload classes (9 total for 9 subsystems)
 - **Depends on:** Steps 1-8
+- **Status:** Completed
 
-### step10: Create Service Interfaces Folder
+### step10: Create Service Interfaces Folder ✅
 - **Action:** Create folder `src/VSIXProject1/Services/Interfaces/`
 - **Why:** Separate contracts from implementations
 - **Depends on:** None
+- **Status:** Completed
 
-### step11: Create IConfigService Interface
+### step11: Create IConfigService Interface ✅
 - **Action:** Create `Services/Interfaces/IConfigService.cs`
 - **Content:** From DESIGN.md section 2.1
 - **Depends on:** Steps 6, 9
+- **Status:** Completed
 
-### step12: Create ILlmService Interface
+### step12: Create ILlmService Interface ✅
 - **Action:** Create `Services/Interfaces/ILlmService.cs`
 - **Content:** From DESIGN.md section 2.1
 - **Depends on:** Steps 2, 3, 9
+- **Status:** Completed
 
-### step13: Create Remaining Service Interfaces
+### step13: Create Remaining Service Interfaces ✅
 - **Action:** Create `IToolService.cs`, `ISessionService.cs`, `IIndexingService.cs`, `IContextService.cs`, `IMcpService.cs`, `IIdeService.cs`, `IMessengerService.cs`, `INotificationService.cs`
 - **Content:** From DESIGN.md section 2.1
 - **Depends on:** Steps 1-9
+- **Status:** Completed
 
-### step14: Create Service Event Arguments
+### step14: Create Service Event Arguments ✅
 - **Action:** Create additional event arg types needed by services (LlmErrorEventArgs, ToolErrorEventArgs, IndexingProgressEventArgs, etc.)
 - **Depends on:** Step 9
+- **Status:** Completed
 
-### step15: Build & Validate Phase 1
+### step15: Build & Validate Phase 1 ✅
 - **Action:** Compile solution; verify all types compile without errors
 - **Command:** `dotnet build`
 - **Depends on:** Steps 1-14
+- **Status:** Completed
 
 ---
 
