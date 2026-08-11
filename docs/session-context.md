@@ -22,11 +22,12 @@
 
 *Establish shared data models and service interfaces.*
 
-### step1: Create Core Types Folder Structure
+### step1: Create Core Types Folder Structure ✅
 - **Action:** Create folder `src/VSIXProject1/Core/Types/`
 - **Why:** Centralize all DTO/contract types used by services
 - **Depends on:** None
 - **Files created:** (folder only)
+- **Status:** ✅ Completed
 
 ### step2: Define Chat Message Type
 - **Action:** Create `Core/Types/ChatMessage.cs`
