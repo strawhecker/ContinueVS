@@ -3,6 +3,7 @@ using ContinueVS.Diagnostics;
 using ContinueVS.Services;
 using ContinueVS.Settings;
 using ContinueVS.UI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using System;
@@ -48,6 +49,9 @@ namespace ContinueVS
 
         /// <summary>Tool window pane instance (Step t3). Set during InitializeAsync, allows downstream access to pane and its control.</summary>
         public static ContinueToolWindowPane? ToolWindowPaneInstance { get; internal set; }
+
+        /// <summary>Dependency injection service provider (Step 33). Initialized during InitializeAsync via ServiceBootstrapper.ConfigureServices().</summary>
+        public static IServiceProvider? ServiceProvider { get; private set; }
 
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
@@ -160,6 +164,22 @@ namespace ContinueVS
                 // Tool window creation is deferred to avoid blocking VS initialization.
                 // It will be created lazily when ShowContinuePanel command is first invoked.
                 System.Diagnostics.Debug.WriteLine("[CV] ✓ Tool window creation deferred (will initialize on-demand)");
+
+                // BREAKPOINT: t1.4.4 - DI Container Initialization (Step 33)
+                System.Diagnostics.Debug.WriteLine("[CV] Step 10: Initializing DI container via ServiceBootstrapper...");
+                using (tracer.BeginScope("t1.4.4", "ContinueVSPackage"))
+                {
+                    try
+                    {
+                        ServiceProvider = ServiceBootstrapper.ConfigureServices();
+                        System.Diagnostics.Debug.WriteLine("[CV] ✓ DI container initialized; ServiceProvider ready");
+                    }
+                    catch (Exception diEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[CV] ✗ DI initialization failed: {diEx.Message}");
+                        throw;
+                    }
+                }
 
                 // BREAKPOINT: t1.5 - Command initialization phase
                 System.Diagnostics.Debug.WriteLine("[CV] Step 12: Initializing commands...");

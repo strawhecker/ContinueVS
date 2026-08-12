@@ -270,6 +270,8 @@
 ### step33: Update App.xaml.cs to Initialize DI
 - **Action:** Modify `ContinueVSPackage.cs` or app entry to call `ServiceBootstrapper.ConfigureServices()`
 - **Depends on:** Steps 31, 32
+- **Status:** ✅ Completed
+- **Changes:** Added `using Microsoft.Extensions.DependencyInjection;` to imports; added static `ServiceProvider` property to `ContinueVSPackage`; inserted DI initialization call in `InitializeAsync()` after options page setup (scope t1.4.4) with debug output; wraps `ServiceBootstrapper.ConfigureServices()` and stores result in static ServiceProvider for downstream access
 
 ### step34: Wire ConfigService to Handler Registry
 - **Action:** Update `MessageDispatcher.cs` to resolve IConfigService and delegate config handler calls
