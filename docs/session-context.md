@@ -495,11 +495,12 @@
 
 *Wire ViewModels to Views; implement event subscriptions; add binding converters.*
 
-### step57: Wire MainViewModel to Services
+### step57: Wire MainViewModel to Services ✅
 - **Action:** Update MainViewModel to subscribe to service events
   - On SessionChanged → RaisePropertyChanged(CurrentSession)
   - On ConfigChanged → Refresh UI state
 - **Depends on:** Step 49
+- **Status:** Completed
 
 ### step58: Wire ChatPageViewModel to Streaming
 - **Action:** Update ChatPageViewModel.ExecuteSendMessage to:

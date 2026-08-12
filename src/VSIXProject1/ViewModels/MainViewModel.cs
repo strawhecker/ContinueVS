@@ -14,6 +14,7 @@ namespace ContinueVS.ViewModels
         private readonly ISessionService _sessionService;
         private readonly IMessengerService _messengerService;
         private readonly INotificationService _notificationService;
+        private readonly IConfigService _configService;
 
         private Session? _currentSession;
         private string? _currentRoute;
@@ -48,21 +49,25 @@ namespace ContinueVS.ViewModels
         public MainViewModel(
             ISessionService sessionService,
             IMessengerService messengerService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IConfigService configService)
         {
             if (sessionService == null) throw new ArgumentNullException(nameof(sessionService));
             if (messengerService == null) throw new ArgumentNullException(nameof(messengerService));
             if (notificationService == null) throw new ArgumentNullException(nameof(notificationService));
+            if (configService == null) throw new ArgumentNullException(nameof(configService));
 
             _sessionService = sessionService;
             _messengerService = messengerService;
             _notificationService = notificationService;
+            _configService = configService;
 
             CurrentMessages = new ObservableCollection<ChatMessage>();
             _currentRoute = "chat";
             _currentSession = null;
 
             _sessionService.SessionChanged += OnSessionChanged;
+            _configService.ConfigChanged += OnConfigChanged;
 
             NewSessionCommand = new RelayCommand(ExecuteNewSession);
             NavigateCommand = new RelayCommand<string>(ExecuteNavigate);
@@ -128,6 +133,12 @@ namespace ContinueVS.ViewModels
                 }
             }
             SessionChanged?.Invoke(this, e);
+        }
+
+        private void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
+        {
+            RaisePropertyChanged(nameof(CurrentRoute));
+            RaisePropertyChanged(nameof(IsLoading));
         }
     }
 }
