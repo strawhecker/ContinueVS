@@ -148,7 +148,7 @@
 - **Existing reference:** Reuse `DTEAdapter.cs` + `ProcessAdapter.cs`
 - **Status:** Completed
 
-### step19: Implement IMessengerService
+### step19: Implement IMessengerService ✅
 - **Action:** Create `Services/Implementations/MessengerService.cs`
 - **Content:**
   - Wrap existing `MessageDispatcher.cs`
@@ -156,6 +156,7 @@
   - Route to handler registry
 - **Depends on:** Step 13
 - **Existing reference:** Use existing `MessageDispatcher.cs` as backend
+- **Status:** Completed
 
 ### step20: Implement IToolService
 - **Action:** Create `Services/Implementations/ToolService.cs`
