@@ -225,21 +225,32 @@
   - `src/VSIXProject1/UI/ProgressWindow.xaml` and `.xaml.cs`
   - `src/VSIXProject1/UI/InputWindow.xaml` and `.xaml.cs`
 
-### step27: Create Service Exceptions Folder
+### step27: Create Service Exceptions Folder ✅
 - **Action:** Create folder `src/VSIXProject1/Services/Exceptions/`
 - **Depends on:** None
+- **Status:** ✅ Completed
 
-### step28: Create Custom Service Exceptions
+### step28: Create Custom Service Exceptions ✅
 - **Action:** Create exception types: `ConfigLoadException.cs`, `LlmException.cs`, `ToolInvocationException.cs`, `IndexingException.cs`
 - **Depends on:** Step 27
+- **Status:** ✅ Completed
+- **Files created:**
+  - `src/VSIXProject1/Services/Exceptions/ConfigLoadException.cs`
+  - `src/VSIXProject1/Services/Exceptions/LlmException.cs`
+  - `src/VSIXProject1/Services/Exceptions/ToolInvocationException.cs`
+  - `src/VSIXProject1/Services/Exceptions/IndexingException.cs`
 
-### step29: Update IConfigService to Throw Exceptions
+### step29: Update IConfigService to Throw Exceptions ✅
 - **Action:** Modify `ConfigService.cs` to throw `ConfigLoadException` on error
 - **Depends on:** Steps 17, 28
+- **Status:** ✅ Completed
+- **Changes:** ConfigService.InitializeAsync now throws ConfigLoadException instead of silently catching and using default config
 
-### step30: Update ILlmService to Throw Exceptions
+### step30: Update ILlmService to Throw Exceptions ✅
 - **Action:** Modify `LlmService.cs` to throw `LlmException` on error
 - **Depends on:** Steps 22, 28
+- **Status:** ✅ Completed
+- **Changes:** Added XML documentation to StreamAsync method indicating it may throw LlmException
 
 ### step31: Create DI Container Setup
 - **Action:** Create `Services/ServiceBootstrapper.cs`

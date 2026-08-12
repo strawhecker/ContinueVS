@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
+using ContinueVS.Services.Exceptions;
 using ContinueVS.Services.Interfaces;
 
 namespace ContinueVS.Services.Implementations
@@ -29,6 +30,15 @@ namespace ContinueVS.Services.Implementations
             _logger = logger;
         }
 
+        /// <summary>
+        /// Streams LLM completion chunks asynchronously for the given messages.
+        /// </summary>
+        /// <param name="messages">Enumerable of chat messages to stream completion for.</param>
+        /// <param name="options">Optional streaming options (model, temperature, etc.).</param>
+        /// <param name="ct">Cancellation token for stopping the stream.</param>
+        /// <returns>Async enumerable of completion chunks.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if messages is null.</exception>
+        /// <exception cref="LlmException">Thrown if LLM streaming fails (connection, rate limit, model error, etc.). Check InnerException for details.</exception>
         public async IAsyncEnumerable<CompletionChunk> StreamAsync(
             IEnumerable<ChatMessage> messages,
             StreamOptions? options = null,

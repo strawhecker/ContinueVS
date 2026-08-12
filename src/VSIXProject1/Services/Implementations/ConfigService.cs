@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Services.Events;
+using ContinueVS.Services.Exceptions;
 using ContinueVS.Services.Interfaces;
 using Newtonsoft.Json;
 using CoreTypes = ContinueVS.Core.Types;
@@ -70,14 +71,12 @@ namespace ContinueVS.Services.Implementations
                         _initialized = true;
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    _currentConfig = CreateDefaultConfig();
-                    _currentConfig.ConfigFilePath = ConfigFilePath;
-                    lock (_lock)
-                    {
-                        _initialized = true;
-                    }
+                    throw new ConfigLoadException(
+                        $"Failed to load configuration from '{ConfigFilePath}'. Check file permissions and JSON format.",
+                        ConfigFilePath,
+                        ex);
                 }
             });
         }
