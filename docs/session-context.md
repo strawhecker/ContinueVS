@@ -213,12 +213,17 @@
 - **Depends on:** Step 13
 - **Status:** ✅ Completed
 
-### step26: Implement INotificationService
+### step26: Implement INotificationService ✅
 - **Action:** Create `Services/Implementations/WpfNotificationService.cs`
 - **Content:**
   - Show MessageBox, notification toast (WPF implementation)
   - Show dialogs
 - **Depends on:** Step 13
+- **Status:** ✅ Completed
+- **Files created:**
+  - `src/VSIXProject1/Services/Implementations/WpfNotificationService.cs`
+  - `src/VSIXProject1/UI/ProgressWindow.xaml` and `.xaml.cs`
+  - `src/VSIXProject1/UI/InputWindow.xaml` and `.xaml.cs`
 
 ### step27: Create Service Exceptions Folder
 - **Action:** Create folder `src/VSIXProject1/Services/Exceptions/`
