@@ -290,6 +290,15 @@
 ### step35: Wire ToolService to Handler Registry
 - **Action:** Update handlers to resolve IToolService
 - **Depends on:** Step 20
+- **Status:** ✅ Completed
+- **Changes:**
+  - Added `using ContinueVS.Services.Interfaces;` to LlmStreamChatHandler and LlmCompileChatHandler
+  - Updated LlmStreamChatHandler constructor to accept optional `IToolService? toolService` parameter
+  - Updated LlmCompileChatHandler constructor to accept optional `IToolService? toolService` parameter
+  - Modified handler registration in ContinueToolWindowControl.xaml.cs to use `RegisterFactory<THandler>()` for both handlers
+  - Factory lambdas resolve IToolService from `ContinueVSPackage.ServiceProvider` at dispatch time
+  - Maintains backward compatibility: IToolService is optional (null-safe), factory gracefully handles null ServiceProvider
+  - All 735 unit tests passing
 
 ### step36: Create Service Initialization Bootstrap
 - **Action:** Create `Services/ServiceInitializer.cs`

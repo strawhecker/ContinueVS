@@ -153,9 +153,11 @@ namespace ContinueVS.UI
                     _dispatcher.Register("config/updateSharedConfig", new ConfigUpdateSharedConfigHandler(this));
                     _dispatcher.Register("config/updateSelectedModel", new ConfigUpdateSelectedModelHandler(this));
                     _dispatcher.Register("llm/complete", new LlmCompleteHandler(this));
-                    _dispatcher.Register("llm/streamChat", new LlmStreamChatHandler(this));
+                    _dispatcher.RegisterFactory<LlmStreamChatHandler>("llm/streamChat",
+                        (sp) => new LlmStreamChatHandler(this, sp?.GetService(typeof(IToolService)) as IToolService));
                     _dispatcher.Register("llm/listModels", new LlmListModelsHandler(this));
-                    _dispatcher.Register("llm/compileChat", new LlmCompileChatHandler(this));
+                    _dispatcher.RegisterFactory<LlmCompileChatHandler>("llm/compileChat",
+                        (sp) => new LlmCompileChatHandler(this, sp?.GetService(typeof(IToolService)) as IToolService));
                     _dispatcher.Register("bridge:getModelInfo", new GetModelInfoHandler(this));
                     _dispatcher.Register("getCurrentFile", new GetCurrentFileHandler(this));
                     _dispatcher.Register("applyToFile", new ApplyToFileHandler(this));

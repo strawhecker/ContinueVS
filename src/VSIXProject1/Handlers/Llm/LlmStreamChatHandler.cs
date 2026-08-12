@@ -1,4 +1,5 @@
 ﻿using ContinueVS.IPC;
+using ContinueVS.Services.Interfaces;
 using ContinueVS.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -15,6 +16,7 @@ namespace ContinueVS.Handlers.Llm
     internal sealed class LlmStreamChatHandler : IMessageHandler
     {
         private readonly ContinueToolWindowControl _control;
+        private readonly IToolService? _toolService;
 
         /// <summary>
         /// Configuration for token limits (mirrors ContextConfig from LlmCompileChatHandler)
@@ -57,9 +59,10 @@ namespace ContinueVS.Handlers.Llm
             public static int UsableContextTokens => MaxContextTokens - ReserveForResponse;
         }
 
-        public LlmStreamChatHandler(ContinueToolWindowControl control)
+        public LlmStreamChatHandler(ContinueToolWindowControl control, IToolService? toolService = null)
         {
             _control = control;
+            _toolService = toolService;
         }
 
         /// <summary>

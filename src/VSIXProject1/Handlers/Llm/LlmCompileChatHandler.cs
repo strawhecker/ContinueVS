@@ -1,4 +1,5 @@
 ﻿using ContinueVS.IPC;
+using ContinueVS.Services.Interfaces;
 using ContinueVS.UI;
 using Newtonsoft.Json.Linq;
 using System;
@@ -9,14 +10,10 @@ using System.Threading.Tasks;
 
 namespace ContinueVS.Handlers.Llm
 {
-    /// <summary>
-    /// Handles llm/compileChat requests from the frontend.
-    /// Compiles and prunes messages to fit within context window limits.
-    /// Token limits are configurable via environment variables.
-    /// </summary>
     internal sealed class LlmCompileChatHandler : IMessageHandler
     {
         private readonly ContinueToolWindowControl _control;
+        private readonly IToolService? _toolService;
 
         /// <summary>
         /// Configuration helper for context token limits.
@@ -96,9 +93,10 @@ namespace ContinueVS.Handlers.Llm
             public static int UsableContextTokens => MaxContextTokens - ReserveForResponse;
         }
 
-        public LlmCompileChatHandler(ContinueToolWindowControl control)
+        public LlmCompileChatHandler(ContinueToolWindowControl control, IToolService? toolService = null)
         {
             _control = control;
+            _toolService = toolService;
         }
 
         public Task HandleAsync(Message message, CancellationToken cancellationToken)
