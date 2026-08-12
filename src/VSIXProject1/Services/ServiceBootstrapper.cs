@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Implementations;
+using ContinueVS.ViewModels;
 
 namespace ContinueVS.Services
 {
@@ -36,6 +37,24 @@ namespace ContinueVS.Services
             services.AddSingleton<IIdeService, VsIdeService>();
             services.AddSingleton<IMessengerService, MessengerService>();
             services.AddSingleton<INotificationService, WpfNotificationService>();
+
+            // Register ViewModel factories (Step 60 / 61)
+            services.AddSingleton<Func<MainViewModel>>(sp => () => new MainViewModel(
+                sp.GetRequiredService<ISessionService>(),
+                sp.GetRequiredService<IMessengerService>(),
+                sp.GetRequiredService<INotificationService>(),
+                sp.GetRequiredService<IConfigService>()));
+
+            services.AddSingleton<Func<ChatPageViewModel>>(sp => () => new ChatPageViewModel(
+                sp.GetRequiredService<ILlmService>(),
+                sp.GetRequiredService<IContextService>(),
+                sp.GetRequiredService<IToolService>(),
+                sp.GetRequiredService<ISessionService>(),
+                sp.GetRequiredService<INotificationService>()));
+
+            services.AddSingleton<Func<ConfigPageViewModel>>(sp => () => new ConfigPageViewModel(
+                sp.GetRequiredService<IConfigService>(),
+                sp.GetRequiredService<IIndexingService>()));
 
             // Build provider for accessing services in factory methods
             var provider = services.BuildServiceProvider();

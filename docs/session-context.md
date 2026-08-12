@@ -530,9 +530,12 @@
 - **Deliverables:**
   - `src/VSIXProject1/ViewModels/ViewModelLocator.cs` — Static facade class with MainViewModel, ChatPageViewModel, ConfigPageViewModel properties; each property retrieves instances via factory delegates from ServiceProvider; null-check on ServiceProvider setter; descriptive exceptions for missing factory registration
 
-### step61: Update ServiceBootstrapper to Register ViewModels
+### step61: Update ServiceBootstrapper to Register ViewModels ✅
 - **Action:** Modify Step 31's ServiceBootstrapper to add ViewModel registrations
 - **Depends on:** Steps 49-55, 31
+- **Status:** ✅ Completed
+- **Deliverables:**
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` — Added `using ContinueVS.ViewModels;` namespace; registered three factory delegates (Func<MainViewModel>, Func<ChatPageViewModel>, Func<ConfigPageViewModel>) in ConfigureServices() method before BuildServiceProvider() call; each factory resolves required service dependencies from provider and instantiates ViewModel
 
 ### step62: Create ViewModel Tests (Skeleton)
 - **Action:** Create `src/VSIXProject1.Tests/ViewModels/` + test classes
