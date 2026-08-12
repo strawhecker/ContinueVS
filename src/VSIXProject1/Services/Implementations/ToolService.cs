@@ -21,6 +21,7 @@ namespace ContinueVS.Services.Implementations
         private readonly IIdeService _ideService;
         private readonly IConfigService _configService;
         private readonly IMcpService? _mcpService;
+        private readonly IBridgeLogger? _logger;
         private readonly Dictionary<string, ToolDefinition> _builtInToolRegistry = new();
         private readonly Dictionary<string, ToolDefinition> _mcpToolRegistry = new();
         private readonly object _registryLock = new object();
@@ -33,14 +34,17 @@ namespace ContinueVS.Services.Implementations
         /// <param name="ideService">The IDE service for file and subprocess operations.</param>
         /// <param name="configService">The configuration service for tool definitions.</param>
         /// <param name="mcpService">Optional MCP service for Model Context Protocol tools.</param>
+        /// <param name="logger">Optional logger for diagnostics.</param>
         public ToolService(
             IIdeService ideService,
             IConfigService configService,
-            IMcpService? mcpService = null)
+            IMcpService? mcpService = null,
+            IBridgeLogger? logger = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _mcpService = mcpService;
+            _logger = logger;
 
             InitializeToolRegistry();
         }

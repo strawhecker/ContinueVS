@@ -22,6 +22,9 @@ namespace ContinueVS.Services
         {
             var services = new ServiceCollection();
 
+            // Register logging infrastructure first
+            services.AddSingleton<IBridgeLogger>(sp => new BridgeLogger(null));
+
             // Register core services as singletons (application lifetime)
             services.AddSingleton<IConfigService, ConfigService>();
             services.AddSingleton<ILlmService, LlmService>();

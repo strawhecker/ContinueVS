@@ -21,6 +21,7 @@ namespace ContinueVS.Services.Implementations
     {
         private readonly ContinueVS.Services.IDTEService? _dteService;
         private readonly IProcessAdapter? _processAdapter;
+        private readonly IBridgeLogger? _logger;
         private const int ProcessTimeoutMs = 30000; // 30 second timeout for subprocess operations
 
         /// <summary>
@@ -28,10 +29,12 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         /// <param name="dteService">The DTE service adapter for IDE integration.</param>
         /// <param name="processAdapter">The process adapter for subprocess execution. If null, subprocess operations will fail gracefully.</param>
-        internal VsIdeService(ContinueVS.Services.IDTEService? dteService, IProcessAdapter? processAdapter = null)
+        /// <param name="logger">Optional logger for diagnostics.</param>
+        internal VsIdeService(ContinueVS.Services.IDTEService? dteService, IProcessAdapter? processAdapter = null, IBridgeLogger? logger = null)
         {
             _dteService = dteService;
             _processAdapter = processAdapter;
+            _logger = logger;
         }
 
         #region File Operations

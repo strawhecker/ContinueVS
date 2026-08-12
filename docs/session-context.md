@@ -329,19 +329,30 @@
   - All 735+ unit tests passing; no build warnings
 
 
-### step38: Add Service Logging Infrastructure
+### step38: Add Service Logging Infrastructure ✅
 - **Action:** Wire `IBridgeLogger` into services (dependency inject logging)
 - **Depends on:** Step 31
 - **Existing reference:** Reuse `BridgeLogger.cs`
+- **Status:** ✅ Completed
+- **Implementation details:**
+  - Added `IBridgeLogger? logger` parameter to ConfigService, VsIdeService, ToolService, and WpfNotificationService constructors
+  - LlmService, IndexingService, ContextService, McpService, and MessengerService already had logger injection
+  - Added logging calls at entry points: ConfigService.InitializeAsync logs (start/complete/error)
+  - Registered IBridgeLogger as singleton in ServiceBootstrapper: `services.AddSingleton<IBridgeLogger>(sp => new BridgeLogger(null))`
+  - All services properly initialized with nullable logger for fail-silent operation
 
-### step39: Build & Validate Phase 2 (Part A)
+### step39: Build & Validate Phase 2 (Part A) ✅
 - **Action:** Compile solution; verify service implementations compile
-- **Command:** `dotnet build`
+- **Command:** `dotnet build src/VSIXProject1/VSIXProject1.csproj && dotnet build src/VSIXProject1.Tests/VSIXProject1.Tests.csproj`
 - **Depends on:** Steps 17-38
+- **Status:** ✅ Completed
+- **Build result:** Both VSIXProject1 and VSIXProject1.Tests compiled successfully without warnings
 
-### step40: Add Unit Test Project Structure
+### step40: Add Unit Test Project Structure ✅
 - **Action:** Create folder `src/VSIXProject1.Tests/Services/`
 - **Depends on:** None
+- **Status:** ✅ Completed
+- **Files created:** Directory structure created at `src/VSIXProject1.Tests/Services/`
 
 ### step41: Create Service Test Stubs
 - **Action:** Create test classes for each service (stub tests, will flesh out later)

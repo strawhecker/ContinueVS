@@ -15,7 +15,18 @@ namespace ContinueVS.Services.Implementations
     /// </summary>
     public class WpfNotificationService : INotificationService
     {
+        private readonly IBridgeLogger? _logger;
+
         public event EventHandler<NotificationEventArgs>? NotificationShown;
+
+        /// <summary>
+        /// Initializes a new instance of WpfNotificationService.
+        /// </summary>
+        /// <param name="logger">Optional logger for diagnostics.</param>
+        public WpfNotificationService(IBridgeLogger? logger = null)
+        {
+            _logger = logger;
+        }
 
         /// <summary>
         /// Shows a notification to the user using a MessageBox.

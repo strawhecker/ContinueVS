@@ -21,6 +21,7 @@ namespace ContinueVS.Services.Implementations
         private CoreTypes.ContinueConfig _currentConfig = null!;
         private bool _initialized = false;
         private readonly object _lock = new object();
+        private readonly IBridgeLogger? _logger;
 
         private static readonly string ContinueDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -31,10 +32,22 @@ namespace ContinueVS.Services.Implementations
         public event EventHandler<ConfigChangedEventArgs>? ConfigChanged;
 
         /// <summary>
+        /// Initializes a new instance of ConfigService.
+        /// </summary>
+        /// <param name="logger">Optional logger for diagnostics.</param>
+        public ConfigService(IBridgeLogger? logger = null)
+        {
+            _logger = logger;
+        }
+
+        /// <summary>
         /// Initializes the configuration service by loading configuration from disk.
         /// </summary>
         public async Task InitializeAsync()
         {
+            if (_logger != null)
+                await _logger.WriteDebugAsync("ConfigService.InitializeAsync (start)");
+
             lock (_lock)
             {
                 if (_initialized)
@@ -70,9 +83,15 @@ namespace ContinueVS.Services.Implementations
                     {
                         _initialized = true;
                     }
+
+                    if (_logger != null)
+                        _logger.WriteDebugAsync("ConfigService.InitializeAsync (complete)").GetAwaiter().GetResult();
                 }
                 catch (Exception ex)
                 {
+                    if (_logger != null)
+                        _logger.WriteErrorAsync($"ConfigService.InitializeAsync failed", ex).GetAwaiter().GetResult();
+
                     throw new ConfigLoadException(
                         $"Failed to load configuration from '{ConfigFilePath}'. Check file permissions and JSON format.",
                         ConfigFilePath,
