@@ -276,6 +276,16 @@
 ### step34: Wire ConfigService to Handler Registry
 - **Action:** Update `MessageDispatcher.cs` to resolve IConfigService and delegate config handler calls
 - **Depends on:** Step 17, 19
+- **Status:** 🟢 Completed
+- **Changes:**
+  - Updated MessageDispatcher constructor to accept optional IServiceProvider parameter
+  - Added handler factory support via RegisterFactory<THandler>(messageType, factory) method
+  - Modified DispatchAsync to resolve handlers from both direct registry and factory registry
+  - Added error handling for factory resolution failures with proper logging
+  - Updated ConfigGetSerializedProfileInfoHandler constructor to accept optional IConfigService parameter
+  - Updated handler registration in ContinueToolWindowControl to pass IConfigService via factory pattern
+  - Added comprehensive XML documentation noting critical sequencing constraint for steps 36/37
+  - Factory-based handlers enable dependency injection pattern while maintaining backward compatibility
 
 ### step35: Wire ToolService to Handler Registry
 - **Action:** Update handlers to resolve IToolService
@@ -285,10 +295,12 @@
 - **Action:** Create `Services/ServiceInitializer.cs`
 - **Content:** Initialize services on startup (IConfigService.InitializeAsync, etc.)
 - **Depends on:** Steps 17-26
+- **Critical Blocking Constraint (from Step 34):** ServiceInitializer.InitializeAsync() MUST be called before the first message is dispatched to any handler. Handlers now depend on IConfigService via dependency injection (step 34 factory pattern). If initialization is delayed or deferred, handlers will receive uninitialized config state. Verify ordering when implementing step 37.
 
 ### step37: Call ServiceInitializer in Plugin Startup
 - **Action:** Modify `ContinueVSPackage.cs` to call ServiceInitializer
 - **Depends on:** Step 36
+- **Critical Sequencing Requirement (from Step 34):** Call ServiceInitializer.InitializeAsync() in ContinueVSPackage.InitializeAsync() IMMEDIATELY after ServiceProvider setup (step 33) and BEFORE the message dispatcher starts receiving messages (e.g., before tool window creation or message pump activation). This ensures handlers have fully initialized services when invoked.
 
 ### step38: Add Service Logging Infrastructure
 - **Action:** Wire `IBridgeLogger` into services (dependency inject logging)

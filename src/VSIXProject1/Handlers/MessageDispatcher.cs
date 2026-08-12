@@ -16,44 +16,62 @@ namespace ContinueVS.Handlers
     /// 
     /// Responsibilities:
     /// - Register handlers by message type (case-insensitive)
+    /// - Support factory-based handler resolution via IServiceProvider for dependency injection
     /// - Validate message envelopes (non-null, non-empty type, well-formed id)
     /// - Dispatch messages to appropriate handlers
     /// - Handle errors and exceptions during dispatch
     /// - Record metrics and lifecycle events
     /// - Support timeout enforcement via CancellationToken
     /// 
+    /// Handler Registration Patterns:
+    /// - Direct: Register(messageType, handler) — pre-instantiated handler (legacy/simple cases)
+    /// - Factory: RegisterFactory(messageType, factory) — lazy handler resolution via IServiceProvider
+    ///   (recommended for handlers with service dependencies like IConfigService)
+    /// 
     /// Error Handling:
     /// - Handler not found (-32003): Log warning, raise BridgeMessageDispatcherException
     /// - Handler execution throws (-32603): Wrap with context, log error, raise exception
     /// - Message validation fails (-32004): Log error, raise exception
     /// 
+    /// Critical Sequencing Constraint (Steps 36/37):
+    /// - If handlers depend on IConfigService, ServiceInitializer MUST call IConfigService.InitializeAsync()
+    ///   BEFORE the first message is dispatched. Handlers will receive uninitialized config state otherwise.
+    /// 
     /// Dependencies (all optional; gracefully degrade if null):
     /// - IBridgeLogger: Logs registration, dispatch success/errors
     /// - IBridgeTelemetryCollector: Records handler execution timing and errors
+    /// - IServiceProvider: Resolves handler factories; required for factory-based registration
     /// </summary>
     internal sealed class MessageDispatcher
     {
         private readonly Dictionary<string, IMessageHandler> _handlers =
             new Dictionary<string, IMessageHandler>(StringComparer.OrdinalIgnoreCase);
 
+        private readonly Dictionary<string, Delegate> _handlerFactories =
+            new Dictionary<string, Delegate>(StringComparer.OrdinalIgnoreCase);
+
         private readonly IBridgeLogger? _logger;
         private readonly IBridgeTelemetryCollector? _telemetry;
+        private readonly IServiceProvider? _serviceProvider;
 
         /// <summary>
         /// Initializes a new instance of MessageDispatcher with optional dependency injection.
         /// </summary>
         /// <param name="logger">Optional logger. If null, logging is silently skipped.</param>
         /// <param name="telemetry">Optional telemetry collector. If null, metrics are not recorded.</param>
+        /// <param name="serviceProvider">Optional service provider. If null, factory-based registration is not supported.</param>
         public MessageDispatcher(
             IBridgeLogger? logger = null,
-            IBridgeTelemetryCollector? telemetry = null)
+            IBridgeTelemetryCollector? telemetry = null,
+            IServiceProvider? serviceProvider = null)
         {
             _logger = logger;
             _telemetry = telemetry;
+            _serviceProvider = serviceProvider;
         }
 
         /// <summary>
-        /// Registers a handler for the given message type.
+        /// Registers a handler for the given message type (direct instantiation).
         /// Case-insensitive message type matching.
         /// </summary>
         /// <param name="messageType">The message type (e.g., "bridge:getEditorState").</param>
@@ -67,7 +85,7 @@ namespace ContinueVS.Handlers
             if (handler == null)
                 throw new ArgumentNullException(nameof(handler));
 
-            if (_handlers.ContainsKey(messageType))
+            if (_handlers.ContainsKey(messageType) || _handlerFactories.ContainsKey(messageType))
                 throw new ArgumentException(
                     $"A handler is already registered for message type '{messageType}'.",
                     nameof(messageType));
@@ -80,6 +98,40 @@ namespace ContinueVS.Handlers
                 _ = _logger.WriteDebugAsync(
                     $"Handler registered for message type: {messageType}",
                     new Dictionary<string, object> { { "messageType", messageType } });
+            }
+        }
+
+        /// <summary>
+        /// Registers a handler factory for the given message type (lazy resolution via IServiceProvider).
+        /// The factory is invoked at dispatch time to resolve the handler with all its dependencies.
+        /// Case-insensitive message type matching.
+        /// </summary>
+        /// <typeparam name="THandler">The handler type to be created by the factory.</typeparam>
+        /// <param name="messageType">The message type (e.g., "config:getSerializedProfileInfo").</param>
+        /// <param name="factory">A factory delegate that accepts IServiceProvider and returns a handler instance.</param>
+        /// <exception cref="ArgumentNullException">Thrown if messageType or factory is null.</exception>
+        /// <exception cref="ArgumentException">Thrown if a handler is already registered for messageType.</exception>
+        public void RegisterFactory<THandler>(string messageType, Func<IServiceProvider, THandler> factory) 
+            where THandler : IMessageHandler
+        {
+            if (messageType == null)
+                throw new ArgumentNullException(nameof(messageType));
+            if (factory == null)
+                throw new ArgumentNullException(nameof(factory));
+
+            if (_handlers.ContainsKey(messageType) || _handlerFactories.ContainsKey(messageType))
+                throw new ArgumentException(
+                    $"A handler is already registered for message type '{messageType}'.",
+                    nameof(messageType));
+
+            _handlerFactories[messageType] = factory;
+
+            // Log registration (fire-and-forget to avoid blocking)
+            if (_logger != null)
+            {
+                _ = _logger.WriteDebugAsync(
+                    $"Handler factory registered for message type: {messageType}",
+                    new Dictionary<string, object> { { "messageType", messageType }, { "factoryType", typeof(THandler).Name } });
             }
         }
 
@@ -107,8 +159,48 @@ namespace ContinueVS.Handlers
             // Validate message envelope
             ValidateMessage(message);
 
-            // [b12-DISPATCH-END] Find handler in registry
-            if (!_handlers.TryGetValue(message.MessageType, out var handler))
+            // [b12-DISPATCH-END] Find handler in registry (direct or factory)
+            IMessageHandler? handler = null;
+
+            if (_handlers.TryGetValue(message.MessageType, out var directHandler))
+            {
+                handler = directHandler;
+            }
+            else if (_handlerFactories.TryGetValue(message.MessageType, out var factory))
+            {
+                // Resolve handler from factory if service provider is available
+                if (_serviceProvider != null)
+                {
+                    try
+                    {
+                        // Invoke factory delegate: factory(serviceProvider) -> IMessageHandler
+                        handler = (IMessageHandler?)factory.DynamicInvoke(_serviceProvider);
+                    }
+                    catch (Exception ex)
+                    {
+                        var factoryContext = new Dictionary<string, string>
+                        {
+                            { "messageType", message.MessageType },
+                            { "messageId", message.MessageId ?? "null" },
+                            { "factoryError", ex.InnerException?.Message ?? ex.Message }
+                        };
+
+                        await LogErrorAsync(
+                            $"Failed to resolve handler via factory for message type: {message.MessageType}",
+                            ex.InnerException ?? ex,
+                            factoryContext);
+
+                        throw new BridgeMessageDispatcherException(
+                            $"Handler factory resolution failed for message type '{message.MessageType}'.",
+                            BridgeMessageDispatcherException.OperationType.HandlerNotFound,
+                            BridgeMessageDispatcherException.ErrorCodes.HandlerNotFound,
+                            message.MessageType,
+                            factoryContext);
+                    }
+                }
+            }
+
+            if (handler == null)
             {
                 var context = new Dictionary<string, string>
                 {

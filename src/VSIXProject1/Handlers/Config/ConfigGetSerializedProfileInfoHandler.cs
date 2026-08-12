@@ -2,6 +2,7 @@
 using ContinueVS.Core.Config;
 using ContinueVS.IPC;
 using ContinueVS.UI;
+using ContinueVS.Services.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -9,16 +10,30 @@ using System.Linq;
 
 namespace ContinueVS.Handlers.Config
 {
+    /// <summary>
+    /// Handler for config:getSerializedProfileInfo messages.
+    /// Demonstrates factory-based handler registration pattern with IConfigService dependency.
+    /// Can be registered via RegisterFactory to enable IConfigService injection.
+    /// </summary>
     internal sealed class ConfigGetSerializedProfileInfoHandler : IMessageHandler
     {
         private readonly ContinueToolWindowControl _control;
         private readonly ConfigCache _cache;
+        private readonly IConfigService? _configService;
 
-        public ConfigGetSerializedProfileInfoHandler(ContinueToolWindowControl control, ConfigCache cache)
+        public ConfigGetSerializedProfileInfoHandler(
+            ContinueToolWindowControl control,
+            ConfigCache cache,
+            IConfigService? configService = null)
         {
             _control = control;
             _cache = cache;
+            _configService = configService;
             System.Diagnostics.Debug.WriteLine($"[c14-CACHE-INJECTED] cache instance={_cache.GetHashCode()}");
+            if (_configService != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[c14-CONFIG-SERVICE-INJECTED] IConfigService instance={_configService.GetHashCode()}");
+            }
         }
 
         public Task HandleAsync(Message message, CancellationToken cancellationToken)

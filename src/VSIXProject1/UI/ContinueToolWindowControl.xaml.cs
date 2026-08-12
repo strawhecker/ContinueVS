@@ -12,6 +12,7 @@ using ContinueVS.Handlers.Llm;
 using ContinueVS.Handlers.Push;
 using ContinueVS.IPC;
 using ContinueVS.Settings;
+using ContinueVS.Services.Interfaces;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json;
@@ -138,7 +139,9 @@ namespace ContinueVS.UI
                     _dispatcher.Register("config/addOpenAiKey", new ConfigAddOpenAiKeyHandler(this));
                     _dispatcher.Register("config/ideSettingsUpdate", new ConfigIdeSettingsUpdateHandler(this));
                     _dispatcher.Register("config/deleteModel", new ConfigDeleteModelHandler(this));
-                    _dispatcher.Register("config/getSerializedProfileInfo", new ConfigGetSerializedProfileInfoHandler(this, ConfigCache.Instance));
+                    _dispatcher.Register("config/getSerializedProfileInfo", 
+                        new ConfigGetSerializedProfileInfoHandler(this, ConfigCache.Instance, 
+                            ContinueVSPackage.ServiceProvider?.GetService(typeof(IConfigService)) as IConfigService));
                     _dispatcher.Register("config/addModel", new ConfigAddModelHandler(this));
                     _dispatcher.Register("config/addLocalWorkspaceBlock", new ConfigAddLocalWorkspaceBlockHandler(this));
                     _dispatcher.Register("config/addGlobalRule", new ConfigAddGlobalRuleHandler(this));
