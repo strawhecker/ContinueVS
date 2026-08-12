@@ -178,7 +178,7 @@
 - **Existing reference:** Check if session storage already exists
 - **Status:** ✅ Completed
 
-### step22: Implement ILlmService (Skeleton)
+### step22: Implement ILlmService (Skeleton) ✅
 - **Action:** Create `Services/Implementations/LlmService.cs`
 - **Content:**
   - Stub methods (will fill in later with LLM logic)
@@ -186,28 +186,32 @@
   - Implement model capability detection (from autodetect.ts pattern)
   - Implement token counting (stubs for now)
 - **Depends on:** Steps 12, 19
+- **Status:** ✅ Completed
 
-### step23: Implement IIndexingService (Skeleton)
+### step23: Implement IIndexingService (Skeleton) ✅
 - **Action:** Create `Services/Implementations/IndexingService.cs`
 - **Content:**
   - Stub methods for indexing control
   - Fire ProgressUpdates events
   - Defer actual indexing logic
 - **Depends on:** Step 13
+- **Status:** ✅ Completed
 
-### step24: Implement IContextService (Skeleton)
+### step24: Implement IContextService (Skeleton) ✅
 - **Action:** Create `Services/Implementations/ContextService.cs`
 - **Content:**
   - Stub context retrieval
   - Defer RAG logic
 - **Depends on:** Step 13
+- **Status:** ✅ Completed
 
-### step25: Implement IMcpService (Skeleton)
+### step25: Implement IMcpService (Skeleton) ✅
 - **Action:** Create `Services/Implementations/McpService.cs`
 - **Content:**
   - Stub server lifecycle
   - Defer MCP process management
 - **Depends on:** Step 13
+- **Status:** ✅ Completed
 
 ### step26: Implement INotificationService
 - **Action:** Create `Services/Implementations/WpfNotificationService.cs`
