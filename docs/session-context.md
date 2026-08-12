@@ -300,11 +300,19 @@
   - Maintains backward compatibility: IToolService is optional (null-safe), factory gracefully handles null ServiceProvider
   - All 735 unit tests passing
 
-### step36: Create Service Initialization Bootstrap
+### step36: Create Service Initialization Bootstrap ✅
 - **Action:** Create `Services/ServiceInitializer.cs`
 - **Content:** Initialize services on startup (IConfigService.InitializeAsync, etc.)
 - **Depends on:** Steps 17-26
+- **Status:** ✅ Completed
 - **Critical Blocking Constraint (from Step 34):** ServiceInitializer.InitializeAsync() MUST be called before the first message is dispatched to any handler. Handlers now depend on IConfigService via dependency injection (step 34 factory pattern). If initialization is delayed or deferred, handlers will receive uninitialized config state. Verify ordering when implementing step 37.
+- **Implementation details:**
+  - Created static class ServiceInitializer with public static async Task InitializeAsync(IServiceProvider?)
+  - Resolves IConfigService from provided DI container and calls InitializeAsync()
+  - Includes comprehensive XML documentation with critical sequencing constraint notes
+  - Gracefully handles null serviceProvider or null service resolution
+  - Throws InvalidOperationException if IConfigService initialization fails (critical service)
+  - Uses System.Diagnostics.Debug for tracing and diagnostics
 
 ### step37: Call ServiceInitializer in Plugin Startup
 - **Action:** Modify `ContinueVSPackage.cs` to call ServiceInitializer
