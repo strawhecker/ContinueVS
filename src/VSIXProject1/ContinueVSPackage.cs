@@ -181,6 +181,22 @@ namespace ContinueVS
                     }
                 }
 
+                // BREAKPOINT: t1.4.5 - Service Initialization (Step 37)
+                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Initializing services via ServiceInitializer...");
+                using (tracer.BeginScope("t1.4.5", "ContinueVSPackage"))
+                {
+                    try
+                    {
+                        await ServiceInitializer.InitializeAsync(ServiceProvider!);
+                        System.Diagnostics.Debug.WriteLine("[CV] ✓ Services initialized");
+                    }
+                    catch (Exception servEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[CV] ✗ Service initialization failed: {servEx.Message}");
+                        throw;
+                    }
+                }
+
                 // BREAKPOINT: t1.5 - Command initialization phase
                 System.Diagnostics.Debug.WriteLine("[CV] Step 12: Initializing commands...");
                 using (tracer.BeginScope("t1.5", "ContinueVSPackage"))

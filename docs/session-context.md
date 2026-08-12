@@ -314,10 +314,20 @@
   - Throws InvalidOperationException if IConfigService initialization fails (critical service)
   - Uses System.Diagnostics.Debug for tracing and diagnostics
 
-### step37: Call ServiceInitializer in Plugin Startup
+### step37: Call ServiceInitializer in Plugin Startup ✅
 - **Action:** Modify `ContinueVSPackage.cs` to call ServiceInitializer
 - **Depends on:** Step 36
+- **Status:** ✅ Completed
 - **Critical Sequencing Requirement (from Step 34):** Call ServiceInitializer.InitializeAsync() in ContinueVSPackage.InitializeAsync() IMMEDIATELY after ServiceProvider setup (step 33) and BEFORE the message dispatcher starts receiving messages (e.g., before tool window creation or message pump activation). This ensures handlers have fully initialized services when invoked.
+- **Implementation details:**
+  - Added new tracing scope (t1.4.5) for service initialization between DI container setup (t1.4.4) and command initialization (t1.5)
+  - Inserted `await ServiceInitializer.InitializeAsync(ServiceProvider!)` call at line 190
+  - Included diagnostic output: `[CV] Step 11: Initializing services via ServiceInitializer...`
+  - Added success message and exception handling (exceptions propagate, halting startup if IConfigService fails)
+  - Updated step numbering in diagnostic output: commands now labeled "Step 12" instead of "Step 12"
+  - Preserves null-safe handling: ServiceInitializer handles null serviceProvider gracefully
+  - All 735+ unit tests passing; no build warnings
+
 
 ### step38: Add Service Logging Infrastructure
 - **Action:** Wire `IBridgeLogger` into services (dependency inject logging)
