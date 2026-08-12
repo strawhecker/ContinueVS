@@ -502,12 +502,13 @@
 - **Depends on:** Step 49
 - **Status:** Completed
 
-### step58: Wire ChatPageViewModel to Streaming
+### step58: Wire ChatPageViewModel to Streaming ✅
 - **Action:** Update ChatPageViewModel.ExecuteSendMessage to:
   - Call ILlmService.StreamAsync
   - Update StreamingResponse per chunk (via RaisePropertyChanged)
   - Handle cancellation (CancellationTokenSource)
 - **Depends on:** Step 50
+- **Status:** Completed
 
 ### step59: Add Converter Classes for Data Binding
 - **Action:** Create `ViewModels/Converters/` folder
@@ -552,6 +553,9 @@
 
 ### step68: Add Error Handling to ViewModels
 - **Action:** Wrap async calls in try/catch; call INotificationService.ShowNotificationAsync on error
+  - **Retry Policy:** Implement exponential backoff for transient LLM streaming failures (network timeouts, rate limits)
+  - Apply retry handler in ChatPageViewModel.ExecuteSendMessage before awaiting StreamAsync chunks
+  - Track retry attempts and fail gracefully after max retries (e.g., 3 attempts)
 - **Depends on:** Steps 49-55, 26
 
 ### step69: Wire Up IObservable Properties
