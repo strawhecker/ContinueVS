@@ -1,0 +1,56 @@
+<UserControl x:Class="ContinueVS.UI.Pages.ChatPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ContinueVS.UI.Views"
+             DataContext="{Binding ChatPageViewModel, Mode=OneWay}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Context Panel -->
+        <Expander Grid.Row="0" Header="Context" IsExpanded="False" Margin="5">
+            <ItemsControl ItemsSource="{Binding SelectedContext}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <local:ContextItemControl DataContext="{Binding}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Expander>
+
+        <!-- Messages (Chat List) -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Messages}" VerticalAlignment="Stretch">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <local:ChatMessageControl DataContext="{Binding}"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Input Area -->
+        <Grid Grid.Row="2" Margin="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBox Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
+                     TextWrapping="Wrap" Height="80" Margin="0,0,0,5"/>
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="1" Command="{Binding SendMessageCommand}" 
+                        Content="Send" Padding="10" Margin="5,0"/>
+                <Button Grid.Column="2" Command="{Binding CancelCommand}" 
+                        Content="Cancel" Padding="10" Margin="5,0"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

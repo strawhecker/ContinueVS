@@ -605,15 +605,17 @@
 
 *Create WPF XAML Views with data bindings to ViewModels.*
 
-### step71: Create Views Folder
+### step71: Create Views Folder ✅
 - **Action:** Create folder `src/VSIXProject1/UI/Views/`
 - **Depends on:** None
+- **Status:** ✅ Completed
 
-### step72: Create Pages Folder
+### step72: Create Pages Folder ✅
 - **Action:** Create folder `src/VSIXProject1/UI/Pages/`
 - **Depends on:** None
+- **Status:** ✅ Completed
 
-### step73: Refactor ContinueToolWindowControl.xaml
+### step73: Refactor ContinueToolWindowControl.xaml ✅
 - **Action:** Update existing XAML to host Frame/Router for page navigation
 - **Content:**
   - Remove webview loading (or defer it)
@@ -621,17 +623,13 @@
   - Set DataContext to MainViewModel
 - **Depends on:** Step 49
 - **Existing reference:** Refactor existing `UI/ContinueToolWindowControl.xaml`
+- **Status:** ✅ Completed — Frame added; loading UI preserved; WebView2 and Frame now coexist on separate rows
 
-### step74: Create MainWindow.xaml (or use existing ToolWindow pane)
-- **Action:** Update/create `UI/MainWindow.xaml`
-- **Content:** From DESIGN.md section 4.2
-  - MenuBar (New Chat, Settings, History)
-  - Frame for routing
-  - IndexingProgressBar at bottom
-  - DataContext binding to MainViewModel
-- **Depends on:** Steps 49, 52, 73
+### step74: Create MainWindow.xaml (or use existing ToolWindow pane) ⏭️
+- **Action:** Create `UI/MainWindow.xaml` (deferred; use ContinueToolWindowControl as root instead)
+- **Status:** ⏭️ Deferred — ContinueToolWindowControl now serves as primary container
 
-### step75: Create ChatPage.xaml & Code-Behind
+### step75: Create ChatPage.xaml & Code-Behind ✅
 - **Action:** Create `UI/Pages/ChatPage.xaml` + `ChatPage.xaml.cs`
 - **Content:** From DESIGN.md section 4.3
   - ContextPanel (collapsed)
@@ -639,11 +637,25 @@
   - InputBox (TextBox + SendButton)
   - DataContext to ChatPageViewModel
 - **Depends on:** Steps 50, 59
+- **Status:** ✅ Completed
 
-### step76: Create ChatMessageControl.xaml
+### step76: Create ChatMessageControl.xaml ✅
 - **Action:** Create `UI/Views/ChatMessageControl.xaml`
 - **Content:** Data template for individual chat message (user vs. assistant)
 - **Depends on:** Step 75
+- **Status:** ✅ Completed
+
+### step77: Create ContextItemControl.xaml ✅
+- **Action:** Create `UI/Views/ContextItemControl.xaml`
+- **Content:** Data template for context items in panel
+- **Depends on:** Step 75
+- **Status:** ✅ Completed (bonus — created supporting control)
+
+### step82: Create IndexingProgressControl.xaml ✅
+- **Action:** Create `UI/Views/IndexingProgressControl.xaml`
+- **Content:** ProgressBar, status text, pause/resume/cancel buttons
+- **Depends on:** Step 52
+- **Status:** ✅ Completed (bonus — created supporting control)
 
 ### step77: Create ContextItemControl.xaml
 - **Action:** Create `UI/Views/ContextItemControl.xaml`
