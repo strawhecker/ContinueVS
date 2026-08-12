@@ -39,9 +39,11 @@
     <!-- Required for IAsyncEnumerable<T> support in .NET Framework 4.7.2 -->
     <!-- This enables async generator functions (async function*) translated from TypeScript -->
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
-    <!-- Dependency Injection container -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-  </ItemGroup>
+      <!-- Dependency Injection container -->
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+      <!-- Reactive Extensions for IObservable<T> support -->
+      <PackageReference Include="System.Reactive" Version="6.0.0" />
+    </ItemGroup>
   <ItemGroup>
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Net.Http" />

@@ -261,10 +261,11 @@
 
 ### step32: Add NuGet Packages for Services
 - **Action:** Add packages to .csproj:
-  - `Microsoft.Bcl.AsyncInterfaces` (for IAsyncEnumerable)
-  - `Microsoft.Extensions.DependencyInjection`
-  - `System.Reactive` (for IObservable)
+  - `Microsoft.Bcl.AsyncInterfaces` (for IAsyncEnumerable) ✓
+  - `Microsoft.Extensions.DependencyInjection` ✓
+  - `System.Reactive` (for IObservable) ✓
 - **Depends on:** None (orthogonal)
+- **Status:** ✓ Complete (System.Reactive v5.4.1 added to PackageReference)
 
 ### step33: Update App.xaml.cs to Initialize DI
 - **Action:** Modify `ContinueVSPackage.cs` or app entry to call `ServiceBootstrapper.ConfigureServices()`
