@@ -137,7 +137,7 @@
 - **Existing reference:** Reuse/adapt `ConfigCache.cs`
 - **Status:** Completed
 
-### step18: Implement IIdeService
+### step18: Implement IIdeService ✅
 - **Action:** Create `Services/Implementations/VsIdeService.cs`
 - **Content:**
   - Wrap existing `DTEAdapter.cs`
@@ -146,6 +146,7 @@
   - Expose vs. wrapping decision here
 - **Depends on:** Step 13
 - **Existing reference:** Reuse `DTEAdapter.cs` + `ProcessAdapter.cs`
+- **Status:** Completed
 
 ### step19: Implement IMessengerService
 - **Action:** Create `Services/Implementations/MessengerService.cs`
