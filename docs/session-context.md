@@ -522,10 +522,13 @@
   - `src/VSIXProject1/ViewModels/Converters/InverseBooleanConverter.cs` — Negates boolean values for inverse binding logic
   - `src/VSIXProject1/ViewModels/Converters/ProgressPercentageConverter.cs` — Converts numeric progress (0–100 or 0.0–1.0) to percentage string
 
-### step60: Create ViewModel Locator (or inject via DI)
+### step60: Create ViewModel Locator (or inject via DI) ✅
 - **Action:** Create `ViewModels/ViewModelLocator.cs` or use DI container
 - **Content:** Provide instances to Views (dependency injection)
 - **Depends on:** Steps 49-55, 31
+- **Status:** ✅ Completed
+- **Deliverables:**
+  - `src/VSIXProject1/ViewModels/ViewModelLocator.cs` — Static facade class with MainViewModel, ChatPageViewModel, ConfigPageViewModel properties; each property retrieves instances via factory delegates from ServiceProvider; null-check on ServiceProvider setter; descriptive exceptions for missing factory registration
 
 ### step61: Update ServiceBootstrapper to Register ViewModels
 - **Action:** Modify Step 31's ServiceBootstrapper to add ViewModel registrations
