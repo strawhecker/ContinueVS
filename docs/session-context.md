@@ -363,17 +363,36 @@
   - `src/VSIXProject1.Tests/Services/MessengerServiceTests.cs` (3 tests)
 - **Tests:** All 6 stub tests passing
 
-### step42: Test IConfigService Initialization
+### step42: Test IConfigService Initialization ✅
 - **Action:** Write test for ConfigService.InitializeAsync (read config file)
 - **Depends on:** Steps 17, 41
+- **Status:** ✅ Completed
+- **Implementation details:**
+  - ConfigServiceTests.cs expanded with 18 comprehensive tests (already existed with strong coverage)
+  - Tests cover: initialization with/without existing config, event firing, idempotency, error handling, model CRUD operations, profile selection, tool enable/disable, config persistence
+  - All tests passing in xUnit framework
 
-### step43: Test IIdeService File Operations
+### step43: Test IIdeService File Operations ✅
 - **Action:** Write test for VsIdeService.ReadFileAsync (mock file system)
 - **Depends on:** Steps 18, 41
+- **Status:** ✅ Completed
+- **Implementation details:**
+  - VsIdeServiceTests.cs expanded from 3 stub tests to 6 comprehensive behavior tests
+  - Added tests: ReadFileAsync_ReturnsContent_WhenFileExists, ReadFileAsync_ThrowsInvalidOperationException_WhenFileDoesNotExist, ReadFileAsync_ReturnsCorrectContent_ForMultilineFile
+  - Uses temp file I/O with proper cleanup via Path.GetTempPath()
+  - Tests validate: implicit FileNotFoundException wrapping in InvalidOperationException (service pattern), null/empty path validation
+  - All 6 tests passing
 
-### step44: Test IMessengerService Request/Response
+### step44: Test IMessengerService Request/Response ✅
 - **Action:** Write test for MessengerService.RequestAsync (mock dispatch)
 - **Depends on:** Steps 19, 41
+- **Status:** ✅ Completed
+- **Implementation details:**
+  - MessengerServiceTests.cs expanded from 3 stub tests to 7 comprehensive behavior tests
+  - Added tests: RequestAsync_ThrowsArgumentNullException_WhenMessageTypeIsNull, RequestAsync_ThrowsInvalidOperationException_OnSerializationFailure (dispatch error), RequestAsync_RespectsCancellationToken, RequestAsync_CreatesMessageWithCorrectType
+  - Tests validate: null safety, cancellation token propagation, message dispatch error handling
+  - Uses isolated message types to avoid handler registry interference
+  - All 7 tests passing
 
 ### step45: Build & Validate Phase 2 (Part B)
 - **Action:** Compile + run tests; verify service layer works
