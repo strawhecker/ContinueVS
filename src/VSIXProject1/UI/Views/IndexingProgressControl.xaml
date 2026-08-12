@@ -1,5 +1,41 @@
 <UserControl x:Class="ContinueVS.UI.Views.IndexingProgressControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ProgressBar IsIndeterminate="True" Height="4" Margin="0"/>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             DataContext="{Binding IndexingProgressViewModel, Mode=OneWay}">
+    <Border Margin="5" Background="#F0F0F0" Padding="5">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Status Label -->
+            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="{Binding Status}" Margin="0,0,0,5" FontWeight="Bold"/>
+
+            <!-- Current File -->
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding CurrentFile}" Foreground="Gray" Margin="0,0,0,5" TextTrimming="CharacterEllipsis"/>
+
+            <!-- Progress Bar -->
+            <ProgressBar Grid.Row="2" Grid.Column="0" Value="{Binding ProgressPercentage}" Height="20" Margin="0,0,5,0" Minimum="0" Maximum="100"/>
+
+            <!-- Progress Percentage -->
+            <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" MinWidth="40" TextAlignment="Right">
+                <Run Text="{Binding ProgressPercentage, StringFormat=F0}"/>
+                <Run Text="%"/>
+            </TextBlock>
+
+            <!-- Control Buttons -->
+            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5,0,0">
+                <Button Command="{Binding PauseCommand}" Content="Pause" Padding="8,4" Margin="0,0,5,0" IsEnabled="{Binding IsIndexing}"/>
+                <Button Command="{Binding ResumeCommand}" Content="Resume" Padding="8,4" Margin="0,0,5,0" IsEnabled="{Binding IsIndexing, Converter={StaticResource InverseBooleanConverter}}"/>
+                <Button Command="{Binding CancelCommand}" Content="Cancel" Padding="8,4"/>
+            </StackPanel>
+        </Grid>
+    </Border>
 </UserControl>

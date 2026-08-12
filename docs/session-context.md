@@ -651,18 +651,7 @@
 - **Depends on:** Step 75
 - **Status:** ✅ Completed (bonus — created supporting control)
 
-### step82: Create IndexingProgressControl.xaml ✅
-- **Action:** Create `UI/Views/IndexingProgressControl.xaml`
-- **Content:** ProgressBar, status text, pause/resume/cancel buttons
-- **Depends on:** Step 52
-- **Status:** ✅ Completed (bonus — created supporting control)
-
-### step77: Create ContextItemControl.xaml
-- **Action:** Create `UI/Views/ContextItemControl.xaml`
-- **Content:** Data template for context items in panel
-- **Depends on:** Step 75
-
-### step78: Create ConfigPage.xaml & Code-Behind
+### step78: Create ConfigPage.xaml & Code-Behind ✅
 - **Action:** Create `UI/Pages/ConfigPage.xaml` + `ConfigPage.xaml.cs`
 - **Content:** From DESIGN.md section 4 (paraphrased)
   - ModelsTab (model list, add/remove)
@@ -670,35 +659,40 @@
   - ProfilesTab (profile selector)
   - DataContext to ConfigPageViewModel
 - **Depends on:** Step 51, 59
+- **Status:** ✅ Completed — TabControl with 3 tabs, ModelInfo ListBox binding, AvailableTools CheckBox list, Profiles ComboBox, Save/Reindex buttons
 
-### step79: Create HistoryPage.xaml & Code-Behind
+### step79: Create HistoryPage.xaml & Code-Behind ✅
 - **Action:** Create `UI/Pages/HistoryPage.xaml` + `HistoryPage.xaml.cs`
 - **Content:**
   - SessionList (ItemsControl of sessions)
   - Load, Delete commands
   - DataContext to HistoryPageViewModel
 - **Depends on:** Step 53
+- **Status:** ✅ Completed — ListBox for Sessions with SelectedSession binding, Load/Delete buttons
 
-### step80: Create StatsPage.xaml & Code-Behind
+### step80: Create StatsPage.xaml & Code-Behind ✅
 - **Action:** Create `UI/Pages/StatsPage.xaml` + `StatsPage.xaml.cs`
 - **Content:**
   - Token counter display
   - Usage chart
   - DataContext to StatsPageViewModel
 - **Depends on:** Step 54
+- **Status:** ✅ Completed — TextBlock labels for TokensUsed, ModelsUsed, CostEstimate with currency formatting, Export button
 
-### step81: Create EditModePage.xaml & Code-Behind
+### step81: Create EditModePage.xaml & Code-Behind ✅
 - **Action:** Create `UI/Pages/EditModePage.xaml` + `EditModePage.xaml.cs`
 - **Content:**
   - DiffViewer (code diff display)
   - AcceptButton, RejectButton
   - DataContext to EditModeViewModel
 - **Depends on:** Step 55
+- **Status:** ✅ Completed — TextBlock for Diff display with gray background, Accept/Reject buttons with color styling
 
-### step82: Create IndexingProgressControl.xaml
+### step82: Create IndexingProgressControl.xaml ✅
 - **Action:** Create `UI/Views/IndexingProgressControl.xaml`
 - **Content:** ProgressBar, status text, pause/resume/cancel buttons
 - **Depends on:** Step 52
+- **Status:** ✅ Completed — ProgressBar with percentage display, CurrentFile status, Pause/Resume (conditional IsEnabled)/Cancel buttons, light gray background
 
 ### step83: Create Global Styles (Converters, Brushes)
 - **Action:** Create `UI/Styles/Converters.xaml` + `UI/Styles/Brushes.xaml`
