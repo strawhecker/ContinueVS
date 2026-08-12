@@ -354,9 +354,14 @@
 - **Status:** ✅ Completed
 - **Files created:** Directory structure created at `src/VSIXProject1.Tests/Services/`
 
-### step41: Create Service Test Stubs
+### step41: Create Service Test Stubs ✅
 - **Action:** Create test classes for each service (stub tests, will flesh out later)
 - **Depends on:** Step 40
+- **Status:** ✅ Completed
+- **Files created:**
+  - `src/VSIXProject1.Tests/Services/VsIdeServiceTests.cs` (3 tests)
+  - `src/VSIXProject1.Tests/Services/MessengerServiceTests.cs` (3 tests)
+- **Tests:** All 6 stub tests passing
 
 ### step42: Test IConfigService Initialization
 - **Action:** Write test for ConfigService.InitializeAsync (read config file)
