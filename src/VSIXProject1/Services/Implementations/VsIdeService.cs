@@ -562,12 +562,20 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Event raised when a file changes on disk.
         /// </summary>
-        public event EventHandler<FileChangedEventArgs>? FileChanged;
+        public event EventHandler<FileChangedEventArgs>? FileChanged
+        {
+            add { }
+            remove { }
+        }
 
         /// <summary>
         /// Event raised when the active file changes.
         /// </summary>
-        public event EventHandler<ActiveFileChangedEventArgs>? ActiveFileChanged;
+        public event EventHandler<ActiveFileChangedEventArgs>? ActiveFileChanged
+        {
+            add { }
+            remove { }
+        }
 
         #endregion
     }

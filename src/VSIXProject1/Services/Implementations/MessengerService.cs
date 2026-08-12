@@ -171,7 +171,7 @@ namespace ContinueVS.Services.Implementations
         public async IAsyncEnumerable<TChunk> StreamAsync<TRequest, TChunk>(
             string messageType,
             TRequest data,
-            CancellationToken ct = default)
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             if (messageType == null)
                 throw new ArgumentNullException(nameof(messageType));

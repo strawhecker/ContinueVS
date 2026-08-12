@@ -158,7 +158,7 @@
 - **Existing reference:** Use existing `MessageDispatcher.cs` as backend
 - **Status:** Completed
 
-### step20: Implement IToolService
+### step20: Implement IToolService ✅
 - **Action:** Create `Services/Implementations/ToolService.cs`
 - **Content:**
   - Route built-in tools to IIdeService methods
@@ -166,6 +166,7 @@
   - Implement invoke routing (built-in, MCP, HTTP)
 - **Depends on:** Steps 12, 18, 19
 - **Existing reference:** Adapt logic from `Handlers/File/*` and `Handlers/callTool.ts` pattern
+- **Status:** Completed
 
 ### step21: Implement ISessionService
 - **Action:** Create `Services/Implementations/SessionService.cs`

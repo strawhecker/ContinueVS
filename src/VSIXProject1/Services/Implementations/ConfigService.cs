@@ -70,7 +70,7 @@ namespace ContinueVS.Services.Implementations
                         _initialized = true;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     _currentConfig = CreateDefaultConfig();
                     _currentConfig.ConfigFilePath = ConfigFilePath;
