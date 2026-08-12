@@ -419,10 +419,11 @@
 - **Depends on:** None
 - **Status:** Completed
 
-### step48: Create ViewModelBase (or use MVVM Light's)
+### step48: Create ViewModelBase (or use MVVM Light's) ✅
 - **Action:** Create `ViewModels/ViewModelBase.cs` or reference MVVM Light's `ViewModelBase`
 - **Content:** RaisePropertyChanged, RelayCommand helpers
 - **Depends on:** Step 46
+- **Status:** Completed
 
 ### step49: Create MainViewModel
 - **Action:** Create `ViewModels/MainViewModel.cs`
