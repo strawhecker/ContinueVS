@@ -409,13 +409,15 @@
 
 *Create MVVM Light ViewModels wired to services.*
 
-### step46: Add MVVM Light NuGet Package
+### step46: Add MVVM Light NuGet Package ✅
 - **Action:** Add `MvvmLight` to .csproj
 - **Depends on:** None
+- **Status:** Completed
 
-### step47: Create ViewModels Folder
+### step47: Create ViewModels Folder ✅
 - **Action:** Create folder `src/VSIXProject1/ViewModels/`
 - **Depends on:** None
+- **Status:** Completed
 
 ### step48: Create ViewModelBase (or use MVVM Light's)
 - **Action:** Create `ViewModels/ViewModelBase.cs` or reference MVVM Light's `ViewModelBase`

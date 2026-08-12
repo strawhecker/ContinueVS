@@ -41,9 +41,11 @@
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
       <!-- Dependency Injection container -->
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-      <!-- Reactive Extensions for IObservable<T> support -->
-      <PackageReference Include="System.Reactive" Version="6.0.0" />
-    </ItemGroup>
+        <!-- Reactive Extensions for IObservable<T> support -->
+        <PackageReference Include="System.Reactive" Version="6.0.0" />
+        <!-- MVVM Light for ViewModel databinding and RelayCommand -->
+        <PackageReference Include="MvvmLight" Version="5.4.1.1" />
+      </ItemGroup>
   <ItemGroup>
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Net.Http" />
