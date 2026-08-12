@@ -1,0 +1,14 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:ContinueVS.ViewModels.Converters">
+
+    <!-- Boolean to Visibility Converter -->
+    <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+    <!-- Inverse Boolean Converter -->
+    <local:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+
+    <!-- Progress Percentage Converter -->
+    <local:ProgressPercentageConverter x:Key="ProgressPercentageConverter"/>
+
+</ResourceDictionary>
