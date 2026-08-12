@@ -121,11 +121,12 @@
 
 *Implement service interfaces; wrap/refactor existing handlers.*
 
-### step16: Create Service Implementations Folder
+### step16: Create Service Implementations Folder ✅
 - **Action:** Create folder `src/VSIXProject1/Services/Implementations/`
 - **Depends on:** None
+- **Status:** Completed
 
-### step17: Implement IConfigService
+### step17: Implement IConfigService ✅
 - **Action:** Create `Services/Implementations/ConfigService.cs`
 - **Content:**
   - Refactor existing `ConfigCache.cs` OR wrap it
@@ -134,6 +135,7 @@
   - Fire ConfigChanged events
 - **Depends on:** Step 11
 - **Existing reference:** Reuse/adapt `ConfigCache.cs`
+- **Status:** Completed
 
 ### step18: Implement IIdeService
 - **Action:** Create `Services/Implementations/VsIdeService.cs`
