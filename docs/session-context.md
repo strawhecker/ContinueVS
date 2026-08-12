@@ -425,31 +425,34 @@
 - **Depends on:** Step 46
 - **Status:** Completed
 
-### step49: Create MainViewModel
+### step49: Create MainViewModel ✅
 - **Action:** Create `ViewModels/MainViewModel.cs`
 - **Content:** From DESIGN.md section 3
   - Properties: CurrentMessages, CurrentSession, CurrentRoute, IsLoading
   - Commands: NewSessionCommand, NavigateCommand, SaveSessionCommand
   - Inject: ISessionService, IMessengerService, INotificationService
 - **Depends on:** Steps 48, 21, 19, 26
+- **Status:** Completed
 
-### step50: Create ChatPageViewModel
+### step50: Create ChatPageViewModel ✅
 - **Action:** Create `ViewModels/ChatPageViewModel.cs`
 - **Content:** From DESIGN.md section 3.2
   - Properties: Messages, InputText, IsStreaming, SelectedContext, StreamingResponse
   - Commands: SendMessageCommand, CancelCommand, AddContextCommand
   - Inject: ILlmService, IContextService, IToolService, ISessionService, INotificationService
 - **Depends on:** Steps 48, 22, 24, 20, 21, 26
+- **Status:** Completed
 
-### step51: Create ConfigPageViewModel
+### step51: Create ConfigPageViewModel ✅
 - **Action:** Create `ViewModels/ConfigPageViewModel.cs`
 - **Content:** From DESIGN.md section 3.3
   - Properties: AvailableModels, SelectedModel, AvailableTools, Profiles
   - Commands: AddModelCommand, RemoveModelCommand, SaveConfigCommand, ReindexCommand
   - Inject: IConfigService, IIndexingService
 - **Depends on:** Steps 48, 17, 23
+- **Status:** Completed
 
-### step52: Create IndexingProgressViewModel
+### step52: Create IndexingProgressViewModel ✅
 - **Action:** Create `ViewModels/IndexingProgressViewModel.cs`
 - **Content:** From DESIGN.md section 3.4
   - Properties: ProgressPercentage, CurrentFile, Status, IsIndexing
@@ -457,34 +460,40 @@
   - Inject: IIndexingService
   - Subscribe to IIndexingService.ProgressChanged
 - **Depends on:** Steps 48, 23
+- **Status:** Completed
 
-### step53: Create HistoryPageViewModel
+### step53: Create HistoryPageViewModel ✅
 - **Action:** Create `ViewModels/HistoryPageViewModel.cs`
 - **Content:**
   - Properties: Sessions, SelectedSession
   - Commands: LoadSessionCommand, DeleteSessionCommand
   - Inject: ISessionService
 - **Depends on:** Steps 48, 21
+- **Status:** Completed
 
-### step54: Create StatsPageViewModel
+### step54: Create StatsPageViewModel ✅
 - **Action:** Create `ViewModels/StatsPageViewModel.cs`
 - **Content:**
   - Properties: TokensUsed, ModelsUsed, CostEstimate
   - Commands: ExportStatsCommand
   - Inject: ILlmService (for stats)
 - **Depends on:** Steps 48, 22
+- **Status:** Completed
 
-### step55: Create EditModeViewModel
+### step55: Create EditModeViewModel ✅
 - **Action:** Create `ViewModels/EditModeViewModel.cs`
 - **Content:**
   - Properties: OriginalCode, NewCode, Diff, ShowAcceptPrompt
   - Commands: AcceptCommand, RejectCommand
   - Inject: INotificationService
 - **Depends on:** Steps 48, 26
+- **Status:** Completed
 
-### step56: Add RelayCommand Helper (or use MVVM Light's)
-- **Action:** Ensure `RelayCommand<T>` available (from MVVM Light)
-- **Depends on:** Step 46
+---
+
+## Phase 4: View Wiring (Steps 56-70)
+
+*Wire ViewModels to Views; implement event subscriptions; add binding converters.*
 
 ### step57: Wire MainViewModel to Services
 - **Action:** Update MainViewModel to subscribe to service events

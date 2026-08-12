@@ -6,10 +6,13 @@
         WindowStartupLocation="CenterScreen"
         Background="#F0F0F0">
     <Grid VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="20">
-        <StackPanel VerticalAlignment="Center">
-            <TextBlock x:Name="ProgressLabel" Text="Processing..." Foreground="#333333" Margin="0,0,0,10" FontSize="14"/>
-            <ProgressBar x:Name="ProgressBar" Height="20" Background="#E0E0E0" Foreground="#0078D4" Margin="0,0,0,10"/>
-            <TextBlock x:Name="PercentLabel" Text="0%" TextAlignment="Right" Foreground="#666666" FontSize="12"/>
-        </StackPanel>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Name="ProgressLabel" Text="Processing..." Foreground="#333333" Margin="0,0,0,10" FontSize="14" Grid.Row="0"/>
+        <ProgressBar Name="ProgressBar" Height="20" Background="#E0E0E0" Foreground="#0078D4" Margin="0,0,0,10" Grid.Row="1"/>
+        <TextBlock Name="PercentLabel" Text="0%" TextAlignment="Right" Foreground="#666666" FontSize="12" Grid.Row="2"/>
     </Grid>
 </Window>
