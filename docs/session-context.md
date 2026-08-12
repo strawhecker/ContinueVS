@@ -256,6 +256,8 @@
 - **Action:** Create `Services/ServiceBootstrapper.cs`
 - **Content:** From DESIGN.md section 6.1; wire all services + ViewModels
 - **Depends on:** Steps 17-26
+- **Status:** ✅ Completed
+- **Changes:** Created ServiceBootstrapper.cs with static ConfigureServices() method that registers all 9 services as singletons (IConfigService, ILlmService, ISessionService, IToolService, IIndexingService, IContextService, IMcpService, IIdeService, IMessengerService, INotificationService)
 
 ### step32: Add NuGet Packages for Services
 - **Action:** Add packages to .csproj:
