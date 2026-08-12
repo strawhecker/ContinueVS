@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.Services.Utilities;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 
@@ -110,13 +111,19 @@ namespace ContinueVS.ViewModels
                     });
                 }
 
-                await foreach (var chunk in _llmService.StreamAsync(messages, ct: _streamingCts.Token))
-                {
-                    if (chunk.Type == ChunkType.Text)
+                await RetryPolicyHelper.ExecuteWithRetryAsync(
+                    async ct =>
                     {
-                        StreamingResponse += chunk.Content;
-                    }
-                }
+                        await foreach (var chunk in _llmService.StreamAsync(messages, ct: ct))
+                        {
+                            if (chunk.Type == ChunkType.Text)
+                            {
+                                StreamingResponse += chunk.Content;
+                            }
+                        }
+                    },
+                    _streamingCts.Token,
+                    maxRetries: 3);
 
                 var assistantMessage = new ChatMessage
                 {

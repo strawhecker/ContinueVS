@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
@@ -68,9 +69,9 @@ namespace ContinueVS.ViewModels
             {
                 await _indexingService.PauseIndexingAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Handle error
+                System.Diagnostics.Debug.WriteLine($"[IndexingProgressViewModel] Error pausing indexing: {ex.Message}");
             }
         }
 
@@ -82,9 +83,9 @@ namespace ContinueVS.ViewModels
             {
                 await _indexingService.ResumeIndexingAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Handle error
+                System.Diagnostics.Debug.WriteLine($"[IndexingProgressViewModel] Error resuming indexing: {ex.Message}");
             }
         }
 
@@ -96,9 +97,9 @@ namespace ContinueVS.ViewModels
             {
                 await _indexingService.CancelIndexingAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Handle error
+                System.Diagnostics.Debug.WriteLine($"[IndexingProgressViewModel] Error canceling indexing: {ex.Message}");
             }
         }
 

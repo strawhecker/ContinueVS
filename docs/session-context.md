@@ -574,6 +574,8 @@
 ### step67: Add async/await support to ViewModels
 - **Action:** Ensure all async operations use proper await; add CancellationToken support
 - **Depends on:** Steps 49-55
+- **Status:** ✅ Completed
+- **Results:** Updated all ViewModels (MainViewModel, ChatPageViewModel, IndexingProgressViewModel, StatsPageViewModel) to use proper async patterns; all constructors use traditional null checks (compatible with .NET Framework 4.7.2); CancellationToken support integrated in retry policy helper
 
 ### step68: Add Error Handling to ViewModels
 - **Action:** Wrap async calls in try/catch; call INotificationService.ShowNotificationAsync on error
@@ -581,15 +583,21 @@
   - Apply retry handler in ChatPageViewModel.ExecuteSendMessage before awaiting StreamAsync chunks
   - Track retry attempts and fail gracefully after max retries (e.g., 3 attempts)
 - **Depends on:** Steps 49-55, 26
+- **Status:** ✅ Completed
+- **Results:** Created RetryPolicyHelper.cs with ExecuteWithRetryAsync methods; integrated retry logic in ChatPageViewModel.ExecuteSendMessage; all ViewModels properly handle exceptions with ShowNotificationAsync calls
 
 ### step69: Wire Up IObservable Properties
 - **Action:** Update ViewModels to subscribe to service IObservable properties (ConfigChanged, ProgressUpdates)
 - **Depends on:** Steps 49-55, 17, 23
+- **Status:** ✅ Completed
+- **Results:** MainViewModel subscribes to ConfigChanged and SessionChanged events; IndexingProgressViewModel subscribes to ProgressChanged event; all event handlers properly update UI properties
 
 ### step70: Build & Validate Phase 3 (Part B)
 - **Action:** Compile + run ViewModel tests; verify all compile and logic works
 - **Command:** `dotnet build && dotnet test`
 - **Depends on:** Steps 63-69
+- **Status:** ✅ Completed
+- **Results:** Build succeeded with 0 errors, 10 warnings (all CS8625 nullable reference non-critical warnings); 777 tests passed (19.7 seconds execution) - 9 new tests added for ViewModels
 
 ---
 

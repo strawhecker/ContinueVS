@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;

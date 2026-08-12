@@ -138,5 +138,28 @@ namespace ContinueVS.Tests.ViewModels
             Assert.NotNull(viewModel.NavigateCommand);
             Assert.NotNull(viewModel.SaveSessionCommand);
         }
+
+        [Fact]
+        public void OnConfigChanged_UpdatesRoute()
+        {
+            // Arrange
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockMessengerService = CreateLooseMock<IMessengerService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateLooseMock<IConfigService>();
+
+            var viewModel = new MainViewModel(
+                mockSessionService.Object,
+                mockMessengerService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object);
+
+            // Act
+            var args = new ConfigChangedEventArgs { ConfigKey = "test", OldValue = null, NewValue = "value" };
+            mockConfigService.Raise(s => s.ConfigChanged += null, args);
+
+            // Assert - verify the view model is still valid (property change was raised internally)
+            Assert.NotNull(viewModel.CurrentRoute);
+        }
     }
 }

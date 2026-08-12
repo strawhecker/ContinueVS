@@ -22,15 +22,15 @@ namespace ContinueVS.Tests.ViewModels
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
-                .Returns(default(ContinueConfig));
+                .Returns(new ContinueConfig());
 
             mockConfigService
                 .Setup(s => s.GetEnabledTools())
-                .Returns(default(System.Collections.Generic.List<ToolDefinition>));
+                .Returns(new System.Collections.Generic.List<ToolDefinition>());
 
             mockConfigService
                 .Setup(s => s.GetSelectedModel())
-                .Returns(default(ModelInfo));
+                .Returns(new ModelInfo());
 
             // Act
             var viewModel = new ConfigPageViewModel(
@@ -78,15 +78,15 @@ namespace ContinueVS.Tests.ViewModels
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
-                .Returns(default(ContinueConfig));
+                .Returns(new ContinueConfig());
 
             mockConfigService
                 .Setup(s => s.GetEnabledTools())
-                .Returns(default(System.Collections.Generic.List<ToolDefinition>));
+                .Returns(new System.Collections.Generic.List<ToolDefinition>());
 
             mockConfigService
                 .Setup(s => s.GetSelectedModel())
-                .Returns(default(ModelInfo));
+                .Returns(new ModelInfo());
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
@@ -111,15 +111,15 @@ namespace ContinueVS.Tests.ViewModels
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
-                .Returns(default(ContinueConfig));
+                .Returns(new ContinueConfig());
 
             mockConfigService
                 .Setup(s => s.GetEnabledTools())
-                .Returns(default(System.Collections.Generic.List<ToolDefinition>));
+                .Returns(new System.Collections.Generic.List<ToolDefinition>());
 
             mockConfigService
                 .Setup(s => s.GetSelectedModel())
-                .Returns(default(ModelInfo));
+                .Returns(new ModelInfo());
 
             // Act
             var viewModel = new ConfigPageViewModel(
@@ -142,15 +142,15 @@ namespace ContinueVS.Tests.ViewModels
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
-                .Returns(default(ContinueConfig));
+                .Returns(new ContinueConfig());
 
             mockConfigService
                 .Setup(s => s.GetEnabledTools())
-                .Returns(default(System.Collections.Generic.List<ToolDefinition>));
+                .Returns(new System.Collections.Generic.List<ToolDefinition>());
 
             mockConfigService
                 .Setup(s => s.GetSelectedModel())
-                .Returns(default(ModelInfo));
+                .Returns(new ModelInfo());
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
@@ -175,15 +175,15 @@ namespace ContinueVS.Tests.ViewModels
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
-                .Returns(default(ContinueConfig));
+                .Returns(new ContinueConfig());
 
             mockConfigService
                 .Setup(s => s.GetEnabledTools())
-                .Returns(default(System.Collections.Generic.List<ToolDefinition>));
+                .Returns(new System.Collections.Generic.List<ToolDefinition>());
 
             mockConfigService
                 .Setup(s => s.GetSelectedModel())
-                .Returns(default(ModelInfo));
+                .Returns(new ModelInfo());
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
