@@ -168,7 +168,7 @@
 - **Existing reference:** Adapt logic from `Handlers/File/*` and `Handlers/callTool.ts` pattern
 - **Status:** Completed
 
-### step21: Implement ISessionService
+### step21: Implement ISessionService ✅
 - **Action:** Create `Services/Implementations/SessionService.cs`
 - **Content:**
   - Maintain current session in memory
@@ -176,6 +176,7 @@
   - Fire SessionChanged events
 - **Depends on:** Step 5
 - **Existing reference:** Check if session storage already exists
+- **Status:** ✅ Completed
 
 ### step22: Implement ILlmService (Skeleton)
 - **Action:** Create `Services/Implementations/LlmService.cs`
