@@ -22,6 +22,10 @@ namespace ContinueVS.ViewModels
         private Session? _currentSession;
         private string? _currentRoute;
         private bool _isLoading;
+        private bool _isTooltipVisible;
+        private string? _tooltipContent;
+        private bool _isDialogOpen;
+        private object? _dialogContent;
 
         public ObservableCollection<ChatMessage> CurrentMessages { get; }
 
@@ -41,6 +45,30 @@ namespace ContinueVS.ViewModels
         {
             get => _isLoading;
             set => Set(ref _isLoading, value);
+        }
+
+        public bool IsTooltipVisible
+        {
+            get => _isTooltipVisible;
+            set => Set(ref _isTooltipVisible, value);
+        }
+
+        public string? TooltipContent
+        {
+            get => _tooltipContent;
+            set => Set(ref _tooltipContent, value);
+        }
+
+        public bool IsDialogOpen
+        {
+            get => _isDialogOpen;
+            set => Set(ref _isDialogOpen, value);
+        }
+
+        public object? DialogContent
+        {
+            get => _dialogContent;
+            set => Set(ref _dialogContent, value);
         }
 
         public RelayCommand NewSessionCommand { get; }
@@ -148,6 +176,44 @@ namespace ContinueVS.ViewModels
         {
             RaisePropertyChanged(nameof(CurrentRoute));
             RaisePropertyChanged(nameof(IsLoading));
+        }
+
+        /// <summary>
+        /// Shows a tooltip with the specified content.
+        /// </summary>
+        /// <param name="content">The tooltip text to display.</param>
+        public void ShowTooltip(string content)
+        {
+            TooltipContent = content;
+            IsTooltipVisible = true;
+        }
+
+        /// <summary>
+        /// Hides the tooltip.
+        /// </summary>
+        public void HideTooltip()
+        {
+            IsTooltipVisible = false;
+            TooltipContent = null;
+        }
+
+        /// <summary>
+        /// Shows a dialog with the specified content.
+        /// </summary>
+        /// <param name="content">The dialog content (typically a UserControl or FrameworkElement).</param>
+        public void ShowDialog(object content)
+        {
+            DialogContent = content;
+            IsDialogOpen = true;
+        }
+
+        /// <summary>
+        /// Hides the dialog.
+        /// </summary>
+        public void HideDialog()
+        {
+            IsDialogOpen = false;
+            DialogContent = null;
         }
     }
 }

@@ -225,5 +225,113 @@ namespace ContinueVS.Tests.ViewModels
             Assert.Equal("chat", viewModel.CurrentRoute);
             mockPageNavigator.Verify(pn => pn.NavigateAsync(It.IsAny<string>(), It.IsAny<System.Windows.Controls.Frame>()), Times.Never);
         }
+
+        [Fact]
+        public void ShowTooltip_SetsVisibilityAndContent()
+        {
+            // Arrange
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockMessengerService = CreateLooseMock<IMessengerService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateLooseMock<IConfigService>();
+            var mockPageNavigator = CreateLooseMock<IPageNavigator>();
+
+            var viewModel = new MainViewModel(
+                mockSessionService.Object,
+                mockMessengerService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object,
+                mockPageNavigator.Object);
+
+            const string tooltipText = "This is a tooltip";
+
+            // Act
+            viewModel.ShowTooltip(tooltipText);
+
+            // Assert
+            Assert.True(viewModel.IsTooltipVisible);
+            Assert.Equal(tooltipText, viewModel.TooltipContent);
+        }
+
+        [Fact]
+        public void HideTooltip_ClearsVisibilityAndContent()
+        {
+            // Arrange
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockMessengerService = CreateLooseMock<IMessengerService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateLooseMock<IConfigService>();
+            var mockPageNavigator = CreateLooseMock<IPageNavigator>();
+
+            var viewModel = new MainViewModel(
+                mockSessionService.Object,
+                mockMessengerService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object,
+                mockPageNavigator.Object);
+
+            viewModel.ShowTooltip("Test tooltip");
+
+            // Act
+            viewModel.HideTooltip();
+
+            // Assert
+            Assert.False(viewModel.IsTooltipVisible);
+            Assert.Null(viewModel.TooltipContent);
+        }
+
+        [Fact]
+        public void ShowDialog_SetsOpenAndContent()
+        {
+            // Arrange
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockMessengerService = CreateLooseMock<IMessengerService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateLooseMock<IConfigService>();
+            var mockPageNavigator = CreateLooseMock<IPageNavigator>();
+
+            var viewModel = new MainViewModel(
+                mockSessionService.Object,
+                mockMessengerService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object,
+                mockPageNavigator.Object);
+
+            var dialogContent = new object();
+
+            // Act
+            viewModel.ShowDialog(dialogContent);
+
+            // Assert
+            Assert.True(viewModel.IsDialogOpen);
+            Assert.Same(dialogContent, viewModel.DialogContent);
+        }
+
+        [Fact]
+        public void HideDialog_ClearsOpenAndContent()
+        {
+            // Arrange
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockMessengerService = CreateLooseMock<IMessengerService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateLooseMock<IConfigService>();
+            var mockPageNavigator = CreateLooseMock<IPageNavigator>();
+
+            var viewModel = new MainViewModel(
+                mockSessionService.Object,
+                mockMessengerService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object,
+                mockPageNavigator.Object);
+
+            viewModel.ShowDialog(new object());
+
+            // Act
+            viewModel.HideDialog();
+
+            // Assert
+            Assert.False(viewModel.IsDialogOpen);
+            Assert.Null(viewModel.DialogContent);
+        }
     }
 }

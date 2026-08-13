@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              xmlns:local="clr-namespace:ContinueVS.UI"
+             xmlns:infra="clr-namespace:ContinueVS.UI.Infrastructure"
              Background="{DynamicResource VsBrush.Window}"
              Foreground="{DynamicResource VsBrush.WindowText}">
 
@@ -10,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Spinner shown while the binary is starting -->
@@ -31,6 +33,14 @@
         <!-- WebView2 – hidden until the binary is ready -->
         <wv2:WebView2 Grid.Row="1" x:Name="WebView"
                       Visibility="Collapsed"/>
+
+        <!-- Tooltip Adorner Layer -->
+        <infra:TooltipAdornerLayer Grid.Row="2" x:Name="TooltipLayer"
+                                    Visibility="{Binding MainViewModel.IsTooltipVisible, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
+
+        <!-- Dialog Overlay Panel (spans all rows for positioning) -->
+        <infra:DialogOverlayPanel Grid.Row="0" Grid.RowSpan="3" x:Name="DialogOverlay"
+                                   Visibility="{Binding MainViewModel.IsDialogOpen, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
     </Grid>
 
 </UserControl>

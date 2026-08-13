@@ -746,11 +746,21 @@
   - `src/VSIXProject1.Tests/UI/Navigation/PageNavigatorTests.cs` — Renamed RunOnSTAThread to RunOnSTAThreadAsync to comply with VSTHRD200 analyzer (async methods must have Async suffix)
   - All 790 unit tests passing (1 unrelated performance test failure), build with 0 errors, 0 warnings
 
-### step88: Add Tooltip Portal & Modal Dialog Support to MainWindow
+### step88: Add Tooltip Portal & Modal Dialog Support to MainWindow ✅
 - **Action:** Update MainWindow.xaml to add:
   - Tooltip adorner layer
   - Dialog overlay for modals
 - **Depends on:** Step 74
+- **Status:** ✅ Completed
+- **Deliverables:**
+  - `src/VSIXProject1/UI/Infrastructure/TooltipAdornerLayer.xaml` — UserControl portal for dynamic tooltips; BorderContainer with TextBlock binding to MainViewModel.TooltipContent; visibility tied to IsTooltipVisible property
+  - `src/VSIXProject1/UI/Infrastructure/TooltipAdornerLayer.xaml.cs` — Minimal code-behind, no logic (pure binding)
+  - `src/VSIXProject1/UI/Infrastructure/DialogOverlayPanel.xaml` — UserControl modal overlay with semi-transparent dimming background (0.5 opacity black Rectangle) and centered ContentControl for dialog content; visibility tied to IsDialogOpen property; Panel.ZIndex=999
+  - `src/VSIXProject1/UI/Infrastructure/DialogOverlayPanel.xaml.cs` — Minimal code-behind, no logic (pure binding)
+  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml` — Updated Grid with 3 RowDefinitions (Auto/LoadingPanel, ContentFrame/pages, tooltip layer); added TooltipAdornerLayer at Row 2; added DialogOverlayPanel spanning all rows with ZIndex=999
+  - `src/VSIXProject1/ViewModels/MainViewModel.cs` — Added overlay state properties (IsTooltipVisible, TooltipContent, IsDialogOpen, DialogContent) with INotifyPropertyChanged support; added public methods ShowTooltip(), HideTooltip(), ShowDialog(), HideDialog()
+  - `src/VSIXProject1.Tests/ViewModels/MainViewModelTests.cs` — Added 4 new unit tests: ShowTooltip_SetsVisibilityAndContent, HideTooltip_ClearsVisibilityAndContent, ShowDialog_SetsOpenAndContent, HideDialog_ClearsOpenAndContent
+  - All 794 unit tests passing (4 new overlay tests), build with 0 errors, 0 warnings
 
 ### step89: Create TextDialog Control
 - **Action:** Create `UI/Views/TextDialog.xaml`
