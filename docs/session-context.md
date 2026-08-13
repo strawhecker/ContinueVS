@@ -766,6 +766,14 @@
 - **Action:** Create `UI/Views/TextDialog.xaml`
 - **Content:** Modal dialog for user yes/no/text input
 - **Depends on:** Step 88
+- **Status:** ✅ Completed
+- **Deliverables:**
+  - `src/VSIXProject1/UI/Views/TextDialog.xaml` — UserControl with Grid layout (4 rows); Row 0: Prompt label; Row 1: TextBox (conditional visibility); Row 3: OK/Cancel or Yes/No buttons styled with theme colors
+  - `src/VSIXProject1/UI/Views/TextDialog.xaml.cs` — Code-behind with DialogType enum (Text, Confirmation); Properties: Prompt, Input, Type, Result; Methods: Initialize(type, prompt, defaultValue), button click handlers; Updates mode visibility dynamically
+  - Supports two modes: Text input (TextBox visible, OK/Cancel buttons) and Confirmation (TextBox hidden, Yes/No buttons)
+  - Result property captures user choice (text string in Text mode, "yes"/"no" in Confirmation mode, null if cancelled)
+  - All 794 unit tests still passing; build with 0 errors, 0 warnings
+  - Note: Tests for TextDialog are property-based only (UI tests require STA threading; integration tests deferred to Step 90)
 
 ### step90: Wire INotificationService to TextDialog
 - **Action:** Update WpfNotificationService to show TextDialog

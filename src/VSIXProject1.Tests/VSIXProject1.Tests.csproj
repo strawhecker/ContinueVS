@@ -27,4 +27,8 @@
     <ProjectReference Include="..\VSIXProject1\VSIXProject1.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Views\" />
+  </ItemGroup>
+
 </Project>
