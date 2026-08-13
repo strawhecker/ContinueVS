@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- VSCode Light Theme Color Palette (Future Implementation) -->
+    <!-- Light theme stub with inversion of dark palette for now -->
+
+    <!-- Editor and Panel Backgrounds -->
+    <SolidColorBrush x:Key="EditorBackground" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="PanelBackground" Color="#F3F3F3"/>
+    <SolidColorBrush x:Key="CodeBackground" Color="#FAFAFA"/>
+    <SolidColorBrush x:Key="SidebarBackground" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="DockPaneBackground" Color="#F3F3F3"/>
+
+    <!-- Text Colors -->
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#333333"/>
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#808080"/>
+    <SolidColorBrush x:Key="TertiaryTextBrush" Color="#999999"/>
+    <SolidColorBrush x:Key="DisabledTextBrush" Color="#CCCCCC"/>
+
+    <!-- Accent Colors -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="ButtonPrimaryBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="ButtonHoverBrush" Color="#1084D7"/>
+    <SolidColorBrush x:Key="ButtonActiveBrush" Color="#005A9E"/>
+    <SolidColorBrush x:Key="FocusBrush" Color="#0078D4"/>
+
+    <!-- Status Colors -->
+    <SolidColorBrush x:Key="SuccessBrush" Color="#107C10"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#FFB900"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="#E81123"/>
+    <SolidColorBrush x:Key="InfoBrush" Color="#0078D4"/>
+
+    <!-- Borders and Separators -->
+    <SolidColorBrush x:Key="BorderBrush" Color="#D0D0D0"/>
+    <SolidColorBrush x:Key="DarkBorderBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="LightBorderBrush" Color="#CCCCCC"/>
+
+    <!-- Selection and Highlight -->
+    <SolidColorBrush x:Key="SelectionBrush" Color="#CCE4FF"/>
+    <SolidColorBrush x:Key="HighlightBrush" Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="HoverBrush" Color="#F5F5F5"/>
+
+    <!-- Semantic UI Colors (for specific components) -->
+    <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="InputBorderBrush" Color="#D0D0D0"/>
+    <SolidColorBrush x:Key="ModalOverlayBrush" Color="#FFFFFF"/>
+
+    <!-- Opacity for overlays -->
+    <SolidColorBrush x:Key="ModalOverlayTransparent" Color="#000000" Opacity="0.3"/>
+
+</ResourceDictionary>

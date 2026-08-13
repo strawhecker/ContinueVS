@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Shared theme defaults for all theme variants -->
+
+    <!-- Default fallback colors for missing theme values -->
+    <SolidColorBrush x:Key="DefaultBackground" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="DefaultForeground" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="DefaultAccent" Color="#007ACC"/>
+
+</ResourceDictionary>

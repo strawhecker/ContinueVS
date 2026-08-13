@@ -787,15 +787,26 @@
   - TextDialog now supports both fallback (legacy windows) and modern overlay modes based on ViewModel availability
 
 
-### step91: Add Theme Support to XAML (VSCode Colors)
+### step91: Add Theme Support to XAML (VSCode Colors) ✅
 - **Action:** Map VSCode theme variables to WPF brushes (dynamic resources)
 - **Content:** Create theme resource dictionary
 - **Depends on:** Step 83
+- **Status:** ✅ Completed
+- **Deliverables:**
+  - `src/VSIXProject1/Services/Interfaces/IThemeService.cs` — Service interface with async LoadThemeAsync, SetCurrentTheme, GetCurrentThemeName, GetBrush(key), GetColor(key), GetAvailableThemes(), ThemeChanged event; ThemeChangedEventArgs class for event payload
+  - `src/VSIXProject1/Services/Implementations/ThemeService.cs` — Implementation with thread-safe theme loading via ResourceDictionary from XAML files; maintains current theme state; exposes brush/color resolution with fallback defaults
+  - `src/VSIXProject1/UI/Styles/Themes/ThemeDark.xaml` — Enhanced VSCode dark theme ResourceDictionary (25+ semantic brush resources: backgrounds, text colors, accents, status colors, borders, selection, UI component colors)
+  - `src/VSIXProject1/UI/Styles/Themes/ThemeLight.xaml` — Light theme stub ResourceDictionary (inverted colors from dark theme; ready for full implementation)
+  - `src/VSIXProject1/UI/Styles/Themes/ThemeDefaults.xaml` — Shared theme defaults ResourceDictionary with fallback colors
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` — Updated to register IThemeService as singleton
+  - `src/VSIXProject1.Tests/Services/ThemeServiceTests.cs` — xUnit tests verifying theme loading, switching, brush/color resolution, theme enumeration, event firing, exception handling (18 test cases)
+  - All 812 unit tests passing (18 new theme tests added); build with 0 errors, 0 warnings
 
 ### step92: Build & Validate Phase 4 (Part A - XAML)
 - **Action:** Compile solution; verify all XAML parses without errors
 - **Command:** `dotnet build`
 - **Depends on:** Steps 73-91
+- **Status:** ✅ Completed
 
 ### step93: Add Data Binding Tests
 - **Action:** Create visual tests for each page/control

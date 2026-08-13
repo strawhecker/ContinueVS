@@ -29,6 +29,7 @@ namespace ContinueVS.Services
 
             // Register UI/Navigation services
             services.AddSingleton<IPageNavigator, PageNavigator>();
+            services.AddSingleton<IThemeService, ThemeService>();
 
             // Register core services as singletons (application lifetime)
             services.AddSingleton<IConfigService, ConfigService>();
