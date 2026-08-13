@@ -5,17 +5,20 @@ using System.Threading.Tasks;
 using System.Windows;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.ViewModels;
+using ContinueVS.UI.Views;
 using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Services.Implementations
 {
     /// <summary>
     /// WPF implementation of INotificationService for displaying notifications and dialogs to the user.
-    /// Uses System.Windows.MessageBox for simple notifications and custom WPF windows for progress and input dialogs.
+    /// Uses System.Windows.MessageBox for simple notifications and TextDialog for modal input dialogs.
     /// </summary>
     public class WpfNotificationService : INotificationService
     {
         private readonly IBridgeLogger? _logger;
+        private readonly MainViewModel? _viewModel;
 
         public event EventHandler<NotificationEventArgs>? NotificationShown;
 
@@ -23,9 +26,11 @@ namespace ContinueVS.Services.Implementations
         /// Initializes a new instance of WpfNotificationService.
         /// </summary>
         /// <param name="logger">Optional logger for diagnostics.</param>
-        public WpfNotificationService(IBridgeLogger? logger = null)
+        /// <param name="viewModel">Optional view model for dialog display in overlay.</param>
+        public WpfNotificationService(IBridgeLogger? logger = null, MainViewModel? viewModel = null)
         {
             _logger = logger;
+            _viewModel = viewModel;
         }
 
         /// <summary>
@@ -112,8 +117,23 @@ namespace ContinueVS.Services.Implementations
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            var result = MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question);
-            return result == MessageBoxResult.Yes;
+            // If ViewModel is available, use TextDialog overlay; otherwise fall back to MessageBox
+            if (_viewModel != null)
+            {
+                var dialog = new TextDialog();
+                dialog.Initialize(TextDialog.DialogType.Confirmation, message);
+                _viewModel.ShowDialog(dialog);
+
+                var result = await dialog.GetResultAsync();
+                _viewModel.HideDialog();
+
+                return result?.Equals("yes", StringComparison.OrdinalIgnoreCase) ?? false;
+            }
+            else
+            {
+                var result = MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question);
+                return result == MessageBoxResult.Yes;
+            }
         }
 
         /// <summary>
@@ -134,15 +154,30 @@ namespace ContinueVS.Services.Implementations
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            var inputWindow = new UI.InputWindow
+            // If ViewModel is available, use TextDialog overlay; otherwise fall back to InputWindow
+            if (_viewModel != null)
             {
-                Title = title,
-                Prompt = prompt,
-                Input = defaultValue
-            };
+                var dialog = new TextDialog();
+                dialog.Initialize(TextDialog.DialogType.Text, prompt, defaultValue);
+                _viewModel.ShowDialog(dialog);
 
-            var result = inputWindow.ShowDialog();
-            return result == true ? inputWindow.Input : null;
+                var result = await dialog.GetResultAsync();
+                _viewModel.HideDialog();
+
+                return result;
+            }
+            else
+            {
+                var inputWindow = new UI.InputWindow
+                {
+                    Title = title,
+                    Prompt = prompt,
+                    Input = defaultValue
+                };
+
+                var dialogResult = inputWindow.ShowDialog();
+                return dialogResult == true ? inputWindow.Input : null;
+            }
         }
 
         /// <summary>

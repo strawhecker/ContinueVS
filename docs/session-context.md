@@ -778,6 +778,14 @@
 ### step90: Wire INotificationService to TextDialog
 - **Action:** Update WpfNotificationService to show TextDialog
 - **Depends on:** Steps 26, 89
+- **Status:** ✅ Completed
+- **Deliverables:**
+  - `src/VSIXProject1/UI/Views/TextDialog.xaml.cs` — Added `_resultTcs` field and `GetResultAsync()` method returning `Task<string?>` using `TaskCompletionSource<string?>` for awaitable dialog result capture; refactored button click handlers to call `CompleteDialog(result)` which sets `_result` and completes the TCS
+  - `src/VSIXProject1/Services/Implementations/WpfNotificationService.cs` — Updated constructor to accept optional `MainViewModel` parameter (for dialog overlay); refactored `ShowConfirmationAsync()` to create and initialize TextDialog with type `Confirmation`, call `MainViewModel.ShowDialog()`, await `GetResultAsync()`, parse result (`"yes"` → true, `"no"` → false), call `MainViewModel.HideDialog()`, with fallback to MessageBox if VM is null; refactored `ShowInputAsync()` to create and initialize TextDialog with type `Text`, call `MainViewModel.ShowDialog()`, await `GetResultAsync()`, call `MainViewModel.HideDialog()`, with fallback to InputWindow if VM is null
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` — Updated DI registration: MainViewModel now registered as singleton first, allowing it to be injected into WpfNotificationService; WpfNotificationService constructor now receives optional MainViewModel reference for dialog display in overlay
+  - All 794 unit tests passing; build with 0 errors, 0 warnings
+  - TextDialog now supports both fallback (legacy windows) and modern overlay modes based on ViewModel availability
+
 
 ### step91: Add Theme Support to XAML (VSCode Colors)
 - **Action:** Map VSCode theme variables to WPF brushes (dynamic resources)

@@ -40,15 +40,30 @@ namespace ContinueVS.Services
             services.AddSingleton<IMcpService, McpService>();
             services.AddSingleton<IIdeService, VsIdeService>();
             services.AddSingleton<IMessengerService, MessengerService>();
-            services.AddSingleton<INotificationService, WpfNotificationService>();
+
+            // MainViewModel is registered first as singleton so it can be injected into services that need it
+            MainViewModel? mainViewModelInstance = null;
+            services.AddSingleton<MainViewModel>(sp =>
+            {
+                if (mainViewModelInstance == null)
+                {
+                    mainViewModelInstance = new MainViewModel(
+                        sp.GetRequiredService<ISessionService>(),
+                        sp.GetRequiredService<IMessengerService>(),
+                        sp.GetRequiredService<INotificationService>(),
+                        sp.GetRequiredService<IConfigService>(),
+                        sp.GetRequiredService<IPageNavigator>());
+                }
+                return mainViewModelInstance;
+            });
+
+            // Register INotificationService with dependency on MainViewModel
+            services.AddSingleton<INotificationService>(sp => new WpfNotificationService(
+                sp.GetRequiredService<IBridgeLogger>(),
+                sp.GetService<MainViewModel>()));
 
             // Register ViewModel factories (Step 60 / 61)
-            services.AddSingleton<Func<MainViewModel>>(sp => () => new MainViewModel(
-                sp.GetRequiredService<ISessionService>(),
-                sp.GetRequiredService<IMessengerService>(),
-                sp.GetRequiredService<INotificationService>(),
-                sp.GetRequiredService<IConfigService>(),
-                sp.GetRequiredService<IPageNavigator>()));
+            services.AddSingleton<Func<MainViewModel>>(sp => () => sp.GetRequiredService<MainViewModel>());
 
             services.AddSingleton<Func<ChatPageViewModel>>(sp => () => new ChatPageViewModel(
                 sp.GetRequiredService<ILlmService>(),

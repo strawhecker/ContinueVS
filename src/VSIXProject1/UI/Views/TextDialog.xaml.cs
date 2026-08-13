@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -19,6 +20,7 @@ namespace ContinueVS.UI.Views
         }
 
         private string? _result;
+        private TaskCompletionSource<string?>? _resultTcs;
 
         public static readonly DependencyProperty PromptProperty =
             DependencyProperty.Register(
@@ -119,23 +121,42 @@ namespace ContinueVS.UI.Views
 
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
-            _result = Input;
-            // Dialog result will be read via Result property
+            CompleteDialog(Input);
         }
 
         private void YesButton_Click(object sender, RoutedEventArgs e)
         {
-            _result = "yes";
+            CompleteDialog("yes");
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            _result = null;
+            CompleteDialog(null);
         }
 
         private void NoButton_Click(object sender, RoutedEventArgs e)
         {
-            _result = "no";
+            CompleteDialog("no");
         }
+
+        /// <summary>
+        /// Completes the dialog with the specified result.
+        /// </summary>
+        private void CompleteDialog(string? result)
+        {
+            _result = result;
+            _resultTcs?.TrySetResult(result);
+        }
+
+        /// <summary>
+        /// Returns a task that completes when the user interacts with the dialog (clicks a button).
+        /// </summary>
+#pragma warning disable VSTHRD003
+        public Task<string?> GetResultAsync()
+        {
+            _resultTcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            return _resultTcs.Task;
+        }
+#pragma warning restore VSTHRD003
     }
 }
