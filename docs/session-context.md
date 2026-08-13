@@ -713,13 +713,14 @@
 - **Deliverables:**
   - Global resource organization via Brushes.xaml and Converters.xaml merged dictionaries; pages/controls to reference these resources via StaticResource bindings (NOTE: VSIX library projects do not use traditional App.xaml; resources are merged in individual page files or via ResourceDictionary.MergedDictionaries at control level)
 
-### step85: Update App.xaml.cs
+### step85: Update App.xaml.cs ⏸️
 - **Action:** Modify application startup (App.xaml.cs)
 - **Content:**
   - Call ServiceBootstrapper.ConfigureServices()
   - Create MainWindow with MainViewModel
   - Call ServiceInitializer
 - **Depends on:** Steps 31, 37, 49
+- **Status:** ⏸️ Deferred — VSIXProject1 is a library/VSIX package, not a WinExe application; ApplicationDefinition not allowed in library projects. Step 85 requirements (DI bootstrap, service initialization, MainWindow creation) will be integrated into step 87 (Navigation command wiring) and ContinueVSPackage initialization flow instead.
 
 ### step86: Create Page Navigation Handler
 - **Action:** Create `UI/Navigation/PageNavigator.cs`
