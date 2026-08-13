@@ -1,6 +1,10 @@
-﻿namespace ContinueVS.UI.Pages
+﻿#nullable enable
+
+using System.Windows.Controls;
+
+namespace ContinueVS.UI.Pages
 {
-    public partial class HistoryPage
+    public partial class HistoryPage : UserControl
     {
         public HistoryPage()
         {

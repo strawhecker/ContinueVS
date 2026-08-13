@@ -722,10 +722,18 @@
 - **Depends on:** Steps 31, 37, 49
 - **Status:** ⏸️ Deferred — VSIXProject1 is a library/VSIX package, not a WinExe application; ApplicationDefinition not allowed in library projects. Step 85 requirements (DI bootstrap, service initialization, MainWindow creation) will be integrated into step 87 (Navigation command wiring) and ContinueVSPackage initialization flow instead.
 
-### step86: Create Page Navigation Handler
+### step86: Create Page Navigation Handler ✅
 - **Action:** Create `UI/Navigation/PageNavigator.cs`
 - **Content:** Handle route changes in MainViewModel, navigate Frame to correct page
 - **Depends on:** Step 74
+- **Status:** ✅ Completed
+- **Deliverables:**
+  - `src/VSIXProject1/UI/Navigation/IPageNavigator.cs` — Interface with async NavigateAsync(string? route, Frame? frame) method
+  - `src/VSIXProject1/UI/Navigation/PageNavigator.cs` — Implementation with route→type dictionary (chat, config/settings, history, stats, editmode); graceful error handling for null/unknown routes
+  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs` — Added PageNavigator field and wired MainViewModel.PropertyChanged to trigger navigation on CurrentRoute changes
+  - `src/VSIXProject1.Tests/UI/Navigation/PageNavigatorTests.cs` — xUnit tests verifying all valid routes handled, null/unknown routes don't throw
+  - Fixed UserControl inheritance in ConfigPage, EditModePage, StatsPage, HistoryPage code-behind (missing : UserControl)
+  - All 788 unit tests passing, build with 0 errors, 0 warnings post-STA-thread fix
 
 ### step87: Wire Up Navigation Commands in MainViewModel
 - **Action:** Update MainViewModel.NavigateCommand to use PageNavigator

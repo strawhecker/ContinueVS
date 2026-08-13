@@ -1,6 +1,10 @@
-﻿namespace ContinueVS.UI.Pages
+﻿#nullable enable
+
+using System.Windows.Controls;
+
+namespace ContinueVS.UI.Pages
 {
-    public partial class StatsPage
+    public partial class StatsPage : UserControl
     {
         public StatsPage()
         {

@@ -13,6 +13,8 @@ using ContinueVS.Handlers.Push;
 using ContinueVS.IPC;
 using ContinueVS.Settings;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.UI.Navigation;
+using ContinueVS.ViewModels;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.VisualStudio.Shell;
 using Newtonsoft.Json;
@@ -47,6 +49,8 @@ namespace ContinueVS.UI
         private readonly WebviewPusher _pusher;
         private WorkspaceConfigWatcher? _configWatcher;
         private EditorContextProvider? _editorContextProvider;
+        private readonly IPageNavigator _pageNavigator = new PageNavigator();
+        private MainViewModel? _mainViewModel;
 
         public ContinueToolWindowControl()
         {
@@ -258,11 +262,47 @@ namespace ContinueVS.UI
             System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] Event fired (now handled in constructor via dispatcher)");
             // NavigateAsync is now called directly from the constructor via dispatcher
             // This OnLoaded event handler is kept for backward compatibility but is no longer needed
+
+            // Wire up navigation for MainViewModel
+            try
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    _mainViewModel = vm;
+                    System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnLoaded] Wiring MainViewModel PageNavigator");
+
+                    // Subscribe to CurrentRoute property changes
+                    vm.PropertyChanged += MainViewModel_PropertyChanged;
+
+                    // Navigate to initial route
+                    if (ContentFrame != null && !string.IsNullOrWhiteSpace(vm.CurrentRoute))
+                    {
+#pragma warning disable VSSDK007
+                        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+                        {
+                            await _pageNavigator.NavigateAsync(vm.CurrentRoute, ContentFrame);
+                        }).FileAndForget("vs/continuevs/navigation");
+#pragma warning restore VSSDK007
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.OnLoaded] Navigation setup failed: {ex.Message}");
+            }
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("[b15-UNLOADED-EVENT] Control unloaded event fired");
+
+            // Unsubscribe from MainViewModel PropertyChanged
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.PropertyChanged -= MainViewModel_PropertyChanged;
+                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowControl.OnUnloaded] Unsubscribed from MainViewModel PropertyChanged");
+            }
+
             try
             {
                 // Fire-and-forget the dispose without blocking
@@ -297,6 +337,31 @@ namespace ContinueVS.UI
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[b15-UNLOADED-ERROR] Failed in OnUnloaded: {ex.Message}");
+            }
+        }
+
+        private void MainViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            try
+            {
+                if (e.PropertyName == nameof(MainViewModel.CurrentRoute) && _mainViewModel != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.MainViewModel_PropertyChanged] CurrentRoute changed to '{_mainViewModel.CurrentRoute}'");
+
+                    if (ContentFrame != null)
+                    {
+#pragma warning disable VSSDK007
+                        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+                        {
+                            await _pageNavigator.NavigateAsync(_mainViewModel.CurrentRoute, ContentFrame);
+                        }).FileAndForget("vs/continuevs/route-navigation");
+#pragma warning restore VSSDK007
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowControl.MainViewModel_PropertyChanged] Error: {ex.Message}");
             }
         }
 
