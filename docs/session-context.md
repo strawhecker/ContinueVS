@@ -824,11 +824,13 @@
 ### step94: Test ChatPage Binding
 - **Action:** Write test: ChatPageViewModel binds to XAML, UI updates on property change
 - **Depends on:** Steps 75, 93
+- **Status:** ✅ Completed
 
 ### step95: Build & Validate Phase 4 (Part B - Runtime)
 - **Action:** Compile + launch UI; verify pages render and bindings work
 - **Command:** `dotnet build && [launch Visual Studio in debug]`
 - **Depends on:** Steps 73-94
+- **Status:** ✅ Completed
 
 ---
 
@@ -836,9 +838,14 @@
 
 *Wire up message dispatch, test end-to-end, replace webview with WPF.*
 
-### step96: Update MessageDispatcher to Use Services
+### step96: Update MessageDispatcher to Use Services ✅
 - **Action:** Modify `MessageDispatcher.cs` to resolve services from DI, delegate to service methods
 - **Depends on:** Steps 17-26, 31
+- **Files modified:**
+  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs` — Added IServiceProvider field; call ServiceBootstrapper.ConfigureServices() before handler registration; inject _serviceProvider into MessageDispatcher ctor; extract handler registration into RegisterHandlers() method
+  - Message dispatcher already supported factory-based registration via RegisterFactory<T>() (no changes needed)
+  - All existing handlers remain functional; ready for step 97 (WebView2 defer) and step 98 (ServiceBootstrapper initialization flow)
+- **Status:** ✅ Completed
 
 ### step97: Remove WebView2 Dependency (or Defer)
 - **Action:** Comment out webview startup code in plugin initialization
