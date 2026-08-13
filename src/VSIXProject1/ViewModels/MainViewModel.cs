@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.UI.Navigation;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 
@@ -16,6 +17,7 @@ namespace ContinueVS.ViewModels
         private readonly IMessengerService _messengerService;
         private readonly INotificationService _notificationService;
         private readonly IConfigService _configService;
+        private readonly IPageNavigator _pageNavigator;
 
         private Session? _currentSession;
         private string? _currentRoute;
@@ -51,17 +53,20 @@ namespace ContinueVS.ViewModels
             ISessionService sessionService,
             IMessengerService messengerService,
             INotificationService notificationService,
-            IConfigService configService)
+            IConfigService configService,
+            IPageNavigator pageNavigator)
         {
             if (sessionService == null) throw new ArgumentNullException(nameof(sessionService));
             if (messengerService == null) throw new ArgumentNullException(nameof(messengerService));
             if (notificationService == null) throw new ArgumentNullException(nameof(notificationService));
             if (configService == null) throw new ArgumentNullException(nameof(configService));
+            if (pageNavigator == null) throw new ArgumentNullException(nameof(pageNavigator));
 
             _sessionService = sessionService;
             _messengerService = messengerService;
             _notificationService = notificationService;
             _configService = configService;
+            _pageNavigator = pageNavigator;
 
             CurrentMessages = new ObservableCollection<ChatMessage>();
             _currentRoute = "chat";
@@ -94,11 +99,14 @@ namespace ContinueVS.ViewModels
             }
         }
 
-        private void ExecuteNavigate(string route)
+        #pragma warning disable VSTHRD100
+        private async void ExecuteNavigate(string route)
+#pragma warning restore VSTHRD100
         {
             if (!string.IsNullOrWhiteSpace(route))
             {
                 CurrentRoute = route;
+                await _pageNavigator.NavigateAsync(route, null);
             }
         }
 

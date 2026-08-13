@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Implementations;
 using ContinueVS.ViewModels;
+using ContinueVS.UI.Navigation;
 
 namespace ContinueVS.Services
 {
@@ -26,6 +27,9 @@ namespace ContinueVS.Services
             // Register logging infrastructure first
             services.AddSingleton<IBridgeLogger>(sp => new BridgeLogger(null));
 
+            // Register UI/Navigation services
+            services.AddSingleton<IPageNavigator, PageNavigator>();
+
             // Register core services as singletons (application lifetime)
             services.AddSingleton<IConfigService, ConfigService>();
             services.AddSingleton<ILlmService, LlmService>();
@@ -43,7 +47,8 @@ namespace ContinueVS.Services
                 sp.GetRequiredService<ISessionService>(),
                 sp.GetRequiredService<IMessengerService>(),
                 sp.GetRequiredService<INotificationService>(),
-                sp.GetRequiredService<IConfigService>()));
+                sp.GetRequiredService<IConfigService>(),
+                sp.GetRequiredService<IPageNavigator>()));
 
             services.AddSingleton<Func<ChatPageViewModel>>(sp => () => new ChatPageViewModel(
                 sp.GetRequiredService<ILlmService>(),

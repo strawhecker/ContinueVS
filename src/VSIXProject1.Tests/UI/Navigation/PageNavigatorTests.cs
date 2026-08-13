@@ -12,7 +12,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithValidChatRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -25,7 +25,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithValidConfigRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -38,7 +38,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithSettingsAlias_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -51,7 +51,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithValidHistoryRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -64,7 +64,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithValidStatsRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -77,7 +77,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithValidEditModeRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -90,7 +90,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithNullFrame_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -103,7 +103,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithNullRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -116,7 +116,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithEmptyRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -129,7 +129,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithUnknownRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -142,7 +142,7 @@ namespace ContinueVS.Tests.UI.Navigation
         [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithCaseInsensitiveRoute_DoesNotThrow()
         {
-            await RunOnSTAThread(async () =>
+            await RunOnSTAThreadAsync(async () =>
             {
                 // Arrange
                 var navigator = new PageNavigator();
@@ -152,7 +152,7 @@ namespace ContinueVS.Tests.UI.Navigation
             });
         }
 
-        private static async System.Threading.Tasks.Task RunOnSTAThread(Func<System.Threading.Tasks.Task> testAction)
+        private static async System.Threading.Tasks.Task RunOnSTAThreadAsync(Func<System.Threading.Tasks.Task> testAction)
         {
             System.Threading.Tasks.TaskCompletionSource<bool> tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
             var thread = new Thread(() =>
