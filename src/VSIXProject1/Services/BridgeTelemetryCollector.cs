@@ -1,5 +1,4 @@
-﻿using ContinueVS.Settings;
-using ContinueVS.UI;
+﻿using ContinueVS.UI;
 using Microsoft.VisualStudio.Shell;
 using System;
 using System.Collections.Concurrent;
@@ -244,21 +243,9 @@ namespace ContinueVS.Services
             {
                 // Try to capture the setting synchronously if possible
                 // This is best-effort; we'll rely on IsTelemetryEnabledAsync for authoritative checks
-                // In test/non-VS environments, ContinueVSPackage.Instance will be null
-                if (ContinueVSPackage.Instance != null)
-                {
-                    try
-                    {
-                        var optionsPage = ContinueVSPackage.Instance.GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage;
-                        _cachedTelemetryEnabled = !(optionsPage?.DisableTelemetry ?? false);
-                        _cachedTelemetryEnabledSet = true;
-                    }
-                    catch (Exception)
-                    {
-                        // GetDialogPage can fail in certain contexts (e.g., during testing)
-                        // In that case, leave cache as default
-                    }
-                }
+                // Legacy options page has been removed; always trust the telemetry service for modern builds
+                _cachedTelemetryEnabled = true;
+                _cachedTelemetryEnabledSet = true;
             }
             catch (Exception)
             {

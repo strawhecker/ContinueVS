@@ -1,4 +1,0 @@
-{
-  "description": "Whitelist of TypeScript files to explicitly include in translation. Paths are relative to the repository root. If empty, all non-blacklisted files are included. Use this to curate specific files when needed.",
-  "files": []
-}

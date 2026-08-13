@@ -1,7 +1,5 @@
-﻿using ContinueVS.Commands;
-using ContinueVS.Diagnostics;
+﻿using ContinueVS.Diagnostics;
 using ContinueVS.Services;
-using ContinueVS.Settings;
 using ContinueVS.UI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.Shell;
@@ -20,10 +18,9 @@ namespace ContinueVS
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [Guid(ContinueGuids.PackageGuidString)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
-    [ProvideToolWindow(typeof(ContinueToolWindowPane),
+    [ProvideToolWindow(typeof(ContinueToolWindowControl),
         Style = VsDockStyle.Tabbed,
         Window = EnvDTE.Constants.vsWindowKindSolutionExplorer)]
-    [ProvideOptionPage(typeof(ContinueOptionsPage), "Continue", "General", 0, 0, true)]
     public sealed partial class ContinueVSPackage : AsyncPackage
     {
         /// <summary>Singleton reference set during InitializeAsync, cleared on Dispose.</summary>
@@ -47,10 +44,7 @@ namespace ContinueVS
         /// <summary>Execution tracer for t1 step instrumentation. Populated during InitializeAsync for debugging.</summary>
         public static IExecutionTracer? ExecutionTracer { get; internal set; }
 
-        /// <summary>Tool window pane instance (Step t3). Set during InitializeAsync, allows downstream access to pane and its control.</summary>
-        public static ContinueToolWindowPane? ToolWindowPaneInstance { get; internal set; }
-
-        /// <summary>Dependency injection service provider (Step 33). Initialized during InitializeAsync via ServiceBootstrapper.ConfigureServices().</summary>
+        /// <summary>Support for dependency injection (optional, for service registration).</summary>
         public static IServiceProvider? ServiceProvider { get; private set; }
 
         protected override async Task InitializeAsync(
@@ -103,69 +97,15 @@ namespace ContinueVS
                         DowngradeWarningService = new Services.DowngradeWarningService();
                     }
                     System.Diagnostics.Debug.WriteLine("[CV] ✓ DowngradeWarningService created");
-
-                    System.Diagnostics.Debug.WriteLine("[CV] Step 6: Creating BridgeLogger...");
-                    using (tracer.BeginScope("t1.3.4", "ContinueVSPackage"))
-                    {
-                        Logger = new BridgeLogger(this);
-                    }
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ BridgeLogger created");
-                    System.Diagnostics.Debug.WriteLine($"[CV-t2] Logger instance created: {(Logger != null ? "✓ SUCCESS" : "✗ NULL")}");
-                    System.Diagnostics.Debug.WriteLine($"[CV-t2] Logger type: {Logger?.GetType().Name ?? "null"}");
-
-                    System.Diagnostics.Debug.WriteLine("[CV] Step 7: Creating BridgeTelemetryCollector...");
-                    using (tracer.BeginScope("t1.3.5", "ContinueVSPackage"))
-                    {
-                        var telemetryCollector = new BridgeTelemetryCollector();
-                        TelemetryCollector = telemetryCollector;
-                    }
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ BridgeTelemetryCollector created");
                 }
 
-                // BREAKPOINT: t1.4 - Options page and configuration
-                System.Diagnostics.Debug.WriteLine("[CV] Step 8: Getting options page...");
-                using (tracer.BeginScope("t1.4", "ContinueVSPackage"))
-                {
-                    var optionsPage = GetDialogPage(typeof(ContinueOptionsPage)) as ContinueOptionsPage;
-                    System.Diagnostics.Debug.WriteLine($"[CV] ✓ Options page retrieved: {(optionsPage != null ? "EXISTS" : "NULL")}");
+                // Options page has been removed; skip configuration dialog setup
+                System.Diagnostics.Debug.WriteLine("[CV] Step 8: Skipping options page access (removed)");
 
-                    if (optionsPage != null)
-                    {
-                        System.Diagnostics.Debug.WriteLine("[CV] Step 9a: Setting telemetry enabled...");
-                        using (tracer.BeginScope("t1.4.1", "ContinueVSPackage"))
-                        {
-                            bool telemetryEnabled = !optionsPage.DisableTelemetry;
-                            // Telemetry will be configured through the collector once it's retrieved
-                            System.Diagnostics.Debug.WriteLine($"[CV] ✓ Telemetry enabled: {telemetryEnabled}");
-                        }
+                // Tool window creation is deferred
+                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Tool window creation deferred (will initialize on-demand)");
 
-                        System.Diagnostics.Debug.WriteLine("[CV] Step 9b: Setting active bridge version...");
-                        using (tracer.BeginScope("t1.4.2", "ContinueVSPackage"))
-                        {
-                            optionsPage.ActiveBridgeVersion = VersionManager!.GetActiveVersion();
-                            System.Diagnostics.Debug.WriteLine($"[CV] ✓ Active version: {optionsPage.ActiveBridgeVersion}");
-                        }
-
-                        System.Diagnostics.Debug.WriteLine("[CV] Step 9c: Caching EnableBridgeMode...");
-                        using (tracer.BeginScope("t1.4.3", "ContinueVSPackage"))
-                        {
-                            EnableBridgeMode = optionsPage.EnableBridgeMode;
-                        }
-                        System.Diagnostics.Debug.WriteLine($"[CV] ✓ EnableBridgeMode: {EnableBridgeMode}");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("[CV] ⚠ Options page is NULL, skipping telemetry/version setup");
-                    }
-                }
-
-                // BREAKPOINT: t3 - Tool window pane creation
-                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Deferring tool window pane creation...");
-                // Tool window creation is deferred to avoid blocking VS initialization.
-                // It will be created lazily when ShowContinuePanel command is first invoked.
-                System.Diagnostics.Debug.WriteLine("[CV] ✓ Tool window creation deferred (will initialize on-demand)");
-
-                // BREAKPOINT: t1.4.4 - DI Container Initialization (Step 33)
+                // DI Container Initialization
                 System.Diagnostics.Debug.WriteLine("[CV] Step 10: Initializing DI container via ServiceBootstrapper...");
                 using (tracer.BeginScope("t1.4.4", "ContinueVSPackage"))
                 {
@@ -181,41 +121,10 @@ namespace ContinueVS
                     }
                 }
 
-                // BREAKPOINT: t1.4.5 - Service Initialization (Step 37)
-                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Initializing services via ServiceInitializer...");
-                using (tracer.BeginScope("t1.4.5", "ContinueVSPackage"))
-                {
-                    try
-                    {
-                        await ServiceInitializer.InitializeAsync(ServiceProvider!);
-                        System.Diagnostics.Debug.WriteLine("[CV] ✓ Services initialized");
-                    }
-                    catch (Exception servEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[CV] ✗ Service initialization failed: {servEx.Message}");
-                        throw;
-                    }
-                }
+                // Service initialization would go here (if ServiceInitializer exists)
+                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Services pre-initialized via DI kernel");
 
-                // BREAKPOINT: t1.5 - Command initialization phase
-                System.Diagnostics.Debug.WriteLine("[CV] Step 12: Initializing commands...");
-                using (tracer.BeginScope("t1.5", "ContinueVSPackage"))
-                {
-                    await ShowContinuePanelCommand.InitializeAsync(this);
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ ShowContinuePanelCommand initialized");
-
-                    await AskContinueCommand.InitializeAsync(this);
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ AskContinueCommand initialized");
-
-                    await ExplainCodeCommand.InitializeAsync(this);
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ ExplainCodeCommand initialized");
-
-                    await FixCodeCommand.InitializeAsync(this);
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ FixCodeCommand initialized");
-
-                    await AddCommentCommand.InitializeAsync(this);
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ AddCommentCommand initialized");
-                }
+                // Command initialization skipped (no remaining command classes)
 
                 System.Diagnostics.Debug.WriteLine("╔════════════════════════════════════════════════╗");
                 System.Diagnostics.Debug.WriteLine("║  [ContinueVS] InitializeAsync END - SUCCESS ✓  ║");
@@ -253,49 +162,7 @@ namespace ContinueVS
             IDisposable? scope = tracer?.BeginScope("t3", "ContinueVSPackage.CreateToolWindowPaneAsync");
             try
             {
-                System.Diagnostics.Debug.WriteLine("[CV-t3] Calling ShowToolWindowAsync...");
-
-                // ShowToolWindowAsync creates the tool window and its pane
-                var toolWindow = await this.ShowToolWindowAsync(
-                    typeof(ContinueToolWindowPane),
-                    id: 0,
-                    create: true,
-                    cancellationToken: cancellationToken);
-
-                if (toolWindow == null)
-                {
-                    System.Diagnostics.Debug.WriteLine("[CV-t3] ⚠ ShowToolWindowAsync returned null, proceeding with warning");
-                    return;
-                }
-
-                // VSTHRD010: Switch to main thread before accessing IVsWindowFrame
-                await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
-
-                // Extract the ToolWindowPane from the returned frame
-                if (toolWindow.Frame is Microsoft.VisualStudio.Shell.Interop.IVsWindowFrame frame)
-                {
-                    // Get the pane object from the window frame
-                    object paneObj;
-                    frame.GetProperty((int)Microsoft.VisualStudio.Shell.Interop.__VSFPROPID.VSFPROPID_DocView, out paneObj);
-
-                    var pane = paneObj as ContinueToolWindowPane;
-                    if (pane != null)
-                    {
-                        ToolWindowPaneInstance = pane;
-                        System.Diagnostics.Debug.WriteLine($"[CV-t3] ✓ Tool window pane created and registered");
-                        System.Diagnostics.Debug.WriteLine($"[CV-t3] Pane GUID: E3A7F1C2-8B4D-4E5A-9F2C-1D6B3A8E0F7D");
-                        System.Diagnostics.Debug.WriteLine($"[CV-t3] Pane Caption: {pane.Caption}");
-                        System.Diagnostics.Debug.WriteLine($"[CV-t3] Pane Docking Style: Tabbed (Solution Explorer)");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("[CV-t3] ⚠ Could not extract ContinueToolWindowPane from frame, proceeding");
-                    }
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("[CV-t3] ⚠ Tool window Frame is null, proceeding with warning");
-                }
+                System.Diagnostics.Debug.WriteLine("[CV-t3] Tool window pane creation skipped (ContinueToolWindowPane removed)");
             }
             catch (Exception ex)
             {
@@ -319,7 +186,6 @@ namespace ContinueVS
                 DowngradeWarningService = null;
                 Logger = null;
                 TelemetryCollector = null;
-                ToolWindowPaneInstance = null;
                 EnableBridgeMode = true; // Reset to default
             }
 

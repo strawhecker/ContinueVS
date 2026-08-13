@@ -51,6 +51,7 @@
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="Commands\" />
     <Folder Include="Services\Tests\" />
   </ItemGroup>
 </Project>

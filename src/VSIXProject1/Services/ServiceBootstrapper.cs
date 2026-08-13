@@ -2,7 +2,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Implementations;
-using ContinueVS.ViewModels;
 using ContinueVS.UI.Navigation;
 
 namespace ContinueVS.Services
@@ -24,9 +23,6 @@ namespace ContinueVS.Services
         {
             var services = new ServiceCollection();
 
-            // Register logging infrastructure first
-            services.AddSingleton<IBridgeLogger>(sp => new BridgeLogger(null));
-
             // Register UI/Navigation services
             services.AddSingleton<IPageNavigator, PageNavigator>();
             services.AddSingleton<IThemeService, ThemeService>();
@@ -39,48 +35,9 @@ namespace ContinueVS.Services
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();
-            services.AddSingleton<IIdeService, VsIdeService>();
-            services.AddSingleton<IMessengerService, MessengerService>();
 
-            // MainViewModel is registered first as singleton so it can be injected into services that need it
-            MainViewModel? mainViewModelInstance = null;
-            services.AddSingleton<MainViewModel>(sp =>
-            {
-                if (mainViewModelInstance == null)
-                {
-                    mainViewModelInstance = new MainViewModel(
-                        sp.GetRequiredService<ISessionService>(),
-                        sp.GetRequiredService<IMessengerService>(),
-                        sp.GetRequiredService<INotificationService>(),
-                        sp.GetRequiredService<IConfigService>(),
-                        sp.GetRequiredService<IPageNavigator>());
-                }
-                return mainViewModelInstance;
-            });
-
-            // Register INotificationService with dependency on MainViewModel
-            services.AddSingleton<INotificationService>(sp => new WpfNotificationService(
-                sp.GetRequiredService<IBridgeLogger>(),
-                sp.GetService<MainViewModel>()));
-
-            // Register ViewModel factories (Step 60 / 61)
-            services.AddSingleton<Func<MainViewModel>>(sp => () => sp.GetRequiredService<MainViewModel>());
-
-            services.AddSingleton<Func<ChatPageViewModel>>(sp => () => new ChatPageViewModel(
-                sp.GetRequiredService<ILlmService>(),
-                sp.GetRequiredService<IContextService>(),
-                sp.GetRequiredService<IToolService>(),
-                sp.GetRequiredService<ISessionService>(),
-                sp.GetRequiredService<INotificationService>()));
-
-            services.AddSingleton<Func<ConfigPageViewModel>>(sp => () => new ConfigPageViewModel(
-                sp.GetRequiredService<IConfigService>(),
-                sp.GetRequiredService<IIndexingService>()));
-
-            // Build provider for accessing services in factory methods
-            var provider = services.BuildServiceProvider();
-
-            return provider;
+            // Build and return
+            return services.BuildServiceProvider();
         }
     }
 }
