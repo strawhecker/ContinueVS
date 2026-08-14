@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using ContinueVS.ViewModels;
 
 namespace ContinueVS.UI
 {
@@ -16,6 +17,20 @@ namespace ContinueVS.UI
         {
             try
             {
+                // Ensure ViewModelLocator.ServiceProvider is set before XAML initializes
+                // (XAML bindings in pages may depend on MainViewModel resolution via ViewModelLocator)
+                if (ContinueVSPackage.ServiceProvider != null && ViewModelLocator.ServiceProvider == null)
+                {
+                    try
+                    {
+                        ViewModelLocator.ServiceProvider = ContinueVSPackage.ServiceProvider;
+                    }
+                    catch (ArgumentNullException)
+                    {
+                        // ServiceProvider already set by InitializeAsync; ignore duplicate assignment
+                    }
+                }
+
                 InitializeComponent();
             }
             catch (Exception ex)

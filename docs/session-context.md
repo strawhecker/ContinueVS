@@ -851,6 +851,7 @@
 - **Action:** Comment out webview startup code in plugin initialization
 - **Rationale:** WPF UI now primary; webview optional fallback
 - **Depends on:** Step 85
+- **Status:** ✅ Completed
 
 ### step98: Update ContinueVSPackage Plugin Initialization
 - **Action:** Modify `ContinueVSPackage.cs` to:
@@ -858,6 +859,14 @@
   - Initialize WPF views
   - Defer webview (or remove)
 - **Depends on:** Steps 31, 85, 96
+- **Status:** ✅ Completed
+- **Changes:**
+  - Added `using ContinueVS.ViewModels;` to imports for ViewModelLocator access
+  - After ServiceBootstrapper.ConfigureServices() (line 114), added ServiceInitializer.InitializeAsync(ServiceProvider) call with try-catch and execution trace scope (t1.4.5)
+  - Added ViewModelLocator.ServiceProvider = ServiceProvider assignment to enable XAML binding (t1.4.6)
+  - Implemented CreateToolWindowPaneAsync() to instantiate ContinueToolWindowControl, set as tool window content via FindToolWindow(), and call ShowToolWindowAsync() (t1.4.7)
+  - Modified ContinueToolWindowControl.xaml.cs constructor to set ViewModelLocator.ServiceProvider when ContinueVSPackage.ServiceProvider is available (guards against null via null-coalescing and try-catch)
+  - All debug instrumentation preserved; build passes with 0 errors, 0 warnings
 
 ### step99: Create Integration Tests for Handler → Service Flow
 - **Action:** Create `src/VSIXProject1.Tests/Integration/` with end-to-end tests
