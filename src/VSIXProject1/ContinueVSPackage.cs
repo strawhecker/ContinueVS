@@ -1,4 +1,5 @@
-﻿using ContinueVS.Diagnostics;
+﻿using ContinueVS.Commands;
+using ContinueVS.Diagnostics;
 using ContinueVS.Services;
 using ContinueVS.UI;
 using ContinueVS.ViewModels;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using System;
+using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +21,7 @@ namespace ContinueVS
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [Guid(ContinueGuids.PackageGuidString)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
-    [ProvideToolWindow(typeof(ContinueToolWindowControl),
+    [ProvideToolWindow(typeof(ContinueToolWindowPane),
         Style = VsDockStyle.Tabbed,
         Window = EnvDTE.Constants.vsWindowKindSolutionExplorer)]
     public sealed partial class ContinueVSPackage : AsyncPackage
@@ -154,23 +156,26 @@ namespace ContinueVS
                     }
                 }
 
-                // Create and display WPF tool window (Step 98)
-                System.Diagnostics.Debug.WriteLine("[CV] Step 13: Creating WPF tool window...");
-                using (tracer.BeginScope("t1.4.7", "ContinueVSPackage"))
+                // Register Ctrl+Shift+J command handler with VS OleMenuCommandService
+                System.Diagnostics.Debug.WriteLine("[CV] Step 14: Registering ShowContinuePanel command...");
+                using (tracer.BeginScope("t1.4.8", "ContinueVSPackage"))
                 {
-                    try
+                    var cmdService = await GetServiceAsync(typeof(IMenuCommandService)) as IMenuCommandService;
+                    if (cmdService != null)
                     {
-                        await CreateToolWindowPaneAsync(cancellationToken);
-                        System.Diagnostics.Debug.WriteLine("[CV] ✓ WPF tool window created and displayed");
+                        var cmdId = new CommandID(ContinueGuids.CmdSetGuid, ContinueCommandIds.ShowContinuePanel);
+                        cmdService.AddCommand(new MenuCommand((s, e) => ShowContinueToolWindowCommand.Execute(), cmdId));
+                        System.Diagnostics.Debug.WriteLine("[CV] ✓ ShowContinuePanel command registered");
                     }
-                    catch (Exception twEx)
+                    else
                     {
-                        System.Diagnostics.Debug.WriteLine($"[CV] ✗ Tool window creation failed: {twEx.Message}");
-                        throw;
+                        System.Diagnostics.Debug.WriteLine("[CV] ✗ OleMenuCommandService not available");
                     }
                 }
 
-                // Command initialization skipped (no remaining command classes)
+                // Tool window is shown on-demand (Ctrl+Shift+J) — do NOT call FindToolWindow here,
+                // as VS cannot create a window frame while the package is still loading (COMException 0x80049283).
+                System.Diagnostics.Debug.WriteLine("[CV] Step 13: Tool window deferred to on-demand (Ctrl+Shift+J).");
 
                 System.Diagnostics.Debug.WriteLine("╔════════════════════════════════════════════════╗");
                 System.Diagnostics.Debug.WriteLine("║  [ContinueVS] InitializeAsync END - SUCCESS ✓  ║");
@@ -208,24 +213,15 @@ namespace ContinueVS
             IDisposable? scope = tracer?.BeginScope("t3", "ContinueVSPackage.CreateToolWindowPaneAsync");
             try
             {
-                // Create and instantiate the WPF UserControl
-                System.Diagnostics.Debug.WriteLine("[CV-t3] Instantiating ContinueToolWindowControl (WPF)...");
-                var toolControl = new ContinueToolWindowControl();
-                System.Diagnostics.Debug.WriteLine("[CV-t3] ✓ ContinueToolWindowControl instantiated");
-
-                // Get the tool window pane (VS framework integration)
-                System.Diagnostics.Debug.WriteLine("[CV-t3] Finding tool window pane...");
-                var windowPane = FindToolWindow(typeof(ContinueToolWindowControl), 0, create: true) as ToolWindowPane;
+                // Find or create the tool window pane (ContinueToolWindowPane creates its own WPF control)
+                System.Diagnostics.Debug.WriteLine("[CV-t3] Finding/creating ContinueToolWindowPane...");
+                var windowPane = FindToolWindow(typeof(ContinueToolWindowPane), 0, create: true) as ToolWindowPane;
                 if (windowPane != null)
                 {
                     System.Diagnostics.Debug.WriteLine("[CV-t3] ✓ Tool window pane found/created");
 
-                    // Set the WPF control as the content of the tool window pane
-                    windowPane.Content = toolControl;
-                    System.Diagnostics.Debug.WriteLine("[CV-t3] ✓ WPF control set as tool window content");
-
                     // Show the tool window
-                    await this.ShowToolWindowAsync(typeof(ContinueToolWindowControl), 0, create: true, cancellationToken: cancellationToken);
+                    await this.ShowToolWindowAsync(typeof(ContinueToolWindowPane), 0, create: true, cancellationToken: cancellationToken);
                     System.Diagnostics.Debug.WriteLine("[CV-t3] ✓ Tool window shown");
                 }
                 else
