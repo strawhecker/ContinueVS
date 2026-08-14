@@ -868,11 +868,16 @@
   - Modified ContinueToolWindowControl.xaml.cs constructor to set ViewModelLocator.ServiceProvider when ContinueVSPackage.ServiceProvider is available (guards against null via null-coalescing and try-catch)
   - All debug instrumentation preserved; build passes with 0 errors, 0 warnings
 
-### step99: Create Integration Tests for Handler → Service Flow
+### step99: Create Integration Tests for Handler → Service Flow ✅
 - **Action:** Create `src/VSIXProject1.Tests/Integration/` with end-to-end tests
   - MessageDispatcher receives config/addModel → delegates to IConfigService.AddModelAsync
   - Chat message → delegates to ILlmService.StreamAsync
 - **Depends on:** Steps 96
+- **Files created:**
+  - `src/VSIXProject1.Tests/Integration/MessageDispatcherConfigServiceTests.cs` — 4 tests for AddModel delegation (null-check, exception propagation, success, multiple models)
+  - `src/VSIXProject1.Tests/Integration/MessageDispatcherLlmServiceTests.cs` — 5 tests for StreamAsync delegation (chunk streaming, null-check, exception, cancellation token, StreamOptions)
+- **Test Summary:** 9 new integration tests; all passing
+- **Status:** ✅ Completed
 
 ### step100: Test ConfigService ↔ MessageDispatcher
 - **Action:** Write integration test: handler call → service method → event fired → MessageDispatcher responds
