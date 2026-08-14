@@ -32,6 +32,7 @@ namespace ContinueVS.UI
                 }
 
                 InitializeComponent();
+                MainContentFrame.Navigate(new Pages.ChatPage());
             }
             catch (Exception ex)
             {
