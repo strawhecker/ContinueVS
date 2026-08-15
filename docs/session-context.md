@@ -882,6 +882,15 @@
 ### step100: Test ConfigService ↔ MessageDispatcher
 - **Action:** Write integration test: handler call → service method → event fired → MessageDispatcher responds
 - **Depends on:** Steps 17, 99
+- **Status:** ✅ Completed
+- **Changes:**
+  - Created `src/VSIXProject1.Tests/Integration/MessageDispatcherConfigServiceEventTests.cs` with 4 integration tests
+  - Test 1: `AddModel_FiresConfigChangedEvent_WithCorrectDataAsync` — verifies ConfigService.AddModelAsync fires ConfigChanged event with ConfigKey="models" and correct NewValue
+  - Test 2: `RemoveModel_FiresConfigChangedEvent_WithCorrectDataAsync` — verifies ConfigService.RemoveModelAsync fires ConfigChanged event
+  - Test 3: `ConfigChangedEvent_IncludesTimestampAndOldNewValuesAsync` — verifies event includes Timestamp, OldValue, and NewValue with correct values
+  - Test 4: `MultipleOperations_AllFireEventsInSequenceAsync` — verifies multiple sequential operations (add, add, remove) fire all events in correct order with correct data
+  - Uses real ConfigService instance (not mocked) to verify actual event firing behavior
+  - All 4 tests passing; full test suite: 406 passed, 0 failed
 
 ### step101: Test LlmService ↔ MessageDispatcher
 - **Action:** Write integration test: handler call → service streaming → chunks returned
