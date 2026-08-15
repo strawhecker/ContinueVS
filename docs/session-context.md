@@ -18,6 +18,419 @@
 
 ---
 
+## GAP ANALYSIS: ContinueVS UI vs. Continue.js Reference Architecture
+
+**Purpose:** Ordered list of gaps between current ContinueVS implementation and Continue.js reference.  
+**Approach:** Bottom-up DAG from AGENTS.md, mapped to ContinueVS structure.  
+**Priority:** Ordered by user's end-to-end test goals.
+
+---
+
+### gap1: Ollama Config Predefinition (CRITICAL BLOCKER)
+**Status:** ⚠️ Gap | Type: Missing Configuration  
+**Current State:**
+- ConfigService loads from `~/.continue/config.json` (exists)
+- No predefined default config for Ollama
+- User must manually create config.json with Ollama settings
+
+**What Needs to Exist (from AGENTS.md):**
+- `reference/continue-src/core/config/onboarding.ts`: `setupLocalConfig()` → creates defaults
+- `reference/continue-src/core/config/load.ts`: Config JSON → Runtime object schema
+- Platform-specific config path: Windows `%USERPROFILE%\.continue\config.json`
+
+**ContinueVS Implementation Gap:**
+- ConfigService has no `CreateDefaultConfigAsync()` method
+- ServiceInitializer.InitializeAsync() does not check if config.json exists
+- No onboarding fallback for first-time users
+
+**Remediation:**
+1. Add `CreateDefaultConfigAsync()` to IConfigService (creates `~/.continue/config.json` with Ollama defaults if missing)
+2. Call from ServiceInitializer.InitializeAsync() before loading models
+3. Template should include:
+{ "models": [ { "title": "Llama 3.1 8B Instruct", "provider": "ollama", "model": "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M", "apiBase": "http://localhost:11434" } ], "allowAnonymousTelemetry": false }
+
+**Blocking:** gap2, gap3, gap4 (cannot test message flow without models in config)
+
+---
+
+### gap2: ChatPage DataContext Binding Error
+**Status:** 🔴 Active Bug | Type: XAML Binding Failure  
+**Symptom:**
+System.Windows.Data Error: 3 : Cannot find element that provides DataContext. BindingExpression:Path=ChatPageViewModel; DataItem=null; target element is 'ChatPage'
+
+**Current State:**
+- ChatPage.xaml binds to `{Binding ChatPageViewModel}` expecting MainViewModel as DataContext
+- ContinueToolWindowControl navigates to ChatPage without setting DataContext
+- ViewModelLocator.ServiceProvider is initialized but not wired to MainViewModel
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/gui/src/App.tsx`: Root component provides MainViewModel context
+- All child pages inherit MainViewModel as DataContext
+- Navigation routes are child content, not separate pages
+
+**ContinueVS Gap:**
+- ContinueToolWindowControl.xaml.cs navigates to ChatPage directly (line 35): `MainContentFrame.Navigate(new Pages.ChatPage())`
+- ChatPage.xaml expects MainViewModel but receives null
+
+**Remediation:**
+1. Fix ChatPage.xaml.cs codebehind: Set DataContext to ChatPageViewModel directly
+2. OR: Create MainView wrapper that provides MainViewModel context, then ChatPage as child
+3. Recommended: Option 1 (simpler) - modify ChatPage.xaml.cs:
+public ChatPage() { try { if (ViewModelLocator.ServiceProvider != null) { this.DataContext = ViewModelLocator.ServiceProvider.GetRequiredService<ChatPageViewModel>(); } InitializeComponent(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ChatPage] DataContext error: {ex.Message}"); } }
+
+**Blocking:** gap4 (cannot render chat UI without binding)
+
+---
+
+### gap3: ConfigPageViewModel Model/Tool Loading NOT WIRED
+**Status:** 🟡 Incomplete | Type: Missing Service Integration  
+**Current State:**
+- ConfigPageViewModel exists (lines 1-130 in ConfigPageViewModel.cs)
+- Properties: `Models`, `AvailableTools`, `Profiles` are ObservableCollections
+- Constructor accepts `IConfigService`, but async data loading not called
+- ConfigPage.xaml binds to these, but collections remain empty
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/gui/src/pages/`: ConfigPage loads models via Core.getConfigHandler()
+- Core.ts (line 1460): ConfigHandler manages model list, tool registry
+- ConfigHandler.getModels() → returns current config models
+- Tool enumeration: Core.getKnownTools() → returns runtime tools
+
+**ContinueVS Gap:**
+- ConfigPageViewModel.LoadModelsAsync() not called anywhere
+- No connection between IConfigService.GetCurrentConfig() and UI binding
+- ConfigChanged event fired in ConfigService but ConfigPageViewModel does not subscribe
+
+**Remediation:**
+1. Call `ConfigPageViewModel.LoadModelsAsync()` from ServiceInitializer.InitializeAsync()
+2. Subscribe ConfigPageViewModel to ConfigService.ConfigChanged event
+3. Reload UI on config changes
+4. Load tools list from IToolService.GetAvailableTools()
+
+**Blocking:** gap6 (cannot verify tool count without loading)
+
+---
+
+### gap4: Chat Message Flow NOT WIRED (ILlmService → UI)
+**Status:** 🔴 Critical | Type: Missing Integration  
+**Current State:**
+- ChatPageViewModel has `SendMessageCommand` (lines 88-115)
+- Sends message to ILlmService.StreamAsync() (mocked in unit tests, not real LLM)
+- ILlmService.StreamAsync returns CompletionChunk async enumerable
+- BUT: Real LLM call logic not implemented (MessengerService delegates to non-existent handler)
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/core/core.ts` (line 1460): Core.llm.streamChat() routes to model provider
+- `reference/continue-src/core/llm/streamChat.ts`: llmStreamChat() → dispatcher
+- Model provider (e.g., Ollama) → POST to `http://localhost:11434/api/chat`
+- Returns chunks streamed via `application/x-ndjson`
+
+**ContinueVS Gap:**
+- LlmService.StreamAsync() currently returns mock chunks (MessengerService.StreamAsync is stub)
+- No actual HTTP call to Ollama endpoint
+- MessengerService.StreamAsync has no handler registration for "llm.stream"
+- Configuration provider/model not mapped to actual HTTP client
+
+**Remediation:**
+1. Implement real HTTP streaming in MessengerService (delegate to IIdeService or new HttpLlmClient)
+2. Map ModelInfo (provider: "ollama", apiBase, model) → HTTP client parameters
+3. Call Ollama: POST `{apiBase}/api/chat` with messages payload
+4. Parse `application/x-ndjson` response → CompletionChunk items
+5. Yield chunks via async enumerable
+
+**Blocking:** gap5+ (user cannot test message send/receive)
+
+---
+
+### gap5: Chat Message Display NOT WORKING (UI Rendering Failed)
+**Status:** 🔴 Critical | Type: XAML/Binding Gap  
+**Current State:**
+- ChatPage.xaml has ItemsControl bound to `{Binding Messages}` (line 25)
+- ChatPageViewModel.Messages is ObservableCollection<ChatMessage>
+- ChatMessageControl.xaml defined (expects ChatMessage binding)
+- Issue: ChatPage.DataContext is null → binding fails silently
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/gui/src/components/`: ChatMessage component renders each message
+- Message display: role → styling (user = right-align, assistant = left-align)
+- Streaming: StreamingResponse visible above message list during response
+
+**ContinueVS Gap:**
+- ChatPageViewModel.StreamingResponse property (for accumulating streamed text) exists but not bound in XAML
+- ChatPage.xaml has no dedicated UI for streaming feedback
+- When gap2 (DataContext) is fixed, binding should work, but UI may be incomplete
+
+**Remediation:**
+1. (After fixing gap2) Verify ItemsControl renders messages
+2. Add TextBlock bound to StreamingResponse above messages (shows live chunk accumulation)
+3. Add visual indicator (e.g., "Assistant is typing...") while IsStreaming=true
+4. Test end-to-end message rendering
+
+**Depends on:** gap2, gap4
+
+---
+
+### gap6: Tools Navigation NOT VISIBLE
+**Status:** 🟡 Incomplete | Type: Missing Navigation Component  
+**Current State:**
+- MainViewModel has CurrentRoute property (tracks "chat", "config", "history")
+- MainViewModel.NavigateCommand wired in tests
+- ContinueToolWindowControl.xaml.cs navigates to static ChatPage
+- No navigation bar/tabs visible to user
+- Page.Navigator interface exists but not rendered in XAML
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/gui/src/util/navigation.ts`: ROUTES enum (chat, config, settings, etc.)
+- `reference/continue-src/gui/src/App.tsx`: <Router> wraps pages; buttons/tabs trigger route changes
+- Tool count badge shown in navigation (from IConfigService.GetEnabledTools().Count())
+
+**ContinueVS Gap:**
+- ContinueToolWindowControl has Frame but no navigation buttons
+- No tabs/buttons for "Chat", "Config", "History" modes
+- MainViewModel.NavigateCommand never invoked by UI
+- No visual indication of current route
+
+**Remediation:**
+1. Create NavigationBar.xaml UserControl with buttons: Chat, Config, History, Settings
+2. Add to ContinueToolWindowControl.xaml (above MainContentFrame)
+3. Bind buttons to MainViewModel.NavigateCommand with route names
+4. Update ContinueToolWindowControl.xaml.cs to respond to navigation changes
+5. Show tool count badge in nav (bind to ConfigService.GetEnabledTools().Count())
+
+**Blocking:** gap7, gap8 (user cannot switch between modes)
+
+---
+
+### gap7: Ask Mode NOT VISIBLE (Chat Mode)
+**Status:** 🟡 Incomplete | Type: Missing UI Variant  
+**Current State:**
+- ChatPageViewModel exists (basic chat mode)
+- ChatPage.xaml has Message input + ItemsControl for display
+- No mode selector (Ask vs. Agent vs. Plan)
+- Send button always active (no per-mode logic)
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/core/llm/defaultSystemMessages.ts`: Three system prompts for three modes
+  - DEFAULT_CHAT_SYSTEM_MESSAGE: "Use Apply Button or switch to Agent Mode"
+  - DEFAULT_AGENT_SYSTEM_MESSAGE: "Call read-only tools, use edit tools for changes"
+  - DEFAULT_PLAN_SYSTEM_MESSAGE: "Read-only only, offer Agent Mode for writes"
+- ChatPageViewModel tracks cur rent mode
+
+**ContinueVS Gap:**
+- ChatPageViewModel has no Mode property or mode selection UI
+- No radio buttons/buttons for Ask/Agent/Plan
+- System message not injected based on mode
+- No "Apply" button (Ask mode feature)
+
+**Remediation:**
+1. Add Mode enum property to ChatPageViewModel (Ask, Agent, Plan)
+2. Add ModeChangedCommand to switch modes
+3. Add mode selector UI to ChatPage.xaml (RadioButtons or ToggleButtons: "Ask", "Agent", "Plan")
+4. Inject appropriate system message based on mode when streaming (gap4 integration)
+5. Add "Apply" button visible only in Ask mode (stub for now)
+
+**Depends on:** gap2
+
+---
+
+### gap8: Agent Mode NOT VISIBLE
+**Status:** ⚠️ Missing | Type: Unimplemented Feature  
+**Current State:**
+- No AgentPageViewModel created
+- No UI component for Agent mode (tool calling, auto-execute)
+- Tool call results not displayed in conversation thread
+
+**What Continue.js Does (from AGENTS.md):**
+- Agent mode: LLM can call tools autonomously
+- `reference/continue-src/core/tools/callTool.ts`: Route tool calls → execute
+- Display tool invocations in chat (tool name, args, result) as special message type
+- Continue looping until LLM says "done"
+
+**ContinueVS Gap:**
+- IToolService.InvokeAsync() exists but not called from LLM message loop
+- No streaming update for tool calls
+- No special message type for tool invocation display
+- Agent mode infrastructure missing
+
+**Remediation:**
+1. Add mode enum to ChatPageViewModel: Agent
+2. When mode = Agent: After each streaming chunk, check for tool_calls
+3. Invoke each tool via IToolService.InvokeAsync()
+4. Add ToolInvocationMessage type to display results in chat
+5. Auto-loop: send tool results back to LLM as new message
+
+**Depends on:** gap4, gap7
+
+---
+
+### gap9: Plan Mode NOT VISIBLE
+**Status:** ⚠️ Missing | Type: Unimplemented Feature  
+**Current State:**
+- No PlanPageViewModel created
+- No UI component for Plan mode (read-only analysis)
+- No plan formatting/display
+
+**What Continue.js Does (from AGENTS.md):**
+- Plan mode: LLM analyzes without tool access
+- System message: "Read-only only, offer Agent Mode for writes"
+- Typically used for initial analysis before switching to Agent mode
+
+**ContinueVS Gap:**
+- Plan mode not implemented
+- Minor priority (less used than Ask/Agent)
+
+**Remediation:**
+1. Add "Plan" to Mode enum in ChatPageViewModel
+2. Inject plan system message
+3. Disable tool calling in Plan mode
+4. Simple rendering (no special UI needed, same as Ask mode)
+
+**Depends on:** gap7
+
+---
+
+### gap10: Tools Count NOT SHOWN IN UI
+**Status:** 🟡 Incomplete | Type: Missing Binding  
+**Current State:**
+- ConfigPageViewModel has `AvailableTools` collection (exists)
+- No tools loading or display
+- NavigationBar (from gap6) should show tool count badge
+
+**What Continue.js Does (from AGENTS.md):**
+- Tool count badge in navigation (from IConfigService or Core.getKnownTools())
+- ConfigPage shows tool list with enable/disable toggles
+
+**ContinueVS Gap:**
+- IConfigService.GetEnabledTools() exists
+- No UI binding to show count
+- No tool enable/disable UI in ConfigPage
+
+**Remediation:**
+1. Load tools in ConfigPageViewModel.LoadToolsAsync()
+2. Bind AvailableTools to ListBox in ConfigPage.xaml
+3. Add CheckBox for Enable/Disable per tool
+4. Show tool count badge in NavigationBar (total count)
+
+**Depends on:** gap3, gap6
+
+---
+
+### gap11: Theme/Dark Mode NOT APPLIED
+**Status:** 🟡 Incomplete | Type: Missing Service Integration  
+**Current State:**
+- ThemeService exists (implemented in step 91)
+- XAML pages have no theme bindings
+- Application uses WPF defaults (not dark/light switcher)
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/gui/src/styles/theme.ts`: THEME_COLORS object, THEME_CSS_VARS
+- VSCode theme variable mapping (30+ colors): primary, secondary, background, foreground, etc.
+- Dark mode defaults; blue accent palette
+
+**ContinueVS Gap:**
+- ThemeService implemented but not wired to XAML
+- No CSS/XAML theme variables applied
+- UI uses system colors, not Continue branding
+
+**Remediation:**
+1. In ContinueToolWindowControl.xaml.cs, load theme colors from ThemeService
+2. Apply to Application.Current.Resources (Brush colors)
+3. OR: Create ResourceDictionary for each theme, dynamically load
+4. Recommended resources to theme: Foreground, Background, Accent, Secondary, Borders, etc.
+
+**Nice-to-have:** gap3 priority; needed for professional appearance
+
+---
+
+### gap12: Config Persistence NOT TESTED
+**Status:** 🟡 Incomplete | Type: Missing Round-Trip Test  
+**Current State:**
+- ConfigService.AddModelAsync() saves to `~/.continue/config.json`
+- ConfigService.InitializeAsync() loads from file
+- No end-to-end test: add model → save → load → verify in UI
+
+**What Continue.js Does (from AGENTS.md):**
+- ConfigHandler: cascading reload on file change
+- Listener dispatch: ConfigChanged event when config.json updated
+
+**ContinueVS Gap:**
+- No file watcher for config.json changes
+- No cascading reload when user edits config.json externally
+- Round-trip test missing (user workflow: add model → restart → see model in dropdown)
+
+**Remediation:**
+1. Test manual round-trip: add model via UI → verify in config.json → restart → see in dropdown
+2. Optional: Add FileSystemWatcher to ConfigService to auto-reload on external changes
+3. Fire ConfigChanged event on reload
+
+**Depends on:** gap1, gap3
+
+---
+
+### gap13: Cloud Model Definition UI MISSING
+**Status:** ⚠️ Missing | Type: Feature Not Started  
+**Current State:**
+- ConfigPageViewModel has model add/remove commands (stubs)
+- No UI form for adding cloud models (OpenAI, Anthropic, etc.)
+
+**What Continue.js Does (from AGENTS.md):**
+- ConfigHandler.setupProviderConfig(): Template setup for OpenAI, Anthropic, OpenRouter, etc.
+- store apiKey securely or prompt on first use
+
+**ContinueVS Gap:**
+- No UI form for cloud model setup
+- No API key input/storage
+- Onboarding dialog missing
+
+**Remediation:**
+1. Create ModelSetupDialog.xaml with form for model details
+2. Support fields: provider, model ID, API key (secure TextBox)
+3. Call IConfigService.AddModelAsync() on submit
+4. Show in ConfigPage "Add Model" button → opens dialog
+
+**Nice-to-have:** gap15 priority (less common than local Ollama)
+
+---
+
+### gap14: Subscription Model Definition MISSING
+**Status:** ⚠️ Missing | Type: Advanced Feature  
+**Current State:**
+- No subscription model support (e.g., Continue subscription API)
+
+**What Continue.js Does (from AGENTS.md):**
+- Continue subscription service integration (ContinueProxy)
+- API routing through Continue backend
+
+**ContinueVS Gap:**
+- No subscription service client
+- No subscription UI
+
+**Remediation:**
+- Orthogonal to core flow; defer to post-MVP phase
+
+---
+
+## REMEDIATION PRIORITY ORDER (User Goals)
+
+| Priority | Gap # | Goal | Blocking | 
+|----------|-------|------|----------|
+| 1 | gap1 | Ollama predefined config | gap2, gap3, gap4 all |
+| 2 | gap2 | Fix DataContext binding | gap3, gap4, gap5 all |
+| 3 | gap3 | Load models in ConfigPage | gap6 depends |
+| 4 | gap4 | Chat message flow (Ollama HTTP) | gap5 depends |
+| 5 | gap5 | Chat message display rendering | user test |
+| 6 | gap6 | Navigation tabs visible | gap7, gap8, gap9 depend |
+| 7 | gap7 | Ask mode UI + mode selector | user test |
+| 8 | gap8 | Agent mode (tool calling) | user test |
+| 9 | gap9 | Plan mode | less critical |
+| 10 | gap10 | Tools count badge in nav | user verification |
+| 11 | gap11 | Dark theme applied | appearance only |
+| 12 | gap12 | Config round-trip end-to-end | verification |
+| 13 | gap13 | Cloud model setup UI | OpenAI support |
+| 14 | gap14 | Subscription service | defer |
+
+---
+
 ## Phase 1: Core Types & Contracts (Steps 1-15)
 
 *Establish shared data models and service interfaces.*
