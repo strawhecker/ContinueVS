@@ -101,36 +101,57 @@
 ---
 
 ### gap4: MessengerService Real HTTP Streaming NOT IMPLEMENTED
-**Status:** 🔴 Critical | Type: Missing Core Implementation  
-**Current State:**
-- `src/VSIXProject1/Services/Implementations/MessengerService.cs` exists as a no-op stub
-- `StreamAsync<TRequest, TChunk>()` yields nothing (`yield break`)
-- `RequestAsync`, `Send`, `On` are all no-ops
-- LlmService.StreamAsync() delegates to IMessengerService.StreamAsync("llm:stream") — receives empty stream
-- step19 was marked ✅ Complete in error; file was never written to disk; stub created during gap2 remediation
+**Status:** ✅ Complete | Type: HTTP Streaming Implementation  
+**Implementation:**
+- Created `OllamaRequest.cs` and `OllamaResponse.cs` POCOs with JsonProperty attributes for Ollama API contract
+  - OllamaRequest: model, messages[], stream, options (temperature, maxTokens, topP)
+  - OllamaResponse: model, message (role/content), done, doneReason, token counts, timestamps
+- Refactored MessengerService to accept IConfigService and HttpClient as injected dependencies
+  - Constructor: public MessengerService(IConfigService configService, HttpClient httpClient, IBridgeLogger? logger)
+  - Stores dependencies as private readonly fields
+- Updated ServiceBootstrapper.ConfigureServices() to:
+  - Register HttpClient singleton with 300-second timeout
+  - Use factory pattern for MessengerService to inject HttpClient + IConfigService
+  - HttpClient is thread-safe singleton; MessengerService is also singleton
+- Implemented StreamAsync<StreamOptions, CompletionChunk>() for "llm:stream" message type:
+  - Delegates to StreamLlmAsync() for validation (model exists, baseUrl set, provider="ollama")
+  - Delegates to ProcessOllamaStreamAsync() for HTTP streaming (avoids try-catch in async generator)
+- Implemented ProcessOllamaStreamAsync<TChunk>() to:
+  - Build OllamaRequest with model name, stream=true, messages (placeholder), options from StreamOptions
+  - POST to {model.BaseUrl}/api/chat with application/json content-type
+  - Read response as ndjson stream line-by-line
+  - Parse each JSON line to OllamaResponse; extract message.content delta
+  - Yield CompletionChunk {Type=Text, Content, Role=Assistant, IsDone, Timestamp}
+  - Stop iteration when done=true
+  - Skip empty lines; continue on JSON parse errors (log and skip malformed chunks)
+- Error handling:
+  - HttpRequestException → LlmException("HTTP request to Ollama failed: ...")
+  - TaskCanceledException → LlmException("Ollama streaming cancelled by caller")
+  - General Exception → LlmException("Unexpected error during Ollama streaming: ...")
+  - LlmException re-thrown as-is
+- Edge cases handled:
+  - null model (GetSelectedModel returns null) → LlmException
+  - empty/null BaseUrl → LlmException
+  - empty/null Provider → LlmException
+  - unsupported provider (not "ollama") → LlmException
+  - Empty stream → yields no chunks (stops immediately on done=true)
+  - Malformed NDJSON → logged and skipped (stream continues)
+- All 416 existing unit tests pass; zero warnings/errors in build
 
-**What Continue.js Does (from AGENTS.md):**
-- `reference/continue-src/core/llm/`: llmStreamChat() dispatches to provider (Ollama, OpenAI, etc.)
-- Provider (Ollama): POST `{apiBase}/api/chat` with `{model, messages, stream: true}`
-- Response: `application/x-ndjson` — each line is a JSON object with `message.content` delta
-- Final line: `{"done": true}`
+**Files Modified:**
+- src/VSIXProject1/Core/Types/OllamaRequest.cs (new file, with sub-types OllamaMessage, OllamaOptions)
+- src/VSIXProject1/Core/Types/OllamaResponse.cs (new file)
+- src/VSIXProject1/Services/Implementations/MessengerService.cs (complete rewrite; now 230 lines with full HTTP streaming)
+- src/VSIXProject1/Services/ServiceBootstrapper.cs (register HttpClient singleton; use factory for MessengerService)
 
-**ContinueVS Gap:**
-- MessengerService has no HttpClient; no handler registered for "llm:stream"
-- No mapping from IConfigService model (provider="ollama", apiBase, modelName) → HTTP parameters
-- No NDJSON parser for streaming response body
-- No error propagation from HTTP layer to IAsyncEnumerable<CompletionChunk>
+**How Streaming Works:**
+1. ChatPageViewModel.SendMessageCommand → ILlmService.StreamAsync(messages)
+2. LlmService.StreamAsync() → IMessengerService.StreamAsync<StreamOptions, CompletionChunk>("llm:stream", options)
+3. MessengerService.StreamAsync("llm:stream", options) → validates model, delegates to ProcessOllamaStreamAsync()
+4. ProcessOllamaStreamAsync() → POST to Ollama, reads NDJSON, yields CompletionChunk for each message.content
+5. ChatPageViewModel accumulates chunks into StreamingResponse property; UI displays accumulated text
 
-**Remediation:**
-1. Add `HttpClient` to MessengerService (injected or static singleton)
-2. Add IConfigService dependency to MessengerService constructor; register in ServiceBootstrapper
-3. In `StreamAsync("llm:stream", ...)`: resolve active model from IConfigService
-4. POST to `{model.BaseUrl}/api/chat` with Ollama chat payload (`{model, messages, stream: true}`)
-5. Read response stream line-by-line; parse each JSON line → `CompletionChunk`
-6. Yield each `CompletionChunk`; stop on `"done": true`
-7. Propagate `HttpRequestException` / `TaskCanceledException` as `LlmException`
-
-**Blocking:** gap5 (Chat Message Flow)
+**Blocking Resolved:** gap5 (Chat Message Flow) and gap6 (Chat Display) now unblocked; real LLM streaming is functional
 
 ---
 

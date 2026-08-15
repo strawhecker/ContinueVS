@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Implementations;
@@ -28,10 +29,18 @@ namespace ContinueVS.Services
             services.AddSingleton<IPageNavigator, PageNavigator>();
             services.AddSingleton<IThemeService, ThemeService>();
 
+            // Register HTTP client singleton for MessengerService
+            services.AddSingleton<HttpClient>(sp => new HttpClient { Timeout = TimeSpan.FromSeconds(300) });
+
             // Register core services as singletons (application lifetime)
             services.AddSingleton<IIdeService, VsIdeService>();
-            services.AddSingleton<IMessengerService, MessengerService>();
             services.AddSingleton<IConfigService, ConfigService>();
+            services.AddSingleton<IMessengerService>(sp =>
+            {
+                var configService = sp.GetRequiredService<IConfigService>();
+                var httpClient = sp.GetRequiredService<HttpClient>();
+                return new MessengerService(configService, httpClient, null);
+            });
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();
             services.AddSingleton<IToolService, ToolService>();
