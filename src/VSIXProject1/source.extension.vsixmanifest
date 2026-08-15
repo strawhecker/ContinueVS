@@ -11,7 +11,7 @@ Features:
 • Explain, Fix, and Comment code actions (Edit → Continue or right-click)
 • Ask Continue with selected code (Ctrl+Shift+M)
 • Full support for OpenAI, Anthropic, Ollama, and any Continue-compatible provider
-• Config driven by ~/.continue/config.json
+• Config driven by ~/.continueVS/continueVS.json
 
 Requires an internet connection on first run to download the Continue AI engine (~60 MB).</Description>
     <MoreInfo>https://github.com/continuedev/continue</MoreInfo>

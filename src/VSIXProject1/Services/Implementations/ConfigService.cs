@@ -14,7 +14,7 @@ namespace ContinueVS.Services.Implementations
     /// <summary>
     /// Implementation of IConfigService that manages Continue configuration.
     /// Wraps ConfigCache and provides typed access to configuration data.
-    /// Loads/saves configuration from ~/.continue/config.json.
+    /// Loads/saves configuration from ~/.continueVS/continueVS.json.
     /// </summary>
     public class ConfigService : IConfigService
     {
@@ -25,9 +25,9 @@ namespace ContinueVS.Services.Implementations
 
         private static readonly string ContinueDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".continue");
+            ".continueVS");
 
-        private static readonly string ConfigFilePath = Path.Combine(ContinueDir, "config.json");
+        private static readonly string ConfigFilePath = Path.Combine(ContinueDir, "continueVS.json");
 
         public event EventHandler<ConfigChangedEventArgs>? ConfigChanged;
 

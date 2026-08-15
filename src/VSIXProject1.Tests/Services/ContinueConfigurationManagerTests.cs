@@ -20,8 +20,8 @@ namespace ContinueVS.Tests.Services
 
         public ContinueConfigurationManagerTests()
         {
-            _tempConfigDir = Path.Combine(Path.GetTempPath(), $"continue_test_{Guid.NewGuid()}");
-            _tempConfigPath = Path.Combine(_tempConfigDir, "config.json");
+            _tempConfigDir = Path.Combine(Path.GetTempPath(), $"continueVS_test_{Guid.NewGuid()}");
+            _tempConfigPath = Path.Combine(_tempConfigDir, "continueVS.json");
 
             if (!Directory.Exists(_tempConfigDir))
             {

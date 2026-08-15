@@ -18,7 +18,7 @@ namespace ContinueVS.Services.Tests
         {
             _testConfigPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".continue", "config.json");
+                ".continueVS", "continueVS.json");
         }
 
         public void Dispose()
@@ -137,13 +137,15 @@ namespace ContinueVS.Services.Tests
         }
 
         [Fact]
-        public async Task GetSelectedModel_ReturnsNull_WhenNoModelSelected()
+        public async Task GetSelectedModel_ReturnsDefaultModel_WhenNoModelExplicitlySelected()
         {
             var service = new ConfigService();
             await service.InitializeAsync();
 
             var selected = service.GetSelectedModel();
-            Assert.Null(selected);
+            // Default config has a predefined Llama model; verify it's returned
+            Assert.NotNull(selected);
+            Assert.Equal("Llama 3.1 8B Instruct", selected.Name);
         }
 
         [Fact]

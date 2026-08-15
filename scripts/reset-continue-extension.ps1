@@ -40,10 +40,10 @@ if ($vsCacheDirs) {
     Write-Host "   ℹ️  VS cache not found (will be recreated on startup)"
 }
 
-# Step 4: Remove .continue/config.json and recreate with Ollama settings
+# Step 4: Remove .continueVS/continueVS.json and recreate with Ollama settings
 Write-Host "`n4️⃣  Resetting Continue configuration..."
-$continueDir = Join-Path $userHome ".continue"
-$configFile = Join-Path $continueDir "config.json"
+$continueDir = Join-Path $userHome ".continueVS"
+$configFile = Join-Path $continueDir "continueVS.json"
 
 # Ensure directory exists
 if (-not (Test-Path $continueDir)) {

@@ -1610,6 +1610,23 @@ The issue was actually TWO problems working together:
 
 ---
 
+## Configuration Path Migration (Completed)
+
+**Summary:** Migrated from `.continue/config.json` to `.continueVS/continueVS.json` to separate ContinueVS from Continue.dev VS Code version.
+
+**Files Modified:**
+- src/VSIXProject1/Services/Implementations/ConfigService.cs — Updated ContinueDir and ConfigFilePath constants
+- src/VSIXProject1/Services/ContinueConfigurationManager.cs — Updated GetConfigPath() method
+- scripts/reset-continue-extension.ps1 — Updated folder and filename references
+- src/VSIXProject1.Tests/Services/ConfigServiceTests.cs — Updated test paths
+- src/VSIXProject1.Tests/Services/ContinueConfigurationManagerTests.cs — Updated temp config paths
+- src/VSIXProject1/source.extension.vsixmanifest — Updated description reference
+- docs/session-context-unoptimized.md — Updated documentation
+
+**Test Results:** All 429 unit tests pass; config loading and path resolution validated.
+
+---
+
 ## Summary Table: Dependencies at a Glance
 
 | Phase | Steps | Key Output | Depends On |

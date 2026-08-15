@@ -363,12 +363,12 @@ namespace ContinueVS.Services
         }
 
         /// <summary>
-        /// Gets the full path to Continue configuration file (~/.continue/config.json).
+        /// Gets the full path to Continue configuration file (~/.continueVS/continueVS.json).
         /// </summary>
         private static string GetConfigPath()
         {
             string profilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return Path.Combine(profilePath, ".continue", "config.json");
+            return Path.Combine(profilePath, ".continueVS", "continueVS.json");
         }
     }
 
