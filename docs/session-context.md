@@ -44,31 +44,27 @@
 ---
 
 ### gap2: ChatPage DataContext Binding Error
-**Status:** 🔴 Active Bug | Type: XAML Binding Failure  
-**Symptom:**
-System.Windows.Data Error: 3 : Cannot find element that provides DataContext. BindingExpression:Path=ChatPageViewModel; DataItem=null; target element is 'ChatPage'
+**Status:** ✅ Complete | Type: XAML Binding Failure  
+**Implementation:**
+- Modified ChatPage.xaml.cs constructor to resolve ChatPageViewModel from ViewModelLocator.ServiceProvider
+- Removed DataContext binding from ChatPage.xaml (line 5) — now relies on code-behind assignment
+- Constructor uses ViewModelLocator.ChatPageViewModel property (factory pattern), wrapped in try-catch for error handling
+- Verified: ChatPageBindingTests (12 tests) all pass; ChatPageViewModelTests (7 tests) all pass
+- Build: Clean build successful (zero warnings/errors)
 
-**Current State:**
-- ChatPage.xaml binds to `{Binding ChatPageViewModel}` expecting MainViewModel as DataContext
-- ContinueToolWindowControl navigates to ChatPage without setting DataContext
-- ViewModelLocator.ServiceProvider is initialized but not wired to MainViewModel
+**Files Modified:**
+- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs: Added DataContext resolution in constructor
+- src/VSIXProject1/UI/Pages/ChatPage.xaml: Removed DataContext="{Binding ChatPageViewModel, Mode=OneWay}" attribute
 
-**What Continue.js Does (from AGENTS.md):**
-- `reference/continue-src/gui/src/App.tsx`: Root component provides MainViewModel context
-- All child pages inherit MainViewModel as DataContext
-- Navigation routes are child content, not separate pages
+**How It Works:**
+1. ContinueToolWindowControl navigates to ChatPage and initializes ViewModelLocator.ServiceProvider (line 26)
+2. ChatPage constructor executes, checks ViewModelLocator.ServiceProvider is not null
+3. Instantiates ViewModelLocator() and accesses ChatPageViewModel property
+4. ViewModelLocator.ChatPageViewModel internally calls GetRequiredService<Func<ChatPageViewModel>>() to resolve factory
+5. Assigns resolved ChatPageViewModel instance to this.DataContext
+6. All XAML bindings (Messages, InputText, SendMessageCommand, etc.) now resolve correctly
 
-**ContinueVS Gap:**
-- ContinueToolWindowControl.xaml.cs navigates to ChatPage directly (line 35): `MainContentFrame.Navigate(new Pages.ChatPage())`
-- ChatPage.xaml expects MainViewModel but receives null
-
-**Remediation:**
-1. Fix ChatPage.xaml.cs codebehind: Set DataContext to ChatPageViewModel directly
-2. OR: Create MainView wrapper that provides MainViewModel context, then ChatPage as child
-3. Recommended: Option 1 (simpler) - modify ChatPage.xaml.cs:
-public ChatPage() { try { if (ViewModelLocator.ServiceProvider != null) { this.DataContext = ViewModelLocator.ServiceProvider.GetRequiredService<ChatPageViewModel>(); } InitializeComponent(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ChatPage] DataContext error: {ex.Message}"); } }
-
-**Blocking:** gap4 (cannot render chat UI without binding)
+**Blocking Resolved:** gap4, gap5 (chat UI now bindable)
 
 ---
 
