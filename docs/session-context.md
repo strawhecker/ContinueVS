@@ -895,6 +895,19 @@
 ### step101: Test LlmService ↔ MessageDispatcher
 - **Action:** Write integration test: handler call → service streaming → chunks returned
 - **Depends on:** Steps 22, 99
+- **Status:** ✅ Completed
+- **Files created:**
+  - `src/VSIXProject1.Tests/Integration/MessageDispatcherLlmServiceStreamingTests.cs` — 5 integration tests
+- **Test Summary:** 5 new streaming tests added; all passing
+  - Test 1: `StreamAsync_SingleChunk_YieldsChunkCorrectlyAsync` — single chunk enumeration
+  - Test 2: `StreamAsync_MultipleChunks_YieldsAllInOrderAsync` — 4 chunks in correct order
+  - Test 3: `StreamAsync_CancellationToken_StopsEnumerationAsync` — cancellation stops stream
+  - Test 4: `StreamAsync_StreamOptions_PassedToMessengerAsync` — StreamOptions passed through
+  - Test 5: `StreamAsync_MessengerThrows_ExceptionBubblesUpAsync` — exceptions propagate
+- **Implementation Updates:**
+  - Modified `LlmService.StreamAsync` to delegate to `IMessengerService.StreamAsync` (was stub)
+  - Real `LlmService` instance delegates streaming to mocked messenger
+  - All 5 tests passing; full test suite: 408 passed, 0 failed
 
 ### step102: Test ViewModel ↔ Service Flow
 - **Action:** Write integration test: ChatPageViewModel.SendMessage → ILlmService.StreamAsync → UI updated

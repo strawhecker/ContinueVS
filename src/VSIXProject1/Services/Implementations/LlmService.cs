@@ -48,11 +48,16 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentNullException(nameof(messages));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync("LlmService.StreamAsync (skeleton)");
+                await _logger.WriteDebugAsync("LlmService.StreamAsync");
 
-            // Stub: Return empty stream
-            await Task.Yield();
-            yield break;
+            // Delegate to messenger service for actual streaming
+            await foreach (var chunk in _messengerService.StreamAsync<StreamOptions, CompletionChunk>(
+                "llm:stream",
+                options ?? new StreamOptions(),
+                ct))
+            {
+                yield return chunk;
+            }
         }
 
         public bool SupportsStreaming(string modelId)
