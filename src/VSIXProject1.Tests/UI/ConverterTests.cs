@@ -1,4 +1,4 @@
-﻿#nullable enable
+﻿#nullable disable
 
 using System;
 using System.Globalization;
@@ -256,7 +256,7 @@ namespace ContinueVS.Tests.UI
             var converter = new RoleToAlignmentConverter();
 
             // Act
-            var result = converter.Convert((object?)null, typeof(HorizontalAlignment), string.Empty, CultureInfo.InvariantCulture);
+            var result = converter.Convert(null, typeof(HorizontalAlignment), string.Empty, CultureInfo.InvariantCulture);
 
             // Assert
             Assert.Equal(HorizontalAlignment.Stretch, result);

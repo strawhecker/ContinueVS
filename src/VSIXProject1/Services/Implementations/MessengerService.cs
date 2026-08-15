@@ -130,19 +130,44 @@ namespace ContinueVS.Services.Implementations
         {
             HttpResponseMessage? response = null;
 
+            // Convert ChatMessage array to OllamaMessage list
+            var ollamaMessages = new List<OllamaMessage>();
+            if (options.Messages != null)
+            {
+                foreach (var msg in options.Messages)
+                {
+                    var role = msg.Role switch
+                    {
+                        ChatMessageRole.User => "user",
+                        ChatMessageRole.Assistant => "assistant",
+                        ChatMessageRole.System => "system",
+                        _ => "user"
+                    };
+
+                    ollamaMessages.Add(new OllamaMessage
+                    {
+                        Role = role,
+                        Content = msg.Content ?? string.Empty
+                    });
+                }
+            }
+
+            // If no messages provided, add a default placeholder
+            if (ollamaMessages.Count == 0)
+            {
+                ollamaMessages.Add(new OllamaMessage
+                {
+                    Role = "user",
+                    Content = "Hello"
+                });
+            }
+
             // Build Ollama request
             var ollamaRequest = new OllamaRequest
             {
                 Model = model.Name,
                 Stream = true,
-                Messages = new List<OllamaMessage>
-                {
-                    new OllamaMessage
-                    {
-                        Role = "user",
-                        Content = "Test message" // Placeholder; in real scenario would come from ChatMessage array
-                    }
-                },
+                Messages = ollamaMessages,
                 Options = new OllamaOptions
                 {
                     Temperature = options.Temperature,
@@ -158,6 +183,7 @@ namespace ContinueVS.Services.Implementations
 
             if (_logger != null)
                 await _logger.WriteDebugAsync($"MessengerService: POST to {endpoint}");
+
 
             try
             {

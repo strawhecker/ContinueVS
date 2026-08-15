@@ -99,6 +99,11 @@ namespace ContinueVS.Services.Interfaces
         /// System prompt or instructions.
         /// </summary>
         public string? SystemPrompt { get; set; }
+
+        /// <summary>
+        /// Chat messages to send to the LLM (conversation context).
+        /// </summary>
+        public IEnumerable<ChatMessage>? Messages { get; set; }
     }
 
     /// <summary>

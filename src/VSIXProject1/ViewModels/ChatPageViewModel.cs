@@ -111,10 +111,15 @@ namespace ContinueVS.ViewModels
                     });
                 }
 
+                var streamOptions = new StreamOptions
+                {
+                    Messages = messages
+                };
+
                 await RetryPolicyHelper.ExecuteWithRetryAsync(
                     async ct =>
                     {
-                        await foreach (var chunk in _llmService.StreamAsync(messages, ct: ct))
+                        await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, ct))
                         {
                             if (chunk.Type == ChunkType.Text)
                             {

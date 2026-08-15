@@ -156,7 +156,7 @@
 ---
 
 ### gap5: Chat Message Flow NOT WIRED (ILlmService → UI)
-**Status:** ✅ Complete | Type: Full End-to-End Integration  
+**Status:** ✅ Complete (Debugged) | ⚠️ Implementation wired and verified  
 **Implementation:**
 - ChatPageViewModel.ExecuteSendMessage (lines 84-151) correctly implements full flow
 - Builds ChatMessage list with user input + context; calls ILlmService.StreamAsync()
@@ -168,9 +168,11 @@
 - UI bindings: Messages ItemsControl renders all messages; StreamingResponse can be bound for live display
 
 **Files Modified/Complete:**
-- src/VSIXProject1/ViewModels/ChatPageViewModel.cs (lines 84-151): Full async send/stream/accumulate logic
-- src/VSIXProject1/Services/Implementations/LlmService.cs (lines 42-61): Delegates to MessengerService
-- src/VSIXProject1/Services/Implementations/MessengerService.cs (lines 70-239): Real HTTP streaming via Ollama
+- src/VSIXProject1/Services/Interfaces/ILlmService.cs (StreamOptions class): Added `IEnumerable<ChatMessage>? Messages { get; set; }` property to carry conversation context
+- src/VSIXProject1/Services/Implementations/LlmService.cs (lines 42-63): Updated StreamAsync() to merge messages into StreamOptions before delegating to MessengerService
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs (lines 100-134): Create StreamOptions with Messages property populated, pass streamOptions to StreamAsync() call
+- src/VSIXProject1/Services/Implementations/MessengerService.cs (lines 126-185): ProcessOllamaStreamAsync() now extracts options.Messages, converts ChatMessage array to OllamaMessage list (role mapping: User→"user", Assistant→"assistant", System→"system"), builds correct OllamaRequest with actual conversation instead of placeholder
+- src/VSIXProject1/UI/ViewModels/ChatPageViewModel.cs (lines 84-151): Full async send/stream/accumulate logic
 - src/VSIXProject1/Core/Types/OllamaRequest.cs: Request POCO with messages[], model, stream, options
 - src/VSIXProject1/Core/Types/OllamaResponse.cs: Response POCO with message{role/content}, done, token counts
 - src/VSIXProject1/UI/Pages/ChatPage.xaml (lines 24-30): ItemsControl bound to Messages collection
@@ -180,17 +182,23 @@
 1. User enters "Hello" in ChatPage TextBox; clicks Send
 2. ChatPageViewModel.SendMessageCommand fires ExecuteSendMessage()
 3. Creates ChatMessage(Role.User, "Hello"); adds to Messages; persists via SessionService
-4. Calls _llmService.StreamAsync([userMessage], cancellationToken)
-5. LlmService delegates to MessengerService.StreamAsync("llm:stream", StreamOptions)
-6. MessengerService validates selected model exists + has baseUrl + provider=ollama
-7. Builds OllamaRequest: model name, stream=true, messages=[{role: user, content: Hello}]
-8. POSTs to http://localhost:11434/api/chat; HttpClient returns response stream
-9. Reads NDJSON line-by-line; each line is OllamaResponse with message{content chunk}
-10. Yields CompletionChunk(Type.Text, content, Role.Assistant) for each chunk
-11. ChatPageViewModel accumulates: StreamingResponse += chunk.Content (UI shows live streaming text)
-12. When ollamaResponse.Done=true, stops iteration
-13. Creates ChatMessage(Role.Assistant, StreamingResponse); adds to Messages; persists via SessionService
-14. Sets IsStreaming=false; clears InputText; UI ready for next message
+4. Builds messages list with user message (and system context if SelectedContext.Count > 0)
+5. Creates StreamOptions with Messages property = messages array
+6. Calls _llmService.StreamAsync(messages, streamOptions, cancellationToken)
+7. LlmService.StreamAsync() merges messages into streamOptions, delegates to MessengerService.StreamAsync("llm:stream", streamOptions, ct)
+8. MessengerService.StreamLlmAsync() receives streamOptions with Messages populated
+9. MessengerService.ProcessOllamaStreamAsync() converts options.Messages (ChatMessage[]) to OllamaMessage list:
+   - Iterates each ChatMessage; maps Role (User→"user", Assistant→"assistant", System→"system")
+   - Creates OllamaMessage with role and content
+   - If no messages provided, adds default placeholder
+10. Builds OllamaRequest: model name, stream=true, messages=[{role: user, content: Hello}, ...system context if any], options
+11. POSTs to http://localhost:11434/api/chat; HttpClient returns response stream
+12. Reads NDJSON line-by-line; each line is OllamaResponse with message{content chunk}
+13. Yields CompletionChunk(Type.Text, content, Role.Assistant) for each chunk
+14. ChatPageViewModel accumulates: StreamingResponse += chunk.Content (UI shows live streaming text)
+15. When ollamaResponse.Done=true, stops iteration
+16. Creates ChatMessage(Role.Assistant, StreamingResponse); adds to Messages; persists via SessionService
+17. Sets IsStreaming=false; clears InputText; UI ready for next message
 
 **Error Handling:**
 - No model selected → LlmException("No model selected in configuration")
@@ -216,13 +224,23 @@
 - Ollama integration verified: /api/chat endpoint accessible; streaming responses parsed
 - Ready for end-to-end user testing (requires Ollama running on localhost:11434)
 
+**Debugger Verification (Completed):**
+1. StreamOptions.Messages property added to carry conversations through the pipeline
+2. LlmService.StreamAsync() now merges incoming messages parameter into StreamOptions before delegating
+3. MessengerService.StreamLlmAsync() receives StreamOptions with Messages populated
+4. MessengerService.ProcessOllamaStreamAsync() extracts messages from options, converts to OllamaMessage array with correct role mappings
+5. OllamaRequest built with actual conversation context (not hardcoded "Test message")
+6. ChatPageViewModel passes StreamOptions with Messages when calling StreamAsync()
+7. Build verified: All code changes compile without errors
+8. Live wiring confirmed: Messages flow from ChatPageViewModel → LlmService → MessengerService → OllamaRequest
+
 **Depends on:** gap4 (MessengerService HTTP streaming) ✅  
 **Unblocks:** gap6 (Chat Message Display); rest of UI/feature work
 
 ---
 
 ### gap6: Chat Message Display NOT WORKING (UI Rendering Failed)
-**Status:** ✅ Complete | Type: XAML/Binding & Converter Implementation
+**Status:** ✅ Complete (Unit Tests) | ⚠️ Requires Debugger Verification  
 **Implementation:**
 - Created RoleToAlignmentConverter.cs: IValueConverter converts ChatMessageRole enum to HorizontalAlignment (User→Right, Assistant→Left, System/Tool/Thinking→Stretch)
 - Created RoleToColorConverter.cs: IValueConverter converts ChatMessageRole enum to SolidColorBrush (User→0078D7 blue, Assistant→606060 gray, System/Tool/Thinking→C8C8C8 light gray)
@@ -267,6 +285,37 @@
 - Converter compilation: SUCCESS (no XAML/C# errors)
 - Test execution: 427 Passed, 0 Failed
 - Code organization: Converters in ViewModels/Converters/, tests in Tests/UI/, XAML bindings in Pages/Views/
+
+**Debugger Verification (Required before shipping):**
+1. Prerequisites: gap5 message flow already debugged; Ollama running
+2. Launch VSIX in Debug mode (F5)
+3. Set breakpoint in `RoleToAlignmentConverter.Convert()` (line ~24)
+4. Set breakpoint in `RoleToColorConverter.Convert()` (line ~24)
+5. In Chat UI, type "Hello" and click Send
+6. **Verify converter breakpoints are hit:**
+   - When user message added to Messages: RoleToAlignmentConverter.Convert() hit with Role.User
+   - Inspect return value: should be HorizontalAlignment.Right
+   - RoleToColorConverter.Convert() hit with Role.User
+   - Inspect return value: should be SolidColorBrush with blue color (0078D7)
+7. **Watch window verification:**
+   - Watch `converter.Convert(ChatMessageRole.User, ...)` in debug → verify returns HorizontalAlignment.Right
+   - Watch `converter.Convert(ChatMessageRole.Assistant, ...)` in debug → verify returns HorizontalAlignment.Left
+   - Verify color converter returns distinct brush colors for User vs Assistant
+8. **Visual tree verification (WPF Spy or Visual Studio Live Visual Tree):**
+   - User message StackPanel should be HorizontalAlignment.Right (right-aligned bubble)
+   - User message Border should have blue background
+   - Assistant message StackPanel should be HorizontalAlignment.Left (left-aligned bubble)
+   - Assistant message Border should have gray background
+9. **UI rendering verification:**
+   - Both messages visible and properly aligned (user on right, assistant on left)
+   - Colors correct and distinct
+   - No layout overlap or clipping
+   - Timestamp and role labels display correctly (if implemented)
+10. **Repeat with multiple messages:**
+    - Send "Hello" → User message right-aligned, blue
+    - Send "World" → Assistant response left-aligned, gray
+    - Send "Test" → User message right-aligned, blue
+    - Verify all messages render with correct styling; no color/alignment bleeding between messages
 
 ---
 

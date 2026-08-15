@@ -50,10 +50,14 @@ namespace ContinueVS.Services.Implementations
             if (_logger != null)
                 await _logger.WriteDebugAsync("LlmService.StreamAsync");
 
+            // Merge messages into options
+            var streamOptions = options ?? new StreamOptions();
+            streamOptions.Messages = messages;
+
             // Delegate to messenger service for actual streaming
             await foreach (var chunk in _messengerService.StreamAsync<StreamOptions, CompletionChunk>(
                 "llm:stream",
-                options ?? new StreamOptions(),
+                streamOptions,
                 ct))
             {
                 yield return chunk;
