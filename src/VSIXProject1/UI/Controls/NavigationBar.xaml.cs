@@ -33,7 +33,15 @@ namespace ContinueVS.UI.Controls
 
         public NavigationBar()
         {
-            InitializeComponent();
+            try
+            {
+                InitializeComponent();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[g7-nav-b1-err] InitializeComponent failed: {ex.Message}");
+                // Continue without XAML initialization; this can happen if the XAML file isn't in the project
+            }
             System.Diagnostics.Debug.WriteLine("[g7-nav-b1] NavigationBar() parameterless constructor called");
         }
 

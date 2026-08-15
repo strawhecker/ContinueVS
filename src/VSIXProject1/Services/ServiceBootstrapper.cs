@@ -47,7 +47,19 @@ namespace ContinueVS.Services
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();
-            services.AddSingleton<INotificationService, WpfNotificationService>();
+            services.AddSingleton<INotificationService>(sp => new WpfNotificationService());
+
+            // Register ViewModels as transient (create new instance each time via factory)
+            services.AddTransient<MainViewModel>(sp =>
+                new MainViewModel(
+                    sp.GetRequiredService<ISessionService>(),
+                    sp.GetRequiredService<IMessengerService>(),
+                    sp.GetRequiredService<INotificationService>(),
+                    sp.GetRequiredService<IConfigService>(),
+                    sp.GetRequiredService<IPageNavigator>()
+                )
+            );
+            services.AddTransient<Func<MainViewModel>>(sp => () => sp.GetRequiredService<MainViewModel>());
 
             // Build and return
             return services.BuildServiceProvider();

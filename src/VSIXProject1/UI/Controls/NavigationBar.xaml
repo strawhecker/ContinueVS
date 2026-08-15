@@ -24,7 +24,7 @@
                 BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
                 Background="Transparent"
                 Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding NavigateCommand,
+                Command="{Binding Path=DataContext.NavigateCommand,
                     RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
                 CommandParameter="chat"/>
 
@@ -37,7 +37,7 @@
                 BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
                 Background="Transparent"
                 Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding NavigateCommand,
+                Command="{Binding Path=DataContext.NavigateCommand,
                     RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
                 CommandParameter="config"/>
 
@@ -50,7 +50,7 @@
                 BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
                 Background="Transparent"
                 Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding NavigateCommand,
+                Command="{Binding Path=DataContext.NavigateCommand,
                     RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
                 CommandParameter="history"/>
 
@@ -63,7 +63,7 @@
                 BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
                 Background="Transparent"
                 Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding NavigateCommand,
+                Command="{Binding Path=DataContext.NavigateCommand,
                     RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
                 CommandParameter="settings"/>
 
@@ -77,7 +77,7 @@
                 Padding="8,4"
                 Margin="8,0">
             <TextBlock x:Name="ToolCountLabel"
-                       Text="{Binding ToolCount, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}}, StringFormat='Tools: {0}'}"
+                       Text="{Binding ToolCount, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, StringFormat='Tools: {0}'}"
                        Foreground="{DynamicResource VsBrush.WindowText}"
                        FontSize="11"
                        VerticalAlignment="Center"/>

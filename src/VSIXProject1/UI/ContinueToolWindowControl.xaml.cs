@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using ContinueVS.Services.Interfaces;
 using ContinueVS.UI.Controls;
 using ContinueVS.UI.Navigation;
 using ContinueVS.ViewModels;
@@ -24,7 +25,6 @@ namespace ContinueVS.UI
                 System.Diagnostics.Debug.WriteLine("[g7-ctrl-b1] ContinueToolWindowControl constructor");
 
                 // Ensure ViewModelLocator.ServiceProvider is set before XAML initializes
-                // (XAML bindings in pages may depend on MainViewModel resolution via ViewModelLocator)
                 if (ContinueVSPackage.ServiceProvider != null && ViewModelLocator.ServiceProvider == null)
                 {
                     try
@@ -34,16 +34,20 @@ namespace ContinueVS.UI
                     }
                     catch (ArgumentNullException)
                     {
-                        // ServiceProvider already set by InitializeAsync; ignore duplicate assignment
+                        // ServiceProvider already set; ignore
                     }
                 }
 
+                System.Diagnostics.Debug.WriteLine("[g7-ctrl-b3] Calling InitializeComponent");
                 InitializeComponent();
+                System.Diagnostics.Debug.WriteLine("[g7-ctrl-b3b] InitializeComponent completed");
+
                 Loaded += OnLoaded;
+                System.Diagnostics.Debug.WriteLine("[g7-ctrl-b3c] Loaded event subscribed");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b3] Initialization error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b-err] Constructor exception: {ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show($"Error initializing Continue tool window: {ex.Message}", "Initialization Error");
             }
         }
@@ -54,52 +58,39 @@ namespace ContinueVS.UI
 
             try
             {
-                var serviceProvider = ViewModelLocator.ServiceProvider;
-                if (serviceProvider == null)
+                // Use the service provider that was set during package initialization
+                var sp = ViewModelLocator.ServiceProvider;
+                if (sp == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("[g7-ctrl-b5] ServiceProvider is null, cannot resolve services");
+                    System.Diagnostics.Debug.WriteLine("[g7-ctrl-b5] ViewModelLocator.ServiceProvider is null");
                     return;
                 }
 
-                _mainViewModel = serviceProvider.GetService(typeof(MainViewModel)) as MainViewModel;
-                _pageNavigator = serviceProvider.GetService(typeof(IPageNavigator)) as IPageNavigator;
-
-                System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b6] MainViewModel resolved: {_mainViewModel != null}, PageNavigator resolved: {_pageNavigator != null}");
+                _mainViewModel = sp.GetService(typeof(MainViewModel)) as MainViewModel;
+                _pageNavigator = sp.GetService(typeof(IPageNavigator)) as IPageNavigator;
+                System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b6] MainViewModel: {_mainViewModel != null}, PageNavigator: {_pageNavigator != null}");
 
                 if (_mainViewModel != null)
                 {
                     this.DataContext = _mainViewModel;
-                    System.Diagnostics.Debug.WriteLine("[g7-ctrl-b7] DataContext set for control");
 
-                    // Also explicitly set NavigationBar's DataContext
                     if (this.FindName("NavigationBarControl") is NavigationBar navBar)
-                    {
                         navBar.DataContext = _mainViewModel;
-                        System.Diagnostics.Debug.WriteLine("[g7-ctrl-b7b] NavigationBar DataContext set");
-                    }
 
                     _mainViewModel.PropertyChanged += MainViewModel_PropertyChanged;
-                    System.Diagnostics.Debug.WriteLine("[g7-ctrl-b8] PropertyChanged handler subscribed");
 
-                    if (!string.IsNullOrEmpty(_mainViewModel.CurrentRoute))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b9] InitialRoute: {_mainViewModel.CurrentRoute}");
-                        NavigateToRoute(_mainViewModel.CurrentRoute);
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("[g7-ctrl-b10] CurrentRoute null, navigating to 'chat'");
-                        NavigateToRoute("chat");
-                    }
+                    var route = _mainViewModel.CurrentRoute ?? "chat";
+                    System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b9] Navigating to: {route}");
+                    NavigateToRoute(route);
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("[g7-ctrl-b11] MainViewModel resolution failed");
+                    System.Diagnostics.Debug.WriteLine("[g7-ctrl-b11] MainViewModel is null — not registered in ServiceBootstrapper");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b12] OnLoaded error: {ex}");
+                System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b12] OnLoaded error: {ex.Message}");
             }
         }
 

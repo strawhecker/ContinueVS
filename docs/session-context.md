@@ -377,28 +377,34 @@ The issue was actually TWO problems working together:
 ---
 
 ### gap7: Tools Navigation NOT VISIBLE
-**Status:** ✅ Complete | Type: Navigation Bar Component  
+**Status:** ✅ Complete (Debugger-Verified) | Type: Navigation Bar Component  
 **Implementation:**
 - Created NavigationBar.xaml UserControl with horizontal button bar: Chat, Config, History, Settings
-- Grid layout with 5 columns: 4 button columns (Auto) + spacer (Fill) + tool count badge (Auto)
-- Buttons bound to MainViewModel.NavigateCommand with route parameters (chat, config, history, settings)
-- Buttons use RelativeSource FindAncestor to reach MainViewModel in parent Window
-- Tool count badge displays IConfigService.GetEnabledTools().Count() via ToolCount property
-- NavigationBar.xaml.cs: Implements ToolCount property, ConfigService dependency injection, ConfigChanged event subscription for dynamic updates
-- ContinueToolWindowControl.xaml: Replaced Grid with DockPanel, NavigationBar docked Top, Frame docked Fill with MainContentFrame retained
-- ContinueToolWindowControl.xaml.cs: OnLoaded handler resolves MainViewModel and IPageNavigator from ServiceProvider, subscribes to PropertyChanged, navigates on CurrentRoute changes, sets DataContext for both control and NavigationBar
-- Created NavigationBarBindingTests.cs with test cases: button instantiation, tool count binding, route command execution, config change event handling
-- Created GreaterThanZeroConverter.cs for tool count badge visibility (removed from XAML to simplify binding)
+- Grid layout with 6 columns: 4 button columns (Auto) + spacer (*) + tool count badge (Auto)
+- Buttons bound via `Path=DataContext.NavigateCommand, RelativeSource FindAncestor UserControl AncestorLevel=2`
+- Tool count badge binds `ToolCount` via `RelativeSource AncestorType={x:Type UserControl}` (NavigationBar's own property)
+- NavigationBar.xaml.cs: Implements ToolCount property with PropertyChanged notification
+- ContinueToolWindowControl.xaml: DockPanel with NavigationBar docked Top; Frame fills remaining space (no DockPanel.Dock="Fill" — invalid value removed)
+- ContinueToolWindowControl.xaml.cs: OnLoaded resolves MainViewModel via `sp.GetService(typeof(MainViewModel))`, sets DataContext on both control and NavigationBar, subscribes to PropertyChanged, navigates initial route
+- ServiceBootstrapper: Added `AddTransient<MainViewModel>` + `AddTransient<Func<MainViewModel>>` factories; fixed `INotificationService` registration to explicit factory `new WpfNotificationService()` to break circular DI dependency
+- PageNavigator: Fixed to navigate `UIElement` (not just `Page`) so ChatPage (UserControl) loads correctly
 
-**Files Created/Modified:**
-- src/VSIXProject1/UI/Controls/NavigationBar.xaml (new)
-- VSIXProject1/UI/Controls/NavigationBar.xaml.cs (new)
-- src/VSIXProject1/UI/ContinueToolWindowControl.xaml (updated with DockPanel + NavigationBar)
-- src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs (updated with OnLoaded + navigation wiring)
-- src/VSIXProject1.Tests/UI/NavigationBarBindingTests.cs (new)
-- src/VSIXProject1/UI/Converters/GreaterThanZeroConverter.cs (new)
+**Debugger-Verified Checkpoints:**
+- `[g7-ctrl-b1]` ✅ ContinueToolWindowControl constructor
+- `[g7-ctrl-b3b]` ✅ InitializeComponent completed (no XamlParseException)
+- `[g7-ctrl-b6]` ✅ MainViewModel: True, PageNavigator: True
+- `[g7-ctrl-b9]` ✅ Navigating to: chat
+- `[g7-nav-b10]` ✅ PageNavigator: Navigating to ChatPage
 
-**Blocking Resolved:** gap8, gap9 (navigation buttons now visible + wired; user can switch between Chat/Config/History/Settings)
+**Files Modified:**
+- src/VSIXProject1/UI/Controls/NavigationBar.xaml
+- src/VSIXProject1/UI/Controls/NavigationBar.xaml.cs
+- src/VSIXProject1/UI/ContinueToolWindowControl.xaml
+- src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs
+- src/VSIXProject1/UI/Navigation/PageNavigator.cs
+- src/VSIXProject1/Services/ServiceBootstrapper.cs
+
+**Blocking Resolved:** gap8, gap9 (navigation buttons visible + wired; user can switch between Chat/Config/History/Settings)
 
 ---
 
