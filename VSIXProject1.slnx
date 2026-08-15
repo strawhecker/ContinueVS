@@ -3,15 +3,6 @@
     <Project Path="src/VSIXProject1/VSIXProject1.csproj">
       <Deploy Solution="Debug|*" />
     </Project>
-    <Project Path="src/tools/ContinueTranslator.Cli/ContinueTranslator.Cli.csproj">
-      <Build Solution="Debug|*" Project="false" />
-    </Project>
-    <Project Path="src/tools/ContinueTranslator.Core/ContinueTranslator.Core.csproj">
-      <Build Solution="Debug|*" Project="false" />
-    </Project>
-    <Project Path="src/tools/ContinueTranslator.Tests/ContinueTranslator.Tests.csproj">
-      <Build Solution="Debug|*" Project="false" />
-    </Project>
   </Folder>
   <Project Path="src/VSIXProject1.Tests/VSIXProject1.Tests.csproj" />
 </Solution>

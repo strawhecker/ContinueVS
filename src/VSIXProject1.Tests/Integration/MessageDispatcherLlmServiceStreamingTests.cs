@@ -312,9 +312,9 @@ namespace ContinueVS.Tests.Integration
 
         public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
+#pragma warning disable CS0162 // Unreachable code
             throw _exception;
             await Task.CompletedTask;
-#pragma warning disable CS0162 // Unreachable code
             yield break;
 #pragma warning restore CS0162 // Unreachable code
         }

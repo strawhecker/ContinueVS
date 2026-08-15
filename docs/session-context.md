@@ -909,9 +909,23 @@
   - Real `LlmService` instance delegates streaming to mocked messenger
   - All 5 tests passing; full test suite: 408 passed, 0 failed
 
-### step102: Test ViewModel ↔ Service Flow
+### step102: Test ViewModel ↔ Service Flow ✅
 - **Action:** Write integration test: ChatPageViewModel.SendMessage → ILlmService.StreamAsync → UI updated
 - **Depends on:** Steps 50, 99
+- **Status:** ✅ Completed
+- **Files created:**
+  - `src/VSIXProject1.Tests/Integration/ChatPageViewModelLlmServiceIntegrationTests.cs` — 4 integration tests
+- **Test Summary:** 4 new integration tests added; all passing
+  - Test 1: `SendMessage_WithSingleTextChunk_UpdatesUICorrectlyAsync` — single chunk updates StreamingResponse and Messages
+  - Test 2: `SendMessage_WithMultipleChunks_AccumulatesResponseCorrectlyAsync` — multiple chunks concatenated correctly
+  - Test 3: `SendMessage_WithStreamingError_ShowsNotificationAsync` — error handling with notification
+  - Test 4: `SendMessage_WithCancellation_StopsStreamingAsync` — cancellation marks UI and stops streaming
+- **Implementation Details:**
+  - Real ChatPageViewModel instance (not mocked) to verify actual state mutations
+  - Mocked ILlmService.StreamAsync with controlled chunk sequences
+  - All other dependencies loosely mocked (IContextService, ISessionService, INotificationService, IToolService)
+  - Verifies observable behavior: StreamingResponse accumulation, Messages collection (user + assistant), InputText cleared, IsStreaming flag transitions, error notifications
+  - All 4 tests passing; full test suite: 412 tests passed, 0 failed
 
 ### step103: Load Plugin & Test End-to-End
 - **Action:** Build VSIX, install in Visual Studio, test:
