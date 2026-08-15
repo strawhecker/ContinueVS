@@ -3,8 +3,10 @@
 using System;
 using System.Globalization;
 using System.Windows;
+using System.Windows.Media;
 using Xunit;
 using ContinueVS.ViewModels.Converters;
+using ContinueVS.Core.Types;
 
 namespace ContinueVS.Tests.UI
 {
@@ -227,6 +229,79 @@ namespace ContinueVS.Tests.UI
             // Assert
             Assert.NotNull(result);
             Assert.Equal(0.0, result);
+        }
+
+        [Theory]
+        [InlineData(ChatMessageRole.User, HorizontalAlignment.Right)]
+        [InlineData(ChatMessageRole.Assistant, HorizontalAlignment.Left)]
+        [InlineData(ChatMessageRole.System, HorizontalAlignment.Stretch)]
+        [InlineData(ChatMessageRole.Tool, HorizontalAlignment.Stretch)]
+        [InlineData(ChatMessageRole.Thinking, HorizontalAlignment.Stretch)]
+        public void RoleToAlignmentConverter_Convert_ReturnsCorrectAlignment(ChatMessageRole role, HorizontalAlignment expected)
+        {
+            // Arrange
+            var converter = new RoleToAlignmentConverter();
+
+            // Act
+            var result = converter.Convert(role, typeof(HorizontalAlignment), string.Empty, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public void RoleToAlignmentConverter_Convert_WithNullValue_ReturnsStretch()
+        {
+            // Arrange
+            var converter = new RoleToAlignmentConverter();
+
+            // Act
+            var result = converter.Convert((object?)null, typeof(HorizontalAlignment), string.Empty, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(HorizontalAlignment.Stretch, result);
+        }
+
+        [Fact]
+        public void RoleToAlignmentConverter_ConvertBack_ReturnsUnsetValue()
+        {
+            // Arrange
+            var converter = new RoleToAlignmentConverter();
+
+            // Act
+            var result = converter.ConvertBack(HorizontalAlignment.Right, typeof(ChatMessageRole), string.Empty, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(DependencyProperty.UnsetValue, result);
+        }
+
+        [Theory]
+        [InlineData(ChatMessageRole.User)]
+        [InlineData(ChatMessageRole.Assistant)]
+        [InlineData(ChatMessageRole.System)]
+        public void RoleToColorConverter_Convert_ReturnsSolidColorBrush(ChatMessageRole role)
+        {
+            // Arrange
+            var converter = new RoleToColorConverter();
+
+            // Act
+            var result = converter.Convert(role, typeof(Brush), string.Empty, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.IsType<SolidColorBrush>(result);
+        }
+
+        [Fact]
+        public void RoleToColorConverter_ConvertBack_ReturnsUnsetValue()
+        {
+            // Arrange
+            var converter = new RoleToColorConverter();
+
+            // Act
+            var result = converter.ConvertBack(Brushes.Red, typeof(ChatMessageRole), string.Empty, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(DependencyProperty.UnsetValue, result);
         }
     }
 }
