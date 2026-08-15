@@ -12,7 +12,7 @@ namespace ContinueVS.ViewModels.Converters
         {
             if (value is ChatMessageRole role)
             {
-                return role switch
+                var alignment = role switch
                 {
                     ChatMessageRole.User => HorizontalAlignment.Right,
                     ChatMessageRole.Assistant => HorizontalAlignment.Left,
@@ -21,8 +21,11 @@ namespace ContinueVS.ViewModels.Converters
                     ChatMessageRole.Thinking => HorizontalAlignment.Stretch,
                     _ => HorizontalAlignment.Stretch
                 };
+                System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToAlignmentConverter.Convert: Role={role}, Alignment={alignment}");
+                return alignment;
             }
 
+            System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToAlignmentConverter.Convert: value is null, returning Stretch");
             return HorizontalAlignment.Stretch;
         }
 

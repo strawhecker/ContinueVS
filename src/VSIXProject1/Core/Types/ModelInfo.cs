@@ -56,5 +56,12 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("supportedToolFormats")]
         public List<string> SupportedToolFormats { get; set; } = new List<string>();
+
+        /// <summary>
+        /// For Ollama provider: the actual model identifier to send in API requests.
+        /// May differ from Name (e.g., Name="Llama 3.1 8B" but OllamaModelId="hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M")
+        /// </summary>
+        [JsonProperty("ollamaModelId")]
+        public string? OllamaModelId { get; set; }
     }
 }

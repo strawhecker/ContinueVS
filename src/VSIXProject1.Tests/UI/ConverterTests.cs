@@ -303,5 +303,49 @@ namespace ContinueVS.Tests.UI
             // Assert
             Assert.Equal(DependencyProperty.UnsetValue, result);
         }
+
+        /// <summary>
+        /// Integration test: Verifies converter output matches expected XAML binding values.
+        /// When ChatMessageControl.xaml XAML bindings are wired (after fix), 
+        /// this confirms converters will produce correct alignment/color rendering.
+        /// </summary>
+        [Fact]
+        public void Gap6_ConverterIntegration_UserMessageRendersRightAlignedBlue()
+        {
+            // Arrange: Simulate XAML binding pipeline for User message
+            var alignmentConverter = new RoleToAlignmentConverter();
+            var colorConverter = new RoleToColorConverter();
+            var role = ChatMessageRole.User;
+
+            // Act: Call converters as XAML binding would
+            var alignment = alignmentConverter.Convert(role, typeof(HorizontalAlignment), null, CultureInfo.InvariantCulture);
+            var brush = (SolidColorBrush)colorConverter.Convert(role, typeof(Brush), null, CultureInfo.InvariantCulture);
+
+            // Assert: Verify expected rendering output
+            Assert.Equal(HorizontalAlignment.Right, alignment);
+            Assert.NotNull(brush);
+            Assert.Equal(Color.FromRgb(0, 120, 215), brush.Color); // Blue: 0078D7
+        }
+
+        /// <summary>
+        /// Integration test: Verifies converter output for assistant messages.
+        /// </summary>
+        [Fact]
+        public void Gap6_ConverterIntegration_AssistantMessageRendersLeftAlignedGray()
+        {
+            // Arrange: Simulate XAML binding pipeline for Assistant message
+            var alignmentConverter = new RoleToAlignmentConverter();
+            var colorConverter = new RoleToColorConverter();
+            var role = ChatMessageRole.Assistant;
+
+            // Act: Call converters as XAML binding would
+            var alignment = alignmentConverter.Convert(role, typeof(HorizontalAlignment), null, CultureInfo.InvariantCulture);
+            var brush = (SolidColorBrush)colorConverter.Convert(role, typeof(Brush), null, CultureInfo.InvariantCulture);
+
+            // Assert: Verify expected rendering output
+            Assert.Equal(HorizontalAlignment.Left, alignment);
+            Assert.NotNull(brush);
+            Assert.Equal(Color.FromRgb(96, 96, 96), brush.Color); // Gray: 606060
+        }
     }
 }

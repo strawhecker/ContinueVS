@@ -13,7 +13,7 @@ namespace ContinueVS.ViewModels.Converters
         {
             if (value is ChatMessageRole role)
             {
-                return role switch
+                var brush = role switch
                 {
                     ChatMessageRole.User => new SolidColorBrush(Color.FromRgb(0, 120, 215)),
                     ChatMessageRole.Assistant => new SolidColorBrush(Color.FromRgb(96, 96, 96)),
@@ -22,8 +22,11 @@ namespace ContinueVS.ViewModels.Converters
                     ChatMessageRole.Thinking => new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                     _ => new SolidColorBrush(Colors.White)
                 };
+                System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToColorConverter.Convert: Role={role}, Color={brush.Color}");
+                return brush;
             }
 
+            System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToColorConverter.Convert: value is null, returning White");
             return new SolidColorBrush(Colors.White);
         }
 

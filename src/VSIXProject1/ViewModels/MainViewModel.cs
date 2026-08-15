@@ -131,9 +131,12 @@ namespace ContinueVS.ViewModels
         private async void ExecuteNavigate(string route)
 #pragma warning restore VSTHRD100
         {
+            System.Diagnostics.Debug.WriteLine($"[g7-vm-b1] ExecuteNavigate called with route: {route}");
             if (!string.IsNullOrWhiteSpace(route))
             {
+                System.Diagnostics.Debug.WriteLine($"[g7-vm-b2] Setting CurrentRoute to: {route}");
                 CurrentRoute = route;
+                System.Diagnostics.Debug.WriteLine($"[g7-vm-b3] Calling PageNavigator.NavigateAsync");
                 await _pageNavigator.NavigateAsync(route, null);
             }
         }

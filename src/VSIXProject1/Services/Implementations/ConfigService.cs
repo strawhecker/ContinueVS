@@ -52,6 +52,7 @@ namespace ContinueVS.Services.Implementations
             {
                 if (_initialized)
                 {
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Already initialized, returning");
                     return;
                 }
             }
@@ -60,42 +61,62 @@ namespace ContinueVS.Services.Implementations
             {
                 try
                 {
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Starting config load...");
+
                     // Ensure directory exists
                     Directory.CreateDirectory(ContinueDir);
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config dir: {ContinueDir}");
 
                     // Load or create default configuration
                     if (File.Exists(ConfigFilePath))
                     {
+                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config file exists: {ConfigFilePath}");
                         var json = File.ReadAllText(ConfigFilePath);
                         _currentConfig = JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(json) 
                             ?? CreateDefaultConfig();
+                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Loaded from file. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
+
+                        // Migrate/upgrade: populate OllamaModelId for any missing entries
+                        bool needsSave = false;
+                        foreach (var model in _currentConfig.Models)
+                        {
+                            if (string.IsNullOrEmpty(model.OllamaModelId) && model.Provider == "ollama" && model.Name == "Llama 3.1 8B Instruct")
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Migrating model '{model.Name}': setting OllamaModelId");
+                                model.OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M";
+                                needsSave = true;
+                            }
+                        }
+
+                        if (needsSave)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Config was migrated, saving updated version");
+                            SaveConfigSync();
+                        }
                     }
                     else
                     {
+                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config file does not exist, creating default: {ConfigFilePath}");
                         _currentConfig = CreateDefaultConfig();
+                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Created default config. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
                         SaveConfigSync();
+                        System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Saved default config to disk");
                     }
 
                     _currentConfig.ConfigFilePath = ConfigFilePath;
                     _currentConfig.LastModified = DateTime.UtcNow;
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Final state - SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}, Models: {string.Join(", ", _currentConfig.Models.Select(m => m.Name))}");
 
                     lock (_lock)
                     {
                         _initialized = true;
                     }
-
-                    if (_logger != null)
-                        _logger.WriteDebugAsync("ConfigService.InitializeAsync (complete)").GetAwaiter().GetResult();
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Initialization complete");
                 }
                 catch (Exception ex)
                 {
-                    if (_logger != null)
-                        _logger.WriteErrorAsync($"ConfigService.InitializeAsync failed", ex).GetAwaiter().GetResult();
-
-                    throw new ConfigLoadException(
-                        $"Failed to load configuration from '{ConfigFilePath}'. Check file permissions and JSON format.",
-                        ConfigFilePath,
-                        ex);
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] ERROR: {ex.Message}, StackTrace: {ex.StackTrace}");
+                    throw;
                 }
             });
         }
@@ -201,12 +222,36 @@ namespace ContinueVS.Services.Implementations
             lock (_lock)
             {
                 ThrowIfNotInitialized();
+                System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
+                System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Available models: {string.Join(", ", _currentConfig.Models.Select(m => $"{m.Name}(Id:{m.Id})"))}");
+
                 if (string.IsNullOrEmpty(_currentConfig.SelectedModelId))
                 {
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetSelectedModel] SelectedModelId is null/empty");
+
+                    // Auto-select first model if none selected but models exist
+                    if (_currentConfig.Models.Count > 0)
+                    {
+                        var firstModel = _currentConfig.Models.First();
+                        System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Auto-selecting first model: {firstModel.Name} (Id:{firstModel.Id})");
+                        _currentConfig.SelectedModelId = firstModel.Id;
+                        return firstModel;
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetSelectedModel] No models available, returning null");
                     return null;
                 }
 
-                return _currentConfig.Models.FirstOrDefault(m => m.Id == _currentConfig.SelectedModelId);
+                var selected = _currentConfig.Models.FirstOrDefault(m => m.Id == _currentConfig.SelectedModelId);
+                if (selected != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Found model: {selected.Name} (Id:{selected.Id})");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Model not found for SelectedModelId: {_currentConfig.SelectedModelId}");
+                }
+                return selected;
             }
         }
 
@@ -336,6 +381,8 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private static CoreTypes.ContinueConfig CreateDefaultConfig()
         {
+            System.Diagnostics.Debug.WriteLine("[ConfigService.CreateDefaultConfig] Creating default config...");
+
             var models = new List<CoreTypes.ModelInfo>
             {
                 new CoreTypes.ModelInfo
@@ -347,19 +394,24 @@ namespace ContinueVS.Services.Implementations
                     BaseUrl = "http://localhost:11434",
                     ContextWindow = 8192,
                     SupportsFunctionCalling = false,
-                    SupportedToolFormats = new List<string>()
+                    SupportedToolFormats = new List<string>(),
+                    OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"
                 }
             };
 
-            return new CoreTypes.ContinueConfig
+            var config = new CoreTypes.ContinueConfig
             {
                 Models = models,
                 Tools = new List<CoreTypes.ToolDefinition>(),
                 Profiles = new List<CoreTypes.ProfileInfo>(),
                 CustomSettings = new Dictionary<string, object>(),
                 ConfigFilePath = ConfigFilePath,
-                LastModified = DateTime.UtcNow
+                LastModified = DateTime.UtcNow,
+                SelectedModelId = models[0].Id
             };
+
+            System.Diagnostics.Debug.WriteLine($"[ConfigService.CreateDefaultConfig] Created config with SelectedModelId: {config.SelectedModelId}, Model: {models[0].Name} (Id: {models[0].Id})");
+            return config;
         }
 
         /// <summary>

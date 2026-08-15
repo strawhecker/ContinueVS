@@ -1,14 +1,19 @@
-<UserControl x:Class="ContinueVS.UI.Views.ChatMessageControl"
+﻿<UserControl x:Class="ContinueVS.UI.Views.ChatMessageControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ContinueVS.ViewModels.Converters"
              Margin="5">
+    <UserControl.Resources>
+        <local:RoleToAlignmentConverter x:Key="RoleToAlignmentConverter"/>
+        <local:RoleToColorConverter x:Key="RoleToColorConverter"/>
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Column="0" Orientation="Vertical" HorizontalAlignment="Right" Margin="10,0">
-            <Border Background="{DynamicResource VsBrush.CommandBarGradient}" CornerRadius="8" Padding="10">
+        <StackPanel Grid.Column="0" Orientation="Vertical" HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}" Margin="10,0">
+            <Border Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
                 <TextBlock Text="{Binding Content}" Foreground="{DynamicResource VsBrush.WindowText}" TextWrapping="Wrap"/>
             </Border>
         </StackPanel>

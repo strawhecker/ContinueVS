@@ -240,25 +240,69 @@
 ---
 
 ### gap6: Chat Message Display NOT WORKING (UI Rendering Failed)
-**Status:** ✅ Complete (Unit Tests) | ⚠️ Requires Debugger Verification  
-**Implementation:**
-- Created RoleToAlignmentConverter.cs: IValueConverter converts ChatMessageRole enum to HorizontalAlignment (User→Right, Assistant→Left, System/Tool/Thinking→Stretch)
-- Created RoleToColorConverter.cs: IValueConverter converts ChatMessageRole enum to SolidColorBrush (User→0078D7 blue, Assistant→606060 gray, System/Tool/Thinking→C8C8C8 light gray)
-- Modified ChatPage.xaml.cs to ensure InitializeComponent() called before DataContext assignment (dependency on gap2)
-- Added BooleanToVisibilityConverter resource to ChatPage.xaml
-- Added RoleToAlignmentConverter and RoleToColorConverter resources to ChatMessageControl.xaml
-- Converter binding tests: 11 new test cases covering RoleToAlignmentConverter (5 Theory cases + 2 Facts) and RoleToColorConverter (3 Theory cases + 1 Fact)
-- Verified: All 427 unit tests pass (416 baseline + 11 new converter tests); clean build (zero warnings/errors)
+**Status:** ✅ COMPLETE | Type: UI Rendering + Ollama Integration  
+
+**Root Cause (Identified & Fixed):**
+The issue was actually TWO problems working together:
+1. **XAML Converter Wiring**: ChatMessageControl.xaml was missing converter bindings (fixed by rewriting XAML to use converters)
+2. **Ollama Model Name Mismatch**: Config stored user-friendly name "Llama 3.1 8B Instruct" but Ollama API expected actual model identifier "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"
+
+**Complete Fix Applied:**
+
+**Part 1: Model ID Storage & Migration**
+1. Added `OllamaModelId` property to `ModelInfo` class (Core/Types/ModelInfo.cs)
+2. Updated `ConfigService.CreateDefaultConfig()` to populate OllamaModelId for new configs
+3. Added migration logic in `ConfigService.InitializeAsync()` to update existing old config files with the correct OllamaModelId
+4. Modified `MessengerService.ProcessOllamaStreamAsync()` to use `OllamaModelId` (if available) instead of just `Name` when building Ollama requests
+
+**Part 2: HTTP Error Handling & Diagnostics**
+1. Fixed ObjectDisposedException in error handling by reading response body BEFORE checking status code
+2. Added comprehensive debug logging:
+   - Request payload details (model name, endpoint, JSON excerpt)
+   - Response status code and body (on error)
+   - Ollama /api/tags query to show available models
+   - Streaming response line count and content
+3. Added exception logging in ChatPageViewModel that logs full exception details before showing error popup
 
 **Files Modified:**
-- src/VSIXProject1/ViewModels/Converters/RoleToAlignmentConverter.cs: NEW
-- src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs: NEW
-- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs: InitializeComponent() wiring (gap2 dependency)
-- src/VSIXProject1.Tests/UI/ConverterTests.cs: 11 new converter test methods
+- src/VSIXProject1/Core/Types/ModelInfo.cs: Added OllamaModelId property
+- src/VSIXProject1/Services/Implementations/ConfigService.cs: 
+  - Added config migration logic for OllamaModelId
+  - Updated CreateDefaultConfig() to set OllamaModelId
+- src/VSIXProject1/Services/Implementations/MessengerService.cs:
+  - Fixed HTTP error response handling (read body before status check)
+  - Added request/response diagnostics logging
+  - Added /api/tags query to log available models
+  - Updated ProcessOllamaStreamAsync to use OllamaModelId
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs: Added detailed exception logging
+- src/VSIXProject1/UI/Views/ChatMessageControl.xaml: Fixed to use converter bindings (from earlier)
 
-**How It Works (End-to-End):**
-1. User types "Hello" in ChatPage TextBox; clicks Send
-2. ChatPageViewModel.SendMessageCommand fires ExecuteSendMessage()
+**Verification (Complete):**
+✅ User message "hello" sent successfully
+✅ Ollama accepts HTTP 200 OK (no more 400 errors)
+✅ Streaming response received (23+ chunks logged)
+✅ Assistant message created and added to collection
+✅ Converters invoked for both user (right-aligned, blue) and assistant (left-aligned, gray) messages
+✅ UI displays chat bubbles with correct styling
+✅ Config auto-migrated correctly for existing users
+
+**Before-After Logs:**
+- BEFORE: HTTP 400 "invalid model name" error
+- AFTER: HTTP 200 OK, 23 response lines received, assistant message rendered
+
+**Debugger Evidence:**
+```
+[ProcessOllamaStreamAsync] Model name: Llama 3.1 8B Instruct, OllamaModelId: hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M, Using: hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M
+[ProcessOllamaStreamAsync] Response status code: OK
+[ProcessOllamaStreamAsync] Received line 1: {...}
+...
+[ProcessOllamaStreamAsync] Received line 23: {...}
+[a6-exec] ExecuteSendMessage: Assistant message added. Role=Assistant, Content length=91, MessagesCount=2
+[a6-converter] RoleToAlignmentConverter.Convert: Role=Assistant, Alignment=Left
+[a6-converter] RoleToColorConverter.Convert: Role=Assistant, Color=#FF606060
+```
+
+**Impact:** End-to-end chat flow now works: user sends message → Ollama responds → assistant message displays with correct styling
 3. Creates ChatMessage(Role.User, "Hello"); adds to Messages; UI renders via binding
 4. ChatMessageControl XAML binding pipeline uses new converters:
    - Binding Role → RoleToAlignmentConverter → StackPanel.HorizontalAlignment
@@ -317,36 +361,44 @@
     - Send "Test" → User message right-aligned, blue
     - Verify all messages render with correct styling; no color/alignment bleeding between messages
 
+**Date:** 2026-08-15  
+**Issue:** Chat UI not displaying messages + Ollama HTTP 400 errors
+
+**Root Causes Fixed:**
+1. **Ollama Model Name Mismatch**: Config stored user-friendly "Llama 3.1 8B Instruct" but Ollama API expected full model identifier "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"
+   - Solution: Added `OllamaModelId` property to ModelInfo, migrated existing configs, updated Ollama request builder
+2. **HTTP Error Handling**: Response body was being read AFTER disposal, causing ObjectDisposedException
+   - Solution: Read response body BEFORE status check, added comprehensive error logging
+3. **Missing Converter Bindings**: ChatMessageControl.xaml wasn't wired to use converters (from earlier gap6 work)
+   - Solution: Fixed XAML to use RoleToAlignmentConverter and RoleToColorConverter bindings
+
+**Result:** ✅ Chat now works end-to-end: send message → Ollama responds → assistant message displays with correct styling (left-aligned gray for assistant, right-aligned blue for user)
+
 ---
 
 ### gap7: Tools Navigation NOT VISIBLE
-**Status:** 🟡 Incomplete | Type: Missing Navigation Component  
-**Current State:**
-- MainViewModel has CurrentRoute property (tracks "chat", "config", "history")
-- MainViewModel.NavigateCommand wired in tests
-- ContinueToolWindowControl.xaml.cs navigates to static ChatPage
-- No navigation bar/tabs visible to user
-- Page.Navigator interface exists but not rendered in XAML
+**Status:** ✅ Complete | Type: Navigation Bar Component  
+**Implementation:**
+- Created NavigationBar.xaml UserControl with horizontal button bar: Chat, Config, History, Settings
+- Grid layout with 5 columns: 4 button columns (Auto) + spacer (Fill) + tool count badge (Auto)
+- Buttons bound to MainViewModel.NavigateCommand with route parameters (chat, config, history, settings)
+- Buttons use RelativeSource FindAncestor to reach MainViewModel in parent Window
+- Tool count badge displays IConfigService.GetEnabledTools().Count() via ToolCount property
+- NavigationBar.xaml.cs: Implements ToolCount property, ConfigService dependency injection, ConfigChanged event subscription for dynamic updates
+- ContinueToolWindowControl.xaml: Replaced Grid with DockPanel, NavigationBar docked Top, Frame docked Fill with MainContentFrame retained
+- ContinueToolWindowControl.xaml.cs: OnLoaded handler resolves MainViewModel and IPageNavigator from ServiceProvider, subscribes to PropertyChanged, navigates on CurrentRoute changes, sets DataContext for both control and NavigationBar
+- Created NavigationBarBindingTests.cs with test cases: button instantiation, tool count binding, route command execution, config change event handling
+- Created GreaterThanZeroConverter.cs for tool count badge visibility (removed from XAML to simplify binding)
 
-**What Continue.js Does (from AGENTS.md):**
-- `reference/continue-src/gui/src/util/navigation.ts`: ROUTES enum (chat, config, settings, etc.)
-- `reference/continue-src/gui/src/App.tsx`: <Router> wraps pages; buttons/tabs trigger route changes
-- Tool count badge shown in navigation (from IConfigService.GetEnabledTools().Count())
+**Files Created/Modified:**
+- src/VSIXProject1/UI/Controls/NavigationBar.xaml (new)
+- VSIXProject1/UI/Controls/NavigationBar.xaml.cs (new)
+- src/VSIXProject1/UI/ContinueToolWindowControl.xaml (updated with DockPanel + NavigationBar)
+- src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs (updated with OnLoaded + navigation wiring)
+- src/VSIXProject1.Tests/UI/NavigationBarBindingTests.cs (new)
+- src/VSIXProject1/UI/Converters/GreaterThanZeroConverter.cs (new)
 
-**ContinueVS Gap:**
-- ContinueToolWindowControl has Frame but no navigation buttons
-- No tabs/buttons for "Chat", "Config", "History" modes
-- MainViewModel.NavigateCommand never invoked by UI
-- No visual indication of current route
-
-**Remediation:**
-1. Create NavigationBar.xaml UserControl with buttons: Chat, Config, History, Settings
-2. Add to ContinueToolWindowControl.xaml (above MainContentFrame)
-3. Bind buttons to MainViewModel.NavigateCommand with route names
-4. Update ContinueToolWindowControl.xaml.cs to respond to navigation changes
-5. Show tool count badge in nav (bind to ConfigService.GetEnabledTools().Count())
-
-**Blocking:** gap8, gap9 (user cannot switch between modes)
+**Blocking Resolved:** gap8, gap9 (navigation buttons now visible + wired; user can switch between Chat/Config/History/Settings)
 
 ---
 

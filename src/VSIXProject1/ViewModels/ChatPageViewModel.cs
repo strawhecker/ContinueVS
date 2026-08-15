@@ -32,13 +32,26 @@ namespace ContinueVS.ViewModels
         public string? InputText
         {
             get => _inputText;
-            set => Set(ref _inputText, value);
+            set 
+            {
+                if (Set(ref _inputText, value))
+                {
+                    SendMessageCommand.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         public bool IsStreaming
         {
             get => _isStreaming;
-            set => Set(ref _isStreaming, value);
+            set 
+            {
+                if (Set(ref _isStreaming, value))
+                {
+                    SendMessageCommand.RaiseCanExecuteChanged();
+                    CancelCommand.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         public string? StreamingResponse
@@ -96,6 +109,7 @@ namespace ContinueVS.ViewModels
                 };
                 await _sessionService.AddMessageAsync(userMessage);
                 Messages.Add(userMessage);
+                System.Diagnostics.Debug.WriteLine($"[a6-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
 
                 StreamingResponse = string.Empty;
 
@@ -137,15 +151,28 @@ namespace ContinueVS.ViewModels
                 };
                 await _sessionService.AddMessageAsync(assistantMessage);
                 Messages.Add(assistantMessage);
+                System.Diagnostics.Debug.WriteLine($"[a6-exec] ExecuteSendMessage: Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, MessagesCount={Messages.Count}");
 
                 InputText = string.Empty;
             }
             catch (OperationCanceledException)
             {
+                System.Diagnostics.Debug.WriteLine("[ChatPageViewModel.ExecuteSendMessage] OperationCanceledException: User cancelled");
                 StreamingResponse += "\n[Cancelled by user]";
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception caught: {ex.GetType().Name}");
+                System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception stack trace: {ex.StackTrace}");
+
+                // Log inner exception if present
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Showing error popup: {ex.Message}");
                 await _notificationService.ShowNotificationAsync("Error", ex.Message, NotificationType.Error);
             }
             finally

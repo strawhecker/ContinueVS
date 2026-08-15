@@ -53,6 +53,7 @@
   <ItemGroup>
     <Folder Include="Commands\" />
     <Folder Include="Services\Tests\" />
+    <Folder Include="UI\Converters\" />
     <Folder Include="Views\" />
   </ItemGroup>
 </Project>
