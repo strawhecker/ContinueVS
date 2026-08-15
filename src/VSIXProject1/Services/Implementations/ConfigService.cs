@@ -332,13 +332,28 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Creates a default configuration object.
+        /// Creates a default configuration object with a predefined Ollama model.
         /// </summary>
         private static CoreTypes.ContinueConfig CreateDefaultConfig()
         {
+            var models = new List<CoreTypes.ModelInfo>
+            {
+                new CoreTypes.ModelInfo
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = "Llama 3.1 8B Instruct",
+                    Provider = "ollama",
+                    ApiKey = null,
+                    BaseUrl = "http://localhost:11434",
+                    ContextWindow = 8192,
+                    SupportsFunctionCalling = false,
+                    SupportedToolFormats = new List<string>()
+                }
+            };
+
             return new CoreTypes.ContinueConfig
             {
-                Models = new List<CoreTypes.ModelInfo>(),
+                Models = models,
                 Tools = new List<CoreTypes.ToolDefinition>(),
                 Profiles = new List<CoreTypes.ProfileInfo>(),
                 CustomSettings = new Dictionary<string, object>(),

@@ -27,29 +27,19 @@
 ---
 
 ### gap1: Ollama Config Predefinition (CRITICAL BLOCKER)
-**Status:** ⚠️ Gap | Type: Missing Configuration  
-**Current State:**
-- ConfigService loads from `~/.continue/config.json` (exists)
-- No predefined default config for Ollama
-- User must manually create config.json with Ollama settings
+**Status:** ✅ Complete | Type: Predefined Configuration  
+**Implementation:**
+- Modified `ConfigService.CreateDefaultConfig()` to instantiate predefined Ollama Llama 3.1 8B model
+- Model properties: Name="Llama 3.1 8B Instruct", Provider="ollama", BaseUrl="http://localhost:11434", ContextWindow=8192, SupportsFunctionCalling=false
+- ConfigService.InitializeAsync() already calls CreateDefaultConfig() when config.json missing; now includes model
+- Added unit test `InitializeAsync_CreatesDefaultConfigWithOllamaModel_WhenFileDoesNotExist()` to verify predefined model
+- Updated existing tests to account for predefined model in default config (19/19 tests passing)
 
-**What Needs to Exist (from AGENTS.md):**
-- `reference/continue-src/core/config/onboarding.ts`: `setupLocalConfig()` → creates defaults
-- `reference/continue-src/core/config/load.ts`: Config JSON → Runtime object schema
-- Platform-specific config path: Windows `%USERPROFILE%\.continue\config.json`
+**Files Modified:**
+- src/VSIXProject1/Services/Implementations/ConfigService.cs (CreateDefaultConfig method)
+- src/VSIXProject1.Tests/Services/ConfigServiceTests.cs (added test + updated 4 existing tests)
 
-**ContinueVS Implementation Gap:**
-- ConfigService has no `CreateDefaultConfigAsync()` method
-- ServiceInitializer.InitializeAsync() does not check if config.json exists
-- No onboarding fallback for first-time users
-
-**Remediation:**
-1. Add `CreateDefaultConfigAsync()` to IConfigService (creates `~/.continue/config.json` with Ollama defaults if missing)
-2. Call from ServiceInitializer.InitializeAsync() before loading models
-3. Template should include:
-{ "models": [ { "title": "Llama 3.1 8B Instruct", "provider": "ollama", "model": "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M", "apiBase": "http://localhost:11434" } ], "allowAnonymousTelemetry": false }
-
-**Blocking:** gap2, gap3, gap4 (cannot test message flow without models in config)
+**Blocking Resolved:** gap2, gap3, gap4 now unblocked (models exist in default config)
 
 ---
 

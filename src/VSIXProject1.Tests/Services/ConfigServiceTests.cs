@@ -42,7 +42,7 @@ namespace ContinueVS.Services.Tests
 
             var config = service.GetCurrentConfig();
             Assert.NotNull(config);
-            Assert.Empty(config.Models);
+            Assert.Single(config.Models);
             Assert.Empty(config.Profiles);
         }
 
@@ -73,7 +73,7 @@ namespace ContinueVS.Services.Tests
             await service.AddModelAsync(model);
 
             var config = service.GetCurrentConfig();
-            Assert.Single(config.Models);
+            Assert.Equal(2, config.Models.Count);
             Assert.True(eventRaised);
         }
 
@@ -101,7 +101,8 @@ namespace ContinueVS.Services.Tests
             await service.RemoveModelAsync("test-1");
 
             var config = service.GetCurrentConfig();
-            Assert.Empty(config.Models);
+            Assert.Single(config.Models);
+            Assert.Equal("ollama", config.Models[0].Provider);
             Assert.True(eventRaised);
         }
 
@@ -229,8 +230,10 @@ namespace ContinueVS.Services.Tests
             await service2.InitializeAsync();
 
             var config = service2.GetCurrentConfig();
-            Assert.Single(config.Models);
-            Assert.Equal("test-1", config.Models[0].Id);
+            Assert.Equal(2, config.Models.Count);
+            var testModel = config.Models.FirstOrDefault(m => m.Id == "test-1");
+            Assert.NotNull(testModel);
+            Assert.Equal("OpenAI", testModel.Provider);
         }
 
         [Fact]
@@ -248,8 +251,11 @@ namespace ContinueVS.Services.Tests
             await service.ReloadConfigAsync();
 
             config = service.GetCurrentConfig();
-            Assert.Single(config.Models);
-            Assert.Equal("test-1", config.Models[0].Id);
+            Assert.Equal(2, config.Models.Count);
+            var testModel = config.Models.FirstOrDefault(m => m.Id == "test-1");
+            Assert.NotNull(testModel);
+            var unsavedModel = config.Models.FirstOrDefault(m => m.Id == "test-2");
+            Assert.Null(unsavedModel);
         }
 
         [Fact]
@@ -277,6 +283,28 @@ namespace ContinueVS.Services.Tests
             await service.InitializeAsync();
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.SetToolEnabledAsync(null!, true));
+        }
+
+        [Fact]
+        public async Task InitializeAsync_CreatesDefaultConfigWithOllamaModel_WhenFileDoesNotExist()
+        {
+            Dispose();
+            var service = new ConfigService();
+
+            await service.InitializeAsync();
+
+            var config = service.GetCurrentConfig();
+            Assert.NotNull(config);
+            Assert.Single(config.Models);
+
+            var defaultModel = config.Models[0];
+            Assert.Equal("Llama 3.1 8B Instruct", defaultModel.Name);
+            Assert.Equal("ollama", defaultModel.Provider);
+            Assert.Equal("http://localhost:11434", defaultModel.BaseUrl);
+            Assert.Equal(8192, defaultModel.ContextWindow);
+            Assert.False(defaultModel.SupportsFunctionCalling);
+            Assert.Null(defaultModel.ApiKey);
+            Assert.Empty(defaultModel.SupportedToolFormats);
         }
 
         [Fact]
