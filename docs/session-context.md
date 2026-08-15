@@ -46,23 +46,26 @@
 ### gap2: ChatPage DataContext Binding Error
 **Status:** ✅ Complete | Type: XAML Binding Failure  
 **Implementation:**
-- Modified ChatPage.xaml.cs constructor to resolve ChatPageViewModel from ViewModelLocator.ServiceProvider
+- Modified ChatPage.xaml.cs constructor to resolve each singleton service directly from ViewModelLocator.ServiceProvider and construct ChatPageViewModel explicitly
 - Removed DataContext binding from ChatPage.xaml (line 5) — now relies on code-behind assignment
-- Constructor uses ViewModelLocator.ChatPageViewModel property (factory pattern), wrapped in try-catch for error handling
-- Verified: ChatPageBindingTests (12 tests) all pass; ChatPageViewModelTests (7 tests) all pass
+- Added INotificationService (WpfNotificationService) to ServiceBootstrapper.ConfigureServices()
+- Added IIdeService (VsIdeService stub) to ServiceBootstrapper.ConfigureServices() — required by ToolService activation
+- Avoided Func<T> factory pattern (caused scoped-from-root resolution errors in DI); ViewModels constructed inline
+- Verified: All 416 unit tests pass; ChatPageBindingTests (12 tests) all pass; ChatPageViewModelTests (7 tests) all pass
 - Build: Clean build successful (zero warnings/errors)
 
 **Files Modified:**
-- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs: Added DataContext resolution in constructor
+- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs: Direct singleton resolution + explicit ChatPageViewModel construction
 - src/VSIXProject1/UI/Pages/ChatPage.xaml: Removed DataContext="{Binding ChatPageViewModel, Mode=OneWay}" attribute
+- src/VSIXProject1/Services/ServiceBootstrapper.cs: Added INotificationService/WpfNotificationService and IIdeService/VsIdeService singletons
+- src/VSIXProject1/Services/Implementations/VsIdeService.cs: New stub implementing IIdeService (file I/O works; VS automation stubbed)
 
 **How It Works:**
-1. ContinueToolWindowControl navigates to ChatPage and initializes ViewModelLocator.ServiceProvider (line 26)
-2. ChatPage constructor executes, checks ViewModelLocator.ServiceProvider is not null
-3. Instantiates ViewModelLocator() and accesses ChatPageViewModel property
-4. ViewModelLocator.ChatPageViewModel internally calls GetRequiredService<Func<ChatPageViewModel>>() to resolve factory
-5. Assigns resolved ChatPageViewModel instance to this.DataContext
-6. All XAML bindings (Messages, InputText, SendMessageCommand, etc.) now resolve correctly
+1. ServiceBootstrapper.ConfigureServices() registers all singleton services (ILlmService, IContextService, IToolService, ISessionService, INotificationService)
+2. ContinueVSPackage.InitializeAsync() stores the provider in ViewModelLocator.ServiceProvider (step 12)
+3. ChatPage constructor calls ViewModelLocator.ServiceProvider.GetRequiredService<T>() for each service
+4. New ChatPageViewModel is constructed directly from the resolved singletons
+5. this.DataContext = viewModel; — all XAML bindings resolve correctly
 
 **Blocking Resolved:** gap4, gap5 (chat UI now bindable)
 
@@ -97,7 +100,41 @@
 
 ---
 
-### gap4: Chat Message Flow NOT WIRED (ILlmService → UI)
+### gap4: MessengerService Real HTTP Streaming NOT IMPLEMENTED
+**Status:** 🔴 Critical | Type: Missing Core Implementation  
+**Current State:**
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs` exists as a no-op stub
+- `StreamAsync<TRequest, TChunk>()` yields nothing (`yield break`)
+- `RequestAsync`, `Send`, `On` are all no-ops
+- LlmService.StreamAsync() delegates to IMessengerService.StreamAsync("llm:stream") — receives empty stream
+- step19 was marked ✅ Complete in error; file was never written to disk; stub created during gap2 remediation
+
+**What Continue.js Does (from AGENTS.md):**
+- `reference/continue-src/core/llm/`: llmStreamChat() dispatches to provider (Ollama, OpenAI, etc.)
+- Provider (Ollama): POST `{apiBase}/api/chat` with `{model, messages, stream: true}`
+- Response: `application/x-ndjson` — each line is a JSON object with `message.content` delta
+- Final line: `{"done": true}`
+
+**ContinueVS Gap:**
+- MessengerService has no HttpClient; no handler registered for "llm:stream"
+- No mapping from IConfigService model (provider="ollama", apiBase, modelName) → HTTP parameters
+- No NDJSON parser for streaming response body
+- No error propagation from HTTP layer to IAsyncEnumerable<CompletionChunk>
+
+**Remediation:**
+1. Add `HttpClient` to MessengerService (injected or static singleton)
+2. Add IConfigService dependency to MessengerService constructor; register in ServiceBootstrapper
+3. In `StreamAsync("llm:stream", ...)`: resolve active model from IConfigService
+4. POST to `{model.BaseUrl}/api/chat` with Ollama chat payload (`{model, messages, stream: true}`)
+5. Read response stream line-by-line; parse each JSON line → `CompletionChunk`
+6. Yield each `CompletionChunk`; stop on `"done": true`
+7. Propagate `HttpRequestException` / `TaskCanceledException` as `LlmException`
+
+**Blocking:** gap5 (Chat Message Flow)
+
+---
+
+### gap5: Chat Message Flow NOT WIRED (ILlmService → UI)
 **Status:** 🔴 Critical | Type: Missing Integration  
 **Current State:**
 - ChatPageViewModel has `SendMessageCommand` (lines 88-115)
@@ -112,23 +149,22 @@
 - Returns chunks streamed via `application/x-ndjson`
 
 **ContinueVS Gap:**
-- LlmService.StreamAsync() currently returns mock chunks (MessengerService.StreamAsync is stub)
+- LlmService.StreamAsync() currently returns empty stream (MessengerService.StreamAsync is stub)
 - No actual HTTP call to Ollama endpoint
-- MessengerService.StreamAsync has no handler registration for "llm.stream"
+- MessengerService.StreamAsync has no handler registration for "llm:stream"
 - Configuration provider/model not mapped to actual HTTP client
 
 **Remediation:**
-1. Implement real HTTP streaming in MessengerService (delegate to IIdeService or new HttpLlmClient)
-2. Map ModelInfo (provider: "ollama", apiBase, model) → HTTP client parameters
-3. Call Ollama: POST `{apiBase}/api/chat` with messages payload
-4. Parse `application/x-ndjson` response → CompletionChunk items
-5. Yield chunks via async enumerable
+1. Implement gap4 (MessengerService real HTTP streaming) first
+2. Verify LlmService.StreamAsync delegates correctly to MessengerService
+3. Wire ChatPageViewModel.SendMessageCommand → ILlmService.StreamAsync → UI chunks
 
-**Blocking:** gap5+ (user cannot test message send/receive)
+**Depends on:** gap4  
+**Blocking:** gap6+ (user cannot test message send/receive)
 
 ---
 
-### gap5: Chat Message Display NOT WORKING (UI Rendering Failed)
+### gap6: Chat Message Display NOT WORKING (UI Rendering Failed)
 **Status:** 🔴 Critical | Type: XAML/Binding Gap  
 **Current State:**
 - ChatPage.xaml has ItemsControl bound to `{Binding Messages}` (line 25)
@@ -152,11 +188,11 @@
 3. Add visual indicator (e.g., "Assistant is typing...") while IsStreaming=true
 4. Test end-to-end message rendering
 
-**Depends on:** gap2, gap4
+**Depends on:** gap2, gap5
 
 ---
 
-### gap6: Tools Navigation NOT VISIBLE
+### gap7: Tools Navigation NOT VISIBLE
 **Status:** 🟡 Incomplete | Type: Missing Navigation Component  
 **Current State:**
 - MainViewModel has CurrentRoute property (tracks "chat", "config", "history")
@@ -183,11 +219,11 @@
 4. Update ContinueToolWindowControl.xaml.cs to respond to navigation changes
 5. Show tool count badge in nav (bind to ConfigService.GetEnabledTools().Count())
 
-**Blocking:** gap7, gap8 (user cannot switch between modes)
+**Blocking:** gap8, gap9 (user cannot switch between modes)
 
 ---
 
-### gap7: Ask Mode NOT VISIBLE (Chat Mode)
+### gap8: Ask Mode NOT VISIBLE
 **Status:** 🟡 Incomplete | Type: Missing UI Variant  
 **Current State:**
 - ChatPageViewModel exists (basic chat mode)
@@ -212,14 +248,14 @@
 1. Add Mode enum property to ChatPageViewModel (Ask, Agent, Plan)
 2. Add ModeChangedCommand to switch modes
 3. Add mode selector UI to ChatPage.xaml (RadioButtons or ToggleButtons: "Ask", "Agent", "Plan")
-4. Inject appropriate system message based on mode when streaming (gap4 integration)
+4. Inject appropriate system message based on mode when streaming (gap5 integration)
 5. Add "Apply" button visible only in Ask mode (stub for now)
 
 **Depends on:** gap2
 
 ---
 
-### gap8: Agent Mode NOT VISIBLE
+### gap9: Agent Mode NOT VISIBLE
 **Status:** ⚠️ Missing | Type: Unimplemented Feature  
 **Current State:**
 - No AgentPageViewModel created
@@ -245,11 +281,11 @@
 4. Add ToolInvocationMessage type to display results in chat
 5. Auto-loop: send tool results back to LLM as new message
 
-**Depends on:** gap4, gap7
+**Depends on:** gap5, gap8
 
 ---
 
-### gap9: Plan Mode NOT VISIBLE
+### gap10: Plan Mode NOT VISIBLE
 **Status:** ⚠️ Missing | Type: Unimplemented Feature  
 **Current State:**
 - No PlanPageViewModel created
@@ -271,11 +307,11 @@
 3. Disable tool calling in Plan mode
 4. Simple rendering (no special UI needed, same as Ask mode)
 
-**Depends on:** gap7
+**Depends on:** gap8
 
 ---
 
-### gap10: Tools Count NOT SHOWN IN UI
+### gap11: Tools Count NOT SHOWN IN UI
 **Status:** 🟡 Incomplete | Type: Missing Binding  
 **Current State:**
 - ConfigPageViewModel has `AvailableTools` collection (exists)
@@ -297,11 +333,11 @@
 3. Add CheckBox for Enable/Disable per tool
 4. Show tool count badge in NavigationBar (total count)
 
-**Depends on:** gap3, gap6
+**Depends on:** gap3, gap7
 
 ---
 
-### gap11: Theme/Dark Mode NOT APPLIED
+### gap12: Theme/Dark Mode NOT APPLIED
 **Status:** 🟡 Incomplete | Type: Missing Service Integration  
 **Current State:**
 - ThemeService exists (implemented in step 91)
@@ -328,7 +364,7 @@
 
 ---
 
-### gap12: Config Persistence NOT TESTED
+### gap13: Config Persistence NOT TESTED
 **Status:** 🟡 Incomplete | Type: Missing Round-Trip Test  
 **Current State:**
 - ConfigService.AddModelAsync() saves to `~/.continue/config.json`
@@ -353,7 +389,7 @@
 
 ---
 
-### gap13: Cloud Model Definition UI MISSING
+### gap14: Cloud Model Definition UI MISSING
 **Status:** ⚠️ Missing | Type: Feature Not Started  
 **Current State:**
 - ConfigPageViewModel has model add/remove commands (stubs)
@@ -378,7 +414,7 @@
 
 ---
 
-### gap14: Subscription Model Definition MISSING
+### gap15: Subscription Model Definition MISSING
 **Status:** ⚠️ Missing | Type: Advanced Feature  
 **Current State:**
 - No subscription model support (e.g., Continue subscription API)
@@ -399,21 +435,22 @@
 ## REMEDIATION PRIORITY ORDER (User Goals)
 
 | Priority | Gap # | Goal | Blocking | 
-|----------|-------|------|----------|
+|----------|-------|------|-----------|
 | 1 | gap1 | Ollama predefined config | gap2, gap3, gap4 all |
-| 2 | gap2 | Fix DataContext binding | gap3, gap4, gap5 all |
-| 3 | gap3 | Load models in ConfigPage | gap6 depends |
-| 4 | gap4 | Chat message flow (Ollama HTTP) | gap5 depends |
-| 5 | gap5 | Chat message display rendering | user test |
-| 6 | gap6 | Navigation tabs visible | gap7, gap8, gap9 depend |
-| 7 | gap7 | Ask mode UI + mode selector | user test |
-| 8 | gap8 | Agent mode (tool calling) | user test |
-| 9 | gap9 | Plan mode | less critical |
-| 10 | gap10 | Tools count badge in nav | user verification |
-| 11 | gap11 | Dark theme applied | appearance only |
-| 12 | gap12 | Config round-trip end-to-end | verification |
-| 13 | gap13 | Cloud model setup UI | OpenAI support |
-| 14 | gap14 | Subscription service | defer |
+| 2 | gap2 | Fix DataContext binding | gap3, gap5, gap6 all |
+| 3 | gap3 | Load models in ConfigPage | gap7 depends |
+| 4 | gap4 | MessengerService HTTP streaming | gap5 depends |
+| 5 | gap5 | Chat message flow (ILlmService → UI) | gap6 depends |
+| 6 | gap6 | Chat message display rendering | user test |
+| 7 | gap7 | Navigation tabs visible | gap8, gap9, gap10 depend |
+| 8 | gap8 | Ask mode UI + mode selector | user test |
+| 9 | gap9 | Agent mode (tool calling) | user test |
+| 10 | gap10 | Plan mode | less critical |
+| 11 | gap11 | Tools count badge in nav | user verification |
+| 12 | gap12 | Dark theme applied | appearance only |
+| 13 | gap13 | Config round-trip end-to-end | verification |
+| 14 | gap14 | Cloud model setup UI | OpenAI support |
+| 15 | gap15 | Subscription service | defer |
 
 ---
 
@@ -555,7 +592,9 @@
   - Route to handler registry
 - **Depends on:** Step 13
 - **Existing reference:** Use existing `MessageDispatcher.cs` as backend
-- **Status:** Completed
+- **Status:** Completed (corrected gap2 remediation: `MessageDispatcher.cs` never existed as a C# class; stub MessengerService created as no-op IMessengerService — yields empty stream. Real streaming wired in gap4.)
+- **Files created:** `src/VSIXProject1/Services/Implementations/MessengerService.cs`
+- **Note:** Step19 was previously marked Complete but file was never written to disk.
 
 ### step20: Implement IToolService ✅
 - **Action:** Create `Services/Implementations/ToolService.cs`

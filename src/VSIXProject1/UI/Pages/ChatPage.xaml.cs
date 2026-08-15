@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Windows.Controls;
+using Microsoft.Extensions.DependencyInjection;
+using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 
 namespace ContinueVS.UI.Pages
@@ -10,9 +12,15 @@ namespace ContinueVS.UI.Pages
         {
             try
             {
-                if (ViewModelLocator.ServiceProvider != null)
+                var sp = ViewModelLocator.ServiceProvider;
+                if (sp != null)
                 {
-                    this.DataContext = new ViewModelLocator().ChatPageViewModel;
+                    var llm         = sp.GetRequiredService<ILlmService>();
+                    var context     = sp.GetRequiredService<IContextService>();
+                    var tool        = sp.GetRequiredService<IToolService>();
+                    var session     = sp.GetRequiredService<ISessionService>();
+                    var notif       = sp.GetRequiredService<INotificationService>();
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif);
                 }
             }
             catch (Exception ex)

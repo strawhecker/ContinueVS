@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Implementations;
 using ContinueVS.UI.Navigation;
+using ContinueVS.ViewModels;
 
 namespace ContinueVS.Services
 {
@@ -28,6 +29,8 @@ namespace ContinueVS.Services
             services.AddSingleton<IThemeService, ThemeService>();
 
             // Register core services as singletons (application lifetime)
+            services.AddSingleton<IIdeService, VsIdeService>();
+            services.AddSingleton<IMessengerService, MessengerService>();
             services.AddSingleton<IConfigService, ConfigService>();
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();
@@ -35,6 +38,7 @@ namespace ContinueVS.Services
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();
+            services.AddSingleton<INotificationService, WpfNotificationService>();
 
             // Build and return
             return services.BuildServiceProvider();
