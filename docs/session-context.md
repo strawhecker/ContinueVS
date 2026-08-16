@@ -466,417 +466,255 @@ The issue was actually TWO problems working together:
 
 ---
 
-### gap8_1: tools not defined
+### gap8_1: Built-in Tools Registry NOT WIRED
+**Status:** 🟡 Incomplete | Type: Tool Discovery & Registration  
+**Current State:**
+- IToolService exists with `GetAvailableTools()` interface
+- Tool definitions (read_file, create_file, run_terminal, etc.) exist in reference architecture
+- ContinueVS does not enumerate, register, or expose built-in tools to LLM
+- Tool registry not populated in ConfigPageViewModel
 
+**What Continue.js Does (from reference):**
+- `reference/continue-src/core/tools/`: Built-in tools catalog (read_file, create_file, run_terminal_command, etc.)
+- Tool metadata: name, description, arguments, invoke permissions (Automatic/Ask First/Excluded)
+- Core.getKnownTools() returns registered tools to UI + LLM
+- Tool registry populated at startup from built-ins + MCP servers
 
-Tools
+**ContinueVS Gap:**
+- No built-in tool definitions (POCO/enum for standard tools)
+- IToolService.GetAvailableTools() returns empty list
+- No tool invoke state (Automatic/Ask First/Excluded)
+- ConfigPageViewModel.AvailableTools collection remains empty
+- No MCP server support (stretch goal)
+
+**Remediation:**
+1. Create tool definitions in `Core/Types/BuiltInTools.cs` (enum + metadata POCOs)
+2. Populate IToolService.GetAvailableTools() with built-in tools (17/19 for initial MVP)
+3. Bind ConfigPageViewModel.AvailableTools to service results
+4. Implement tool filtering by mode (Agent has edit tools; Ask/Plan do not)
+
+**Depends on:** gap3 (ConfigPageViewModel wiring)
+
+**Reference: Built-in Tools Catalog**
 Manage MCP servers and tool policies
 
-Built-in Tools
-17/19
-read_file
-Use this tool if you need to view the contents of an existing file.
+| Tool | title | Default | description | Argument1 | Argument2 |
+|---|---|---|---|---|---|
+| read_file | Use this tool if you need to view the contents of an existing file | Automatic | Use this tool if you need to view the contents of an existing file | filepath(string):The path of the file to read. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI | NA |
+| create_new_file | Create a new file. Only use this when a file doesn't exist and should be created | Ask First | Create a new file. Only use this when a file doesn't exist and should be created | filepath(string):The path where the new file should be created. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI. | contents(string):The contents to write to the new file |
+| run_terminal_command | Run a terminal command in the current directory. The shell is not stateful and will not remember any previous commands. When a command is run in the background ALWAYS suggest using shell commands to stop it; NEVER suggest using Ctrl+C. When suggesting subsequent shell commands ALWAYS format them in shell command blocks. Do NOT perform actions requiring special/admin privileges. IMPORTANT: To edit files, use Edit/MultiEdit tools instead of bash commands (sed, awk, etc). Choose terminal commands and scripts optimized for win32 and x64 and shell powershell.exe. | Ask First | Run a terminal command in the current directory. The shell is not stateful and will not remember any previous commands. When a command is run in the background ALWAYS suggest using shell commands to stop it; NEVER suggest using Ctrl+C. When suggesting subsequent shell commands ALWAYS format them in shell command blocks. Do NOT perform actions requiring special/admin privileges. IMPORTANT: To edit files, use Edit/MultiEdit tools instead of bash commands (sed, awk, etc). Choose terminal commands and scripts optimized for win32 and x64 and shell powershell.exe. | command(string):The command to run. This will be passed directly into the IDE shell | waitForCompletion(boolean):Whether to wait for the command to complete before returning. Default is true. Set to false to run the command in the background. Set to true to run the command in the foreground and wait to collect the output. |
+| file_glob_search | Search for files recursively in the project using glob patterns. Supports ** for recursive directory search. Will not show many build, cache, secrets dirs/files (can use ls tool instead). Output may be truncated; use targeted patterns | Automatic | Search for files recursively in the project using glob patterns. Supports ** for recursive directory search. Will not show many build, cache, secrets dirs/files (can use ls tool instead). Output may be truncated; use targeted patterns | pattern(string):Glob pattern for file path matching | NA |
+| view_diff | View the current diff of working changes | Automatic | View the current diff of working changes | NA | NA |
+| read_currently_open_file | Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool. | Ask First | Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool. | NA | NA |
+| ls | List files and folders in a given directory | Automatic | List files and folders in a given directory | dirPath(string):The directory path. Can be relative to project root, absolute path, tilde path (~/...), or file:// URI. Use forward slash paths | recursive(boolean):If true, lists files and folders recursively. To prevent unexpected large results, use this sparingly |
+| create_rule_block | Creates a "rule" that can be referenced in future conversations. This should be used whenever you want to establish code standards / preferences that should be applied consistently, or when you want to avoid making a mistake again. To modify existing rules, use the edit tool instead. Rule Types: - Always: Include only "rule" (always included in model context) - Auto Attached: Include "rule", "globs", and/or "regex" (included when files match patterns) - Agent Requested: Include "rule" and "description" (AI decides when to apply based on description) - Manual: Include only "rule" (only included when explicitly mentioned using @ruleName) | Excluded | Creates a "rule" that can be referenced in future conversations. This should be used whenever you want to establish code standards / preferences that should be applied consistently, or when you want to avoid making a mistake again. To modify existing rules, use the edit tool instead. Rule Types: - Always: Include only "rule" (always included in model context) - Auto Attached: Include "rule", "globs", and/or "regex" (included when files match patterns) - Agent Requested: Include "rule" and "description" (AI decides when to apply based on description) - Manual: Include only "rule" (only included when explicitly mentioned using @ruleName) | name(string):Short, descriptive name summarizing the rule's purpose (e.g. 'React Standards', 'Type Hints') | rule(string):Clear, imperative instruction for future code generation (e.g. 'Use named exports', 'Add Python type hints'). Each rule should focus on one specific standard. | description(string):Description of when this rule should be applied. Required for Agent Requested rules (AI decides when to apply). Optional for other types. | globs(string):Optional file patterns to which this rule applies (e.g. ['**/*.{ts,tsx}'] or ['src/**/*.ts', 'tests/**/*.ts']) | regex(string):Optional regex patterns to match against file content. Rule applies only to files whose content matches the pattern (e.g. 'useEffect' for React hooks or '\bclass\b' for class definitions) | alwaysApply(boolean):Whether this rule should always be applied. Set to false for Agent Requested and Manual rules. Omit or set to true for Always and Auto Attached rules. |
+| fetch_url_content | Can be used to view the contents of a website using a URL. Do NOT use this for files. | Ask First | Can be used to view the contents of a website using a URL. Do NOT use this for files. | url(string):The URL to read |
+| request_rule | Use this tool to retrieve additional 'rules' that contain more context/instructions based on their descriptions. Available rules: No rules available. | Excluded | Use this tool to retrieve additional 'rules' that contain more context/instructions based on their descriptions. Available rules: No rules available. | name(string):Name of the rule |
+| read_skill | Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks. The skill name should match one of the available skills listed below: | Ask First | Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks. The skill name should match one of the available skills listed below: | skillName(string):The name of the skill to read. This should match the name from the available skills. |
+| search_web | Performs a web search, returning top results. Use this tool sparingly - only for questions that require specialized, external, and/or up-to-date knowledege. Common programming questions do not require web search. | Automatic | Performs a web search, returning top results. Use this tool sparingly - only for questions that require specialized, external, and/or up-to-date knowledege. Common programming questions do not require web search. | query(string):The natural language search query |
+| view_repo_map | View the repository map | Ask First | View the repository map |
+| view_subdirectory | View the contents of a subdirectory | Ask First | View the contents of a subdirectory | directory_path(string):The path of the subdirectory to view, relative to the root of the workspace |
+| codebase | Use this tool to semantically search through the codebase and retrieve relevant code snippets based on a natural language query. This helps find relevant code context for understanding or working with the codebase. | Ask First | Use this tool to semantically search through the codebase and retrieve relevant code snippets based on a natural language query. This helps find relevant code context for understanding or working with the codebase. | query(string):Natural language description of what you're looking for in the codebase (e.g., 'authentication logic', 'database connection setup', 'error handling') |
+| read_file_range | Use this tool to read a specific range of lines from an existing file. Only supports positive line numbers (1-based from start). For reading from the end of a file, use the terminal tool with 'tail' command instead. | Automatic | Use this tool to read a specific range of lines from an existing file. Only supports positive line numbers (1-based from start). For reading from the end of a file, use the terminal tool with 'tail' command instead. | filepath(string):The path of the file to read, relative to the root of the workspace (NOT uri or absolute path) | startLine(number):The starting line number (1-based from start). Must be a positive integer. Example: 1 = first line, 10 = tenth line | endLine(number):The ending line number (1-based from start). Must be a positive integer greater than or equal to startLine. Example: 10 = tenth line, 20 = twentieth line |
+| edit_existing_file | Use this tool to edit an existing file. If you don't know the contents of the file, read it first. When addressing code modification requests, present a concise code snippet that emphasizes only the necessary changes and uses abbreviated placeholders for unmodified sections. For example: ```language /path/to/file // ... existing code ... {{ modified code here }} // ... existing code ... {{ another modification }} // ... rest of code ... ``` In existing files, you should always restate the function or class that the snippet belongs to: ```language /path/to/file // ... existing code ... function exampleFunction() { // ... existing code ... {{ modified code here }} // ... rest of function ... } // ... rest of code ... ``` Since users have access to their complete file, they prefer reading only the relevant modifications. It's perfectly acceptable to omit unmodified portions at the beginning, middle, or end of files using these "lazy" comments. Only provide the complete file when explicitly requested. Include a concise explanation of changes unless the user specifically asks for code only. This tool CANNOT be called in parallel with any other tools, including itself | Ask First | Use this tool to edit an existing file. If you don't know the contents of the file, read it first. When addressing code modification requests, present a concise code snippet that emphasizes only the necessary changes and uses abbreviated placeholders for unmodified sections. For example: ```language /path/to/file // ... existing code ... {{ modified code here }} // ... existing code ... {{ another modification }} // ... rest of code ... ``` In existing files, you should always restate the function or class that the snippet belongs to: ```language /path/to/file // ... existing code ... function exampleFunction() { // ... existing code ... {{ modified code here }} // ... rest of function ... } // ... rest of code ... ``` Since users have access to their complete file, they prefer reading only the relevant modifications. It's perfectly acceptable to omit unmodified portions at the beginning, middle, or end of files using these "lazy" comments. Only provide the complete file when explicitly requested. Include a concise explanation of changes unless the user specifically asks for code only. This tool CANNOT be called in parallel with any other tools, including itself | filepath(string):The path of the file to edit, relative to the root of the workspace. | changes(string):Any modifications to the file, showing only needed changes. Do NOT wrap this in a codeblock or write anything besides the code changes. In larger files, use brief language-appropriate placeholders for large unmodified sections, e.g. '// ... existing code ...' |
+| single_find_and_replace | Performs exact string replacements in a file. IMPORTANT: - ALWAYS use the `read_file` tool just before making edits, to understand the file's up-to-date contents and context. The user can also edit the file while you are working with it. - This tool CANNOT be called in parallel with any other tools, including itself - When editing text from `read_file` tool output, ensure you preserve exact whitespace/indentation. - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked. - Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable, for instance. WARNINGS: - When not using `replace_all`, the edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`. - The edit will likely fail if you have not recently used the `read_file` tool to view up-to-date file contents. | Ask First | Performs exact string replacements in a file. IMPORTANT: - ALWAYS use the `read_file` tool just before making edits, to understand the file's up-to-date contents and context. The user can also edit the file while you are working with it. - This tool CANNOT be called in parallel with any other tools, including itself - When editing text from `read_file` tool output, ensure you preserve exact whitespace/indentation. - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked. - Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable, for instance. WARNINGS: - When not using `replace_all`, the edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`. - The edit will likely fail if you have not recently used the `read_file` tool to view up-to-date file contents. | filepath(string):The path to the file to modify, relative to the root of the workspace | old_string(string):The text to replace - must be exact including whitespace/indentation | new_string(string):The text to replace it with (MUST be different from old_string) | replace_all(boolean):Replace all occurrences of old_string (default false) |
+| grep_search | Performs a regular expression (regex) search over the repository using ripgrep. Will not include results for many build, cache, secrets dirs/files. Output may be truncated, so use targeted queries | Automatic | Performs a regular expression (regex) search over the repository using ripgrep. Will not include results for many build, cache, secrets dirs/files. Output may be truncated, so use targeted queries | query(string):The regex pattern to search for within file contents. Use regex with alternation (e.g., 'word1|word2|word3') or character classes to find multiple potential words in a single search. |
 
-Automatic
-Description:
-Use this tool if you need to view the contents of an existing file.
-Arguments:
-filepath(string):The path of the file to read. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI
-create_new_file
-Create a new file. Only use this when a file doesn't exist and should be created
+**ContinueVS Gap:**
+- No built-in tool definitions (POCO/enum for standard tools)
+- IToolService.GetAvailableTools() returns empty list
+- No tool invoke state (Automatic/Ask First/Excluded)
+- ConfigPageViewModel.AvailableTools collection remains empty
+- No MCP server support (stretch goal)
 
-Ask First
-Description:
-Create a new file. Only use this when a file doesn't exist and should be created
-Arguments:
-filepath(string):The path where the new file should be created. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI.
-contents(string):The contents to write to the new file
-run_terminal_command
-Run a terminal command in the current directory. The shell is not stateful and will not remember any previous commands. When a command is run in the background ALWAYS suggest using shell commands to stop it; NEVER suggest using Ctrl+C. When suggesting subsequent shell commands ALWAYS format them in shell command blocks. Do NOT perform actions requiring special/admin privileges. IMPORTANT: To edit files, use Edit/MultiEdit tools instead of bash commands (sed, awk, etc). Choose terminal commands and scripts optimized for win32 and x64 and shell powershell.exe.
+**Remediation:**
+1. Create tool definitions in `Core/Types/BuiltInTools.cs` (enum + metadata POCOs)
+2. Populate IToolService.GetAvailableTools() with built-in tools (17/19 for initial MVP)
+3. Bind ConfigPageViewModel.AvailableTools to service results
+4. Implement tool filtering by mode (Agent has edit tools; Ask/Plan do not)
 
-Ask First
-Description:
-Run a terminal command in the current directory. The shell is not stateful and will not remember any previous commands. When a command is run in the background ALWAYS suggest using shell commands to stop it; NEVER suggest using Ctrl+C. When suggesting subsequent shell commands ALWAYS format them in shell command blocks. Do NOT perform actions requiring special/admin privileges. IMPORTANT: To edit files, use Edit/MultiEdit tools instead of bash commands (sed, awk, etc). Choose terminal commands and scripts optimized for win32 and x64 and shell powershell.exe.
-Arguments:
-command(string):The command to run. This will be passed directly into the IDE shell.
-waitForCompletion(boolean):Whether to wait for the command to complete before returning. Default is true. Set to false to run the command in the background. Set to true to run the command in the foreground and wait to collect the output.
-file_glob_search
-Search for files recursively in the project using glob patterns. Supports ** for recursive directory search. Will not show many build, cache, secrets dirs/files (can use ls tool instead). Output may be truncated; use targeted patterns
-
-Automatic
-Description:
-Search for files recursively in the project using glob patterns. Supports ** for recursive directory search. Will not show many build, cache, secrets dirs/files (can use ls tool instead). Output may be truncated; use targeted patterns
-Arguments:
-pattern(string):Glob pattern for file path matching
-view_diff
-View the current diff of working changes
-
-Automatic
-Description:
-View the current diff of working changes
-Arguments:
-read_currently_open_file
-Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool.
-
-Ask First
-Description:
-Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool.
-Arguments:
-ls
-List files and folders in a given directory
-
-Automatic
-Description:
-List files and folders in a given directory
-Arguments:
-dirPath(string):The directory path. Can be relative to project root, absolute path, tilde path (~/...), or file:// URI. Use forward slash paths
-recursive(boolean):If true, lists files and folders recursively. To prevent unexpected large results, use this sparingly
-create_rule_block
-Creates a "rule" that can be referenced in future conversations. This should be used whenever you want to establish code standards / preferences that should be applied consistently, or when you want to avoid making a mistake again. To modify existing rules, use the edit tool instead. Rule Types: - Always: Include only "rule" (always included in model context) - Auto Attached: Include "rule", "globs", and/or "regex" (included when files match patterns) - Agent Requested: Include "rule" and "description" (AI decides when to apply based on description) - Manual: Include only "rule" (only included when explicitly mentioned using @ruleName)
-
-Excluded
-Description:
-Creates a "rule" that can be referenced in future conversations. This should be used whenever you want to establish code standards / preferences that should be applied consistently, or when you want to avoid making a mistake again. To modify existing rules, use the edit tool instead. Rule Types: - Always: Include only "rule" (always included in model context) - Auto Attached: Include "rule", "globs", and/or "regex" (included when files match patterns) - Agent Requested: Include "rule" and "description" (AI decides when to apply based on description) - Manual: Include only "rule" (only included when explicitly mentioned using @ruleName)
-Arguments:
-name(string):Short, descriptive name summarizing the rule's purpose (e.g. 'React Standards', 'Type Hints')
-rule(string):Clear, imperative instruction for future code generation (e.g. 'Use named exports', 'Add Python type hints'). Each rule should focus on one specific standard.
-description(string):Description of when this rule should be applied. Required for Agent Requested rules (AI decides when to apply). Optional for other types.
-globs(string):Optional file patterns to which this rule applies (e.g. ['**/*.{ts,tsx}'] or ['src/**/*.ts', 'tests/**/*.ts'])
-regex(string):Optional regex patterns to match against file content. Rule applies only to files whose content matches the pattern (e.g. 'useEffect' for React hooks or '\bclass\b' for class definitions)
-alwaysApply(boolean):Whether this rule should always be applied. Set to false for Agent Requested and Manual rules. Omit or set to true for Always and Auto Attached rules.
-fetch_url_content
-Can be used to view the contents of a website using a URL. Do NOT use this for files.
-
-Ask First
-Description:
-Can be used to view the contents of a website using a URL. Do NOT use this for files.
-Arguments:
-url(string):The URL to read
-request_rule
-Use this tool to retrieve additional 'rules' that contain more context/instructions based on their descriptions. Available rules: No rules available.
-
-Excluded
-Description:
-Use this tool to retrieve additional 'rules' that contain more context/instructions based on their descriptions. Available rules: No rules available.
-Arguments:
-name(string):Name of the rule
-read_skill
-Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks. The skill name should match one of the available skills listed below:
-
-Ask First
-Description:
-Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks. The skill name should match one of the available skills listed below:
-Arguments:
-skillName(string):The name of the skill to read. This should match the name from the available skills.
-search_web
-Performs a web search, returning top results. Use this tool sparingly - only for questions that require specialized, external, and/or up-to-date knowledege. Common programming questions do not require web search.
-
-Automatic
-Description:
-Performs a web search, returning top results. Use this tool sparingly - only for questions that require specialized, external, and/or up-to-date knowledege. Common programming questions do not require web search.
-Arguments:
-query(string):The natural language search query
-view_repo_map
-View the repository map
-
-Ask First
-Description:
-View the repository map
-Arguments:
-view_subdirectory
-View the contents of a subdirectory
-
-Ask First
-Description:
-View the contents of a subdirectory
-Arguments:
-directory_path(string):The path of the subdirectory to view, relative to the root of the workspace
-codebase
-Use this tool to semantically search through the codebase and retrieve relevant code snippets based on a natural language query. This helps find relevant code context for understanding or working with the codebase.
-
-Ask First
-Description:
-Use this tool to semantically search through the codebase and retrieve relevant code snippets based on a natural language query. This helps find relevant code context for understanding or working with the codebase.
-Arguments:
-query(string):Natural language description of what you're looking for in the codebase (e.g., 'authentication logic', 'database connection setup', 'error handling')
-read_file_range
-Use this tool to read a specific range of lines from an existing file. Only supports positive line numbers (1-based from start). For reading from the end of a file, use the terminal tool with 'tail' command instead.
-
-Automatic
-Description:
-Use this tool to read a specific range of lines from an existing file. Only supports positive line numbers (1-based from start). For reading from the end of a file, use the terminal tool with 'tail' command instead.
-Arguments:
-filepath(string):The path of the file to read, relative to the root of the workspace (NOT uri or absolute path)
-startLine(number):The starting line number (1-based from start). Must be a positive integer. Example: 1 = first line, 10 = tenth line
-endLine(number):The ending line number (1-based from start). Must be a positive integer greater than or equal to startLine. Example: 10 = tenth line, 20 = twentieth line
-edit_existing_file
-Use this tool to edit an existing file. If you don't know the contents of the file, read it first. When addressing code modification requests, present a concise code snippet that emphasizes only the necessary changes and uses abbreviated placeholders for unmodified sections. For example: ```language /path/to/file // ... existing code ... {{ modified code here }} // ... existing code ... {{ another modification }} // ... rest of code ... ``` In existing files, you should always restate the function or class that the snippet belongs to: ```language /path/to/file // ... existing code ... function exampleFunction() { // ... existing code ... {{ modified code here }} // ... rest of function ... } // ... rest of code ... ``` Since users have access to their complete file, they prefer reading only the relevant modifications. It's perfectly acceptable to omit unmodified portions at the beginning, middle, or end of files using these "lazy" comments. Only provide the complete file when explicitly requested. Include a concise explanation of changes unless the user specifically asks for code only. This tool CANNOT be called in parallel with any other tools, including itself
-
-Ask First
-Description:
-Use this tool to edit an existing file. If you don't know the contents of the file, read it first. When addressing code modification requests, present a concise code snippet that emphasizes only the necessary changes and uses abbreviated placeholders for unmodified sections. For example: ```language /path/to/file // ... existing code ... {{ modified code here }} // ... existing code ... {{ another modification }} // ... rest of code ... ``` In existing files, you should always restate the function or class that the snippet belongs to: ```language /path/to/file // ... existing code ... function exampleFunction() { // ... existing code ... {{ modified code here }} // ... rest of function ... } // ... rest of code ... ``` Since users have access to their complete file, they prefer reading only the relevant modifications. It's perfectly acceptable to omit unmodified portions at the beginning, middle, or end of files using these "lazy" comments. Only provide the complete file when explicitly requested. Include a concise explanation of changes unless the user specifically asks for code only. This tool CANNOT be called in parallel with any other tools, including itself
-Arguments:
-filepath(string):The path of the file to edit, relative to the root of the workspace.
-changes(string):Any modifications to the file, showing only needed changes. Do NOT wrap this in a codeblock or write anything besides the code changes. In larger files, use brief language-appropriate placeholders for large unmodified sections, e.g. '// ... existing code ...'
-single_find_and_replace
-Performs exact string replacements in a file. IMPORTANT: - ALWAYS use the `read_file` tool just before making edits, to understand the file's up-to-date contents and context. The user can also edit the file while you are working with it. - This tool CANNOT be called in parallel with any other tools, including itself - When editing text from `read_file` tool output, ensure you preserve exact whitespace/indentation. - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked. - Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable, for instance. WARNINGS: - When not using `replace_all`, the edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`. - The edit will likely fail if you have not recently used the `read_file` tool to view up-to-date file contents.
-
-Ask First
-Description:
-Performs exact string replacements in a file. IMPORTANT: - ALWAYS use the `read_file` tool just before making edits, to understand the file's up-to-date contents and context. The user can also edit the file while you are working with it. - This tool CANNOT be called in parallel with any other tools, including itself - When editing text from `read_file` tool output, ensure you preserve exact whitespace/indentation. - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked. - Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable, for instance. WARNINGS: - When not using `replace_all`, the edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`. - The edit will likely fail if you have not recently used the `read_file` tool to view up-to-date file contents.
-Arguments:
-filepath(string):The path to the file to modify, relative to the root of the workspace
-old_string(string):The text to replace - must be exact including whitespace/indentation
-new_string(string):The text to replace it with (MUST be different from old_string)
-replace_all(boolean):Replace all occurrences of old_string (default false)
-grep_search
-Performs a regular expression (regex) search over the repository using ripgrep. Will not include results for many build, cache, secrets dirs/files. Output may be truncated, so use targeted queries
-
-Automatic
-Description:
-Performs a regular expression (regex) search over the repository using ripgrep. Will not include results for many build, cache, secrets dirs/files. Output may be truncated, so use targeted queries
-Arguments:
-query(string):The regex pattern to search for within file contents. Use regex with alternation (e.g., 'word1|word2|word3') or character classes to find multiple potential words in a single search.
-MCP Servers
+**Depends on:** gap3 (ConfigPageViewModel wiring)
 
 ---
 
-### gap8_2: USER SETTINGS
+### gap8_2: User Settings NOT PERSISTED
+**Status:** 🟡 Incomplete | Type: Settings Management  
+**Current State:**
+- No settings UI page in ConfigPage
+- ChatSettings properties exist but not bound to UI controls
+- No persistence to config.json settings section
+- No settings change notifications to restart affected services
 
-User Settings
-Chat
-Show Session Tabs
-Displays tabs above the chat as an alternative way to organize and access your sessions.
-Wrap Codeblocks
-Wraps long lines in code blocks instead of showing horizontal scroll.
-Show Chat Scrollbar
-Enables a scrollbar in the chat window.
-Text-to-Speech Output
-Reads LLM responses aloud with TTS.
-Enable Session Titles
-Generates summary titles for each chat session after the first message, using the current Chat model.
-Format Markdown
-If off, shows responses as raw text.
+**What Continue.js Does (from reference):**
+- Settings categories: Chat (tabs, wrap, TTS, session titles), Appearance (font size), Autocomplete (timeout, debounce), Experimental
+- Persisted in config.json under "settings" key
+- Observable settings changes trigger UI/service updates without restart
+
+**ContinueVS Gap:**
+- ConfigPageViewModel has no settings bindings
+- No UI controls for Chat/Appearance/Autocomplete settings
+- ConfigService does not load/save settings.* keys
+- No notification on settings change
+
+**Remediation:**
+1. Extend ConfigPageViewModel with settings properties (ObservableCollections for categories)
+2. Create SettingsControl WPF page/UserControl with radio buttons, checkboxes, spinners
+3. Modify ConfigService to include settings section in config serialization
+4. Implement ConfigChanged event for settings updates
+
+**Depends on:** gap3 (ConfigPageViewModel wiring)
+
+**Reference: User Settings Catalog**
+| User Settings | title | Default |
+|---|---|---|
+| Show Session Tabs | Displays tabs above the chat as an alternative way to organize and access your sessions. | off |
+| Wrap Codeblocks | Wraps long lines in code blocks instead of showing horizontal scroll. | off |
+| Show Chat Scrollbar | Enables a scrollbar in the chat window. | on |
+| Text-to-Speech Output | Reads LLM responses aloud with TTS. | off |
+| Enable Session Titles | Generates summary titles for each chat session after the first message, using the current Chat model. | on |
+| Format Markdown | If off, shows responses as raw text. | on |
+
 Appearance
-Font Size
-Specifies base font size for UI elements.
+| User Settings | title | Default |
+|---|---|---|
+| Font Size | Specifies base font size for UI elements. | 14 |
 
 Autocomplete
-Multiline Autocompletions
-Controls multiline completions for autocomplete.
-Auto
-Autocomplete Timeout (ms)
-Maximum time in milliseconds for autocomplete request/retrieval.
-
-Autocomplete Debounce (ms)
-Minimum time in milliseconds to trigger an autocomplete request after a change.
-
-Disable autocomplete in files
-List of comma-separated glob pattern to disable autocomplete in matching files.
+| User Settings | title | Default |
+|---|---|---|
+| Multiline Autocompletions | Controls multiline completions for autocomplete. | auto | always/never |
+| Autocomplete Timeout (ms) | Maximum time in milliseconds for autocomplete request/retrieval. | 150 |
+| Autocomplete Debounce (ms) | Minimum time in milliseconds to trigger an autocomplete request after a change. | 250 |
+| Disable autocomplete in files | List of comma-separated glob pattern to disable autocomplete in matching files. | | water mark "**/*.(txt,md) |
 
 Experimental
-Show Experimental Settings
-Add Current File by Default
-the currently open file is added as context in every new conversation.
-Enable experimental tools
-enables access to experimental tools that are still in development.
-Only use system message tools
-Continue will not attempt to use native tool calling and will only use system message tools.
-@Codebase: use tool calling only
-@codebase context provider will only use tool calling for code retrieval.
-Stream after tool rejection
-streaming will continue after the tool call is rejected.
+| User Settings | title | Default |
+|---|---|---|
+| Add Current File by Default | the currently open file is added as context in every new conversation. | off |
+| Enable experimental tools | enables access to experimental tools that are still in development. | on |
+| Only use system message tools | Continue will not attempt to use native tool calling and will only use system message tools. | off |
+| @Codebase: use tool calling only | @codebase context provider will only use tool calling for code retrieval. | off |
+| Stream after tool rejection | streaming will continue after the tool call is rejected. | off |
 
 ---
 
-### gap8_3: Edit config in editor
+### gap8_3: Config File Editor NOT WIRED
+**Status:** 🟡 Incomplete | Type: Manual Config Access  
+**Current State:**
+- No raw JSON editor in ConfigPage
+- Users cannot manually edit config.json
+- No "Edit in Editor" button or fallback
+
+**What Continue.js Does (from reference):**
+- Continue GUI button: "Edit Config in Native Editor"
+- Opens `~/.continurc/config.json` in VS Code (or user's editor)
+
+**ContinueVS Gap:**
+- No button to open config.json in Visual Studio editor
+- No native file association or editor launch
+
+**Remediation:**
+1. Add "Edit Config in Editor" button to ConfigPage
+2. Call IIdeService.OpenFileInEditorAsync(configPath) on click
+3. Implement VsIdeService.OpenFileInEditorAsync() to use VS.Edit
+
+**Depends on:** gap2 (IIdeService wiring)
 
 ---
 
-### gap8_4: Add Chat Model
+### gap8_4: Add Chat Model UI NOT WIRED
+**Status:** 🟡 Incomplete | Type: Model Registration & Provider Support  
+**Current State:**
+- No "Add Chat Model" dialog in ConfigPage
+- Users cannot add new models without manually editing config.json
+- No provider selector, model discovery/autodetect, or connection test
+- Model provider list not defined in code
 
-Add Chat model
-Provider
+**What Continue.js Does (from reference):**
+- Modal dialog with four-step UI:
+  1. **Provider Selector** dropdown with supported providers list + "Install provider" link for downloads
+  2. **Model Selector** dropdown with provider-specific models + "Autodetect" option for dynamic model discovery
+  3. **Connect Button** to validate API key and model availability
+  4. **Edit Link** to manually edit provider config in YAML editor
+- Multiple provider support: Anthropic, Azure OpenAI, Google Gemini, Mistral, Ollama, OpenAI, OpenRouter, etc.
+- Each provider has download URL and list of available models
 
+**ContinueVS Gap:**
+- ConfigPageViewModel has AddModelCommand but not wired to UI dialog
+- No ModelProvider enum or provider definitions with metadata
+- No model autodetection (would require provider-specific API clients)
+- No connection validation before adding model to config
+- ConfigService does not handle model registration flow
+- No YAML editor support (currently store JSON only)
 
-Ollama
-Don't see your provider? Click here to view the full list
-Install provider
-https://ollama.ai/download
+**Remediation:**
+1. Create ModelProvider enum with Anthropic, Azure, Gemini, Mistral, Ollama, OpenAI, OpenRouter, etc.
+2. Create AddModelDialog/ViewModel with:
+   - Provider dropdown bound to enum
+   - Model dropdown bound to provider-specific model list (from enum)
+   - Autodetect option that calls provider API to discover models
+   - Connect button that validates and adds to config
+3. Implement provider-specific API client for model discovery (MVP: Ollama only)
+4. Wire ConfigPageViewModel.AddModelCommand → AddModelDialog
+5. Consider config format migration from JSON to YAML for better readability (stretch goal)
 
-Model
+**Depends on:** gap3 (ConfigPageViewModel wiring), gap8_1 (tools registry for understanding provider patterns)
 
-Autodetect
-Connect
-This will update your config file
+**Reference: Supported Providers & Models Catalog**
 
-Add Chat model
-Provider
-
-
-Ollama
-Don't see your provider? Click here to view the full list
-Install provider
-https://ollama.ai/download
-
-Model
-
-Autodetect
-Connect
-This will update your config file
-
-providers to support:
-Anthropic
-* Claude Opus 4.6
-* Claude Opus 4.5
-* Claude Opus 4.1
-* Claude Sonnet 4.6
-* Claude Sonnet 4.5
-* Claude Sonnet 4
-* Claude Haiku 4.5
-Azure OpenAI
-* GPT-4o
-Google Gemini
-* Gemini 3.1 Pro
-* Gemini 3 Flash
-* Gemini 3.1 Flash Lite
-* Gemini 2.5 Pro
-* Gemini 2.5 Flash
-* Gemini 2.5 Flash Lite
-Mistral
-* Devstral Medium
-* Devstral Small
-* Magistral Medium
-* Devstral 8B
-* Codestral
-* Codestral Mamba
-* Mistral Large
-* Mistral Small
-* Mistral 8x22B
-Ollama
-* Llama3.1 Chat
-* Llama3.2 Chat
-* DeepSeek Coder
-* Mistral
-* CodeLlama Instruct
-* Llama3.2 1b Chat
-* Llama3.2 3b Chat
-* Llama3.2 11b Chat
-* Llama3.2 90b Chat
-* Llama3 Chat
-* Granite Code
-* WizardCoder
-* Phind CodeLlama (34b)
-* Gemma 4
-OpenAI
-* GPT-5.4 Pro
-* GPT-5.4
-* GPT-5.4 Mini
-* GPT-5.2
-* GPT-5.1
-* GPT-5
-* GPT-5 Mini
-* GPT-5 Codex
-* GPT-4.1
-* GPT-4.1 Mini
-* Codex Minit
-* o3
-* o4
-* GPT-4o
-* GPT-4o Mini
-* GPT-4 Turbo
-* GPT-3.5-Turbo
-OpenRouter
+| Provider | Download URL | Models |
+|---|---|---|
+| Anthropic | https://www.anthropic.com | Claude Opus 4.6, Claude Opus 4.5, Claude Opus 4.1, Claude Sonnet 4.6, Claude Sonnet 4.5, Claude Sonnet 4, Claude Haiku 4.5 |
+| Azure OpenAI | https://azure.microsoft.com | GPT-4o |
+| Google Gemini | https://ai.google.dev | Gemini 3.1 Pro, Gemini 3 Flash, Gemini 3.1 Flash Lite, Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.5 Flash Lite |
+| Mistral | https://console.mistral.ai | Devstral Medium, Devstral Small, Magistral Medium, Devstral 8B, Codestral, Codestral Mamba, Mistral Large, Mistral Small, Mistral 8x22B |
+| Ollama | https://ollama.ai/download | Llama3.1 Chat, Llama3.2 Chat, DeepSeek Coder, Mistral, CodeLlama Instruct, Llama3.2 (1b/3b/11b/90b), Llama3 Chat, Granite Code, WizardCoder, Phind CodeLlama (34b), Gemma 4 |
+| OpenAI | https://openai.com | GPT-5.4 Pro, GPT-5.4, GPT-5.4 Mini, GPT-5.2, GPT-5.1, GPT-5, GPT-5 Mini, GPT-5 Codex, GPT-4.1, GPT-4.1 Mini, Codex Mini, o3, o4, GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5-Turbo |
+| OpenRouter | https://openrouter.ai | (Dynamic discovery via API) |
 
 ---
 
-### gap8_5: inportant rules: chat/agent/plan
+### gap8_5: LLM System Messages NOT WIRED
+**Status:** 🟡 Incomplete | Type: Mode-Specific Instructions  
+**Current State:**
+- ChatPageViewModel has ChatMode enum (Chat, Agent, Plan)
+- No system message injection based on mode
+- MessengerService does not differentiate LLM instructions by mode
+- All modes use identical prompt context
 
-chat:
-Default chat system message
-<important_rules>
-  You are in chat mode.
+**What Continue.js Does (from AGENTS.md):**
+- Each mode has distinct system message injected into LLM context:
+  - **Chat mode**: Read-only analysis; offer Apply Button or Agent Mode switch for code changes
+  - **Plan mode**: Read-only planning tool; suggest Agent Mode for implementation
+  - **Agent mode**: Full tool calling enabled; use edit tools for implementation
+- System messages guide LLM behavior and inform users of mode capabilities
+- Code snippet formatting rules consistent across all modes (include file path, abbreviate large blocks)
 
-  If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.
-  If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.
+**ContinueVS Gap:**
+- Mode-specific system messages not defined in code
+- MessengerService.StreamAsync() does not prepend mode message to prompt
+- No guidance for users on mode switching or capabilities
+- Code snippet formatting rules not enforced in prompts
 
-  Always include the language and file name in the info string when you write code blocks.
-  If you are editing "src/main.py" for example, your code block should start with '```python src/main.py'
+**Remediation:**
+1. Define mode-specific system messages as constants or enum properties:
+   - **Chat**: "You are in chat mode. If user asks to make changes, offer Apply Button or suggest switching to Agent Mode via Mode Selector. Always include language and file path in code blocks. Use abbreviated syntax for large files (// ... existing code ...)."
+   - **Plan**: "You are in plan mode (read-only). Help user understand and construct plans. Only use read-only tools. For changes, suggest switching to Agent Mode. Use code blocks for planning only, not implementation."
+   - **Agent**: "You are in agent mode. Use multiple tools simultaneously if needed. Always include language and file path in code blocks. For implementation, use edit tools (not suggestion blocks)."
+2. Inject appropriate system message into MessengerService.StreamAsync():
+   - Prepend mode message to user's prompt before sending to LLM
+   - OR: Add as separate assistant context message 
+3. Add ChatModeToSystemMessageConverter (optional, if binding in XAML)
 
-  When addressing code modification requests, present a concise code snippet that
-  emphasizes only the necessary changes and uses abbreviated placeholders for
-  unmodified sections. For example:
+**Depends on:** gap5 (chat infrastructure), gap8_3 (mode selector wired)
 
-  ```language /path/to/file
-  // ... existing code ...
+**Reference: Mode System Messages**
 
-  {{ modified code here }}
-
-  // ... existing code ...
-
-  {{ another modification }}
-
-  // ... rest of code ...
-  ```
-
-  In existing files, you should always restate the function or class that the snippet belongs to:
-
-  ```language /path/to/file
-  // ... existing code ...
-
-  function exampleFunction() {
-    // ... existing code ...
-
-    {{ modified code here }}
-
-    // ... rest of function ...
-  }
-
-  // ... rest of code ...
-  ```
-
-  Since users have access to their complete file, they prefer reading only the
-  relevant modifications. It's perfectly acceptable to omit unmodified portions
-  at the beginning, middle, or end of files using these "lazy" comments. Only
-  provide the complete file when explicitly requested. Include a concise explanation
-  of changes unless the user specifically asks for code only.
-
-</important_rules>
-
-plan:
-Default plan mode system message
-<important_rules>
-  You are in plan mode, in which you help the user understand and construct a plan.
-  Only use read-only tools. Do not use any tools that would write to non-temporary files.
-  If the user wants to make changes, offer that they can switch to Agent mode to give you access to write tools to make the suggested updates.
-
-  Always include the language and file name in the info string when you write code blocks.
-  If you are editing "src/main.py" for example, your code block should start with '```python src/main.py'
-
-
-For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'
-
-However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.
-
-  In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.
-</important_rules>
-
-agent:
-Default agent system message
-<important_rules>
-  You are in agent mode.
-
-  If you need to use multiple tools, you can call multiple read-only tools simultaneously.
-
-  Always include the language and file name in the info string when you write code blocks.
-  If you are editing "src/main.py" for example, your code block should start with '```python src/main.py'
-
-
-For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'
-
-However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.
-
-</important_rules>
+| Mode | System Message | Allowed Actions |
+|------|---|---|
+| **Chat** | "You are in chat mode. If the user asks to make changes to files, offer that they can use the Apply Button on the code block, or suggest switching to Agent Mode to make updates automatically. Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use abbreviated placeholders like `// ... existing code ...` at the beginning, middle, or end. Concisely explain changes unless the user asks for code only." | Read-only responses; code suggestions with Apply button; mode switch recommendation |
+| **Plan** | "You are in plan mode, in which you help the user understand and construct a plan. Only use read-only tools. Do not use any tools that would write to non-temporary files. If the user wants to make changes, offer that they can switch to Agent Mode to give you access to write tools to make the suggested updates. Always include the language and file name in the info string when you write code blocks. For planning purposes only, output code blocks for suggestion and planning. When ready to implement, request to switch to Agent Mode." | Analysis; planning; read-only tool calls; recommend Agent Mode for implementation |
+| **Agent** | "You are in agent mode. If you need to use multiple tools, you can call multiple read-only tools simultaneously. Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use brief placeholders like `// ... existing code ...` at the beginning, middle, or end. However, only output code blocks for suggestion and demonstration purposes. For implementing changes, use the provided edit tools." | Full tool calling; concurrent tool execution; direct file edits via tools; implementation |
 
 ---
 
