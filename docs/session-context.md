@@ -706,24 +706,40 @@ Experimental
 ---
 
 ### gap8_3: Config File Editor NOT WIRED
-**Status:** 🟡 Incomplete | Type: Manual Config Access  
-**Current State:**
-- No raw JSON editor in ConfigPage
-- Users cannot manually edit config.json
-- No "Edit in Editor" button or fallback
+**Status:** ✅ Complete | Type: Manual Config Access  
+**Implementation:**
+- Added "Edit Config in Editor" button to ConfigPage.xaml (alongside Save Configuration and Reindex Workspace buttons; background #6B8E23)
+- Bound button to EditConfigCommand in ConfigPageViewModel
+- Implemented ExecuteEditConfig() in ConfigPageViewModel:
+  - Retrieves current config path via IConfigService.GetCurrentConfig().ConfigFilePath
+  - Calls IIdeService.OpenFileInEditorAsync(configPath)
+  - Includes comprehensive [gap8_3-configvm-*] debug logging for tracing
+- Implemented VsIdeService.OpenFileInEditorAsync():
+  - Validates file path (null-check, file existence check)
+  - Retrieves DTE (VS automation object) via ContinueVSPackage.Instance.GetServiceAsync(typeof(DTE))
+  - Uses ThreadHelper.JoinableTaskFactory to ensure UI thread execution
+  - Calls DTE.ItemOperations.OpenFile(filePath, Constants.vsViewKindTextView) to open in native VS editor
+  - Includes comprehensive [gap8_3-ideservice-*] debug logging for DTE acquisition and file opening
 
-**What Continue.js Does (from reference):**
-- Continue GUI button: "Edit Config in Native Editor"
-- Opens `~/.continurc/config.json` in VS Code (or user's editor)
+**Files Modified:**
+- src/VSIXProject1/UI/Pages/ConfigPage.xaml: Added "Edit Config in Editor" button with EditConfigCommand binding
+- src/VSIXProject1/ViewModels/ConfigPageViewModel.cs: Implemented ExecuteEditConfig() with debug tags and IIdeService call
+- src/VSIXProject1/Services/Implementations/VsIdeService.cs: Implemented OpenFileInEditorAsync() with DTE-based file opening and ThreadHelper coordination
 
-**ContinueVS Gap:**
-- No button to open config.json in Visual Studio editor
-- No native file association or editor launch
+**How It Works:**
+1. User clicks "Edit Config in Editor" button on ConfigPage
+2. EditConfigCommand executes ExecuteEditConfig() in ConfigPageViewModel
+3. ExecuteEditConfig() retrieves config file path from current config
+4. Calls IIdeService.OpenFileInEditorAsync(configPath)
+5. VsIdeService acquires DTE via VS service provider on UI thread
+6. DTE.ItemOperations.OpenFile() opens config.json in VS text editor
+7. User can manually edit JSON, save, and refresh ConfigPage
 
-**Remediation:**
-1. Add "Edit Config in Editor" button to ConfigPage
-2. Call IIdeService.OpenFileInEditorAsync(configPath) on click
-3. Implement VsIdeService.OpenFileInEditorAsync() to use VS.Edit
+**Design Notes:**
+- Button position: After "Save Configuration", before "Reindex Workspace" for logical flow
+- Button color (#6B8E23, olive green) chosen to distinguish from primary (blue) and secondary (purple) actions
+- Error handling: Graceful fallback if file path null, file missing, or DTE unavailable
+- Debug tags enable log-based verification: [gap8_3-configvm-editconfig-*] and [gap8_3-ideservice-*]
 
 **Depends on:** gap2 (IIdeService wiring)
 
