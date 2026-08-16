@@ -1,9 +1,15 @@
 <UserControl x:Class="ContinueVS.UI.Pages.ChatPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:ContinueVS.UI.Views">
+             xmlns:controls="clr-namespace:ContinueVS.UI.Views"
+             xmlns:converters="clr-namespace:ContinueVS.ViewModels.Converters">
+    <UserControl.Resources>
+        <converters:ChatModeToVisibilityConverter x:Key="ChatModeToVisibilityConverter"/>
+        <converters:ChatModeToBoolConverter x:Key="ChatModeToBoolConverter"/>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -14,23 +20,31 @@
             <ItemsControl ItemsSource="{Binding SelectedContext}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <local:ContextItemControl DataContext="{Binding}"/>
+                        <controls:ContextItemControl DataContext="{Binding}"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </Expander>
 
+        <!-- Mode Selector -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
+            <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <ToggleButton Content="Ask" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Ask}" Padding="8" Margin="0,0,5,0"/>
+            <ToggleButton Content="Agent" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Agent}" Padding="8" Margin="0,0,5,0"/>
+            <ToggleButton Content="Plan" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Plan}" Padding="8" Margin="0,0,5,0"/>
+        </StackPanel>
+
         <!-- Messages (Chat List) -->
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Messages}" VerticalAlignment="Stretch">
+        <ItemsControl Grid.Row="2" ItemsSource="{Binding Messages}" VerticalAlignment="Stretch">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <local:ChatMessageControl DataContext="{Binding}"/>
+                    <controls:ChatMessageControl DataContext="{Binding}"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
         <!-- Input Area -->
-        <Grid Grid.Row="2" Margin="5">
+        <Grid Grid.Row="3" Margin="5">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
@@ -43,14 +57,16 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <Button Grid.Column="1" Command="{Binding SendMessageCommand}" 
                         Content="Send" Padding="10" Margin="5,0"/>
                 <Button Grid.Column="2" Command="{Binding CancelCommand}" 
                         Content="Cancel" Padding="10" Margin="5,0"/>
+                <Button Grid.Column="3" Content="Apply" Padding="10" Margin="5,0"
+                        Visibility="{Binding CurrentMode, Converter={StaticResource ChatModeToVisibilityConverter}}"/>
             </Grid>
         </Grid>
     </Grid>
 </UserControl>
-

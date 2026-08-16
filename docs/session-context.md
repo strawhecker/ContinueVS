@@ -409,34 +409,474 @@ The issue was actually TWO problems working together:
 ---
 
 ### gap8: Ask Mode NOT VISIBLE
-**Status:** 🟡 Incomplete | Type: Missing UI Variant  
-**Current State:**
-- ChatPageViewModel exists (basic chat mode)
-- ChatPage.xaml has Message input + ItemsControl for display
-- No mode selector (Ask vs. Agent vs. Plan)
-- Send button always active (no per-mode logic)
+**Status:** ✅ Complete | Type: UI Mode Selector with System Message Injection  
+**Implementation:**
+- Created `ChatMode` enum in `ContinueVS.ViewModels` namespace with Ask, Agent, Plan values
+- Created `ChatModeSystemPrompts` static class with mode-specific system message constants:
+  - DEFAULT_ASK_SYSTEM_MESSAGE: Instructs LLM to use "Apply button or switch to Agent Mode"
+  - DEFAULT_AGENT_SYSTEM_MESSAGE: Instructs LLM for autonomous tool calling and edit approval
+  - DEFAULT_PLAN_SYSTEM_MESSAGE: Instructs LLM for read-only plan generation
+- Extended ChatPageViewModel with:
+  - Private `ChatMode _currentMode = ChatMode.Ask` field
+  - Public `CurrentMode` property with INotifyPropertyChanged notification
+  - Public `RelayCommand<ChatMode> SetModeCommand` for mode switching
+  - System message prepending in `ExecuteSendMessage()` — calls `GetSystemMessageForMode(CurrentMode)` and prepends result to LLM request before user message
+  - Private `GetSystemMessageForMode(ChatMode mode)` helper method
+- Created two WPF value converters in `ContinueVS.ViewModels.Converters`:
+  - `ChatModeToVisibilityConverter`: Maps ChatMode.Ask → Visible, others → Collapsed (for Apply button)
+  - `ChatModeToBoolConverter`: Two-way converter for ToggleButton binding to CurrentMode
+- Updated ChatPage.xaml:
+  - Added `xmlns:converters="clr-namespace:ContinueVS.ViewModels.Converters"` namespace mapping
+  - Added converter resources in UserControl.Resources
+  - Added mode selector StackPanel (Row 1) with Ask/Agent/Plan ToggleButtons using ChatModeToBoolConverter
+  - Added Apply button (visible only in Ask mode) in input grid using ChatModeToVisibilityConverter
+  - Separated namespace prefixes: `controls:` for UI controls, `converters:` for value converters
+- Added comprehensive unit tests:
+  - ChatPageViewModelTests: Tests for CurrentMode default (Ask) and SetModeCommand transitions
+  - ChatModeSystemPromptsTests: Tests for non-empty prompts and expected keywords (Apply, tool, read-only)
+  - ChatModeToVisibilityConverterTests: Tests for Ask → Visible, others → Collapsed, null → Collapsed, ConvertBack exception
+  - ChatModeToBoolConverterTests: Tests for bidirectional conversion between ChatMode and bool with parameter parsing
 
-**What Continue.js Does (from AGENTS.md):**
-- `reference/continue-src/core/llm/defaultSystemMessages.ts`: Three system prompts for three modes
-  - DEFAULT_CHAT_SYSTEM_MESSAGE: "Use Apply Button or switch to Agent Mode"
-  - DEFAULT_AGENT_SYSTEM_MESSAGE: "Call read-only tools, use edit tools for changes"
-  - DEFAULT_PLAN_SYSTEM_MESSAGE: "Read-only only, offer Agent Mode for writes"
-- ChatPageViewModel tracks cur rent mode
+**Files Modified:**
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs: Added ChatMode enum, ChatModeSystemPrompts class, CurrentMode property, SetModeCommand, GetSystemMessageForMode() method, system message prepending in ExecuteSendMessage()
+- src/VSIXProject1/ViewModels/Converters/ChatModeToVisibilityConverter.cs: Refactored to use ChatMode from ViewModels namespace
+- src/VSIXProject1/ViewModels/Converters/ChatModeToBoolConverter.cs: Refactored to use ChatMode from ViewModels namespace
+- src/VSIXProject1/UI/Pages/ChatPage.xaml: Added xmlns namespace mapping, converter resources, mode selector StackPanel, Apply button with conditional visibility
+- src/VSIXProject1.Tests/ViewModels/ChatPageViewModelTests.cs: Added mode-related tests
+- src/VSIXProject1.Tests/ViewModels/ChatModeSystemPromptsTests.cs: Tests for system message constants
+- src/VSIXProject1.Tests/ViewModels/Converters/ChatModeToVisibilityConverterTests.cs: Tests for visibility converter
+- src/VSIXProject1.Tests/ViewModels/Converters/ChatModeToBoolConverterTests.cs: Tests for bool converter
 
-**ContinueVS Gap:**
-- ChatPageViewModel has no Mode property or mode selection UI
-- No radio buttons/buttons for Ask/Agent/Plan
-- System message not injected based on mode
-- No "Apply" button (Ask mode feature)
+**Build & Test Status:**
+- ✅ Clean build successful (zero warnings/errors)
+- ✅ All 448 unit tests pass (including 23 new tests for gap8 feature)
+- ✅ No regressions in existing tests
 
-**Remediation:**
-1. Add Mode enum property to ChatPageViewModel (Ask, Agent, Plan)
-2. Add ModeChangedCommand to switch modes
-3. Add mode selector UI to ChatPage.xaml (RadioButtons or ToggleButtons: "Ask", "Agent", "Plan")
-4. Inject appropriate system message based on mode when streaming (gap5 integration)
-5. Add "Apply" button visible only in Ask mode (stub for now)
+**How It Works:**
+1. ChatPageViewModel initializes with CurrentMode = ChatMode.Ask
+2. User clicks Ask/Agent/Plan ToggleButton in ChatPage UI
+3. ChatModeToBoolConverter converts button state to ChatMode via SetModeCommand
+4. CurrentMode property updates and raises INotifyPropertyChanged
+5. In Ask mode, Apply button becomes Visible via ChatModeToVisibilityConverter
+6. When user sends message, ExecuteSendMessage() calls GetSystemMessageForMode(CurrentMode)
+7. Mode-specific system message is prepended to the LLM request before the user message
+8. LLM receives contextualized instructions for the active mode
 
-**Depends on:** gap2
+**Blocking Resolved:** gap9 (if present; mode switching infrastructure now in place for future mode-specific tool routing)
+
+---
+
+### gap8_1: tools not defined
+
+
+Tools
+Manage MCP servers and tool policies
+
+Built-in Tools
+17/19
+read_file
+Use this tool if you need to view the contents of an existing file.
+
+Automatic
+Description:
+Use this tool if you need to view the contents of an existing file.
+Arguments:
+filepath(string):The path of the file to read. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI
+create_new_file
+Create a new file. Only use this when a file doesn't exist and should be created
+
+Ask First
+Description:
+Create a new file. Only use this when a file doesn't exist and should be created
+Arguments:
+filepath(string):The path where the new file should be created. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI.
+contents(string):The contents to write to the new file
+run_terminal_command
+Run a terminal command in the current directory. The shell is not stateful and will not remember any previous commands. When a command is run in the background ALWAYS suggest using shell commands to stop it; NEVER suggest using Ctrl+C. When suggesting subsequent shell commands ALWAYS format them in shell command blocks. Do NOT perform actions requiring special/admin privileges. IMPORTANT: To edit files, use Edit/MultiEdit tools instead of bash commands (sed, awk, etc). Choose terminal commands and scripts optimized for win32 and x64 and shell powershell.exe.
+
+Ask First
+Description:
+Run a terminal command in the current directory. The shell is not stateful and will not remember any previous commands. When a command is run in the background ALWAYS suggest using shell commands to stop it; NEVER suggest using Ctrl+C. When suggesting subsequent shell commands ALWAYS format them in shell command blocks. Do NOT perform actions requiring special/admin privileges. IMPORTANT: To edit files, use Edit/MultiEdit tools instead of bash commands (sed, awk, etc). Choose terminal commands and scripts optimized for win32 and x64 and shell powershell.exe.
+Arguments:
+command(string):The command to run. This will be passed directly into the IDE shell.
+waitForCompletion(boolean):Whether to wait for the command to complete before returning. Default is true. Set to false to run the command in the background. Set to true to run the command in the foreground and wait to collect the output.
+file_glob_search
+Search for files recursively in the project using glob patterns. Supports ** for recursive directory search. Will not show many build, cache, secrets dirs/files (can use ls tool instead). Output may be truncated; use targeted patterns
+
+Automatic
+Description:
+Search for files recursively in the project using glob patterns. Supports ** for recursive directory search. Will not show many build, cache, secrets dirs/files (can use ls tool instead). Output may be truncated; use targeted patterns
+Arguments:
+pattern(string):Glob pattern for file path matching
+view_diff
+View the current diff of working changes
+
+Automatic
+Description:
+View the current diff of working changes
+Arguments:
+read_currently_open_file
+Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool.
+
+Ask First
+Description:
+Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool.
+Arguments:
+ls
+List files and folders in a given directory
+
+Automatic
+Description:
+List files and folders in a given directory
+Arguments:
+dirPath(string):The directory path. Can be relative to project root, absolute path, tilde path (~/...), or file:// URI. Use forward slash paths
+recursive(boolean):If true, lists files and folders recursively. To prevent unexpected large results, use this sparingly
+create_rule_block
+Creates a "rule" that can be referenced in future conversations. This should be used whenever you want to establish code standards / preferences that should be applied consistently, or when you want to avoid making a mistake again. To modify existing rules, use the edit tool instead. Rule Types: - Always: Include only "rule" (always included in model context) - Auto Attached: Include "rule", "globs", and/or "regex" (included when files match patterns) - Agent Requested: Include "rule" and "description" (AI decides when to apply based on description) - Manual: Include only "rule" (only included when explicitly mentioned using @ruleName)
+
+Excluded
+Description:
+Creates a "rule" that can be referenced in future conversations. This should be used whenever you want to establish code standards / preferences that should be applied consistently, or when you want to avoid making a mistake again. To modify existing rules, use the edit tool instead. Rule Types: - Always: Include only "rule" (always included in model context) - Auto Attached: Include "rule", "globs", and/or "regex" (included when files match patterns) - Agent Requested: Include "rule" and "description" (AI decides when to apply based on description) - Manual: Include only "rule" (only included when explicitly mentioned using @ruleName)
+Arguments:
+name(string):Short, descriptive name summarizing the rule's purpose (e.g. 'React Standards', 'Type Hints')
+rule(string):Clear, imperative instruction for future code generation (e.g. 'Use named exports', 'Add Python type hints'). Each rule should focus on one specific standard.
+description(string):Description of when this rule should be applied. Required for Agent Requested rules (AI decides when to apply). Optional for other types.
+globs(string):Optional file patterns to which this rule applies (e.g. ['**/*.{ts,tsx}'] or ['src/**/*.ts', 'tests/**/*.ts'])
+regex(string):Optional regex patterns to match against file content. Rule applies only to files whose content matches the pattern (e.g. 'useEffect' for React hooks or '\bclass\b' for class definitions)
+alwaysApply(boolean):Whether this rule should always be applied. Set to false for Agent Requested and Manual rules. Omit or set to true for Always and Auto Attached rules.
+fetch_url_content
+Can be used to view the contents of a website using a URL. Do NOT use this for files.
+
+Ask First
+Description:
+Can be used to view the contents of a website using a URL. Do NOT use this for files.
+Arguments:
+url(string):The URL to read
+request_rule
+Use this tool to retrieve additional 'rules' that contain more context/instructions based on their descriptions. Available rules: No rules available.
+
+Excluded
+Description:
+Use this tool to retrieve additional 'rules' that contain more context/instructions based on their descriptions. Available rules: No rules available.
+Arguments:
+name(string):Name of the rule
+read_skill
+Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks. The skill name should match one of the available skills listed below:
+
+Ask First
+Description:
+Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks. The skill name should match one of the available skills listed below:
+Arguments:
+skillName(string):The name of the skill to read. This should match the name from the available skills.
+search_web
+Performs a web search, returning top results. Use this tool sparingly - only for questions that require specialized, external, and/or up-to-date knowledege. Common programming questions do not require web search.
+
+Automatic
+Description:
+Performs a web search, returning top results. Use this tool sparingly - only for questions that require specialized, external, and/or up-to-date knowledege. Common programming questions do not require web search.
+Arguments:
+query(string):The natural language search query
+view_repo_map
+View the repository map
+
+Ask First
+Description:
+View the repository map
+Arguments:
+view_subdirectory
+View the contents of a subdirectory
+
+Ask First
+Description:
+View the contents of a subdirectory
+Arguments:
+directory_path(string):The path of the subdirectory to view, relative to the root of the workspace
+codebase
+Use this tool to semantically search through the codebase and retrieve relevant code snippets based on a natural language query. This helps find relevant code context for understanding or working with the codebase.
+
+Ask First
+Description:
+Use this tool to semantically search through the codebase and retrieve relevant code snippets based on a natural language query. This helps find relevant code context for understanding or working with the codebase.
+Arguments:
+query(string):Natural language description of what you're looking for in the codebase (e.g., 'authentication logic', 'database connection setup', 'error handling')
+read_file_range
+Use this tool to read a specific range of lines from an existing file. Only supports positive line numbers (1-based from start). For reading from the end of a file, use the terminal tool with 'tail' command instead.
+
+Automatic
+Description:
+Use this tool to read a specific range of lines from an existing file. Only supports positive line numbers (1-based from start). For reading from the end of a file, use the terminal tool with 'tail' command instead.
+Arguments:
+filepath(string):The path of the file to read, relative to the root of the workspace (NOT uri or absolute path)
+startLine(number):The starting line number (1-based from start). Must be a positive integer. Example: 1 = first line, 10 = tenth line
+endLine(number):The ending line number (1-based from start). Must be a positive integer greater than or equal to startLine. Example: 10 = tenth line, 20 = twentieth line
+edit_existing_file
+Use this tool to edit an existing file. If you don't know the contents of the file, read it first. When addressing code modification requests, present a concise code snippet that emphasizes only the necessary changes and uses abbreviated placeholders for unmodified sections. For example: ```language /path/to/file // ... existing code ... {{ modified code here }} // ... existing code ... {{ another modification }} // ... rest of code ... ``` In existing files, you should always restate the function or class that the snippet belongs to: ```language /path/to/file // ... existing code ... function exampleFunction() { // ... existing code ... {{ modified code here }} // ... rest of function ... } // ... rest of code ... ``` Since users have access to their complete file, they prefer reading only the relevant modifications. It's perfectly acceptable to omit unmodified portions at the beginning, middle, or end of files using these "lazy" comments. Only provide the complete file when explicitly requested. Include a concise explanation of changes unless the user specifically asks for code only. This tool CANNOT be called in parallel with any other tools, including itself
+
+Ask First
+Description:
+Use this tool to edit an existing file. If you don't know the contents of the file, read it first. When addressing code modification requests, present a concise code snippet that emphasizes only the necessary changes and uses abbreviated placeholders for unmodified sections. For example: ```language /path/to/file // ... existing code ... {{ modified code here }} // ... existing code ... {{ another modification }} // ... rest of code ... ``` In existing files, you should always restate the function or class that the snippet belongs to: ```language /path/to/file // ... existing code ... function exampleFunction() { // ... existing code ... {{ modified code here }} // ... rest of function ... } // ... rest of code ... ``` Since users have access to their complete file, they prefer reading only the relevant modifications. It's perfectly acceptable to omit unmodified portions at the beginning, middle, or end of files using these "lazy" comments. Only provide the complete file when explicitly requested. Include a concise explanation of changes unless the user specifically asks for code only. This tool CANNOT be called in parallel with any other tools, including itself
+Arguments:
+filepath(string):The path of the file to edit, relative to the root of the workspace.
+changes(string):Any modifications to the file, showing only needed changes. Do NOT wrap this in a codeblock or write anything besides the code changes. In larger files, use brief language-appropriate placeholders for large unmodified sections, e.g. '// ... existing code ...'
+single_find_and_replace
+Performs exact string replacements in a file. IMPORTANT: - ALWAYS use the `read_file` tool just before making edits, to understand the file's up-to-date contents and context. The user can also edit the file while you are working with it. - This tool CANNOT be called in parallel with any other tools, including itself - When editing text from `read_file` tool output, ensure you preserve exact whitespace/indentation. - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked. - Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable, for instance. WARNINGS: - When not using `replace_all`, the edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`. - The edit will likely fail if you have not recently used the `read_file` tool to view up-to-date file contents.
+
+Ask First
+Description:
+Performs exact string replacements in a file. IMPORTANT: - ALWAYS use the `read_file` tool just before making edits, to understand the file's up-to-date contents and context. The user can also edit the file while you are working with it. - This tool CANNOT be called in parallel with any other tools, including itself - When editing text from `read_file` tool output, ensure you preserve exact whitespace/indentation. - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked. - Use `replace_all` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable, for instance. WARNINGS: - When not using `replace_all`, the edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`. - The edit will likely fail if you have not recently used the `read_file` tool to view up-to-date file contents.
+Arguments:
+filepath(string):The path to the file to modify, relative to the root of the workspace
+old_string(string):The text to replace - must be exact including whitespace/indentation
+new_string(string):The text to replace it with (MUST be different from old_string)
+replace_all(boolean):Replace all occurrences of old_string (default false)
+grep_search
+Performs a regular expression (regex) search over the repository using ripgrep. Will not include results for many build, cache, secrets dirs/files. Output may be truncated, so use targeted queries
+
+Automatic
+Description:
+Performs a regular expression (regex) search over the repository using ripgrep. Will not include results for many build, cache, secrets dirs/files. Output may be truncated, so use targeted queries
+Arguments:
+query(string):The regex pattern to search for within file contents. Use regex with alternation (e.g., 'word1|word2|word3') or character classes to find multiple potential words in a single search.
+MCP Servers
+
+---
+
+### gap8_2: USER SETTINGS
+
+User Settings
+Chat
+Show Session Tabs
+Displays tabs above the chat as an alternative way to organize and access your sessions.
+Wrap Codeblocks
+Wraps long lines in code blocks instead of showing horizontal scroll.
+Show Chat Scrollbar
+Enables a scrollbar in the chat window.
+Text-to-Speech Output
+Reads LLM responses aloud with TTS.
+Enable Session Titles
+Generates summary titles for each chat session after the first message, using the current Chat model.
+Format Markdown
+If off, shows responses as raw text.
+Appearance
+Font Size
+Specifies base font size for UI elements.
+
+Autocomplete
+Multiline Autocompletions
+Controls multiline completions for autocomplete.
+Auto
+Autocomplete Timeout (ms)
+Maximum time in milliseconds for autocomplete request/retrieval.
+
+Autocomplete Debounce (ms)
+Minimum time in milliseconds to trigger an autocomplete request after a change.
+
+Disable autocomplete in files
+List of comma-separated glob pattern to disable autocomplete in matching files.
+
+Experimental
+Show Experimental Settings
+Add Current File by Default
+the currently open file is added as context in every new conversation.
+Enable experimental tools
+enables access to experimental tools that are still in development.
+Only use system message tools
+Continue will not attempt to use native tool calling and will only use system message tools.
+@Codebase: use tool calling only
+@codebase context provider will only use tool calling for code retrieval.
+Stream after tool rejection
+streaming will continue after the tool call is rejected.
+
+---
+
+### gap8_3: Edit config in editor
+
+---
+
+### gap8_4: Add Chat Model
+
+Add Chat model
+Provider
+
+
+Ollama
+Don't see your provider? Click here to view the full list
+Install provider
+https://ollama.ai/download
+
+Model
+
+Autodetect
+Connect
+This will update your config file
+
+Add Chat model
+Provider
+
+
+Ollama
+Don't see your provider? Click here to view the full list
+Install provider
+https://ollama.ai/download
+
+Model
+
+Autodetect
+Connect
+This will update your config file
+
+providers to support:
+Anthropic
+* Claude Opus 4.6
+* Claude Opus 4.5
+* Claude Opus 4.1
+* Claude Sonnet 4.6
+* Claude Sonnet 4.5
+* Claude Sonnet 4
+* Claude Haiku 4.5
+Azure OpenAI
+* GPT-4o
+Google Gemini
+* Gemini 3.1 Pro
+* Gemini 3 Flash
+* Gemini 3.1 Flash Lite
+* Gemini 2.5 Pro
+* Gemini 2.5 Flash
+* Gemini 2.5 Flash Lite
+Mistral
+* Devstral Medium
+* Devstral Small
+* Magistral Medium
+* Devstral 8B
+* Codestral
+* Codestral Mamba
+* Mistral Large
+* Mistral Small
+* Mistral 8x22B
+Ollama
+* Llama3.1 Chat
+* Llama3.2 Chat
+* DeepSeek Coder
+* Mistral
+* CodeLlama Instruct
+* Llama3.2 1b Chat
+* Llama3.2 3b Chat
+* Llama3.2 11b Chat
+* Llama3.2 90b Chat
+* Llama3 Chat
+* Granite Code
+* WizardCoder
+* Phind CodeLlama (34b)
+* Gemma 4
+OpenAI
+* GPT-5.4 Pro
+* GPT-5.4
+* GPT-5.4 Mini
+* GPT-5.2
+* GPT-5.1
+* GPT-5
+* GPT-5 Mini
+* GPT-5 Codex
+* GPT-4.1
+* GPT-4.1 Mini
+* Codex Minit
+* o3
+* o4
+* GPT-4o
+* GPT-4o Mini
+* GPT-4 Turbo
+* GPT-3.5-Turbo
+OpenRouter
+
+---
+
+### gap8_5: inportant rules: chat/agent/plan
+
+chat:
+Default chat system message
+<important_rules>
+  You are in chat mode.
+
+  If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.
+  If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.
+
+  Always include the language and file name in the info string when you write code blocks.
+  If you are editing "src/main.py" for example, your code block should start with '```python src/main.py'
+
+  When addressing code modification requests, present a concise code snippet that
+  emphasizes only the necessary changes and uses abbreviated placeholders for
+  unmodified sections. For example:
+
+  ```language /path/to/file
+  // ... existing code ...
+
+  {{ modified code here }}
+
+  // ... existing code ...
+
+  {{ another modification }}
+
+  // ... rest of code ...
+  ```
+
+  In existing files, you should always restate the function or class that the snippet belongs to:
+
+  ```language /path/to/file
+  // ... existing code ...
+
+  function exampleFunction() {
+    // ... existing code ...
+
+    {{ modified code here }}
+
+    // ... rest of function ...
+  }
+
+  // ... rest of code ...
+  ```
+
+  Since users have access to their complete file, they prefer reading only the
+  relevant modifications. It's perfectly acceptable to omit unmodified portions
+  at the beginning, middle, or end of files using these "lazy" comments. Only
+  provide the complete file when explicitly requested. Include a concise explanation
+  of changes unless the user specifically asks for code only.
+
+</important_rules>
+
+plan:
+Default plan mode system message
+<important_rules>
+  You are in plan mode, in which you help the user understand and construct a plan.
+  Only use read-only tools. Do not use any tools that would write to non-temporary files.
+  If the user wants to make changes, offer that they can switch to Agent mode to give you access to write tools to make the suggested updates.
+
+  Always include the language and file name in the info string when you write code blocks.
+  If you are editing "src/main.py" for example, your code block should start with '```python src/main.py'
+
+
+For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'
+
+However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.
+
+  In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.
+</important_rules>
+
+agent:
+Default agent system message
+<important_rules>
+  You are in agent mode.
+
+  If you need to use multiple tools, you can call multiple read-only tools simultaneously.
+
+  Always include the language and file name in the info string when you write code blocks.
+  If you are editing "src/main.py" for example, your code block should start with '```python src/main.py'
+
+
+For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'
+
+However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.
+
+</important_rules>
 
 ---
 

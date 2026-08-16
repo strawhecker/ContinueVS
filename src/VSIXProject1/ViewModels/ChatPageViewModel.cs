@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ContinueVS.Core;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
@@ -13,6 +14,48 @@ using GalaSoft.MvvmLight.Command;
 
 namespace ContinueVS.ViewModels
 {
+    /// <summary>
+    /// Defines the operational mode for the chat interface.
+    /// </summary>
+    public enum ChatMode
+    {
+        /// <summary>
+        /// Chat mode: Basic Q&A with optional "Apply" button for code suggestions.
+        /// </summary>
+        Ask,
+
+        /// <summary>
+        /// Agent mode: Autonomous tool calling and code editing with user approval.
+        /// </summary>
+        Agent,
+
+        /// <summary>
+        /// Plan mode: Read-only plan generation and review.
+        /// </summary>
+        Plan
+    }
+
+    /// <summary>
+    /// System message prompts for each operational mode.
+    /// </summary>
+    internal static class ChatModeSystemPrompts
+    {
+        /// <summary>
+        /// System prompt for Ask mode: guidance for basic Q&A interaction.
+        /// </summary>
+        public const string DEFAULT_ASK_SYSTEM_MESSAGE = "You are a helpful coding assistant in Ask mode. Provide code suggestions and explanations. Use the Apply button or switch to Agent Mode for automatic edits.";
+
+        /// <summary>
+        /// System prompt for Agent mode: guidance for autonomous tool calling.
+        /// </summary>
+        public const string DEFAULT_AGENT_SYSTEM_MESSAGE = "You are an autonomous coding agent in Agent mode. Call read-only tools to analyze code. Use edit tools when the user approves changes. Always confirm before applying edits.";
+
+        /// <summary>
+        /// System prompt for Plan mode: guidance for read-only plan generation.
+        /// </summary>
+        public const string DEFAULT_PLAN_SYSTEM_MESSAGE = "You are a planning assistant in Plan mode. Generate detailed implementation plans and analysis in read-only mode. Suggest Agent Mode for executing code changes.";
+    }
+
     public class ChatPageViewModel : ViewModelBase
     {
         private readonly ILlmService _llmService;
@@ -25,6 +68,7 @@ namespace ContinueVS.ViewModels
         private bool _isStreaming;
         private string? _streamingResponse;
         private CancellationTokenSource? _streamingCts;
+        private ChatMode _currentMode = ChatMode.Ask;
 
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
@@ -60,9 +104,28 @@ namespace ContinueVS.ViewModels
             set => Set(ref _streamingResponse, value);
         }
 
+        /// <summary>
+        /// Gets or sets the current operational mode (Ask, Agent, or Plan).
+        /// </summary>
+        public ChatMode CurrentMode
+        {
+            get => _currentMode;
+            set
+            {
+                if (Set(ref _currentMode, value))
+                {
+                    SendMessageCommand.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
+        /// <summary>
+        /// Command to switch to a specified chat mode.
+        /// </summary>
+        public RelayCommand<ChatMode> SetModeCommand { get; }
 
         public ChatPageViewModel(
             ILlmService llmService,
@@ -91,51 +154,63 @@ namespace ContinueVS.ViewModels
             SendMessageCommand = new RelayCommand(ExecuteSendMessage, CanSendMessage);
             CancelCommand = new RelayCommand(ExecuteCancel, () => IsStreaming);
             AddContextCommand = new RelayCommand<string>(ExecuteAddContext);
+            SetModeCommand = new RelayCommand<ChatMode>(mode => CurrentMode = mode);
         }
 
 #pragma warning disable VSTHRD100
-        private async void ExecuteSendMessage()
+private async void ExecuteSendMessage()
 #pragma warning restore VSTHRD100
+{
+    try
+    {
+        IsStreaming = true;
+        _streamingCts = new CancellationTokenSource();
+
+        var userMessage = new ChatMessage
         {
-            try
+            Role = ChatMessageRole.User,
+            Content = InputText ?? string.Empty
+        };
+        await _sessionService.AddMessageAsync(userMessage);
+        Messages.Add(userMessage);
+        System.Diagnostics.Debug.WriteLine($"[a6-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
+
+        StreamingResponse = string.Empty;
+
+        var messages = new List<ChatMessage>();
+
+        // Inject mode-specific system message
+        var systemPrompt = GetSystemMessageForMode(CurrentMode);
+        messages.Add(new ChatMessage
+        {
+            Role = ChatMessageRole.System,
+            Content = systemPrompt
+        });
+
+        if (SelectedContext.Count > 0)
+        {
+            var contextSummary = string.Join("\n", 
+                SelectedContext.Select(c => c.FilePath + ": " + c.Content));
+            messages.Add(new ChatMessage
             {
-                IsStreaming = true;
-                _streamingCts = new CancellationTokenSource();
+                Role = ChatMessageRole.System,
+                Content = "Context:\n" + contextSummary
+            });
+        }
 
-                var userMessage = new ChatMessage
+        messages.Add(userMessage);
+
+        var streamOptions = new StreamOptions
+        {
+            Messages = messages
+        };
+
+        await RetryPolicyHelper.ExecuteWithRetryAsync(
+            async ct =>
+            {
+                await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, ct))
                 {
-                    Role = ChatMessageRole.User,
-                    Content = InputText ?? string.Empty
-                };
-                await _sessionService.AddMessageAsync(userMessage);
-                Messages.Add(userMessage);
-                System.Diagnostics.Debug.WriteLine($"[a6-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
-
-                StreamingResponse = string.Empty;
-
-                var messages = new List<ChatMessage> { userMessage };
-                if (SelectedContext.Count > 0)
-                {
-                    var contextSummary = string.Join("\n", 
-                        SelectedContext.Select(c => c.FilePath + ": " + c.Content));
-                    messages.Insert(0, new ChatMessage
-                    {
-                        Role = ChatMessageRole.System,
-                        Content = "Context:\n" + contextSummary
-                    });
-                }
-
-                var streamOptions = new StreamOptions
-                {
-                    Messages = messages
-                };
-
-                await RetryPolicyHelper.ExecuteWithRetryAsync(
-                    async ct =>
-                    {
-                        await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, ct))
-                        {
-                            if (chunk.Type == ChunkType.Text)
+                    if (chunk.Type == ChunkType.Text)
                             {
                                 StreamingResponse += chunk.Content;
                             }
@@ -212,6 +287,20 @@ namespace ContinueVS.ViewModels
             {
                 await _notificationService.ShowNotificationAsync("Error", ex.Message, NotificationType.Error);
             }
+        }
+
+        /// <summary>
+        /// Gets the system message prompt for the specified chat mode.
+        /// </summary>
+        private string GetSystemMessageForMode(ChatMode mode)
+        {
+            return mode switch
+            {
+                ChatMode.Ask => ChatModeSystemPrompts.DEFAULT_ASK_SYSTEM_MESSAGE,
+                ChatMode.Agent => ChatModeSystemPrompts.DEFAULT_AGENT_SYSTEM_MESSAGE,
+                ChatMode.Plan => ChatModeSystemPrompts.DEFAULT_PLAN_SYSTEM_MESSAGE,
+                _ => ChatModeSystemPrompts.DEFAULT_ASK_SYSTEM_MESSAGE
+            };
         }
     }
 }

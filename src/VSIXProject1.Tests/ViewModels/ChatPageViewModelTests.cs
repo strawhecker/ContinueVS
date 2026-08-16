@@ -189,5 +189,75 @@ namespace ContinueVS.Tests.ViewModels
             Assert.Single(viewModel.Messages);
             Assert.Equal("Test message", viewModel.Messages[0].Content);
         }
+
+        [Fact]
+        public void CurrentMode_Default_IsAsk()
+        {
+            // Arrange
+            var mockLlmService = CreateLooseMock<ILlmService>();
+            var mockContextService = CreateLooseMock<IContextService>();
+            var mockToolService = CreateLooseMock<IToolService>();
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+
+            // Act
+            var viewModel = new ChatPageViewModel(
+                mockLlmService.Object,
+                mockContextService.Object,
+                mockToolService.Object,
+                mockSessionService.Object,
+                mockNotificationService.Object);
+
+            // Assert
+            Assert.Equal(ChatMode.Ask, viewModel.CurrentMode);
+        }
+
+        [Fact]
+        public void SetModeCommand_ChangeToAgent_UpdatesProperty()
+        {
+            // Arrange
+            var mockLlmService = CreateLooseMock<ILlmService>();
+            var mockContextService = CreateLooseMock<IContextService>();
+            var mockToolService = CreateLooseMock<IToolService>();
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+
+            var viewModel = new ChatPageViewModel(
+                mockLlmService.Object,
+                mockContextService.Object,
+                mockToolService.Object,
+                mockSessionService.Object,
+                mockNotificationService.Object);
+
+            // Act
+            viewModel.SetModeCommand.Execute(ChatMode.Agent);
+
+            // Assert
+            Assert.Equal(ChatMode.Agent, viewModel.CurrentMode);
+        }
+
+        [Fact]
+        public void SetModeCommand_ChangeToPlan_UpdatesProperty()
+        {
+            // Arrange
+            var mockLlmService = CreateLooseMock<ILlmService>();
+            var mockContextService = CreateLooseMock<IContextService>();
+            var mockToolService = CreateLooseMock<IToolService>();
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+
+            var viewModel = new ChatPageViewModel(
+                mockLlmService.Object,
+                mockContextService.Object,
+                mockToolService.Object,
+                mockSessionService.Object,
+                mockNotificationService.Object);
+
+            // Act
+            viewModel.SetModeCommand.Execute(ChatMode.Plan);
+
+            // Assert
+            Assert.Equal(ChatMode.Plan, viewModel.CurrentMode);
+        }
     }
 }
