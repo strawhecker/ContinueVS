@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
@@ -30,6 +31,7 @@ namespace ContinueVS.ViewModels
         public RelayCommand RemoveModelCommand { get; }
         public RelayCommand SaveConfigCommand { get; }
         public RelayCommand ReindexCommand { get; }
+        public RelayCommand<ToolDefinition> ToggleToolCommand { get; }
 
         public ConfigPageViewModel(
             IConfigService configService,
@@ -38,6 +40,8 @@ namespace ContinueVS.ViewModels
             if (configService == null) throw new ArgumentNullException(nameof(configService));
             if (indexingService == null) throw new ArgumentNullException(nameof(indexingService));
 
+            Debug.WriteLine("[gap8_1-configvm-ctor-start] ConfigPageViewModel CONSTRUCTOR CALLED");
+
             _configService = configService;
             _indexingService = indexingService;
 
@@ -45,28 +49,78 @@ namespace ContinueVS.ViewModels
             AvailableTools = new ObservableCollection<ToolDefinition>();
             Profiles = new ObservableCollection<ProfileInfo>();
 
+            Debug.WriteLine("[gap8_1-configvm-ctor-cmds] Initializing commands");
             AddModelCommand = new RelayCommand(ExecuteAddModel);
             RemoveModelCommand = new RelayCommand(ExecuteRemoveModel);
             SaveConfigCommand = new RelayCommand(ExecuteSaveConfig);
             ReindexCommand = new RelayCommand(ExecuteReindex);
+            ToggleToolCommand = new RelayCommand<ToolDefinition>(ExecuteToggleTool);
 
+            Debug.WriteLine("[gap8_1-configvm-ctor-load] Calling LoadConfiguration()");
             LoadConfiguration();
+
+            Debug.WriteLine("[gap8_1-configvm-ctor-end] ConfigPageViewModel CONSTRUCTOR COMPLETE");
         }
 
         private void LoadConfiguration()
         {
             try
             {
+                Debug.WriteLine("[gap8_1-configvm-load-start] LoadConfiguration called");
                 var config = _configService.GetCurrentConfig();
+                Debug.WriteLine($"[gap8_1-configvm-load-config] GetCurrentConfig returned: {(config == null ? "NULL" : "OK")}");
 
                 AvailableModels.Clear();
                 if (config?.Models != null)
                 {
+                    Debug.WriteLine($"[gap8_1-configvm-load-models-detail] Models count from config: {config.Models.Count}");
                     foreach (var model in config.Models)
                     {
                         AvailableModels.Add(model);
                     }
                 }
+                Debug.WriteLine($"[gap8_1-configvm-models] Loaded {AvailableModels.Count} models into ObservableCollection");
+
+                AvailableTools.Clear();
+                Debug.WriteLine("[gap8_1-configvm-load-tools-start] About to call GetEnabledTools");
+                var enabledTools = _configService.GetEnabledTools();
+                Debug.WriteLine($"[gap8_1-configvm-load-tools-result] GetEnabledTools returned: {(enabledTools == null ? "NULL" : $"COUNT={enabledTools.Count()}")}");
+
+                if (enabledTools != null)
+                {
+                    foreach (var tool in enabledTools)
+                    {
+                        Debug.WriteLine($"[gap8_1-configvm-adding-tool] Adding tool: {tool.Name} (enabled={tool.IsEnabled})");
+                        AvailableTools.Add(tool);
+                    }
+                }
+                Debug.WriteLine($"[gap8_1-configvm-tools] Loaded {AvailableTools.Count} enabled tools into ObservableCollection");
+
+                var selectedModel = _configService.GetSelectedModel();
+                if (selectedModel != null)
+                {
+                    SelectedModel = selectedModel;
+                    Debug.WriteLine($"[gap8_1-configvm-selected-model] Selected model set: {selectedModel.Name}");
+                }
+
+                Debug.WriteLine("[gap8_1-configvm-load-end] LoadConfiguration complete");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap8_1-configvm-error] LoadConfiguration error: {ex.Message}");
+                Debug.WriteLine($"[gap8_1-configvm-error-stack] {ex.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the available tools collection. Should be called when the Config page becomes visible.
+        /// This allows tools to load asynchronously and still display in the UI.
+        /// </summary>
+        public void RefreshAvailableTools()
+        {
+            try
+            {
+                Debug.WriteLine("[gap8_1-configvm-refresh-start] RefreshAvailableTools called");
 
                 AvailableTools.Clear();
                 var enabledTools = _configService.GetEnabledTools();
@@ -78,15 +132,45 @@ namespace ContinueVS.ViewModels
                     }
                 }
 
-                var selectedModel = _configService.GetSelectedModel();
-                if (selectedModel != null)
-                {
-                    SelectedModel = selectedModel;
-                }
+                Debug.WriteLine($"[gap8_1-configvm-refresh-end] Refreshed {AvailableTools.Count} tools");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Initialization error - collections remain empty
+                Debug.WriteLine($"[gap8_1-configvm-refresh-error] RefreshAvailableTools error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handles a tool enable/disable toggle. User unchecks/checks a tool.
+        /// Immediately saves the configuration and refreshes the UI collection.
+        /// This ensures the enabled tool count stays in sync across all layers.
+        /// </summary>
+        /// <param name="tool">The tool that was toggled.</param>
+        private void ExecuteToggleTool(ToolDefinition? tool)
+        {
+            if (tool == null) return;
+
+            try
+            {
+                Debug.WriteLine($"[gap8_1-configvm-toggle-start] Tool '{tool.Name}' toggled to IsEnabled={tool.IsEnabled}");
+
+                // Fire-and-forget: persist the change; exceptions are caught inside the lambda
+                _ = _configService.SaveConfigAsync().ContinueWith(t =>
+                {
+                    if (t.Exception != null)
+                        Debug.WriteLine($"[gap8_1-configvm-toggle-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}");
+                    else
+                        Debug.WriteLine("[gap8_1-configvm-toggle-saved] Config saved with tool state change");
+                }, TaskScheduler.Default);
+
+                // Refresh the collection to reflect the new enabled count
+                RefreshAvailableTools();
+
+                Debug.WriteLine($"[gap8_1-configvm-toggle-complete] Enabled tool count now: {AvailableTools.Count}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap8_1-configvm-toggle-error] Error toggling tool '{tool.Name}': {ex.Message}");
             }
         }
 

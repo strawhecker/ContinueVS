@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,6 +58,20 @@ namespace ContinueVS.Services.Implementations
             lock (_registryLock)
             {
                 var allTools = _builtInToolRegistry.Values.Concat(_mcpToolRegistry.Values).ToList();
+                Debug.WriteLine($"[gap8_1-toolsvc-available] GetAvailableTools: {_builtInToolRegistry.Count} built-in, {_mcpToolRegistry.Count} mcp, total={allTools.Count}");
+
+                // Defensive: Log warning if tools are unexpectedly empty
+                if (allTools.Count == 0)
+                {
+                    string warningMessage = 
+                        $"[WARNING-gap8_1] GetAvailableTools returned ZERO tools. " +
+                        $"Built-in: {_builtInToolRegistry.Count}, MCP: {_mcpToolRegistry.Count}. " +
+                        $"The AI system will have no tools available for this request.";
+                    Debug.WriteLine(warningMessage);
+                    // Fire-and-forget async logging (don't await in synchronous context)
+                    _ = _logger?.WriteWarningAsync(warningMessage);
+                }
+
                 return allTools;
             }
         }
@@ -390,10 +405,12 @@ namespace ContinueVS.Services.Implementations
         {
             lock (_registryLock)
             {
+                Debug.WriteLine("[gap8_1-toolsvc-init-start] InitializeToolRegistry called");
                 _builtInToolRegistry.Clear();
 
                 // Load enabled tools from configuration
-                var enabledTools = _configService.GetEnabledTools();
+                var enabledTools = _configService.GetEnabledTools().ToList();
+                Debug.WriteLine($"[gap8_1-toolsvc-load-config] Loaded {enabledTools.Count} enabled tools from config");
                 foreach (var tool in enabledTools)
                 {
                     if (!string.IsNullOrEmpty(tool.Name))
@@ -411,29 +428,52 @@ namespace ContinueVS.Services.Implementations
 
                 // Ensure built-in tools are always available (with defaults if not in config)
                 EnsureBuiltInToolDefaults();
+
+                int totalTools = _builtInToolRegistry.Count + _mcpToolRegistry.Count;
+                Debug.WriteLine($"[gap8_1-toolsvc-init-end] InitializeToolRegistry complete: {_builtInToolRegistry.Count} built-in tools registered");
+
+                // Fail-fast diagnostic check for zero tools
+                if (totalTools == 0)
+                {
+                    string diagnosticMessage = 
+                        "[CRITICAL-gap8_1] Tool registry is EMPTY after initialization! " +
+                        "This indicates a configuration or initialization failure. " +
+                        "Built-in tools: 0, MCP tools: 0. " +
+                        "Check: (1) BuiltInToolsRegistry.GetAllBuiltInTools() returns tools, " +
+                        "(2) ConfigService.GetEnabledTools() is not corrupted, " +
+                        "(3) Configuration file is valid.";
+
+                    Debug.WriteLine(diagnosticMessage);
+                    // Fire-and-forget async logging (don't await in synchronous constructor context)
+                    _ = _logger?.WriteErrorAsync(diagnosticMessage);
+
+                    // Throw to fail fast and alert developer/user immediately
+                    throw new InvalidOperationException(
+                        "ToolService initialization failed: zero tools registered. " +
+                        "The Continue AI will not have access to any tools. " +
+                        "Check the debug output and configuration file.");
+                }
             }
         }
 
         /// <summary>
-        /// Ensures that core built-in tools have definitions, creating defaults if necessary.
+        /// Ensures that core built-in tools have definitions, populated from BuiltInToolsRegistry.
         /// </summary>
         private void EnsureBuiltInToolDefaults()
         {
-            var defaultTools = new[]
-            {
-                CreateBuiltInToolDefinition("read_file", "Read the contents of a file", new[] { "filepath" }),
-                CreateBuiltInToolDefinition("write_file", "Write contents to a file", new[] { "filepath", "contents" }),
-                CreateBuiltInToolDefinition("search_codebase", "Search the codebase for matches to a query", new[] { "query", "maxResults" }),
-                CreateBuiltInToolDefinition("run_subprocess", "Run a subprocess command", new[] { "command", "cwd" })
-            };
+            Debug.WriteLine("[gap8_1-toolsvc-defaults-start] EnsureBuiltInToolDefaults called");
+            var defaultTools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+            int addedCount = 0;
 
             foreach (var tool in defaultTools)
             {
                 if (!_builtInToolRegistry.ContainsKey(tool.Name))
                 {
                     _builtInToolRegistry[tool.Name] = tool;
+                    addedCount++;
                 }
             }
+            Debug.WriteLine($"[gap8_1-toolsvc-defaults-end] EnsureBuiltInToolDefaults: {defaultTools.Count} defaults checked, {addedCount} added");
         }
 
         /// <summary>

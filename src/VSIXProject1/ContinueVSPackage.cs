@@ -55,7 +55,7 @@ namespace ContinueVS
             IProgress<ServiceProgressData> progress)
         {
             // BREAKPOINT: t1 - Set breakpoint here to inspect InitializeAsync entry
-            System.Diagnostics.Debug.WriteLine(">>> [CV-ENTRY] InitializeAsync called - EXTENSION IS LOADED <<<");
+            System.Diagnostics.Debug.WriteLine("[CV-ENTRY] InitializeAsync called - EXTENSION IS LOADED");
             var tracer = new ExecutionTracer();
             ExecutionTracer = tracer;
             System.Diagnostics.Debug.WriteLine("╔════════════════════════════════════════════════╗");

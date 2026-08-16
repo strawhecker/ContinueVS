@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -263,7 +264,9 @@ namespace ContinueVS.Services.Implementations
             lock (_lock)
             {
                 ThrowIfNotInitialized();
-                return _currentConfig.Tools.Where(t => t.IsEnabled).ToList();
+                var enabledTools = _currentConfig.Tools.Where(t => t.IsEnabled).ToList();
+                Debug.WriteLine($"[gap8_1-configsvc-enabled] GetEnabledTools: {enabledTools.Count} enabled out of {_currentConfig.Tools.Count} total");
+                return enabledTools;
             }
         }
 
@@ -399,10 +402,14 @@ namespace ContinueVS.Services.Implementations
                 }
             };
 
+            // Populate default config with all 19 built-in tools (gap8_1)
+            var builtInTools = ContinueVS.Core.Types.BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+            System.Diagnostics.Debug.WriteLine($"[ConfigService.CreateDefaultConfig] Adding {builtInTools.Count} built-in tools to default config");
+
             var config = new CoreTypes.ContinueConfig
             {
                 Models = models,
-                Tools = new List<CoreTypes.ToolDefinition>(),
+                Tools = builtInTools,
                 Profiles = new List<CoreTypes.ProfileInfo>(),
                 CustomSettings = new Dictionary<string, object>(),
                 ConfigFilePath = ConfigFilePath,

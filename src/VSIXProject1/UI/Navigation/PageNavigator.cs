@@ -14,7 +14,8 @@ namespace ContinueVS.UI.Navigation
         private static readonly Dictionary<string, Type> RouteMap = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
         {
             { "chat", typeof(ChatPage) },
-            { "history", typeof(HistoryPage) }
+            { "history", typeof(HistoryPage) },
+            { "config", typeof(ConfigPage) }
         };
 
         public async Task NavigateAsync(string? route, Frame? frame)
