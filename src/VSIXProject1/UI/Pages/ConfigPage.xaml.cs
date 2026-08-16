@@ -33,8 +33,11 @@ namespace ContinueVS.UI.Pages
                     var indexing = sp.GetRequiredService<IIndexingService>();
                     Debug.WriteLine("[gap8_1-configpage-ctor-indexing-ok] ✓ IIndexingService obtained");
 
+                    var ideService = sp.GetRequiredService<IIdeService>();
+                    Debug.WriteLine("[gap8_1-configpage-ctor-ideservice-ok] ✓ IIdeService obtained");
+
                     Debug.WriteLine("[gap8_1-configpage-ctor-creating-vm] Creating ConfigPageViewModel...");
-                    _viewModel = new ConfigPageViewModel(config, indexing);
+                    _viewModel = new ConfigPageViewModel(config, indexing, ideService);
 
                     Debug.WriteLine("[gap8_1-configpage-ctor-setting-dc] Setting DataContext");
                     this.DataContext = _viewModel;
@@ -69,6 +72,22 @@ namespace ContinueVS.UI.Pages
                 Debug.WriteLine("[gap8_1-configpage-loaded-refresh] Calling RefreshAvailableTools()");
                 _viewModel.RefreshAvailableTools();
                 Debug.WriteLine($"[gap8_1-configpage-loaded-refresh-end] ✓ RefreshAvailableTools complete. Tool count now: {_viewModel.AvailableTools.Count}");
+
+                // Wire up SettingsControl with SettingsViewModel
+                if (_viewModel.SettingsViewModel != null)
+                {
+                    Debug.WriteLine("[gap8_1-configpage-loaded-settings] Wiring SettingsControl with SettingsViewModel");
+                    var settingsControl = this.FindName("SettingsControlHost") as SettingsControl;
+                    if (settingsControl != null)
+                    {
+                        settingsControl.SetViewModel(_viewModel.SettingsViewModel);
+                        Debug.WriteLine("[gap8_1-configpage-loaded-settings-ok] ✓ SettingsControl wired successfully");
+                    }
+                    else
+                    {
+                        Debug.WriteLine("[gap8_1-configpage-loaded-settings-not-found] SettingsControl not found in XAML");
+                    }
+                }
             }
             else
             {

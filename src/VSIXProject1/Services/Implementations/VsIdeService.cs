@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
+using EnvDTE;
+using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Services.Implementations
 {
@@ -120,5 +123,80 @@ namespace ContinueVS.Services.Implementations
 
         public IEnumerable<string> GetWorkspaceFiles(string pattern = "*")
             => Enumerable.Empty<string>();
+
+        // VS Editor Operations
+
+        public Task OpenFileInEditorAsync(string filePath)
+        {
+            Debug.WriteLine("[gap8_3-ideservice-start] VsIdeService.OpenFileInEditorAsync called");
+
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                Debug.WriteLine("[gap8_3-ideservice-null-path] File path is null or empty");
+                return Task.CompletedTask;
+            }
+
+            try
+            {
+                Debug.WriteLine($"[gap8_3-ideservice-file] File path: {filePath}");
+
+                if (!File.Exists(filePath))
+                {
+                    Debug.WriteLine($"[gap8_3-ideservice-not-exists] File does not exist: {filePath}");
+                    return Task.CompletedTask;
+                }
+
+                Debug.WriteLine("[gap8_3-ideservice-dte-call] Getting DTE from ServiceProvider");
+
+                // Get the DTE (VS automation object) via the VS service provider
+                // We'll invoke this synchronously via ThreadHelper since it requires UI thread access
+                var dteTask = new System.Threading.Tasks.TaskCompletionSource<DTE>();
+
+                ThreadHelper.JoinableTaskFactory.Run(async () =>
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                    try
+                    {
+                        // Get the package instance which has VS service provider access
+                        if (ContinueVSPackage.Instance != null)
+                        {
+                            var dte = await ContinueVSPackage.Instance.GetServiceAsync(typeof(DTE)) as DTE;
+                            dteTask.SetResult(dte);
+                        }
+                        else
+                        {
+                            Debug.WriteLine("[gap8_3-ideservice-pkg-null] ContinueVSPackage.Instance is null");
+                            dteTask.SetResult(null);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[gap8_3-ideservice-dte-error] Error getting DTE: {ex.Message}");
+                        dteTask.SetException(ex);
+                    }
+                });
+
+                var dte = dteTask.Task.Result;
+
+                if (dte == null)
+                {
+                    Debug.WriteLine("[gap8_3-ideservice-dte-null] DTE is null, cannot open file");
+                    return Task.CompletedTask;
+                }
+
+                Debug.WriteLine("[gap8_3-ideservice-dte-opfile] Calling DTE.ItemOperations.OpenFile");
+                dte.ItemOperations.OpenFile(filePath, Constants.vsViewKindTextView);
+
+                Debug.WriteLine("[gap8_3-ideservice-complete] File opened successfully in editor");
+                return Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap8_3-ideservice-error] Error opening file in editor: {ex.Message}");
+                Debug.WriteLine($"[gap8_3-ideservice-error-stack] {ex.StackTrace}");
+                return Task.CompletedTask;
+            }
+        }
     }
 }

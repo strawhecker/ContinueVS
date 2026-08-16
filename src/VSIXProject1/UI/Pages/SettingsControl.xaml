@@ -1,0 +1,182 @@
+<UserControl x:Class="ContinueVS.UI.Pages.SettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="500" d:DesignWidth="750">
+    <Grid Background="#FFFFFF">
+        <TabControl>
+            <!-- Chat Settings Tab -->
+            <TabItem Header="Chat" Padding="10">
+                <StackPanel Margin="15" VerticalAlignment="Top">
+                    <TextBlock Text="Chat Preferences" FontSize="14" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <CheckBox IsChecked="{Binding ShowSessionTabs, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Show Session Tabs" FontWeight="Bold"/>
+                            <TextBlock Text="Displays tabs above the chat as an alternative way to organize sessions." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding WrapCodeblocks, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Wrap Codeblocks" FontWeight="Bold"/>
+                            <TextBlock Text="Wraps long lines in code blocks instead of showing horizontal scroll." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding ShowChatScrollbar, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Show Chat Scrollbar" FontWeight="Bold"/>
+                            <TextBlock Text="Enables a scrollbar in the chat window." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding TextToSpeechEnabled, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Text-to-Speech Output" FontWeight="Bold"/>
+                            <TextBlock Text="Reads LLM responses aloud with TTS." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding EnableSessionTitles, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Enable Session Titles" FontWeight="Bold"/>
+                            <TextBlock Text="Generates summary titles for each chat session after the first message." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding FormatMarkdown, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Format Markdown" FontWeight="Bold"/>
+                            <TextBlock Text="If off, shows responses as raw text." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Appearance Settings Tab -->
+            <TabItem Header="Appearance" Padding="10">
+                <StackPanel Margin="15" VerticalAlignment="Top">
+                    <TextBlock Text="Appearance Settings" FontSize="14" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Font Size" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <DockPanel>
+                            <TextBlock Text="{Binding FontSize}" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center" Width="40" TextAlignment="Right"/>
+                            <Slider Value="{Binding FontSize, Mode=TwoWay}" Minimum="10" Maximum="24" DockPanel.Dock="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="Base font size for UI elements (10-24 pt)." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Autocomplete Settings Tab -->
+            <TabItem Header="Autocomplete" Padding="10">
+                <StackPanel Margin="15" VerticalAlignment="Top">
+                    <TextBlock Text="Autocomplete Settings" FontSize="14" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Multiline Autocompletions" FontWeight="Bold" Margin="0,0,0,8"/>
+                        <RadioButton IsChecked="{Binding MultilineModeAuto, Mode=TwoWay}" Margin="0,0,0,5">
+                            <StackPanel>
+                                <TextBlock Text="Auto" FontWeight="Bold"/>
+                                <TextBlock Text="Automatically determine based on context." Foreground="#666" FontSize="11"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton IsChecked="{Binding MultilineModeAlways, Mode=TwoWay}" Margin="0,0,0,5">
+                            <StackPanel>
+                                <TextBlock Text="Always" FontWeight="Bold"/>
+                                <TextBlock Text="Always use multiline completions." Foreground="#666" FontSize="11"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton IsChecked="{Binding MultilineModeNever, Mode=TwoWay}" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="Never" FontWeight="Bold"/>
+                                <TextBlock Text="Never use multiline completions." Foreground="#666" FontSize="11"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Autocomplete Timeout (ms)" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <DockPanel>
+                            <TextBlock Text="{Binding AutocompleteTimeoutMs}" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center" Width="50" TextAlignment="Right"/>
+                            <Slider Value="{Binding AutocompleteTimeoutMs, Mode=TwoWay}" Minimum="50" Maximum="500" DockPanel.Dock="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="Maximum time for autocomplete request retrieval." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Autocomplete Debounce (ms)" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <DockPanel>
+                            <TextBlock Text="{Binding AutocompleteDebounceMs}" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center" Width="50" TextAlignment="Right"/>
+                            <Slider Value="{Binding AutocompleteDebounceMs, Mode=TwoWay}" Minimum="100" Maximum="1000" DockPanel.Dock="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="Minimum time to trigger autocomplete after a change." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,10">
+                        <TextBlock Text="Disable Autocomplete in Files" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBox Text="{Binding DisableAutocompleteInFiles, Mode=TwoWay}" Height="40" TextWrapping="Wrap" AcceptsReturn="True" Padding="5"/>
+                        <TextBlock Text="Comma-separated glob patterns (e.g., **/*.txt,**/*.md)" Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Experimental Settings Tab -->
+            <TabItem Header="Experimental" Padding="10">
+                <StackPanel Margin="15" VerticalAlignment="Top">
+                    <TextBlock Text="Experimental Features" FontSize="14" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <CheckBox IsChecked="{Binding AddCurrentFileByDefault, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Add Current File by Default" FontWeight="Bold"/>
+                            <TextBlock Text="Currently open file is added as context in every new conversation." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding EnableExperimentalTools, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Enable Experimental Tools" FontWeight="Bold"/>
+                            <TextBlock Text="Enables access to experimental tools that are still in development." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding OnlyUseSystemMessageTools, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Only Use System Message Tools" FontWeight="Bold"/>
+                            <TextBlock Text="Will not attempt to use native tool calling and will only use system message tools." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding CodebaseUseToolCallingOnly, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="@Codebase: Use Tool Calling Only" FontWeight="Bold"/>
+                            <TextBlock Text="@codebase context provider will only use tool calling for code retrieval." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding StreamAfterToolRejection, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Stream After Tool Rejection" FontWeight="Bold"/>
+                            <TextBlock Text="Streaming will continue after a tool call is rejected." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

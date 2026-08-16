@@ -261,6 +261,14 @@ namespace ContinueVS.Services.Interfaces
         /// <returns>An enumerable of matching file paths.</returns>
         IEnumerable<string> GetWorkspaceFiles(string pattern = "*");
 
+        // VS Editor Operations
+        /// <summary>
+        /// Opens a file in the Visual Studio editor.
+        /// </summary>
+        /// <param name="filePath">The path to the file to open.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task OpenFileInEditorAsync(string filePath);
+
         // Events
         /// <summary>
         /// Event raised when a file changes on disk.

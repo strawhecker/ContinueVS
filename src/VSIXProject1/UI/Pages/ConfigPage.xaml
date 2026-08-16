@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:ContinueVS.UI.Pages"
              mc:Ignorable="d"
              Loaded="ConfigPage_Loaded"
              d:DesignHeight="600" d:DesignWidth="800">
@@ -64,12 +65,24 @@
             <TextBlock Text="{Binding AvailableTools.Count, StringFormat='Total Enabled Tools: {0}'}" 
                        Foreground="#666" FontSize="12" Margin="0,10,0,20" FontWeight="Bold"/>
 
+            <!-- Settings Section -->
+            <TextBlock Text="User Preferences" FontSize="14" FontWeight="Bold" Margin="0,20,0,10"/>
+            <Border BorderThickness="1" BorderBrush="#DDD" Padding="0" Margin="0,0,0,20">
+                <local:SettingsControl x:Name="SettingsControlHost" Height="400"/>
+            </Border>
+
             <!-- Buttons -->
             <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
                 <Button Content="Save Configuration" 
                         Command="{Binding SaveConfigCommand}"
                         Padding="15,8" 
                         Background="#0078D4" 
+                        Foreground="White" 
+                        Margin="0,0,10,0"/>
+                <Button Content="Edit Config in Editor" 
+                        Command="{Binding EditConfigCommand}"
+                        Padding="15,8" 
+                        Background="#6B8E23" 
                         Foreground="White" 
                         Margin="0,0,10,0"/>
                 <Button Content="Reindex Workspace" 

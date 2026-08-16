@@ -14,8 +14,10 @@ namespace ContinueVS.ViewModels
     {
         private readonly IConfigService _configService;
         private readonly IIndexingService _indexingService;
+        private readonly IIdeService _ideService;
 
         private ModelInfo? _selectedModel;
+        private SettingsViewModel? _settingsViewModel;
 
         public ObservableCollection<ModelInfo> AvailableModels { get; }
         public ObservableCollection<ToolDefinition> AvailableTools { get; }
@@ -27,23 +29,33 @@ namespace ContinueVS.ViewModels
             set => Set(ref _selectedModel, value);
         }
 
+        public SettingsViewModel? SettingsViewModel
+        {
+            get => _settingsViewModel;
+            set => Set(ref _settingsViewModel, value);
+        }
+
         public RelayCommand AddModelCommand { get; }
         public RelayCommand RemoveModelCommand { get; }
         public RelayCommand SaveConfigCommand { get; }
+        public RelayCommand EditConfigCommand { get; }
         public RelayCommand ReindexCommand { get; }
         public RelayCommand<ToolDefinition> ToggleToolCommand { get; }
 
         public ConfigPageViewModel(
             IConfigService configService,
-            IIndexingService indexingService)
+            IIndexingService indexingService,
+            IIdeService ideService)
         {
             if (configService == null) throw new ArgumentNullException(nameof(configService));
             if (indexingService == null) throw new ArgumentNullException(nameof(indexingService));
+            if (ideService == null) throw new ArgumentNullException(nameof(ideService));
 
             Debug.WriteLine("[gap8_1-configvm-ctor-start] ConfigPageViewModel CONSTRUCTOR CALLED");
 
             _configService = configService;
             _indexingService = indexingService;
+            _ideService = ideService;
 
             AvailableModels = new ObservableCollection<ModelInfo>();
             AvailableTools = new ObservableCollection<ToolDefinition>();
@@ -53,11 +65,17 @@ namespace ContinueVS.ViewModels
             AddModelCommand = new RelayCommand(ExecuteAddModel);
             RemoveModelCommand = new RelayCommand(ExecuteRemoveModel);
             SaveConfigCommand = new RelayCommand(ExecuteSaveConfig);
+            EditConfigCommand = new RelayCommand(ExecuteEditConfig);
             ReindexCommand = new RelayCommand(ExecuteReindex);
             ToggleToolCommand = new RelayCommand<ToolDefinition>(ExecuteToggleTool);
 
             Debug.WriteLine("[gap8_1-configvm-ctor-load] Calling LoadConfiguration()");
             LoadConfiguration();
+
+            Debug.WriteLine("[gap8_1-configvm-ctor-settings] Creating SettingsViewModel");
+            _settingsViewModel = new SettingsViewModel(_configService);
+            _settingsViewModel.LoadSettings();
+            RaisePropertyChanged(nameof(SettingsViewModel));
 
             Debug.WriteLine("[gap8_1-configvm-ctor-end] ConfigPageViewModel CONSTRUCTOR COMPLETE");
         }
@@ -208,11 +226,48 @@ namespace ContinueVS.ViewModels
         {
             try
             {
+                // Save settings first
+                if (_settingsViewModel != null)
+                {
+                    Debug.WriteLine("[gap8_1-configvm-save-settings] Saving settings via SettingsViewModel");
+                    await _settingsViewModel.SaveSettingsAsync();
+                }
+
+                // Save config (includes tools and models)
                 await _configService.SaveConfigAsync();
+                Debug.WriteLine("[gap8_1-configvm-save-complete] Configuration and settings saved");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Handle error
+                Debug.WriteLine($"[gap8_1-configvm-save-error] Error saving config: {ex.Message}");
+            }
+        }
+
+#pragma warning disable VSTHRD100
+        private async void ExecuteEditConfig()
+#pragma warning restore VSTHRD100
+        {
+            try
+            {
+                Debug.WriteLine("[gap8_3-configvm-editconfig-start] EditConfig command executed");
+
+                var config = _configService.GetCurrentConfig();
+                if (config?.ConfigFilePath == null)
+                {
+                    Debug.WriteLine("[gap8_3-configvm-editconfig-nopath] Config file path is null");
+                    return;
+                }
+
+                Debug.WriteLine($"[gap8_3-configvm-editconfig-path] Opening config file: {config.ConfigFilePath}");
+                Debug.WriteLine("[gap8_3-configvm-editconfig-calling-ideservice] Calling IIdeService.OpenFileInEditorAsync");
+
+                await _ideService.OpenFileInEditorAsync(config.ConfigFilePath);
+
+                Debug.WriteLine("[gap8_3-configvm-editconfig-complete] Config file opened in editor");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap8_3-configvm-editconfig-error] Error opening config editor: {ex.Message}");
             }
         }
 
