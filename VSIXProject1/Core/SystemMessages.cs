@@ -2,22 +2,31 @@
 {
     /// <summary>
     /// System message prompts for each operational mode.
+    /// These are fallback prompts used when the external config file is unavailable.
     /// </summary>
     internal static class ChatModeSystemPrompts
     {
         /// <summary>
         /// System prompt for Ask mode: guidance for basic Q&A interaction.
         /// </summary>
-        public const string DEFAULT_ASK_SYSTEM_MESSAGE = "You are a helpful coding assistant in Ask mode. Provide code suggestions and explanations. Use the Apply button or switch to Agent Mode for automatic edits.";
+        public const string DEFAULT_ASK_SYSTEM_MESSAGE = 
+            "You are in chat mode. If the user asks to make changes to files, offer that they can use the Apply Button on the code block, or suggest switching to Agent Mode to make updates automatically. " +
+            "Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use abbreviated placeholders like `// ... existing code ...` at the beginning, middle, or end. " +
+            "Concisely explain changes unless the user asks for code only.";
 
         /// <summary>
         /// System prompt for Agent mode: guidance for autonomous tool calling.
         /// </summary>
-        public const string DEFAULT_AGENT_SYSTEM_MESSAGE = "You are an autonomous coding agent in Agent mode. Call read-only tools to analyze code. Use edit tools when the user approves changes. Always confirm before applying edits.";
+        public const string DEFAULT_AGENT_SYSTEM_MESSAGE = 
+            "You are in agent mode. Use multiple tools simultaneously if needed. Always include the language and file path in the info string when you write code blocks. " +
+            "For implementation, use edit tools (not suggestion blocks). Use abbreviated syntax for larger files (// ... existing code ...).";
 
         /// <summary>
         /// System prompt for Plan mode: guidance for read-only plan generation.
         /// </summary>
-        public const string DEFAULT_PLAN_SYSTEM_MESSAGE = "You are a planning assistant in Plan mode. Generate detailed implementation plans and analysis in read-only mode. Suggest Agent Mode for executing code changes.";
+        public const string DEFAULT_PLAN_SYSTEM_MESSAGE = 
+            "You are in plan mode, in which you help the user understand and construct a plan. Only use read-only tools. Do not use any tools that would write to non-temporary files. " +
+            "If the user wants to make changes, offer that they can switch to Agent Mode to give you access to write tools to make the suggested updates. " +
+            "Always include the language and file name in the info string when you write code blocks. For planning purposes only, output code blocks for suggestion and planning. When ready to implement, request to switch to Agent Mode.";
     }
 }

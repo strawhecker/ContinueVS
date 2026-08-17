@@ -954,31 +954,33 @@ Experimental
 - System messages guide LLM behavior and inform users of mode capabilities
 - Code snippet formatting rules consistent across all modes (include file path, abbreviate large blocks)
 
-**ContinueVS Gap:**
-- Mode-specific system messages not defined in code
-- MessengerService.StreamAsync() does not prepend mode message to prompt
-- No guidance for users on mode switching or capabilities
-- Code snippet formatting rules not enforced in prompts
+**ContinueVS Solution (gap8_5 COMPLETED):**
+- Mode-specific system messages defined in `SystemMessages.cs` with detailed guidance per session-context requirements
+- System prompts loaded from `~/.continueVS/system-prompts.json` (editable post-install) with fallback to hardcoded defaults
+- `SystemPromptService` manages loading, caching, and file creation
+- `ChatPageViewModel` injects system message via `GetSystemMessageForMode()` → `ISystemPromptService.GetPromptForMode()`
+- Prompts include code formatting rules: language+filename in headers, abbreviations for large blocks (// ... existing code ...)
 
-**Remediation:**
-1. Define mode-specific system messages as constants or enum properties:
-   - **Chat**: "You are in chat mode. If user asks to make changes, offer Apply Button or suggest switching to Agent Mode via Mode Selector. Always include language and file path in code blocks. Use abbreviated syntax for large files (// ... existing code ...)."
-   - **Plan**: "You are in plan mode (read-only). Help user understand and construct plans. Only use read-only tools. For changes, suggest switching to Agent Mode. Use code blocks for planning only, not implementation."
-   - **Agent**: "You are in agent mode. Use multiple tools simultaneously if needed. Always include language and file path in code blocks. For implementation, use edit tools (not suggestion blocks)."
-2. Inject appropriate system message into MessengerService.StreamAsync():
-   - Prepend mode message to user's prompt before sending to LLM
-   - OR: Add as separate assistant context message 
-3. Add ChatModeToSystemMessageConverter (optional, if binding in XAML)
+**Implementation Details:**
+1. **SystemPromptConfig.cs**: Deserializable JSON model with mode→prompt mapping
+2. **SystemPromptService.cs**: Loader service with config file management (~/.continueVS/system-prompts.json)
+3. **ISystemPromptService.cs**: Interface for DI registration
+4. **ServiceBootstrapper.cs**: Registered as singleton
+5. **ServiceInitializer.cs**: Calls `EnsureConfigFileExistsAsync()` and `LoadAsync()` during startup
+6. **ChatPageViewModel.cs**: Injected; calls `GetPromptForMode()` via service instead of static constant
+7. **SystemMessages.cs**: Updated constants with full prompts matching session-context spec
+8. **Fallback behavior**: If JSON file missing/corrupt, uses hardcoded defaults from SystemMessages.cs
 
 **Depends on:** gap5 (chat infrastructure), gap8_3 (mode selector wired)
 
-**Reference: Mode System Messages**
+**Reference: Mode System Messages (JSON-configurable)**
 
 | Mode | System Message | Allowed Actions |
 |------|---|---|
 | **Chat** | "You are in chat mode. If the user asks to make changes to files, offer that they can use the Apply Button on the code block, or suggest switching to Agent Mode to make updates automatically. Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use abbreviated placeholders like `// ... existing code ...` at the beginning, middle, or end. Concisely explain changes unless the user asks for code only." | Read-only responses; code suggestions with Apply button; mode switch recommendation |
 | **Plan** | "You are in plan mode, in which you help the user understand and construct a plan. Only use read-only tools. Do not use any tools that would write to non-temporary files. If the user wants to make changes, offer that they can switch to Agent Mode to give you access to write tools to make the suggested updates. Always include the language and file name in the info string when you write code blocks. For planning purposes only, output code blocks for suggestion and planning. When ready to implement, request to switch to Agent Mode." | Analysis; planning; read-only tool calls; recommend Agent Mode for implementation |
-| **Agent** | "You are in agent mode. If you need to use multiple tools, you can call multiple read-only tools simultaneously. Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use brief placeholders like `// ... existing code ...` at the beginning, middle, or end. However, only output code blocks for suggestion and demonstration purposes. For implementing changes, use the provided edit tools." | Full tool calling; concurrent tool execution; direct file edits via tools; implementation |
+| **Agent** | "You are in agent mode. Use multiple tools simultaneously if needed. Always include the language and file path in the info string when you write code blocks. For implementation, use edit tools (not suggestion blocks). Use abbreviated syntax for larger files (// ... existing code ...)." | Full tool calling; autonomous code editing; multiple simultaneous tool invocations |
+
 
 ---
 

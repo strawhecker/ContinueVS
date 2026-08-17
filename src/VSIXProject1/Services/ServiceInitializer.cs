@@ -32,7 +32,7 @@ namespace ContinueVS.Services
     public static class ServiceInitializer
     {
         /// <summary>
-        /// Initializes all services asynchronously, starting with IConfigService.
+        /// Initializes all services asynchronously, starting with IConfigService and ISystemPromptService.
         /// </summary>
         /// <param name="serviceProvider">
         /// The DI service provider from step 33 (ContinueVSPackage.ServiceProvider).
@@ -53,6 +53,27 @@ namespace ContinueVS.Services
             try
             {
                 System.Diagnostics.Debug.WriteLine("[ServiceInitializer] Starting service initialization...");
+
+                // Initialize ISystemPromptService (loads prompts from config file)
+                var systemPromptService = serviceProvider.GetService(typeof(ISystemPromptService)) as ISystemPromptService;
+                if (systemPromptService != null)
+                {
+                    try
+                    {
+                        System.Diagnostics.Debug.WriteLine("[ServiceInitializer] Initializing ISystemPromptService...");
+                        await systemPromptService.EnsureConfigFileExistsAsync();
+                        await systemPromptService.LoadAsync();
+                        System.Diagnostics.Debug.WriteLine("[ServiceInitializer] ✓ ISystemPromptService initialized successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ServiceInitializer] Warning: ISystemPromptService initialization failed; using defaults: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[ServiceInitializer] Warning: ISystemPromptService not resolved from serviceProvider; skipping initialization.");
+                }
 
                 // Initialize IConfigService first (highest priority, no dependencies)
                 var configService = serviceProvider.GetService(typeof(IConfigService)) as IConfigService;

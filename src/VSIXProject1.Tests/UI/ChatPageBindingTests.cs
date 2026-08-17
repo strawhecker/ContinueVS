@@ -1,9 +1,10 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.ObjectModel;
 using Xunit;
 using Moq;
 using ContinueVS.Core.Types;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 
@@ -25,6 +26,13 @@ namespace ContinueVS.Tests.UI
             return mock;
         }
 
+        private Mock<ISystemPromptService> CreateSystemPromptServiceMock()
+        {
+            var mock = CreateLooseMock<ISystemPromptService>();
+            mock.Setup(m => m.GetPromptForMode(It.IsAny<string>())).Returns("Test system prompt");
+            return mock;
+        }
+
         [Fact]
         public void InputText_PropertyChanged_FiresNotification()
         {
@@ -34,7 +42,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -42,9 +52,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            using var tracker = new PropertyChangedTracker(viewModel);
+            u
+                mockSystemPromptService.Object);sing var tracker = new PropertyChangedTracker(viewModel);
 
             // Act
             viewModel.InputText = "Hello, world!";
@@ -63,7 +74,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -71,9 +84,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            using var tracker = new PropertyChangedTracker(viewModel);
+            u
+                mockSystemPromptService.Object);sing var tracker = new PropertyChangedTracker(viewModel);
 
             // Act
             viewModel.IsStreaming = true;
@@ -92,7 +106,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -100,9 +116,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            using var tracker = new PropertyChangedTracker(viewModel);
+            u
+                mockSystemPromptService.Object);sing var tracker = new PropertyChangedTracker(viewModel);
 
             // Act
             viewModel.StreamingResponse = "Response text";
@@ -121,7 +138,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -129,9 +148,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            using var collectionTracker = new CollectionChangeTracker(viewModel.Messages);
+            u
+                mockSystemPromptService.Object);sing var collectionTracker = new CollectionChangeTracker(viewModel.Messages);
 
             var message = new ChatMessage { Role = ChatMessageRole.User, Content = "Test" };
 
@@ -153,7 +173,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -161,9 +183,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            var message = new ChatMessage { Role = ChatMessageRole.User, Content = "Test" };
+            v
+                mockSystemPromptService.Object);ar message = new ChatMessage { Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(message);
 
             using var collectionTracker = new CollectionChangeTracker(viewModel.Messages);
@@ -185,7 +208,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -193,9 +218,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            using var collectionTracker = new CollectionChangeTracker(viewModel.SelectedContext);
+            u
+                mockSystemPromptService.Object);sing var collectionTracker = new CollectionChangeTracker(viewModel.SelectedContext);
 
             var contextItem = new ContextItem { FilePath = "test.cs", Type = ContextItemType.File };
 
@@ -217,7 +243,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -225,9 +253,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            // Act
+            /
+                mockSystemPromptService.Object);/ Act
             viewModel.InputText = "Test message";
 
             // Assert
@@ -244,7 +273,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -252,9 +283,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            // Act & Assert
+            /
+                mockSystemPromptService.Object);/ Act & Assert
             Assert.NotNull(viewModel.SendMessageCommand);
             Assert.False(viewModel.SendMessageCommand.CanExecute(null));
         }
@@ -268,7 +300,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -276,9 +310,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            // Act
+            /
+                mockSystemPromptService.Object);/ Act
             viewModel.IsStreaming = true;
 
             // Assert
@@ -295,7 +330,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -303,9 +340,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            // Act & Assert
+            /
+                mockSystemPromptService.Object);/ Act & Assert
             Assert.NotNull(viewModel.CancelCommand);
             Assert.False(viewModel.CancelCommand.CanExecute(null));
         }
@@ -319,7 +357,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -327,9 +367,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            // Act & Assert
+            /
+                mockSystemPromptService.Object);/ Act & Assert
             Assert.NotNull(viewModel.AddContextCommand);
             Assert.True(viewModel.AddContextCommand.CanExecute("test"));
         }
@@ -343,7 +384,9 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
-            var mockConfigService = CreateConfigServiceMock();
+            var mockConfigService = CreateConfigServiceMock();`n            var mockSystemPromptService = CreateSystemPromptServiceMock();`nvar viewModel = new ChatPageViewModel(
+
+            var mockSystemPromptService = CreateSystemPromptServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
@@ -351,9 +394,10 @@ namespace ContinueVS.Tests.UI
                 mockToolService.Object,
                 mockSessionService.Object,
                 mockNotificationService.Object,
-                mockConfigService.Object);
+                mockConfigService.Object,
 
-            using var tracker = new PropertyChangedTracker(viewModel);
+            u
+                mockSystemPromptService.Object);sing var tracker = new PropertyChangedTracker(viewModel);
 
             // Act
             viewModel.InputText = "Message 1";
@@ -367,3 +411,9 @@ namespace ContinueVS.Tests.UI
         }
     }
 }
+
+
+
+
+
+

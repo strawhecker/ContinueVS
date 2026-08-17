@@ -28,6 +28,7 @@ namespace ContinueVS.Services
             // Register UI/Navigation services
             services.AddSingleton<IPageNavigator, PageNavigator>();
             services.AddSingleton<IThemeService, ThemeService>();
+            services.AddSingleton<ISystemPromptService, SystemPromptService>();
 
             // Register HTTP client singleton for MessengerService
             services.AddSingleton<HttpClient>(sp => new HttpClient { Timeout = TimeSpan.FromSeconds(300) });

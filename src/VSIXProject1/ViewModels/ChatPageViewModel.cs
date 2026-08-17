@@ -64,6 +64,7 @@ namespace ContinueVS.ViewModels
         private readonly ISessionService _sessionService;
         private readonly INotificationService _notificationService;
         private readonly IConfigService _configService;
+        private readonly ISystemPromptService _systemPromptService;
 
         private string? _inputText;
         private bool _isStreaming;
@@ -145,7 +146,8 @@ namespace ContinueVS.ViewModels
             IToolService toolService,
             ISessionService sessionService,
             INotificationService notificationService,
-            IConfigService configService)
+            IConfigService configService,
+            ISystemPromptService systemPromptService)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -153,6 +155,7 @@ namespace ContinueVS.ViewModels
             if (sessionService == null) throw new ArgumentNullException(nameof(sessionService));
             if (notificationService == null) throw new ArgumentNullException(nameof(notificationService));
             if (configService == null) throw new ArgumentNullException(nameof(configService));
+            if (systemPromptService == null) throw new ArgumentNullException(nameof(systemPromptService));
 
             _llmService = llmService;
             _contextService = contextService;
@@ -160,6 +163,7 @@ namespace ContinueVS.ViewModels
             _sessionService = sessionService;
             _notificationService = notificationService;
             _configService = configService;
+            _systemPromptService = systemPromptService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -172,8 +176,14 @@ namespace ContinueVS.ViewModels
             AddContextCommand = new RelayCommand<string>(ExecuteAddContext);
             SetModeCommand = new RelayCommand<ChatMode>(mode => CurrentMode = mode);
 
-            _ = LoadModelsAsync();
+            _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
+        }
+
+        private async Task InitializeAsync()
+        {
+            await _systemPromptService.LoadAsync();
+            await LoadModelsAsync();
         }
 
         private async Task LoadModelsAsync()
@@ -340,16 +350,12 @@ namespace ContinueVS.ViewModels
 
         /// <summary>
         /// Gets the system message prompt for the specified chat mode.
+        /// Uses the SystemPromptService to load from config file, with fallback to defaults.
         /// </summary>
         private string GetSystemMessageForMode(ChatMode mode)
         {
-            return mode switch
-            {
-                ChatMode.Ask => ChatModeSystemPrompts.DEFAULT_ASK_SYSTEM_MESSAGE,
-                ChatMode.Agent => ChatModeSystemPrompts.DEFAULT_AGENT_SYSTEM_MESSAGE,
-                ChatMode.Plan => ChatModeSystemPrompts.DEFAULT_PLAN_SYSTEM_MESSAGE,
-                _ => ChatModeSystemPrompts.DEFAULT_ASK_SYSTEM_MESSAGE
-            };
+            var modeKey = mode.ToString().ToLowerInvariant();
+            return _systemPromptService.GetPromptForMode(modeKey);
         }
     }
 }
