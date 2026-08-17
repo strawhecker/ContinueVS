@@ -14,7 +14,7 @@ namespace ContinueVS.Services.Implementations
 {
     /// <summary>
     /// Loads built-in tool definitions from the embedded tools-defaults.json resource.
-    /// Provides fallback to in-memory defaults if resource is unavailable.
+    /// Provides fallback to in-memory defaults (BuiltInToolsRegistry) if resource is unavailable.
     /// </summary>
     public static class ToolsResourceLoader
     {
@@ -22,9 +22,9 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Loads default tool definitions from the embedded resource.
-        /// Falls back to empty list if resource is missing or corrupted.
+        /// Falls back to in-memory BuiltInToolsRegistry if resource is missing or corrupted.
         /// </summary>
-        /// <returns>Enumerable of ToolDefinition instances from resource, or empty list on error.</returns>
+        /// <returns>Enumerable of ToolDefinition instances from resource or fallback.</returns>
         public static async Task<IEnumerable<ToolDefinition>> LoadDefaultToolsAsync()
         {
             Debug.WriteLine("[gap8_1-resource-load-start] LoadDefaultToolsAsync called");
@@ -38,14 +38,27 @@ namespace ContinueVS.Services.Implementations
                     {
                         if (stream == null)
                         {
-                            Debug.WriteLine($"[gap8_1-resource-load-error] Resource not found: {ResourceName}");
-                            return new List<ToolDefinition>();
+                            Debug.WriteLine($"[gap8_1-resource-load-error] Resource '{ResourceName}' not found in assembly");
+                            Debug.WriteLine("[gap8_1-resource-load-debug] Available embedded resources:");
+                            
+                            // Diagnostic: List all available resources to help with troubleshooting
+                            var resourceNames = assembly.GetManifestResourceNames();
+                            foreach (var name in resourceNames)
+                            {
+                                Debug.WriteLine($"  - {name}");
+                            }
+
+                            // Fallback to in-memory defaults
+                            Debug.WriteLine("[gap8_1-resource-load-fallback] Falling back to BuiltInToolsRegistry");
+                            var fallbackTools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+                            Debug.WriteLine($"[gap8_1-resource-load-fallback-end] Fallback provided {fallbackTools.Count} tools from BuiltInToolsRegistry");
+                            return fallbackTools;
                         }
 
                         using (var reader = new StreamReader(stream, Encoding.UTF8))
                         {
                             var json = reader.ReadToEnd();
-                            Debug.WriteLine($"[gap8_1-resource-load-read] Read {json.Length} bytes from resource");
+                            Debug.WriteLine($"[gap8_1-resource-load-read] Read {json.Length} bytes from resource '{ResourceName}'");
 
                             var root = JObject.Parse(json);
                             var toolsArray = root["tools"] as JArray;
@@ -53,7 +66,10 @@ namespace ContinueVS.Services.Implementations
                             if (toolsArray == null)
                             {
                                 Debug.WriteLine("[gap8_1-resource-load-error] 'tools' array not found in resource JSON");
-                                return new List<ToolDefinition>();
+                                Debug.WriteLine("[gap8_1-resource-load-fallback] Falling back to BuiltInToolsRegistry");
+                                var fallbackTools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+                                Debug.WriteLine($"[gap8_1-resource-load-fallback-end] Fallback provided {fallbackTools.Count} tools from BuiltInToolsRegistry");
+                                return fallbackTools;
                             }
 
                             var tools = new List<ToolDefinition>();
@@ -74,7 +90,7 @@ namespace ContinueVS.Services.Implementations
                                 }
                             }
 
-                            Debug.WriteLine($"[gap8_1-resource-load-end] LoadDefaultToolsAsync completed: {tools.Count} tools loaded");
+                            Debug.WriteLine($"[gap8_1-resource-load-end] LoadDefaultToolsAsync completed: {tools.Count} tools loaded from resource");
                             return tools;
                         }
                     }
@@ -82,7 +98,20 @@ namespace ContinueVS.Services.Implementations
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"[gap8_1-resource-load-error] Exception in LoadDefaultToolsAsync: {ex.GetType().Name}: {ex.Message}");
-                    return new List<ToolDefinition>();
+                    Debug.WriteLine($"[gap8_1-resource-load-error] StackTrace: {ex.StackTrace}");
+                    Debug.WriteLine("[gap8_1-resource-load-fallback] Falling back to BuiltInToolsRegistry due to exception");
+                    
+                    try
+                    {
+                        var fallbackTools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+                        Debug.WriteLine($"[gap8_1-resource-load-fallback-end] Fallback provided {fallbackTools.Count} tools from BuiltInToolsRegistry");
+                        return fallbackTools;
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        Debug.WriteLine($"[gap8_1-resource-load-error] Fallback also failed: {fallbackEx.Message}");
+                        return new List<ToolDefinition>();
+                    }
                 }
             });
         }
