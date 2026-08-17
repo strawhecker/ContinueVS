@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -16,6 +16,11 @@ namespace ContinueVS.Services.Implementations
     /// Implementation of IConfigService that manages Continue configuration.
     /// Wraps ConfigCache and provides typed access to configuration data.
     /// Loads/saves configuration from ~/.continueVS/continueVS.json.
+    /// 
+    /// Tools are loaded via two-tier lookup:
+    /// 1. Check continueVS.json for user overrides
+    /// 2. Load defaults from embedded tools-defaults.json resource
+    /// 3. Merge: user overrides + resource defaults
     /// </summary>
     public class ConfigService : IConfigService
     {
@@ -58,7 +63,7 @@ namespace ContinueVS.Services.Implementations
                 }
             }
 
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 try
                 {
@@ -74,7 +79,7 @@ namespace ContinueVS.Services.Implementations
                         System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config file exists: {ConfigFilePath}");
                         var json = File.ReadAllText(ConfigFilePath);
                         _currentConfig = JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(json) 
-                            ?? CreateDefaultConfig();
+                            ?? (await CreateDefaultConfigAsync());
                         System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Loaded from file. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
 
                         // Migrate/upgrade: populate OllamaModelId for any missing entries
@@ -94,11 +99,14 @@ namespace ContinueVS.Services.Implementations
                             System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Config was migrated, saving updated version");
                             SaveConfigSync();
                         }
+
+                        // Merge tools: user overrides + resource defaults
+                        await MergeToolsWithResourceAsync(_currentConfig);
                     }
                     else
                     {
                         System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config file does not exist, creating default: {ConfigFilePath}");
-                        _currentConfig = CreateDefaultConfig();
+                        _currentConfig = await CreateDefaultConfigAsync();
                         System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Created default config. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
                         SaveConfigSync();
                         System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Saved default config to disk");
@@ -360,7 +368,7 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         public async Task ReloadConfigAsync()
         {
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 lock (_lock)
                 {
@@ -369,20 +377,24 @@ namespace ContinueVS.Services.Implementations
                     {
                         var json = File.ReadAllText(ConfigFilePath);
                         _currentConfig = JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(json) 
-                            ?? CreateDefaultConfig();
+                            ?? null!;
                         _currentConfig.ConfigFilePath = ConfigFilePath;
                         _currentConfig.LastModified = DateTime.UtcNow;
                     }
                 }
+
+                // Merge tools after reload
+                await MergeToolsWithResourceAsync(_currentConfig);
             });
 
             OnConfigChanged("*", null, _currentConfig);
         }
 
         /// <summary>
-        /// Creates a default configuration object with a predefined Ollama model.
+        /// Creates a default configuration object with predefined Ollama model.
+        /// Tools populated from embedded resource via MergeToolsWithResourceAsync.
         /// </summary>
-        private static CoreTypes.ContinueConfig CreateDefaultConfig()
+        private async Task<CoreTypes.ContinueConfig> CreateDefaultConfigAsync()
         {
             System.Diagnostics.Debug.WriteLine("[ConfigService.CreateDefaultConfig] Creating default config...");
 
@@ -402,14 +414,10 @@ namespace ContinueVS.Services.Implementations
                 }
             };
 
-            // Populate default config with all 19 built-in tools (gap8_1)
-            var builtInTools = ContinueVS.Core.Types.BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
-            System.Diagnostics.Debug.WriteLine($"[ConfigService.CreateDefaultConfig] Adding {builtInTools.Count} built-in tools to default config");
-
             var config = new CoreTypes.ContinueConfig
             {
                 Models = models,
-                Tools = builtInTools,
+                Tools = new List<CoreTypes.ToolDefinition>(),
                 Profiles = new List<CoreTypes.ProfileInfo>(),
                 CustomSettings = new Dictionary<string, object>(),
                 ConfigFilePath = ConfigFilePath,
@@ -417,8 +425,50 @@ namespace ContinueVS.Services.Implementations
                 SelectedModelId = models[0].Id
             };
 
-            System.Diagnostics.Debug.WriteLine($"[ConfigService.CreateDefaultConfig] Created config with SelectedModelId: {config.SelectedModelId}, Model: {models[0].Name} (Id: {models[0].Id})");
+            // Load tools from resource
+            await MergeToolsWithResourceAsync(config);
+
+            System.Diagnostics.Debug.WriteLine($"[ConfigService.CreateDefaultConfig] Created config with SelectedModelId: {config.SelectedModelId}, Model: {models[0].Name} (Id: {models[0].Id}), Tools: {config.Tools.Count}");
             return config;
+        }
+
+        /// <summary>
+        /// Merges tools from embedded resource with user overrides in config.
+        /// Two-tier lookup: User overrides take precedence, defaults from resource fill gaps.
+        /// </summary>
+        private async Task MergeToolsWithResourceAsync(CoreTypes.ContinueConfig config)
+        {
+            Debug.WriteLine("[gap8_1-configsvc-merge-tools] MergeToolsWithResourceAsync starting");
+
+            // Load defaults from resource
+            var defaultTools = await ToolsResourceLoader.LoadDefaultToolsAsync();
+            Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Loaded {defaultTools.Count()} tools from resource");
+
+            if (config.Tools == null)
+                config.Tools = new List<CoreTypes.ToolDefinition>();
+
+            // Build a map of user overrides by name
+            var userToolsByName = config.Tools.ToDictionary(t => t.Name);
+
+            // Merge: For each default tool, use user override if exists, otherwise use default
+            var mergedTools = new List<CoreTypes.ToolDefinition>();
+            foreach (var defaultTool in defaultTools)
+            {
+                if (userToolsByName.TryGetValue(defaultTool.Name, out var userTool))
+                {
+                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Using user override for tool: {defaultTool.Name}");
+                    mergedTools.Add(userTool);
+                }
+                else
+                {
+                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Using resource default for tool: {defaultTool.Name}");
+                    mergedTools.Add(defaultTool);
+                }
+            }
+
+            // Assign merged tools back to config
+            config.Tools = mergedTools;
+            Debug.WriteLine($"[gap8_1-configsvc-merge-tools] MergeToolsWithResourceAsync complete: {config.Tools.Count} tools in config");
         }
 
         /// <summary>
