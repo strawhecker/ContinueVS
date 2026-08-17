@@ -1,0 +1,32 @@
+<UserControl x:Class="ContinueVS.UI.Views.AddModelDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="500"
+             Background="White">
+    <Grid>
+        <StackPanel Margin="20" VerticalAlignment="Top">
+            <TextBlock Text="Add Chat Model" FontSize="18" FontWeight="Bold" Margin="0,0,0,20"/>
+            <ComboBox ItemsSource="{Binding Providers}"
+                      SelectedItem="{Binding SelectedProvider, Mode=TwoWay}"
+                      MinHeight="35"
+                      Margin="0,0,0,10"
+                      DisplayMemberPath="."/>
+            <ComboBox ItemsSource="{Binding AvailableModels}"
+                      SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
+                      MinHeight="35"
+                      Margin="0,0,0,10"/>
+            <TextBlock Text="API Key" FontSize="11" Margin="0,0,0,5"/>
+            <PasswordBox x:Name="ApiKeyBox" MinHeight="30" Margin="0,0,0,20"/>
+            <TextBlock Text="Base URL (Ollama)" FontSize="11" Margin="0,0,0,5"/>
+            <TextBox Text="{Binding BaseUrl, Mode=TwoWay}" MinHeight="30" Margin="0,0,0,20"/>
+            <Button Content="Autodetect" Command="{Binding AutodetectCommand}" Background="#4CAF50" Foreground="White" MinHeight="35" Margin="0,0,0,10"/>
+            <Button Content="Connect" Command="{Binding ConnectCommand}" Background="#2196F3" Foreground="White" MinHeight="35" Margin="0,0,0,10"/>
+            <Button Content="Save Model" Command="{Binding SaveCommand}" Background="#4CAF50" Foreground="White" MinHeight="35" Margin="0,0,0,10"/>
+            <Button Content="Cancel" Command="{Binding CancelCommand}" Background="#999" Foreground="White" MinHeight="35" Margin="0,0,10,0"/>
+            <TextBlock Text="{Binding ValidationError}" Foreground="Red" TextWrapping="Wrap" Margin="0,10,0,0"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

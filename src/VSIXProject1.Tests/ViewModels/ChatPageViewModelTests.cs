@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Moq;
 using Xunit;
 using ContinueVS.Core.Types;
@@ -13,6 +14,21 @@ namespace ContinueVS.Tests.ViewModels
 {
     public class ChatPageViewModelTests : TestFixtureBase
     {
+        private Mock<IConfigService> CreateConfigServiceMock()
+        {
+            var mock = CreateLooseMock<IConfigService>();
+            var config = new ContinueConfig
+            {
+                Models = new List<ModelInfo>
+                {
+                    new ModelInfo { Name = "Model 1", Provider = "ollama", BaseUrl = "http://localhost:11434" },
+                    new ModelInfo { Name = "Model 2", Provider = "openai", BaseUrl = "https://api.openai.com" }
+                }
+            };
+            mock.Setup(m => m.GetCurrentConfig()).Returns(config);
+            return mock;
+        }
+
         [Fact]
         public void Constructor_WithValidDependencies_InitializesCollections()
         {
@@ -22,6 +38,7 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             // Act
             var viewModel = new ChatPageViewModel(
@@ -29,14 +46,17 @@ namespace ContinueVS.Tests.ViewModels
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Assert
             Assert.NotNull(viewModel);
             Assert.NotNull(viewModel.Messages);
             Assert.NotNull(viewModel.SelectedContext);
+            Assert.NotNull(viewModel.AvailableModels);
             Assert.IsType<ObservableCollection<ChatMessage>>(viewModel.Messages);
             Assert.IsType<ObservableCollection<ContextItem>>(viewModel.SelectedContext);
+            Assert.IsType<ObservableCollection<ModelInfo>>(viewModel.AvailableModels);
             Assert.False(viewModel.IsStreaming);
         }
 
@@ -48,6 +68,7 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
@@ -56,7 +77,93 @@ namespace ContinueVS.Tests.ViewModels
                     mockContextService.Object,
                     mockToolService.Object,
                     mockSessionService.Object,
-                    mockNotificationService.Object));
+                    mockNotificationService.Object,
+                    mockConfigService.Object));
+        }
+
+        [Fact]
+        public async Task LoadModelsAsync_PopulatesAvailableModels()
+        {
+            // Arrange
+            var mockLlmService = CreateLooseMock<ILlmService>();
+            var mockContextService = CreateLooseMock<IContextService>();
+            var mockToolService = CreateLooseMock<IToolService>();
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
+
+            // Act
+            var viewModel = new ChatPageViewModel(
+                mockLlmService.Object,
+                mockContextService.Object,
+                mockToolService.Object,
+                mockSessionService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object);
+
+            // Wait for async initialization
+            await Task.Delay(100);
+
+            // Assert
+            Assert.NotEmpty(viewModel.AvailableModels);
+            Assert.Equal(2, viewModel.AvailableModels.Count);
+            Assert.Equal("Model 1", viewModel.AvailableModels[0].Name);
+            Assert.Equal("Model 2", viewModel.AvailableModels[1].Name);
+        }
+
+        [Fact]
+        public async Task SelectedModel_DefaultsToFirstModel()
+        {
+            // Arrange
+            var mockLlmService = CreateLooseMock<ILlmService>();
+            var mockContextService = CreateLooseMock<IContextService>();
+            var mockToolService = CreateLooseMock<IToolService>();
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
+
+            // Act
+            var viewModel = new ChatPageViewModel(
+                mockLlmService.Object,
+                mockContextService.Object,
+                mockToolService.Object,
+                mockSessionService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object);
+
+            await Task.Delay(100);
+
+            // Assert
+            Assert.NotNull(viewModel.SelectedModel);
+            Assert.Equal("Model 1", viewModel.SelectedModel.Name);
+        }
+
+        [Fact]
+        public async Task SelectedModel_CanBeChanged()
+        {
+            // Arrange
+            var mockLlmService = CreateLooseMock<ILlmService>();
+            var mockContextService = CreateLooseMock<IContextService>();
+            var mockToolService = CreateLooseMock<IToolService>();
+            var mockSessionService = CreateLooseMock<ISessionService>();
+            var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
+
+            var viewModel = new ChatPageViewModel(
+                mockLlmService.Object,
+                mockContextService.Object,
+                mockToolService.Object,
+                mockSessionService.Object,
+                mockNotificationService.Object,
+                mockConfigService.Object);
+
+            await Task.Delay(100);
+
+            // Act
+            viewModel.SelectedModel = viewModel.AvailableModels[1];
+
+            // Assert
+            Assert.Equal("Model 2", viewModel.SelectedModel.Name);
         }
 
         [Fact]
@@ -68,13 +175,15 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             const string testInput = "Hello, AI!";
 
@@ -94,13 +203,15 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act
             viewModel.IsStreaming = true;
@@ -118,13 +229,15 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             const string testResponse = "This is a test response.";
 
@@ -144,6 +257,7 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             // Act
             var viewModel = new ChatPageViewModel(
@@ -151,7 +265,8 @@ namespace ContinueVS.Tests.ViewModels
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Assert
             Assert.NotNull(viewModel.SendMessageCommand);
@@ -168,13 +283,15 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             var testMessage = new ChatMessage
             {
@@ -199,6 +316,7 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             // Act
             var viewModel = new ChatPageViewModel(
@@ -206,7 +324,8 @@ namespace ContinueVS.Tests.ViewModels
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Assert
             Assert.Equal(ChatMode.Ask, viewModel.CurrentMode);
@@ -221,13 +340,15 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act
             viewModel.SetModeCommand.Execute(ChatMode.Agent);
@@ -245,13 +366,15 @@ namespace ContinueVS.Tests.ViewModels
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act
             viewModel.SetModeCommand.Execute(ChatMode.Plan);

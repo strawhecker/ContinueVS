@@ -20,7 +20,8 @@ namespace ContinueVS.UI.Pages
                     var tool        = sp.GetRequiredService<IToolService>();
                     var session     = sp.GetRequiredService<ISessionService>();
                     var notif       = sp.GetRequiredService<INotificationService>();
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif);
+                    var config      = sp.GetRequiredService<IConfigService>();
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config);
                 }
             }
             catch (Exception ex)

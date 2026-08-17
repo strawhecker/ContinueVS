@@ -11,6 +11,20 @@ namespace ContinueVS.Tests.UI
 {
     public class ChatPageBindingTests : DataBindingTestBase
     {
+        private Mock<IConfigService> CreateConfigServiceMock()
+        {
+            var mock = CreateLooseMock<IConfigService>();
+            var config = new ContinueConfig
+            {
+                Models = new List<ModelInfo>
+                {
+                    new ModelInfo { Name = "Default Model", Provider = "ollama", BaseUrl = "http://localhost:11434" }
+                }
+            };
+            mock.Setup(m => m.GetCurrentConfig()).Returns(config);
+            return mock;
+        }
+
         [Fact]
         public void InputText_PropertyChanged_FiresNotification()
         {
@@ -20,13 +34,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             using var tracker = new PropertyChangedTracker(viewModel);
 
@@ -47,13 +63,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             using var tracker = new PropertyChangedTracker(viewModel);
 
@@ -74,13 +92,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             using var tracker = new PropertyChangedTracker(viewModel);
 
@@ -101,13 +121,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             using var collectionTracker = new CollectionChangeTracker(viewModel.Messages);
 
@@ -131,13 +153,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             var message = new ChatMessage { Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(message);
@@ -161,13 +185,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             using var collectionTracker = new CollectionChangeTracker(viewModel.SelectedContext);
 
@@ -191,13 +217,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act
             viewModel.InputText = "Test message";
@@ -216,13 +244,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act & Assert
             Assert.NotNull(viewModel.SendMessageCommand);
@@ -238,13 +268,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act
             viewModel.IsStreaming = true;
@@ -263,13 +295,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act & Assert
             Assert.NotNull(viewModel.CancelCommand);
@@ -285,13 +319,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             // Act & Assert
             Assert.NotNull(viewModel.AddContextCommand);
@@ -307,13 +343,15 @@ namespace ContinueVS.Tests.UI
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             using var tracker = new PropertyChangedTracker(viewModel);
 

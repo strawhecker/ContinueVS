@@ -35,6 +35,20 @@ namespace ContinueVS.Tests.Integration
     /// </summary>
     public class ChatPageViewModelLlmServiceIntegrationTests : TestFixtureBase
     {
+        private Mock<IConfigService> CreateConfigServiceMock()
+        {
+            var mock = CreateLooseMock<IConfigService>();
+            var config = new ContinueConfig
+            {
+                Models = new List<ModelInfo>
+                {
+                    new ModelInfo { Name = "Default Model", Provider = "ollama", BaseUrl = "http://localhost:11434" }
+                }
+            };
+            mock.Setup(m => m.GetCurrentConfig()).Returns(config);
+            return mock;
+        }
+
         /// <summary>
         /// Test 1: SendMessage with single text chunk updates UI correctly.
         /// 
@@ -65,13 +79,15 @@ namespace ContinueVS.Tests.Integration
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             viewModel.InputText = "Test message";
 
@@ -121,13 +137,15 @@ namespace ContinueVS.Tests.Integration
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             viewModel.InputText = "Test";
 
@@ -176,13 +194,15 @@ namespace ContinueVS.Tests.Integration
             mockNotificationService
                 .Setup(n => n.ShowNotificationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<NotificationType>()))
                 .Returns(Task.CompletedTask);
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             viewModel.InputText = "Test";
 
@@ -238,13 +258,15 @@ namespace ContinueVS.Tests.Integration
             var mockToolService = CreateLooseMock<IToolService>();
             var mockSessionService = CreateLooseMock<ISessionService>();
             var mockNotificationService = CreateLooseMock<INotificationService>();
+            var mockConfigService = CreateConfigServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 mockLlmService.Object,
                 mockContextService.Object,
                 mockToolService.Object,
                 mockSessionService.Object,
-                mockNotificationService.Object);
+                mockNotificationService.Object,
+                mockConfigService.Object);
 
             viewModel.InputText = "Test";
 

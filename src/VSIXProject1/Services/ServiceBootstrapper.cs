@@ -35,6 +35,11 @@ namespace ContinueVS.Services
             // Register core services as singletons (application lifetime)
             services.AddSingleton<IIdeService, VsIdeService>();
             services.AddSingleton<IConfigService, ConfigService>();
+            services.AddSingleton<IModelDiscoveryService>(sp =>
+            {
+                var httpClient = sp.GetRequiredService<HttpClient>();
+                return (IModelDiscoveryService)new ModelDiscoveryService(httpClient);
+            });
             services.AddSingleton<IMessengerService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();

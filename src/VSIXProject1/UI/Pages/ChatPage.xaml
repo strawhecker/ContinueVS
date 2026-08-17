@@ -32,6 +32,11 @@
             <ToggleButton Content="Ask" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Ask}" Padding="8" Margin="0,0,5,0"/>
             <ToggleButton Content="Agent" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Agent}" Padding="8" Margin="0,0,5,0"/>
             <ToggleButton Content="Plan" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Plan}" Padding="8" Margin="0,0,5,0"/>
+
+            <Separator Width="1" Margin="10,0" Background="LightGray"/>
+
+            <TextBlock Text="Model:" VerticalAlignment="Center" Margin="5,0,5,0"/>
+            <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="200" Margin="0,0,5,0"/>
         </StackPanel>
 
         <!-- Messages (Chat List) -->

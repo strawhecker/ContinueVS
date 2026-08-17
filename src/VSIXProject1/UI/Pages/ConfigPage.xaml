@@ -14,16 +14,27 @@
 
             <!-- Models Section -->
             <TextBlock Text="Models" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
-            <ComboBox ItemsSource="{Binding AvailableModels}" 
-                      SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
-                      Margin="0,0,0,20"
-                      MinHeight="30">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Name}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableModels}" 
+                          SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
+                          MinHeight="30">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="1" Content="Add Model" 
+                        Command="{Binding AddModelCommand}"
+                        Padding="15,5" 
+                        Background="#4CAF50" 
+                        Foreground="White" 
+                        Margin="10,0,0,0"/>
+            </Grid>
 
             <!-- Tools Section -->
             <TextBlock Text="Available Tools" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>

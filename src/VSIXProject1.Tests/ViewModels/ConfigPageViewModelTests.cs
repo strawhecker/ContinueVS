@@ -19,6 +19,7 @@ namespace ContinueVS.Tests.ViewModels
             // Arrange
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
+            var mockIdeService = CreateLooseMock<IIdeService>();
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
@@ -35,7 +36,8 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
-                mockIndexingService.Object);
+                mockIndexingService.Object,
+                mockIdeService.Object);
 
             // Assert
             Assert.NotNull(viewModel);
@@ -52,10 +54,11 @@ namespace ContinueVS.Tests.ViewModels
         {
             // Arrange
             var mockIndexingService = CreateLooseMock<IIndexingService>();
+            var mockIdeService = CreateLooseMock<IIdeService>();
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new ConfigPageViewModel(null!, mockIndexingService.Object));
+                new ConfigPageViewModel(null!, mockIndexingService.Object, mockIdeService.Object));
         }
 
         [Fact]
@@ -63,10 +66,11 @@ namespace ContinueVS.Tests.ViewModels
         {
             // Arrange
             var mockConfigService = CreateLooseMock<IConfigService>();
+            var mockIdeService = CreateLooseMock<IIdeService>();
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new ConfigPageViewModel(mockConfigService.Object, null!));
+                new ConfigPageViewModel(mockConfigService.Object, null!, mockIdeService.Object));
         }
 
         [Fact]
@@ -75,6 +79,7 @@ namespace ContinueVS.Tests.ViewModels
             // Arrange
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
+            var mockIdeService = CreateLooseMock<IIdeService>();
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
@@ -90,7 +95,8 @@ namespace ContinueVS.Tests.ViewModels
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
-                mockIndexingService.Object);
+                mockIndexingService.Object,
+                mockIdeService.Object);
 
             var testModel = new ModelInfo { Name = "test-model" };
 
@@ -108,6 +114,7 @@ namespace ContinueVS.Tests.ViewModels
             // Arrange
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
+            var mockIdeService = CreateLooseMock<IIdeService>();
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
@@ -124,7 +131,8 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
-                mockIndexingService.Object);
+                mockIndexingService.Object,
+                mockIdeService.Object);
 
             // Assert
             Assert.NotNull(viewModel.SaveConfigCommand);
@@ -139,6 +147,7 @@ namespace ContinueVS.Tests.ViewModels
             // Arrange
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
+            var mockIdeService = CreateLooseMock<IIdeService>();
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
@@ -154,7 +163,8 @@ namespace ContinueVS.Tests.ViewModels
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
-                mockIndexingService.Object);
+                mockIndexingService.Object,
+                mockIdeService.Object);
 
             var testModel = new ModelInfo { Name = "gpt-4" };
 
@@ -172,6 +182,7 @@ namespace ContinueVS.Tests.ViewModels
             // Arrange
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
+            var mockIdeService = CreateLooseMock<IIdeService>();
 
             mockConfigService
                 .Setup(s => s.GetCurrentConfig())
@@ -187,7 +198,8 @@ namespace ContinueVS.Tests.ViewModels
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
-                mockIndexingService.Object);
+                mockIndexingService.Object,
+                mockIdeService.Object);
 
             var testTool = new ToolDefinition { Name = "grep" };
 

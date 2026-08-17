@@ -63,15 +63,18 @@ namespace ContinueVS.ViewModels
         private readonly IToolService _toolService;
         private readonly ISessionService _sessionService;
         private readonly INotificationService _notificationService;
+        private readonly IConfigService _configService;
 
         private string? _inputText;
         private bool _isStreaming;
         private string? _streamingResponse;
         private CancellationTokenSource? _streamingCts;
         private ChatMode _currentMode = ChatMode.Ask;
+        private ModelInfo? _selectedModel;
 
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
+        public ObservableCollection<ModelInfo> AvailableModels { get; }
 
         public string? InputText
         {
@@ -119,6 +122,15 @@ namespace ContinueVS.ViewModels
             }
         }
 
+        /// <summary>
+        /// Gets or sets the currently selected model for chat messages.
+        /// </summary>
+        public ModelInfo? SelectedModel
+        {
+            get => _selectedModel;
+            set => Set(ref _selectedModel, value);
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -132,22 +144,26 @@ namespace ContinueVS.ViewModels
             IContextService contextService,
             IToolService toolService,
             ISessionService sessionService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IConfigService configService)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
             if (toolService == null) throw new ArgumentNullException(nameof(toolService));
             if (sessionService == null) throw new ArgumentNullException(nameof(sessionService));
             if (notificationService == null) throw new ArgumentNullException(nameof(notificationService));
+            if (configService == null) throw new ArgumentNullException(nameof(configService));
 
             _llmService = llmService;
             _contextService = contextService;
             _toolService = toolService;
             _sessionService = sessionService;
             _notificationService = notificationService;
+            _configService = configService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
+            AvailableModels = new ObservableCollection<ModelInfo>();
             _inputText = string.Empty;
             _streamingResponse = string.Empty;
 
@@ -155,10 +171,43 @@ namespace ContinueVS.ViewModels
             CancelCommand = new RelayCommand(ExecuteCancel, () => IsStreaming);
             AddContextCommand = new RelayCommand<string>(ExecuteAddContext);
             SetModeCommand = new RelayCommand<ChatMode>(mode => CurrentMode = mode);
+
+            _ = LoadModelsAsync();
+            _configService.ConfigChanged += ConfigService_ConfigChanged;
+        }
+
+        private async Task LoadModelsAsync()
+        {
+            try
+            {
+                var config = _configService.GetCurrentConfig();
+                if (config?.Models != null)
+                {
+                    AvailableModels.Clear();
+                    foreach (var model in config.Models)
+                    {
+                        AvailableModels.Add(model);
+                    }
+
+                    if (AvailableModels.Count > 0 && _selectedModel == null)
+                    {
+                        SelectedModel = AvailableModels[0];
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[chat-model-load-error] Failed to load models: {ex.Message}");
+            }
+        }
+
+        private void ConfigService_ConfigChanged(object? sender, EventArgs e)
+        {
+            _ = LoadModelsAsync();
         }
 
 #pragma warning disable VSTHRD100
-private async void ExecuteSendMessage()
+        private async void ExecuteSendMessage()
 #pragma warning restore VSTHRD100
 {
     try

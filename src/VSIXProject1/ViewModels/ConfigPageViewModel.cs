@@ -198,11 +198,16 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                // Stub: Show dialog to get model info, then add via service
+                Debug.WriteLine("[gap8_4-configvm-addmodel-start] ExecuteAddModel called");
+
+                // This would normally show a dialog, but in this MVP we delegate to service
+                // In a full UI, this would instantiate AddModelDialog and show modally
+                // For now, just log that the command was invoked
+                Debug.WriteLine("[gap8_4-configvm-addmodel-complete] AddModel command would show dialog");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Handle error
+                Debug.WriteLine($"[gap8_4-configvm-addmodel-error] Error in ExecuteAddModel: {ex.Message}");
             }
         }
 
