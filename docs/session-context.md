@@ -680,16 +680,17 @@ Manage MCP servers and tool policies
 - ✅ Settings UI fully implemented with four tabbed categories (Chat, Appearance, Autocomplete, Experimental)
 - ✅ SettingsControl UserControl created with dedicated SettingsViewModel
 - ✅ All 19 user settings stored as flattened key-value pairs in ContinueConfig.CustomSettings
+- ✅ **Delta-based persistence:** continueVS.json contains ONLY settings that differ from defaults
 - ✅ Settings persist to ~/.continueVS/continueVS.json via ConfigService.SaveConfigAsync()
-- ✅ "Save Configuration" button persists both tools/models AND all user settings in one operation
-- ✅ Settings load from disk during app initialization
+- ✅ "Save Configuration" button persists both tools/models AND user settings in one operation
+- ✅ Two-tier lookup: LoadSettings() checks continueVS.json first, falls back to UserSettings.GetDefaults()
 - ✅ All 487 unit tests pass (no regressions)
 
 **Implementation Details:**
 
 **Files Created:**
-1. **Core/Types/UserSettings.cs** — Static registry of 19 setting keys and defaults (flattened dict: "chat.showSessionTabs", "appearance.fontSize", etc.)
-2. **ViewModels/SettingsViewModel.cs** — Observable properties for all 19 settings with LoadSettings()/SaveSettingsAsync() methods
+1. **Core/Types/UserSettings.cs** — Static registry of 19 setting keys and defaults + GetDefault(key) method
+2. **ViewModels/SettingsViewModel.cs** — Observable properties for all 19 settings with delta-based LoadSettings()/SaveSettingsAsync() methods
 3. **UI/Pages/SettingsControl.xaml** — Four-tab WPF UserControl (Chat, Appearance, Autocomplete, Experimental) with checkboxes, sliders, radio buttons, text boxes
 4. **UI/Pages/SettingsControl.xaml.cs** — Code-behind for SettingsControl with SetViewModel() method
 
@@ -706,6 +707,17 @@ Manage MCP servers and tool policies
 
 3. **UI/Pages/ConfigPage.xaml.cs**
    - Modified ConfigPage_Loaded() to wire SettingsControl with SettingsViewModel using SetViewModel()
+
+4. **Core/Types/UserSettings.cs** (DELTA PERSISTENCE REFACTORING)
+   - Added GetDefault(key) method for programmatic lookup of defaults by setting key
+   - Used by LoadSettings() to fall back to code defaults if key not in continueVS.json
+   - Used by SaveSettingsAsync() to filter out default values before writing to disk
+
+5. **ViewModels/SettingsViewModel.cs** (DELTA PERSISTENCE REFACTORING)
+   - Refactored LoadSettings() for two-tier lookup: CustomSettings (file) → GetDefault() (code)
+   - Refactored SaveSettingsAsync() with delta filtering: SetOrRemove(key, value) compares to GetDefault(key)
+   - Keys matching defaults are removed from CustomSettings (supports round-trip: change → save → revert to default → save removes key)
+   - Updated GetBoolFromConfig/GetIntFromConfig/GetStringFromConfig to call UserSettings.GetDefault() for fallback
 
 **Settings Implemented:**
 
@@ -733,35 +745,51 @@ Manage MCP servers and tool policies
 - @Codebase: Use Tool Calling Only (bool) — Default: false
 - Stream After Tool Rejection (bool) — Default: false
 
-**Persistence Flow:**
-1. ConfigService.InitializeAsync() loads config.json
-2. ConfigPageViewModel._constructor creates SettingsViewModel
-3. SettingsViewModel.LoadSettings() reads CustomSettings with fallback to defaults
+**Delta-Based Persistence Flow:**
+1. ConfigService.InitializeAsync() loads config.json from disk
+2. ConfigPageViewModel constructor creates SettingsViewModel
+3. **SettingsViewModel.LoadSettings()** reads CustomSettings with two-tier lookup:
+   - First checks if key exists in config.CustomSettings (file overrides)
+   - Falls back to UserSettings.GetDefault(key) (code defaults) if key not in file
+   - Assigns merged value to corresponding SettingsViewModel property
 4. UI binds to SettingsViewModel observable properties
 5. User changes settings → SettingsViewModel properties updated (real-time)
 6. User clicks "Save Configuration" → ExecuteSaveConfig() calls SettingsViewModel.SaveSettingsAsync()
-7. SettingsViewModel.SaveSettingsAsync() updates CustomSettings dictionary
-8. ConfigService.SaveConfigAsync() serializes entire config to ~/.continueVS/continueVS.json
-9. On restart, cycle repeats from step 1
+7. **SettingsViewModel.SaveSettingsAsync()** applies delta filtering:
+   - For each setting, compares current value to UserSettings.GetDefault(key)
+   - Writes to config.CustomSettings ONLY if value differs from default
+   - Removes key from CustomSettings if value equals default (clean reversal)
+   - Debug output shows which keys saved vs removed
+8. ConfigService.SaveConfigAsync() serializes config to ~/.continueVS/continueVS.json with delta only
+9. Result: continueVS.json contains ONLY user-modified settings; defaults stay in code
+10. On restart, cycle repeats from step 1, yielding complete merged state
+
+**Example Behavior:**
+- Fresh install: continueVS.json has empty CustomSettings {}
+- User changes Font Size to 18: continueVS.json has { "appearance.fontSize": 18 }
+- User changes it back to 14: continueVS.json has empty CustomSettings {} (delta removed)
+- User changes Format Markdown to false: continueVS.json has { "chat.formatMarkdown": false }
+- User changes 3 settings: continueVS.json has 3 keys (only deltas)
 
 **Testing:**
 - All 487 existing unit tests pass without modification
 - SettingsViewModel includes Load/Save methods suitable for UT
 - UT candidates: SettingsViewModel.LoadSettings() and SaveSettingsAsync() with mock IConfigService
 - Gap testing: Cannot verify full UI round-trip (modify UI → save → restart → verify) until gap13 (Config UI / ConfigPage round-trip test) is implemented
-- Manual verification deferred to gap13: Set each setting type, save, restart, confirm values persisted
+- Manual verification deferred to gap13: Set each setting type, save, restart, confirm values persisted and continueVS.json reflects deltas only
 
 **Design Notes:**
 - Settings use flattened key-value dictionary (not nested objects) per user requirement
-- SettingsControl is separate UserControl (not inline) for better separation of concerns
-- All defaults provided via UserSettings.GetDefaults() for consistency
+- GetDefault(key) enables delta comparison without rebuilding entire defaults dict on every save
+- Two-tier lookup matches existing pattern: ToolsResourceLoader uses tools-defaults.json + user overrides
 - Type conversion handled gracefully: bool parse, int parse, string as-is
 - Multiline radio buttons use property converters (MultilineModeAuto/Always/Never) for clean binding
-- SaveConfigCommand now coordinates both settings and config in single transaction
+- SaveConfigCommand now coordinates both settings and config in single delta-based transaction
 - No breaking changes to existing code; ConfigService interface unchanged
+- Backward compatible: old continueVS.json with all settings still loads correctly (override path applies)
 
 **Depends on:** gap3 (ConfigPageViewModel wiring)  
-**No further remediation needed for gap8_2**
+**Refinement Complete:** Delta-based persistence now matches Continue.dev design philosophy and user requirement
 
 
 **Reference: User Settings Catalog**

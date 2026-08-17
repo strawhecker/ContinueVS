@@ -193,6 +193,7 @@ namespace ContinueVS.ViewModels
 
         /// <summary>
         /// Loads all settings from ConfigService.CustomSettings, applying defaults for missing keys.
+        /// Two-tier lookup: first check CustomSettings (file), fall back to UserSettings.GetDefault() (code).
         /// </summary>
         public void LoadSettings()
         {
@@ -207,31 +208,29 @@ namespace ContinueVS.ViewModels
                     return;
                 }
 
-                var defaults = UserSettings.GetDefaults();
-
-                // Load Chat settings
-                ShowSessionTabs = GetBoolFromConfig(UserSettings.Chat_ShowSessionTabs, config.CustomSettings, defaults);
-                WrapCodeblocks = GetBoolFromConfig(UserSettings.Chat_WrapCodeblocks, config.CustomSettings, defaults);
-                ShowChatScrollbar = GetBoolFromConfig(UserSettings.Chat_ShowChatScrollbar, config.CustomSettings, defaults);
-                TextToSpeechEnabled = GetBoolFromConfig(UserSettings.Chat_TextToSpeechEnabled, config.CustomSettings, defaults);
-                EnableSessionTitles = GetBoolFromConfig(UserSettings.Chat_EnableSessionTitles, config.CustomSettings, defaults);
-                FormatMarkdown = GetBoolFromConfig(UserSettings.Chat_FormatMarkdown, config.CustomSettings, defaults);
+                // Load Chat settings using two-tier lookup
+                ShowSessionTabs = GetBoolFromConfig(UserSettings.Chat_ShowSessionTabs, config.CustomSettings);
+                WrapCodeblocks = GetBoolFromConfig(UserSettings.Chat_WrapCodeblocks, config.CustomSettings);
+                ShowChatScrollbar = GetBoolFromConfig(UserSettings.Chat_ShowChatScrollbar, config.CustomSettings);
+                TextToSpeechEnabled = GetBoolFromConfig(UserSettings.Chat_TextToSpeechEnabled, config.CustomSettings);
+                EnableSessionTitles = GetBoolFromConfig(UserSettings.Chat_EnableSessionTitles, config.CustomSettings);
+                FormatMarkdown = GetBoolFromConfig(UserSettings.Chat_FormatMarkdown, config.CustomSettings);
 
                 // Load Appearance settings
-                FontSize = GetIntFromConfig(UserSettings.Appearance_FontSize, config.CustomSettings, defaults);
+                FontSize = GetIntFromConfig(UserSettings.Appearance_FontSize, config.CustomSettings);
 
                 // Load Autocomplete settings
-                MultilineMode = GetStringFromConfig(UserSettings.Autocomplete_MultilineMode, config.CustomSettings, defaults);
-                AutocompleteTimeoutMs = GetIntFromConfig(UserSettings.Autocomplete_TimeoutMs, config.CustomSettings, defaults);
-                AutocompleteDebounceMs = GetIntFromConfig(UserSettings.Autocomplete_DebounceMs, config.CustomSettings, defaults);
-                DisableAutocompleteInFiles = GetStringFromConfig(UserSettings.Autocomplete_DisableInFiles, config.CustomSettings, defaults);
+                MultilineMode = GetStringFromConfig(UserSettings.Autocomplete_MultilineMode, config.CustomSettings);
+                AutocompleteTimeoutMs = GetIntFromConfig(UserSettings.Autocomplete_TimeoutMs, config.CustomSettings);
+                AutocompleteDebounceMs = GetIntFromConfig(UserSettings.Autocomplete_DebounceMs, config.CustomSettings);
+                DisableAutocompleteInFiles = GetStringFromConfig(UserSettings.Autocomplete_DisableInFiles, config.CustomSettings);
 
                 // Load Experimental settings
-                AddCurrentFileByDefault = GetBoolFromConfig(UserSettings.Experimental_AddCurrentFileByDefault, config.CustomSettings, defaults);
-                EnableExperimentalTools = GetBoolFromConfig(UserSettings.Experimental_EnableExperimentalTools, config.CustomSettings, defaults);
-                OnlyUseSystemMessageTools = GetBoolFromConfig(UserSettings.Experimental_OnlyUseSystemMessageTools, config.CustomSettings, defaults);
-                CodebaseUseToolCallingOnly = GetBoolFromConfig(UserSettings.Experimental_CodebaseUseToolCallingOnly, config.CustomSettings, defaults);
-                StreamAfterToolRejection = GetBoolFromConfig(UserSettings.Experimental_StreamAfterToolRejection, config.CustomSettings, defaults);
+                AddCurrentFileByDefault = GetBoolFromConfig(UserSettings.Experimental_AddCurrentFileByDefault, config.CustomSettings);
+                EnableExperimentalTools = GetBoolFromConfig(UserSettings.Experimental_EnableExperimentalTools, config.CustomSettings);
+                OnlyUseSystemMessageTools = GetBoolFromConfig(UserSettings.Experimental_OnlyUseSystemMessageTools, config.CustomSettings);
+                CodebaseUseToolCallingOnly = GetBoolFromConfig(UserSettings.Experimental_CodebaseUseToolCallingOnly, config.CustomSettings);
+                StreamAfterToolRejection = GetBoolFromConfig(UserSettings.Experimental_StreamAfterToolRejection, config.CustomSettings);
 
                 Debug.WriteLine("[SettingsViewModel.LoadSettings] Settings loaded successfully");
             }
@@ -243,6 +242,8 @@ namespace ContinueVS.ViewModels
 
         /// <summary>
         /// Saves all current settings to ConfigService.CustomSettings and persists to disk.
+        /// Implements delta-based persistence: only stores settings that differ from defaults.
+        /// Settings equal to their defaults are removed from CustomSettings to keep continueVS.json clean.
         /// </summary>
         public async System.Threading.Tasks.Task SaveSettingsAsync()
         {
@@ -257,33 +258,49 @@ namespace ContinueVS.ViewModels
                     return;
                 }
 
-                // Save Chat settings
-                config.CustomSettings[UserSettings.Chat_ShowSessionTabs] = ShowSessionTabs;
-                config.CustomSettings[UserSettings.Chat_WrapCodeblocks] = WrapCodeblocks;
-                config.CustomSettings[UserSettings.Chat_ShowChatScrollbar] = ShowChatScrollbar;
-                config.CustomSettings[UserSettings.Chat_TextToSpeechEnabled] = TextToSpeechEnabled;
-                config.CustomSettings[UserSettings.Chat_EnableSessionTitles] = EnableSessionTitles;
-                config.CustomSettings[UserSettings.Chat_FormatMarkdown] = FormatMarkdown;
+                // Helper to set or remove based on default comparison
+                Action<string, object> SetOrRemove = (key, value) =>
+                {
+                    var defaultValue = UserSettings.GetDefault(key);
+                    if (Equals(value, defaultValue))
+                    {
+                        config.CustomSettings.Remove(key);
+                        Debug.WriteLine($"[SettingsViewModel.SaveSettingsAsync] Removed {key} (equals default)");
+                    }
+                    else
+                    {
+                        config.CustomSettings[key] = value;
+                        Debug.WriteLine($"[SettingsViewModel.SaveSettingsAsync] Saved {key} = {value}");
+                    }
+                };
+
+                // Save Chat settings (only if different from defaults)
+                SetOrRemove(UserSettings.Chat_ShowSessionTabs, ShowSessionTabs);
+                SetOrRemove(UserSettings.Chat_WrapCodeblocks, WrapCodeblocks);
+                SetOrRemove(UserSettings.Chat_ShowChatScrollbar, ShowChatScrollbar);
+                SetOrRemove(UserSettings.Chat_TextToSpeechEnabled, TextToSpeechEnabled);
+                SetOrRemove(UserSettings.Chat_EnableSessionTitles, EnableSessionTitles);
+                SetOrRemove(UserSettings.Chat_FormatMarkdown, FormatMarkdown);
 
                 // Save Appearance settings
-                config.CustomSettings[UserSettings.Appearance_FontSize] = FontSize;
+                SetOrRemove(UserSettings.Appearance_FontSize, FontSize);
 
                 // Save Autocomplete settings
-                config.CustomSettings[UserSettings.Autocomplete_MultilineMode] = MultilineMode;
-                config.CustomSettings[UserSettings.Autocomplete_TimeoutMs] = AutocompleteTimeoutMs;
-                config.CustomSettings[UserSettings.Autocomplete_DebounceMs] = AutocompleteDebounceMs;
-                config.CustomSettings[UserSettings.Autocomplete_DisableInFiles] = DisableAutocompleteInFiles;
+                SetOrRemove(UserSettings.Autocomplete_MultilineMode, MultilineMode);
+                SetOrRemove(UserSettings.Autocomplete_TimeoutMs, AutocompleteTimeoutMs);
+                SetOrRemove(UserSettings.Autocomplete_DebounceMs, AutocompleteDebounceMs);
+                SetOrRemove(UserSettings.Autocomplete_DisableInFiles, DisableAutocompleteInFiles);
 
                 // Save Experimental settings
-                config.CustomSettings[UserSettings.Experimental_AddCurrentFileByDefault] = AddCurrentFileByDefault;
-                config.CustomSettings[UserSettings.Experimental_EnableExperimentalTools] = EnableExperimentalTools;
-                config.CustomSettings[UserSettings.Experimental_OnlyUseSystemMessageTools] = OnlyUseSystemMessageTools;
-                config.CustomSettings[UserSettings.Experimental_CodebaseUseToolCallingOnly] = CodebaseUseToolCallingOnly;
-                config.CustomSettings[UserSettings.Experimental_StreamAfterToolRejection] = StreamAfterToolRejection;
+                SetOrRemove(UserSettings.Experimental_AddCurrentFileByDefault, AddCurrentFileByDefault);
+                SetOrRemove(UserSettings.Experimental_EnableExperimentalTools, EnableExperimentalTools);
+                SetOrRemove(UserSettings.Experimental_OnlyUseSystemMessageTools, OnlyUseSystemMessageTools);
+                SetOrRemove(UserSettings.Experimental_CodebaseUseToolCallingOnly, CodebaseUseToolCallingOnly);
+                SetOrRemove(UserSettings.Experimental_StreamAfterToolRejection, StreamAfterToolRejection);
 
                 // Persist to disk
                 await _configService.SaveConfigAsync();
-                Debug.WriteLine("[SettingsViewModel.SaveSettingsAsync] Settings saved successfully");
+                Debug.WriteLine("[SettingsViewModel.SaveSettingsAsync] Settings saved successfully (delta-based)");
             }
             catch (Exception ex)
             {
@@ -316,31 +333,40 @@ namespace ContinueVS.ViewModels
             return string.Empty;
         }
 
-        private bool GetBoolFromConfig(string key, System.Collections.Generic.Dictionary<string, object> config, System.Collections.Generic.Dictionary<string, object> defaults)
+        private bool GetBoolFromConfig(string key, System.Collections.Generic.Dictionary<string, object> config)
         {
             if (config.TryGetValue(key, out var value))
             {
                 if (value is bool boolValue) return boolValue;
                 if (bool.TryParse(value?.ToString(), out bool parsed)) return parsed;
             }
-            return GetBool(key, defaults);
+            // Fall back to default from UserSettings
+            var defaultValue = UserSettings.GetDefault(key);
+            if (defaultValue is bool defaultBool) return defaultBool;
+            return false;
         }
 
-        private int GetIntFromConfig(string key, System.Collections.Generic.Dictionary<string, object> config, System.Collections.Generic.Dictionary<string, object> defaults)
+        private int GetIntFromConfig(string key, System.Collections.Generic.Dictionary<string, object> config)
         {
             if (config.TryGetValue(key, out var value))
             {
                 if (value is int intValue) return intValue;
                 if (int.TryParse(value?.ToString(), out int parsed)) return parsed;
             }
-            return GetInt(key, defaults);
+            // Fall back to default from UserSettings
+            var defaultValue = UserSettings.GetDefault(key);
+            if (defaultValue is int defaultInt) return defaultInt;
+            return 0;
         }
 
-        private string GetStringFromConfig(string key, System.Collections.Generic.Dictionary<string, object> config, System.Collections.Generic.Dictionary<string, object> defaults)
+        private string GetStringFromConfig(string key, System.Collections.Generic.Dictionary<string, object> config)
         {
             if (config.TryGetValue(key, out var value) && value is string strValue)
                 return strValue;
-            return GetString(key, defaults);
+            // Fall back to default from UserSettings
+            var defaultValue = UserSettings.GetDefault(key);
+            if (defaultValue is string defaultStr) return defaultStr;
+            return string.Empty;
         }
     }
 }

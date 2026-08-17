@@ -67,7 +67,8 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
-        /// Gets the default value for a setting key, or null if not found.
+        /// Gets the default value for a setting key by comparing against GetDefaults().
+        /// Used during load/save to apply delta-based persistence (store only non-default values).
         /// </summary>
         public static object? GetDefault(string key)
         {
