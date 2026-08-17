@@ -17,7 +17,7 @@ namespace ContinueVS.ViewModels.Converters
         {
             if (value is ChatMode mode && parameter is string paramStr)
             {
-                if (Enum.TryParse<ChatMode>(paramStr, out var paramMode))
+                if (Enum.TryParse<ChatMode>(paramStr, ignoreCase: true, out var paramMode))
                 {
                     return mode == paramMode;
                 }
@@ -34,7 +34,7 @@ namespace ContinueVS.ViewModels.Converters
             if (value is bool isChecked && isChecked && parameter is string paramStr)
             {
                 System.Diagnostics.Debug.WriteLine($"[a9-converter-parse] Starting Enum.TryParse for paramStr='{paramStr}'");
-                if (Enum.TryParse<ChatMode>(paramStr, out var paramMode))
+                if (Enum.TryParse<ChatMode>(paramStr, ignoreCase: true, out var paramMode))
                 {
                     System.Diagnostics.Debug.WriteLine($"[a9-converter-success] Parsed successfully: paramMode={paramMode}");
                     return paramMode;

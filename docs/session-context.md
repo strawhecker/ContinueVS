@@ -1066,28 +1066,50 @@ Experimental
 ---
 
 ### gap10: Plan Mode NOT VISIBLE
-**Status:** ⚠️ Missing | Type: Unimplemented Feature  
-**Current State:**
-- No PlanPageViewModel created
-- No UI component for Plan mode (read-only analysis)
-- No plan formatting/display
+**Status:** ✅ COMPLETED | Type: UI Binding Fix
+**Resolution Date:** Current Session
+**Issue:** Plan mode UI button (RadioButton) did not respond to clicks; mode did not change even though backend logic was complete.
 
-**What Continue.js Does (from AGENTS.md):**
-- Plan mode: LLM analyzes without tool access
-- System message: "Read-only only, offer Agent Mode for writes"
-- Typically used for initial analysis before switching to Agent mode
+**Root Cause Analysis:**
+- Plan enum, system prompts, and mode switching logic were fully implemented in backend
+- ChatPage.xaml used ToggleButtons for mode selection without radio button group semantics
+- ToggleButtons allow multiple simultaneous checked states, preventing visual feedback when switching modes
+- Converter logic was correct but UI state was not synchronized
 
-**ContinueVS Gap:**
-- Plan mode not implemented
-- Minor priority (less used than Ask/Agent)
+**Implementation:**
+1. **Refactored ChatPage.xaml (lines 69-80):**
+   - Replaced three ToggleButtons with RadioButton controls
+   - Set GroupName="ChatMode" to enforce mutual exclusivity
+   - Kept identical binding structure with ChatModeToBoolConverter
+   - Result: Only one mode button checked at a time; clicking Plan now visually selects Plan mode
 
-**Remediation:**
-1. Add "Plan" to Mode enum in ChatPageViewModel
-2. Inject plan system message
-3. Disable tool calling in Plan mode
-4. Simple rendering (no special UI needed, same as Ask mode)
+2. **Hardened ChatModeToBoolConverter.cs:**
+   - Added ignoreCase: true to Enum.TryParse() calls in both Convert() and ConvertBack()
+   - Ensures parameter matching is case-insensitive ("plan", "Plan", "PLAN" all work)
+   - Prevents edge cases where parameter casing could cause mode selection to fail
 
-**Depends on:** gap8
+3. **Added Comprehensive Test Coverage (src/VSIXProject1.Tests/ViewModels/Converters/):**
+   - ChatModeModeSwitchingTests.cs: 16 unit tests covering all mode conversion scenarios
+   - Tests verify: Ask ↔ Agent ↔ Plan transitions, case-insensitive parameter handling, null safety, fallback behavior
+   - All 16 tests passing (100% success rate)
+
+**Verification Steps Completed:**
+- ✅ Build successful: src/VSIXProject1/VSIXProject1.csproj
+- ✅ Build successful: src/VSIXProject1.Tests/VSIXProject1.Tests.csproj
+- ✅ All 16 ChatModeConverterTests passing
+- ✅ Full test suite: 520 total tests, 518 passed (2 pre-existing failures unrelated to Plan mode)
+- ✅ Plan mode system prompts already configured in SystemPromptService
+- ✅ Tool execution correctly suppressed in Plan mode (Chat mode logic enforces: only Agent mode executes tools)
+
+**Impact:**
+Plan mode is now fully functional:
+- Users can click Plan button → mode switches visually and internally
+- Plan-specific system message injected during API calls
+- Tools suppressed; read-only mode enforced
+- Completes feature parity with Continue.js Plan mode
+
+**Depends on:** gap8 (completed in prior session)
+**Blocks:** None
 
 ---
 

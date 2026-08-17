@@ -69,9 +69,9 @@
         <!-- Mode Selector -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
             <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <ToggleButton Content="Ask" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Ask}" Padding="8" Margin="0,0,5,0"/>
-            <ToggleButton Content="Agent" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Agent}" Padding="8" Margin="0,0,5,0"/>
-            <ToggleButton Content="Plan" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Plan}" Padding="8" Margin="0,0,5,0"/>
+            <RadioButton Content="Ask" GroupName="ChatMode" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Ask}" Padding="8" Margin="0,0,5,0" VerticalAlignment="Center"/>
+            <RadioButton Content="Agent" GroupName="ChatMode" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Agent}" Padding="8" Margin="0,0,5,0" VerticalAlignment="Center"/>
+            <RadioButton Content="Plan" GroupName="ChatMode" IsChecked="{Binding CurrentMode, Mode=TwoWay, Converter={StaticResource ChatModeToBoolConverter}, ConverterParameter=Plan}" Padding="8" Margin="0,0,5,0" VerticalAlignment="Center"/>
 
             <Separator Width="1" Margin="10,0" Background="LightGray"/>
 
