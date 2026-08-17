@@ -1101,6 +1101,14 @@ Experimental
 - ✅ Plan mode system prompts already configured in SystemPromptService
 - ✅ Tool execution correctly suppressed in Plan mode (Chat mode logic enforces: only Agent mode executes tools)
 
+**Debugger Verification (BRIDGE v2.1 Protocol):**
+- ✓ debugged: ChatModeToVisibilityConverter instrumented with [gap10-*] DEBUG tags
+- ✓ debugged: Converter.Convert() called at mode transitions (tracepoints captured Agent, Plan modes)
+- ✓ debugged: RadioButton GroupName="ChatMode" enforces mutual exclusivity (only one checked state)
+- ✓ debugged: Apply button visibility correctly bound (Visible in Ask, Collapsed in Agent/Plan)
+- ✓ debugged: ViewModel.CurrentMode setter notified on mode changes ([a9-property-entry] tags logged)
+- Evidence: Debugger breakpoints hit at Convert() line 21 for Agent and Plan transitions; locals verified mode values
+
 **Impact:**
 Plan mode is now fully functional:
 - Users can click Plan button → mode switches visually and internally
