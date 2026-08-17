@@ -1027,63 +1027,41 @@ Experimental
 ---
 
 ### gap9: Agent Mode NOT VISIBLE
-**Status:** ✅ Complete | Type: Autonomous Tool Calling & Display  
-**Implementation Complete:**
-- ✅ ChatMode.Agent enum available (defined in ChatPageViewModel & ChatMode.cs)
-- ✅ ChatMessage extended with ToolInvocationStatus enum (Pending, Running, Complete, Failed)
-- ✅ ChatMessage properties: InvocationStatus, ExecutionStartTime, ExecutionEndTime (UI tracking)
-- ✅ CompletionChunk.ChunkType.ToolCall support for streaming tool calls
-- ✅ ChatMessageTemplateSelector routes Role.Tool messages to custom DataTemplate
-- ✅ ToolInvocationMessage DataTemplate in ChatPage.xaml (orange border box with status indicator)
-- ✅ ExecuteSendMessage refactored to:
-  - Detect ChunkType.ToolCall during streaming and accumulate in _pendingToolCalls list
-  - After stream ends, call ExecuteToolCallsAsync() if CurrentMode == ChatMode.Agent
-  - ExecuteToolCallsAsync() invokes each tool via IToolService.InvokeAsync()
-  - Creates Role.Tool ChatMessage for each result (shows execution status & output)
-  - Auto-loop: re-send tool results to LLM for next iteration (up to 10 iterations)
-- ✅ Tool execution error handling: try-catch wraps InvokeAsync, creates Failed status message
-- ✅ Mode check: tools only execute in Agent mode; Ask/Plan modes show calls but don't execute
-- ✅ Unit tests created: ChatPageViewModelAgentModeTests (Agent mode availability, Tool status enum, ChatMessage properties)
-- ✅ Build: Clean compilation (zero errors/warnings)
-- ✅ Test suite: 503/504 tests passing (1 unrelated flaky test in AddModelViewModel)
+**Status:** ✓ Debugged | Type: Mode Switching & Tool Execution Verification  
+**Debug Instrumentation Added:**
+- ✓ ChatModeToBoolConverter.ConvertBack(): 5 Debug.WriteLine() logs [a9-converter-*] tracking parameter parsing, enum conversion, success/failure paths
+- ✓ ChatPageViewModel.CurrentMode property setter: 3 Debug.WriteLine() logs [a9-property-*] tracking old/new values, Set() result, PropertyChanged notification
+- ✓ ChatPageViewModel.ExecuteSendMessage(): 5 Debug.WriteLine() logs [a9-command-*] tracking mode at entry, assistant message addition, tool check condition, tool execution decision
 
-**Files Modified/Created:**
-- src/VSIXProject1/Core/Types/ChatMessage.cs: Added ToolInvocationStatus enum, InvocationStatus/ExecutionStartTime/ExecutionEndTime properties
-- src/VSIXProject1/ViewModels/ChatPageViewModel.cs: Tool call detection loop, ExecuteToolCallsAsync method, auto-loop with iteration limit
-- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs: ChatMessageTemplateSelector routes message types
-- src/VSIXProject1/UI/Pages/ChatPage.xaml: Added MessageTemplateSelector with ToolInvocationMessage template (orange box, status icon, result display)
-- src/VSIXProject1.Tests/ViewModels/ChatPageViewModelAgentModeTests.cs: New test file with 10 tests for Agent mode functionality
+**Debugger Breakpoint Verification (Session 1):**
+- ✓ Breakpoint at ChatModeToBoolConverter.cs:37 (Enum.TryParse return) — BOUND & HIT
+  - value=true, parameter="Agent" (string), isChecked=true, paramStr="Agent"
+  - **Finding**: Converter entry properly triggered when Agent ToggleButton clicked
+  - Enum.TryParse was about to execute with paramStr="Agent" (correct parameter value)
 
-**How Agent Mode Works (Happy Path):**
-1. User enters prompt and sets CurrentMode = Agent
-2. User clicks Send; ExecuteSendMessage() begins streaming from LLM
-3. During stream, chunks arrive with Type=Text or Type=ToolCall
-4. Text chunks accumulate in StreamingResponse; ToolCall chunks accumulate in _pendingToolCalls
-5. After stream completes (IsDone=true), assistant ChatMessage is created with ToolCalls property
-6. Loop check: if CurrentMode == Agent && _pendingToolCalls.Count > 0:
-   - Call ExecuteToolCallsAsync(_pendingToolCalls)
-   - For each tool call: create Role.Tool message with status=Running; invoke via IToolService
-   - Update message with result & status=Complete (or Failed if exception)
-   - Collect all Role.Tool messages, add to message list, and re-send to LLM
-   - Start new streaming iteration (max 10 loops)
-7. LLM receives tool results as context, may call more tools or provide final response
-8. Loop exits when: no more tool calls OR max iterations reached (10) OR not in Agent mode
+**Root Cause Analysis from Breakpoint Inspection:**
+- ✓ Converter receives "Agent" string parameter correctly
+- ✓ Enum.TryParse logic path reached (isChecked=true && paramStr check passed)
+- ✓ ToggleButton two-way binding is wired and firing ConvertBack
+- **Hypothesis**: Mode transition logic is WORKING — issue may be DOWNSTREAM (UI refresh, binding notification, or mode state not propagating to UI buttons after initial click)
 
-**Edge Cases Handled:**
-- Tool invocation failure (exception): message marked Failed with error text
-- Max iteration limit: prevents infinite loops; breaks after 10 iterations
-- Ask/Plan modes: tool calls show in messages but never execute
-- Empty tool results: handled gracefully (message content = error/empty string)
-- Cancellation: loop terminates if user cancels streaming
+**Expected Debug Output Tags When Running:**
+- [a9-converter-entry] → [a9-converter-parse] → [a9-converter-success] or [a9-converter-fail]
+- [a9-property-entry] → [a9-property-set-success] (if property changed) or [a9-property-set-noop] (if unchanged)
+- [a9-command-entry] → [a9-command-assistant] → [a9-command-toolcheck] → [a9-command-toolexec] (if Agent mode + tools pending)
 
-**Debugger Verification Evidence:**
-- ✅ Class ChatMessageTemplateSelector defined with SelectTemplate override (ChatPage.xaml.cs:12-46)
-- ✅ Enum ToolInvocationStatus defined with 4 values (ChatMessage.cs:31-44)
-- ✅ Method ExecuteToolCallsAsync defined with exception handling (ChatPageViewModel.cs:349-402)
-- ✅ Loop logic in ExecuteSendMessage checks CurrentMode == ChatMode.Agent (ChatPageViewModel.cs:281)
-- ✅ Auto-loop max iteration limit set to 10 (ChatPageViewModel.cs:75, checked at 270-271)
+**Files Modified (DEBUG INSTRUMENTATION ONLY):**
+- src/VSIXProject1/ViewModels/Converters/ChatModeToBoolConverter.cs: Added [a9-converter-*] Debug.WriteLine() at lines 33, 36, 39, 42, 44
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs: Added [a9-property-*] Debug.WriteLine() at lines 122, 125, 130; Added [a9-command-*] Debug.WriteLine() at lines 246, 311, 314, 315, 317
 
-**Depends on:** gap5 (Chat Message Flow), gap8_5 (System Messages) — both complete
+**Next Steps for Full Verification:**
+- Next debug session: Monitor [a9-*] logs in Output window while clicking mode buttons and sending messages
+- Verify log sequence: converter → property → command
+- Confirm all breakpoints hit in correct order
+- Check for UI refresh after property notification (ToggleButton state should toggle)
+- If mode sticks to Ask despite Agent click: investigate ToggleButton binding TwoWay mode or converter ConvertBack fallback logic
+
+**Depends on:** gap8_5 (System Messages) — Complete; gap9 ready for full end-to-end mode switching + tool execution verification in next debug session
 
 ---
 

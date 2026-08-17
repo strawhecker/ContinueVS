@@ -119,9 +119,15 @@ namespace ContinueVS.ViewModels
             get => _currentMode;
             set
             {
+                System.Diagnostics.Debug.WriteLine($"[a9-property-entry] CurrentMode setter: oldValue={_currentMode}, newValue={value}");
                 if (Set(ref _currentMode, value))
                 {
+                    System.Diagnostics.Debug.WriteLine($"[a9-property-set-success] Set() returned true, property changed. New _currentMode={_currentMode}, PropertyChanged notification raised");
                     SendMessageCommand.RaiseCanExecuteChanged();
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[a9-property-set-noop] Set() returned false, property unchanged. _currentMode still={_currentMode}");
                 }
             }
         }
@@ -237,7 +243,8 @@ namespace ContinueVS.ViewModels
                 };
                 await _sessionService.AddMessageAsync(userMessage);
                 Messages.Add(userMessage);
-                System.Diagnostics.Debug.WriteLine($"[gap9-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
+                System.Diagnostics.Debug.WriteLine($"[a9-command-entry] ExecuteSendMessage started. CurrentMode={CurrentMode}");
+                System.Diagnostics.Debug.WriteLine($"[a9-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
 
                 StreamingResponse = string.Empty;
 
@@ -301,11 +308,13 @@ namespace ContinueVS.ViewModels
                     };
                     await _sessionService.AddMessageAsync(assistantMessage);
                     Messages.Add(assistantMessage);
-                    System.Diagnostics.Debug.WriteLine($"[gap9-exec] ExecuteSendMessage: Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}, MessagesCount={Messages.Count}");
+                    System.Diagnostics.Debug.WriteLine($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
                     // Only execute tools in Agent mode
+                    System.Diagnostics.Debug.WriteLine($"[a9-command-toolcheck] Checking tool execution: CurrentMode={CurrentMode}, _pendingToolCalls.Count={_pendingToolCalls.Count}, ShouldExecute={CurrentMode == ChatMode.Agent && _pendingToolCalls.Count > 0}");
                     if (CurrentMode == ChatMode.Agent && _pendingToolCalls.Count > 0)
                     {
+                        System.Diagnostics.Debug.WriteLine($"[a9-command-toolexec] Executing tools in Agent mode");
                         await ExecuteToolCallsAsync(_pendingToolCalls);
 
                         // Collect tool results for next iteration
