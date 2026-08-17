@@ -15,24 +15,37 @@ namespace ContinueVS.ViewModels.Converters
             {
                 var brush = role switch
                 {
-                    ChatMessageRole.User => new SolidColorBrush(Color.FromRgb(0, 120, 215)),
-                    ChatMessageRole.Assistant => new SolidColorBrush(Color.FromRgb(96, 96, 96)),
-                    ChatMessageRole.System => new SolidColorBrush(Color.FromRgb(200, 200, 200)),
-                    ChatMessageRole.Tool => new SolidColorBrush(Color.FromRgb(200, 200, 200)),
-                    ChatMessageRole.Thinking => new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                    ChatMessageRole.User => TryGetResourceBrush("AccentBrush") ?? new SolidColorBrush(Color.FromRgb(0, 120, 215)),
+                    ChatMessageRole.Assistant => TryGetResourceBrush("SecondaryTextBrush") ?? new SolidColorBrush(Color.FromRgb(96, 96, 96)),
+                    ChatMessageRole.System => TryGetResourceBrush("SecondaryTextBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                    ChatMessageRole.Tool => TryGetResourceBrush("WarningBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                    ChatMessageRole.Thinking => TryGetResourceBrush("InfoBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                     _ => new SolidColorBrush(Colors.White)
                 };
-                System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToColorConverter.Convert: Role={role}, Color={brush.Color}");
+                System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToColorConverter.Convert: Role={role}");
                 return brush;
             }
 
-            System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToColorConverter.Convert: value is null, returning White");
+            System.Diagnostics.Debug.WriteLine("[a6-converter] RoleToColorConverter.Convert: value is null, returning White");
             return new SolidColorBrush(Colors.White);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             return DependencyProperty.UnsetValue;
+        }
+
+        private static Brush? TryGetResourceBrush(string key)
+        {
+            try
+            {
+                var resource = Application.Current.Resources[key];
+                return resource as Brush;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

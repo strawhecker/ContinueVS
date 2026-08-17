@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,6 +55,37 @@ namespace ContinueVS.UI.Pages
     {
         public ChatPage()
         {
+            // Load theme resources before XAML initialization so DynamicResource can resolve them
+            try
+            {
+                var themeDictPath = Path.Combine(
+                    Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "",
+                    "UI", "Styles", "Themes", "ThemeDark.xaml"
+                );
+
+                if (File.Exists(themeDictPath))
+                {
+                    var themeDictionary = new ResourceDictionary
+                    {
+                        Source = new Uri(themeDictPath, UriKind.Absolute)
+                    };
+                    // Merge into Application.Current.Resources so all controls can access theme brushes
+                    if (Application.Current != null && Application.Current.Resources != null)
+                    {
+                        Application.Current.Resources.MergedDictionaries.Add(themeDictionary);
+                        System.Diagnostics.Debug.WriteLine($"[ChatPage] Theme loaded into Application.Current.Resources from: {themeDictPath}");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ChatPage] Theme file not found at: {themeDictPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ChatPage] Failed to load theme: {ex.Message}");
+            }
+
             try
             {
                 var sp = ViewModelLocator.ServiceProvider;

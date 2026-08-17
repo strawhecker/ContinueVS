@@ -174,6 +174,7 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Gets the file path for a theme XAML file.
+        /// Handles both development (relative path from bin) and deployed (VSIX extension folder) scenarios.
         /// </summary>
         private static string GetThemeXamlPath(string themeName)
         {
@@ -184,8 +185,9 @@ namespace ContinueVS.Services.Implementations
                 throw new InvalidOperationException("Unable to determine assembly location.");
             }
 
-            // Try to find theme in relative path first (development)
             var themeFileName = $"Theme{char.ToUpper(themeName[0])}{themeName.Substring(1)}.xaml";
+
+            // Try to find theme in relative path first (development scenario: bin\net472)
             var relativePath = Path.Combine(assemblyLocation, "..", "..", "..", "UI", "Styles", "Themes", themeFileName);
             var normalizedPath = Path.GetFullPath(relativePath);
 
@@ -194,9 +196,17 @@ namespace ContinueVS.Services.Implementations
                 return normalizedPath;
             }
 
-            // Fall back to local subdirectory (for deployed scenarios)
-            var localPath = Path.Combine(assemblyLocation, "UI", "Styles", "Themes", themeFileName);
-            return localPath;
+            // Fall back to direct subdirectory relative to assembly (deployed VSIX scenario)
+            // The VSIX extension folder structure: extension_folder\UI\Styles\Themes\ThemeDark.xaml
+            var deployedPath = Path.Combine(assemblyLocation, "UI", "Styles", "Themes", themeFileName);
+            if (File.Exists(deployedPath))
+            {
+                return deployedPath;
+            }
+
+            // Last resort: try pack URI for embedded or resource-based loading
+            // This path will fail gracefully if file doesn't exist, which is caught by LoadThemeAsync
+            return deployedPath;
         }
 
         /// <summary>

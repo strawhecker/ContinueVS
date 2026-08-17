@@ -4,17 +4,17 @@
         Title="Input" Height="180" Width="450"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Background="#F0F0F0"
+        Background="{StaticResource EditorBackground}"
         ShowInTaskbar="True">
     <Grid VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="20">
         <StackPanel VerticalAlignment="Stretch">
-            <TextBlock x:Name="PromptLabel" Text="Enter value:" Foreground="#333333" Margin="0,0,0,10" FontSize="14" TextWrapping="Wrap"/>
-            <TextBox x:Name="InputTextBox" Height="32" Padding="8" Margin="0,0,0,20" FontSize="13" VerticalContentAlignment="Center"/>
+            <TextBlock x:Name="PromptLabel" Text="Enter value:" Foreground="{StaticResource PrimaryTextBrush}" Margin="0,0,0,10" FontSize="14" TextWrapping="Wrap"/>
+            <TextBox x:Name="InputTextBox" Height="32" Padding="8" Margin="0,0,0,20" FontSize="13" VerticalContentAlignment="Center" Style="{StaticResource DefaultTextBoxStyle}"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Height="36">
                 <Button x:Name="OkButton" Content="OK" Width="80" Margin="0,0,10,0" Click="OkButton_Click" 
-                        Background="#0078D4" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                        Background="{StaticResource ButtonPrimaryBrush}" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
                 <Button x:Name="CancelButton" Content="Cancel" Width="80" 
-                        Background="#E81123" Foreground="White" FontSize="12" VerticalAlignment="Center" Click="CancelButton_Click"/>
+                        Background="{StaticResource ErrorBrush}" Foreground="White" FontSize="12" VerticalAlignment="Center" Click="CancelButton_Click"/>
             </StackPanel>
         </StackPanel>
     </Grid>

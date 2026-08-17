@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using ContinueVS.Services.Interfaces;
@@ -58,6 +59,9 @@ namespace ContinueVS.UI
 
             try
             {
+                // Initialize theme on load
+                _ = InitializeThemeAsync();
+
                 // Use the service provider that was set during package initialization
                 var sp = ViewModelLocator.ServiceProvider;
                 if (sp == null)
@@ -91,6 +95,40 @@ namespace ContinueVS.UI
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[g7-ctrl-b12] OnLoaded error: {ex.Message}");
+            }
+        }
+
+        private async Task InitializeThemeAsync()
+        {
+            try
+            {
+                var sp = ViewModelLocator.ServiceProvider;
+                if (sp == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[g7-theme] ServiceProvider is null");
+                    return;
+                }
+
+                var themeService = sp.GetService(typeof(IThemeService)) as IThemeService;
+                if (themeService == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[g7-theme] ThemeService not available");
+                    return;
+                }
+
+                await themeService.LoadThemeAsync("dark");
+                themeService.SetCurrentTheme("dark");
+
+                System.Diagnostics.Debug.WriteLine("[g7-theme] Dark theme applied");
+
+                themeService.ThemeChanged += (s, e) => 
+                {
+                    System.Diagnostics.Debug.WriteLine($"[g7-theme] Theme changed from {e.PreviousThemeName} to {e.NewThemeName}");
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[g7-theme] Theme initialization error: {ex.Message}");
             }
         }
 

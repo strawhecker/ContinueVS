@@ -48,4 +48,135 @@
     <!-- Opacity for overlays (used via SolidColorBrush with Opacity property) -->
     <SolidColorBrush x:Key="ModalOverlayTransparent" Color="#000000" Opacity="0.5"/>
 
+    <!-- Default TextBox Style -->
+    <Style x:Key="DefaultTextBoxStyle" TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <!-- RadioButton Style -->
+    <Style x:Key="ThemedRadioButtonStyle" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Width="16" Height="16" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{TemplateBinding Background}">
+                            <Ellipse x:Name="CheckEllipse" Fill="{StaticResource AccentBrush}" Visibility="Collapsed" Margin="3"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}" Text="{TemplateBinding Content}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckEllipse" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ComboBox Item Style -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="#252526"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <TextBlock Text="{TemplateBinding Content}" Foreground="White" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#3E3E42"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="#094771"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ComboBox Style -->
+    <Style x:Key="ThemedComboBoxStyle" TargetType="ComboBox">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="#1E1E1E"/>
+        <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Grid.ColumnSpan="2" Background="#1E1E1E" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"/>
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedItem.Name, RelativeSource={RelativeSource TemplatedParent}}" Foreground="White" Padding="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Background="Transparent" BorderThickness="0" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center">▼</Button>
+                        <Popup IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}" Placement="Bottom" AllowsTransparency="False">
+                            <Border Background="#252526" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1">
+                                <ScrollViewer MaxHeight="200">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Button Style -->
+    <Style x:Key="ThemedButtonStyle" TargetType="Button">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Background" Value="{StaticResource ButtonPrimaryBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                        <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="0.8"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Opacity" Value="0.6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Expander Style -->
+    <Style x:Key="ThemedExpanderStyle" TargetType="Expander">
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+        <Setter Property="Background" Value="{StaticResource PanelBackground}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+    </Style>
+
 </ResourceDictionary>

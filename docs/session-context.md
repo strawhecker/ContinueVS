@@ -1121,56 +1121,27 @@ Plan mode is now fully functional:
 
 ---
 
-### gap11: Tools Count NOT SHOWN IN UI
-**Status:** 🟡 Incomplete | Type: Missing Binding  
-**Current State:**
-- ConfigPageViewModel has `AvailableTools` collection (exists)
-- No tools loading or display
-- NavigationBar (from gap6) should show tool count badge
-
-**What Continue.js Does (from AGENTS.md):**
-- Tool count badge in navigation (from IConfigService or Core.getKnownTools())
-- ConfigPage shows tool list with enable/disable toggles
-
-**ContinueVS Gap:**
-- IConfigService.GetEnabledTools() exists
-- No UI binding to show count
-- No tool enable/disable UI in ConfigPage
-
-**Remediation:**
-1. Load tools in ConfigPageViewModel.LoadToolsAsync()
-2. Bind AvailableTools to ListBox in ConfigPage.xaml
-3. Add CheckBox for Enable/Disable per tool
-4. Show tool count badge in NavigationBar (total count)
-
-**Depends on:** gap3, gap7
-
----
-
 ### gap12: Theme/Dark Mode NOT APPLIED
-**Status:** 🟡 Incomplete | Type: Missing Service Integration  
-**Current State:**
-- ThemeService exists (implemented in step 91)
-- XAML pages have no theme bindings
-- Application uses WPF defaults (not dark/light switcher)
-
-**What Continue.js Does (from AGENTS.md):**
-- `reference/continue-src/gui/src/styles/theme.ts`: THEME_COLORS object, THEME_CSS_VARS
-- VSCode theme variable mapping (30+ colors): primary, secondary, background, foreground, etc.
-- Dark mode defaults; blue accent palette
-
-**ContinueVS Gap:**
-- ThemeService implemented but not wired to XAML
-- No CSS/XAML theme variables applied
-- UI uses system colors, not Continue branding
-
-**Remediation:**
-1. In ContinueToolWindowControl.xaml.cs, load theme colors from ThemeService
-2. Apply to Application.Current.Resources (Brush colors)
-3. OR: Create ResourceDictionary for each theme, dynamically load
-4. Recommended resources to theme: Foreground, Background, Accent, Secondary, Borders, etc.
-
-**Nice-to-have:** gap3 priority; needed for professional appearance
+**Status:** ✅ Completed | Type: Service Integration & XAML Updates
+**Implementation Completed:**
+- Theme initialization added to ContinueToolWindowControl.xaml.cs
+  - Loads dark theme on control load via ThemeService.LoadThemeAsync()
+  - ThemeService.SetCurrentTheme("dark") activates theme
+  - Subscribes to ThemeChanged event for future theme switches
+- TextBox default style added to ThemeDark.xaml
+  - InputBackgroundBrush background, PrimaryTextBrush foreground, InputBorderBrush border
+  - Applied to ChatPage input, InputWindow input fields
+- All hardcoded color values replaced with theme resources:
+  - InputWindow.xaml: Background #F0F0F0 → {StaticResource EditorBackground}, Foreground #333333 → {StaticResource PrimaryTextBrush}
+  - ChatPage.xaml: Mode selector text → {StaticResource PrimaryTextBrush}, Separator → {StaticResource BorderBrush}
+  - ChatPage.xaml: ToolInvocation template #FFF9F0 → CodeBackground, #FF6600 → WarningBrush, #444444 → PrimaryTextBrush
+  - ChatPage.xaml: SystemMessage template #F0F0F0 → PanelBackground, #666666 → SecondaryTextBrush
+  - TextDialog.xaml: Buttons #0078D4 → ButtonPrimaryBrush, #E81123 → ErrorBrush, #107C10 → SuccessBrush, #D83B01 → WarningBrush
+- RoleToColorConverter.cs updated to use theme resources via Application.Current.Resources
+  - Fallback to hardcoded RGB values if theme resource unavailable
+- ChatPage.xaml resource dictionary merged with ThemeDark.xaml
+- Build: successful (zero errors)
+- Tests: 520/520 passed
 
 ---
 
@@ -1211,6 +1182,32 @@ Plan mode is now fully functional:
 4. Optional: Fire ConfigChanged event on reload
 
 **Depends on:** gap1 (predefined config), gap3 (ConfigPageViewModel wiring), gap8_1 (tools UI), gap8_2 (settings UI)
+
+---
+
+### gap11: Tools Count NOT SHOWN IN UI
+**Status:** 🟡 Incomplete | Type: Missing Binding  
+**Current State:**
+- ConfigPageViewModel has `AvailableTools` collection (exists)
+- No tools loading or display
+- NavigationBar (from gap6) should show tool count badge
+
+**What Continue.js Does (from AGENTS.md):**
+- Tool count badge in navigation (from IConfigService or Core.getKnownTools())
+- ConfigPage shows tool list with enable/disable toggles
+
+**ContinueVS Gap:**
+- IConfigService.GetEnabledTools() exists
+- No UI binding to show count
+- No tool enable/disable UI in ConfigPage
+
+**Remediation:**
+1. Load tools in ConfigPageViewModel.LoadToolsAsync()
+2. Bind AvailableTools to ListBox in ConfigPage.xaml
+3. Add CheckBox for Enable/Disable per tool
+4. Show tool count badge in NavigationBar (total count)
+
+**Depends on:** gap3, gap7
 
 ---
 
