@@ -36,6 +36,32 @@ namespace ContinueVS.Core.Types
     }
 
     /// <summary>
+    /// Represents the execution status of a tool invocation.
+    /// </summary>
+    public enum ToolInvocationStatus
+    {
+        /// <summary>
+        /// Tool call has been detected but not yet executed.
+        /// </summary>
+        Pending,
+
+        /// <summary>
+        /// Tool is currently being executed.
+        /// </summary>
+        Running,
+
+        /// <summary>
+        /// Tool execution completed successfully.
+        /// </summary>
+        Complete,
+
+        /// <summary>
+        /// Tool execution failed with an error.
+        /// </summary>
+        Failed
+    }
+
+    /// <summary>
     /// Represents a tool invocation request within a message.
     /// </summary>
     public class ToolCall
@@ -95,5 +121,24 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("timestamp")]
         public DateTime? Timestamp { get; set; }
+
+        /// <summary>
+        /// Execution status of a tool invocation (for Role.Tool messages).
+        /// Null for non-tool messages.
+        /// </summary>
+        [JsonIgnore]
+        public ToolInvocationStatus? InvocationStatus { get; set; }
+
+        /// <summary>
+        /// Timestamp when tool execution started.
+        /// </summary>
+        [JsonIgnore]
+        public DateTime? ExecutionStartTime { get; set; }
+
+        /// <summary>
+        /// Timestamp when tool execution ended.
+        /// </summary>
+        [JsonIgnore]
+        public DateTime? ExecutionEndTime { get; set; }
     }
 }

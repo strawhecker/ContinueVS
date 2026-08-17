@@ -72,6 +72,9 @@ namespace ContinueVS.ViewModels
         private CancellationTokenSource? _streamingCts;
         private ChatMode _currentMode = ChatMode.Ask;
         private ModelInfo? _selectedModel;
+        private List<ToolCall> _pendingToolCalls = new List<ToolCall>();
+        private const int MaxToolCallIterations = 10;
+        private int _toolCallIterationCount = 0;
 
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
@@ -219,73 +222,111 @@ namespace ContinueVS.ViewModels
 #pragma warning disable VSTHRD100
         private async void ExecuteSendMessage()
 #pragma warning restore VSTHRD100
-{
-    try
-    {
-        IsStreaming = true;
-        _streamingCts = new CancellationTokenSource();
-
-        var userMessage = new ChatMessage
         {
-            Role = ChatMessageRole.User,
-            Content = InputText ?? string.Empty
-        };
-        await _sessionService.AddMessageAsync(userMessage);
-        Messages.Add(userMessage);
-        System.Diagnostics.Debug.WriteLine($"[a6-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
-
-        StreamingResponse = string.Empty;
-
-        var messages = new List<ChatMessage>();
-
-        // Inject mode-specific system message
-        var systemPrompt = GetSystemMessageForMode(CurrentMode);
-        messages.Add(new ChatMessage
-        {
-            Role = ChatMessageRole.System,
-            Content = systemPrompt
-        });
-
-        if (SelectedContext.Count > 0)
-        {
-            var contextSummary = string.Join("\n", 
-                SelectedContext.Select(c => c.FilePath + ": " + c.Content));
-            messages.Add(new ChatMessage
+            try
             {
-                Role = ChatMessageRole.System,
-                Content = "Context:\n" + contextSummary
-            });
-        }
+                IsStreaming = true;
+                _streamingCts = new CancellationTokenSource();
+                _pendingToolCalls.Clear();
+                _toolCallIterationCount = 0;
 
-        messages.Add(userMessage);
-
-        var streamOptions = new StreamOptions
-        {
-            Messages = messages
-        };
-
-        await RetryPolicyHelper.ExecuteWithRetryAsync(
-            async ct =>
-            {
-                await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, ct))
+                var userMessage = new ChatMessage
                 {
-                    if (chunk.Type == ChunkType.Text)
-                            {
-                                StreamingResponse += chunk.Content;
-                            }
-                        }
-                    },
-                    _streamingCts.Token,
-                    maxRetries: 3);
-
-                var assistantMessage = new ChatMessage
-                {
-                    Role = ChatMessageRole.Assistant,
-                    Content = StreamingResponse
+                    Role = ChatMessageRole.User,
+                    Content = InputText ?? string.Empty
                 };
-                await _sessionService.AddMessageAsync(assistantMessage);
-                Messages.Add(assistantMessage);
-                System.Diagnostics.Debug.WriteLine($"[a6-exec] ExecuteSendMessage: Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, MessagesCount={Messages.Count}");
+                await _sessionService.AddMessageAsync(userMessage);
+                Messages.Add(userMessage);
+                System.Diagnostics.Debug.WriteLine($"[gap9-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
+
+                StreamingResponse = string.Empty;
+
+                var messages = new List<ChatMessage>();
+
+                // Inject mode-specific system message
+                var systemPrompt = GetSystemMessageForMode(CurrentMode);
+                messages.Add(new ChatMessage
+                {
+                    Role = ChatMessageRole.System,
+                    Content = systemPrompt
+                });
+
+                if (SelectedContext.Count > 0)
+                {
+                    var contextSummary = string.Join("\n",
+                        SelectedContext.Select(c => c.FilePath + ": " + c.Content));
+                    messages.Add(new ChatMessage
+                    {
+                        Role = ChatMessageRole.System,
+                        Content = "Context:\n" + contextSummary
+                    });
+                }
+
+                messages.Add(userMessage);
+
+                // Loop until no more tool calls or max iterations reached
+                while (_toolCallIterationCount < MaxToolCallIterations)
+                {
+                    _toolCallIterationCount++;
+                    _pendingToolCalls.Clear();
+
+                    var streamOptions = new StreamOptions
+                    {
+                        Messages = messages
+                    };
+
+                    await RetryPolicyHelper.ExecuteWithRetryAsync(
+                        async ct =>
+                        {
+                            await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, ct))
+                            {
+                                if (chunk.Type == ChunkType.Text)
+                                {
+                                    StreamingResponse += chunk.Content;
+                                }
+                                else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
+                                {
+                                    _pendingToolCalls.Add(chunk.ToolCall);
+                                }
+                            }
+                        },
+                        _streamingCts.Token,
+                        maxRetries: 3);
+
+                    var assistantMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Assistant,
+                        Content = StreamingResponse,
+                        ToolCalls = _pendingToolCalls.Count > 0 ? new List<ToolCall>(_pendingToolCalls) : null
+                    };
+                    await _sessionService.AddMessageAsync(assistantMessage);
+                    Messages.Add(assistantMessage);
+                    System.Diagnostics.Debug.WriteLine($"[gap9-exec] ExecuteSendMessage: Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}, MessagesCount={Messages.Count}");
+
+                    // Only execute tools in Agent mode
+                    if (CurrentMode == ChatMode.Agent && _pendingToolCalls.Count > 0)
+                    {
+                        await ExecuteToolCallsAsync(_pendingToolCalls);
+
+                        // Collect tool results for next iteration
+                        var toolResultMessages = new List<ChatMessage>();
+                        foreach (var toolMsg in Messages.Where(m => m.Role == ChatMessageRole.Tool))
+                        {
+                            toolResultMessages.Add(toolMsg);
+                        }
+
+                        // Add tool results to messages for next loop iteration
+                        messages.AddRange(toolResultMessages);
+
+                        // Reset streaming response for next iteration
+                        StreamingResponse = string.Empty;
+                    }
+                    else
+                    {
+                        // No tools or not in Agent mode, break the loop
+                        break;
+                    }
+                }
 
                 InputText = string.Empty;
             }
@@ -300,7 +341,6 @@ namespace ContinueVS.ViewModels
                 System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception message: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception stack trace: {ex.StackTrace}");
 
-                // Log inner exception if present
                 if (ex.InnerException != null)
                 {
                     System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
@@ -313,6 +353,47 @@ namespace ContinueVS.ViewModels
             {
                 IsStreaming = false;
                 _streamingCts?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Executes pending tool calls and creates Tool role messages with results.
+        /// </summary>
+        private async Task ExecuteToolCallsAsync(List<ToolCall> toolCalls)
+        {
+            foreach (var toolCall in toolCalls)
+            {
+                var toolMessage = new ChatMessage
+                {
+                    Role = ChatMessageRole.Tool,
+                    Content = $"[Executing: {toolCall.Name}]",
+                    InvocationStatus = ToolInvocationStatus.Running,
+                    ExecutionStartTime = DateTime.Now
+                };
+                await _sessionService.AddMessageAsync(toolMessage);
+                Messages.Add(toolMessage);
+
+                try
+                {
+                    var result = await _toolService.InvokeAsync(
+                        toolCall.Name,
+                        toolCall.Arguments ?? new Dictionary<string, object>(),
+                        _streamingCts?.Token ?? CancellationToken.None);
+
+                    toolMessage.Content = $"Tool '{toolCall.Name}' result: {result.Output}";
+                    toolMessage.InvocationStatus = ToolInvocationStatus.Complete;
+                    toolMessage.ExecutionEndTime = DateTime.Now;
+
+                    System.Diagnostics.Debug.WriteLine($"[gap9-exec] Tool '{toolCall.Name}' executed successfully. Result: {result.Output}");
+                }
+                catch (Exception ex)
+                {
+                    toolMessage.Content = $"Tool '{toolCall.Name}' failed: {ex.Message}";
+                    toolMessage.InvocationStatus = ToolInvocationStatus.Failed;
+                    toolMessage.ExecutionEndTime = DateTime.Now;
+
+                    System.Diagnostics.Debug.WriteLine($"[gap9-exec] Tool '{toolCall.Name}' execution failed: {ex.Message}");
+                }
             }
         }
 
