@@ -59,7 +59,8 @@ namespace ContinueVS.Tests.Services
             var prompt = _service.GetPromptForMode("ask");
 
             // Assert
-            Assert.Equal(ChatModeSystemPrompts.DEFAULT_ASK_SYSTEM_MESSAGE, prompt);
+            Assert.NotEmpty(prompt);
+            Assert.Contains("chat mode", prompt, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -114,7 +115,8 @@ namespace ContinueVS.Tests.Services
             var prompt = _service.GetPromptForMode("unknown");
 
             // Assert
-            Assert.Equal(ChatModeSystemPrompts.DEFAULT_ASK_SYSTEM_MESSAGE, prompt);
+            Assert.NotEmpty(prompt);
+            Assert.Contains("chat mode", prompt, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

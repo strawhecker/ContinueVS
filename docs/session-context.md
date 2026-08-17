@@ -939,12 +939,12 @@ Experimental
 ---
 
 ### gap8_5: LLM System Messages NOT WIRED
-**Status:** 🟡 Incomplete | Type: Mode-Specific Instructions  
+**Status:** ✅ Complete | Type: Mode-Specific Instructions  
 **Current State:**
 - ChatPageViewModel has ChatMode enum (Chat, Agent, Plan)
-- No system message injection based on mode
-- MessengerService does not differentiate LLM instructions by mode
-- All modes use identical prompt context
+- System prompts loaded from `~/.continueVS/system-prompts.json` (editable, with fallback to hardcoded defaults)
+- Mode-specific system messages injected into LLM context via ISystemPromptService
+- All modes include code formatting rules: language+filename in headers, abbreviations for large blocks (// ... existing code ...)
 
 **What Continue.js Does (from AGENTS.md):**
 - Each mode has distinct system message injected into LLM context:
@@ -954,34 +954,48 @@ Experimental
 - System messages guide LLM behavior and inform users of mode capabilities
 - Code snippet formatting rules consistent across all modes (include file path, abbreviate large blocks)
 
-**ContinueVS Solution (gap8_5 COMPLETED):**
-- Mode-specific system messages defined in `SystemMessages.cs` with detailed guidance per session-context requirements
+**ContinueVS Implementation (gap8_5 COMPLETED):**
+- Mode-specific system messages defined with detailed guidance per Continue.js reference
 - System prompts loaded from `~/.continueVS/system-prompts.json` (editable post-install) with fallback to hardcoded defaults
 - `SystemPromptService` manages loading, caching, and file creation
 - `ChatPageViewModel` injects system message via `GetSystemMessageForMode()` → `ISystemPromptService.GetPromptForMode()`
-- Prompts include code formatting rules: language+filename in headers, abbreviations for large blocks (// ... existing code ...)
+- Prompts (aligned with `reference\continue-src\core\llm\defaultSystemMessages.ts`) include:
+  - `<important_rules>` wrapper tags for structure
+  - Detailed `CODEBLOCK_FORMATTING_INSTRUCTIONS` (language+file path in code block headers)
+  - Detailed `EDIT_CODE_INSTRUCTIONS` (abbreviated placeholders for unmodified sections, lazy comments, function/class context restatement)
+  - Mode-specific guidance on tool access and user interaction patterns
 
 **Implementation Details:**
 1. **SystemPromptConfig.cs**: Deserializable JSON model with mode→prompt mapping
-2. **SystemPromptService.cs**: Loader service with config file management (~/.continueVS/system-prompts.json)
+2. **SystemPromptService.cs**: Loader service with config file management (~/.continueVS/system-prompts.json) and inline default fallback strings
 3. **ISystemPromptService.cs**: Interface for DI registration
 4. **ServiceBootstrapper.cs**: Registered as singleton
 5. **ServiceInitializer.cs**: Calls `EnsureConfigFileExistsAsync()` and `LoadAsync()` during startup
-6. **ChatPageViewModel.cs**: Injected; calls `GetPromptForMode()` via service instead of static constant
-7. **SystemMessages.cs**: Updated constants with full prompts matching session-context spec
-8. **Fallback behavior**: If JSON file missing/corrupt, uses hardcoded defaults from SystemMessages.cs
+6. **ChatPageViewModel.cs**: Injected; calls `GetPromptForMode()` via service
+7. **system-prompts.json**: Template file in src/VSIXProject1/config/ with full prompt content mirroring Continue.js
+8. **Fallback behavior**: If JSON file missing/corrupt, uses inline default strings in `GetDefaultPromptForMode()`
+
+**Prompt Content Alignment:**
+- **Ask (Chat) Mode**: Full EDIT_CODE_INSTRUCTIONS for code snippets; Apply Button guidance; mode-switch recommendation
+- **Agent Mode**: Simplified code block guidance; read-only tool output emphasis; emphasis on using edit tools for implementation
+- **Plan Mode**: Planning-specific guidance; read-only tool restriction; Agent Mode recommendation for implementation
+
+**Files Modified:**
+- src/VSIXProject1/Services/Implementations/SystemPromptService.cs: Updated `GetDefaultPromptForMode()` with canonical prompt structures (CODEBLOCK_FORMATTING_INSTRUCTIONS, EDIT_CODE_INSTRUCTIONS, <important_rules> wrappers)
+- src/VSIXProject1/config/system-prompts.json: Updated template with full prompt content from Continue.js reference
+- src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs: Fixed test assertions to validate prompt content presence rather than exact reference matches
 
 **Depends on:** gap5 (chat infrastructure), gap8_3 (mode selector wired)
 
-**Reference: Mode System Messages (JSON-configurable)**
+**Prompt Content (from defaultSystemMessages.ts):**
 
-| Mode | System Message | Allowed Actions |
-|------|---|---|
-| **Chat** | "You are in chat mode. If the user asks to make changes to files, offer that they can use the Apply Button on the code block, or suggest switching to Agent Mode to make updates automatically. Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use abbreviated placeholders like `// ... existing code ...` at the beginning, middle, or end. Concisely explain changes unless the user asks for code only." | Read-only responses; code suggestions with Apply button; mode switch recommendation |
-| **Plan** | "You are in plan mode, in which you help the user understand and construct a plan. Only use read-only tools. Do not use any tools that would write to non-temporary files. If the user wants to make changes, offer that they can switch to Agent Mode to give you access to write tools to make the suggested updates. Always include the language and file name in the info string when you write code blocks. For planning purposes only, output code blocks for suggestion and planning. When ready to implement, request to switch to Agent Mode." | Analysis; planning; read-only tool calls; recommend Agent Mode for implementation |
-| **Agent** | "You are in agent mode. Use multiple tools simultaneously if needed. Always include the language and file path in the info string when you write code blocks. For implementation, use edit tools (not suggestion blocks). Use abbreviated syntax for larger files (// ... existing code ...)." | Full tool calling; autonomous code editing; multiple simultaneous tool invocations |
+| Mode | Key Directives |
+|------|---|
+| **Chat** | Ask user about Apply Button or Agent Mode for edits; include language+file in code blocks; abbreviated placeholders for >20 line blocks |
+| **Plan** | Read-only tools only; describe plan changes, recommend Agent Mode for implementation; include language+file in code blocks |
+| **Agent** | Multiple simultaneous tools; output code blocks for suggestion/demo only (use edit tools for implementation); include language+file in code blocks; abbreviated placeholders |
 
-
+---
 ---
 
 ### gap9: Agent Mode NOT VISIBLE

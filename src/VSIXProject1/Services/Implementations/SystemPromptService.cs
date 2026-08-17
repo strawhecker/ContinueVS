@@ -117,19 +117,70 @@ namespace ContinueVS.Services.Implementations
 
         private static string GetDefaultPromptForMode(string mode)
         {
+            const string CODEBLOCK_FORMATTING_INSTRUCTIONS =
+                "Always include the language and file name in the info string when you write code blocks.\n" +
+                "If you are editing \"src/main.py\" for example, your code block should start with '```python src/main.py'";
+
+            const string EDIT_CODE_INSTRUCTIONS =
+                "When addressing code modification requests, present a concise code snippet that\n" +
+                "emphasizes only the necessary changes and uses abbreviated placeholders for\n" +
+                "unmodified sections. For example:\n\n" +
+                "```language /path/to/file\n" +
+                "// ... existing code ...\n" +
+                "{{ modified code here }}\n" +
+                "// ... existing code ...\n" +
+                "{{ another modification }}\n" +
+                "// ... rest of code ...\n" +
+                "```\n\n" +
+                "In existing files, you should always restate the function or class that the snippet belongs to:\n\n" +
+                "```language /path/to/file\n" +
+                "// ... existing code ...\n\n" +
+                "function exampleFunction() {\n" +
+                "  // ... existing code ...\n\n" +
+                "  {{ modified code here }}\n\n" +
+                "  // ... rest of function ...\n" +
+                "}\n\n" +
+                "// ... rest of code ...\n" +
+                "```\n\n" +
+                "Since users have access to their complete file, they prefer reading only the\n" +
+                "relevant modifications. It's perfectly acceptable to omit unmodified portions\n" +
+                "at the beginning, middle, or end of files using these \"lazy\" comments. Only\n" +
+                "provide the complete file when explicitly requested. Include a concise explanation\n" +
+                "of changes unless the user specifically asks for code only.";
+
+            const string BRIEF_LAZY_INSTRUCTIONS =
+                "For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'";
+
             switch (mode.ToLowerInvariant())
             {
                 case "agent":
-                    return "You are in agent mode. Use multiple tools simultaneously if needed. Always include the language and file path in the info string when you write code blocks. " +
-                           "For implementation, use edit tools (not suggestion blocks). Use abbreviated syntax for larger files (// ... existing code ...).";
+                    return "<important_rules>\n" +
+                           "You are in agent mode.\n\n" +
+                           "If you need to use multiple tools, you can call multiple read-only tools simultaneously.\n\n" +
+                           CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
+                           BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
+                           "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
+                           "</important_rules>";
+
                 case "plan":
-                    return "You are in plan mode, in which you help the user understand and construct a plan. Only use read-only tools. Do not use any tools that would write to non-temporary files. " +
-                           "If the user wants to make changes, offer that they can switch to Agent Mode to give you access to write tools to make the suggested updates. " +
-                           "Always include the language and file name in the info string when you write code blocks. For planning purposes only, output code blocks for suggestion and planning. When ready to implement, request to switch to Agent Mode.";
-                default:
-                    return "You are in chat mode. If the user asks to make changes to files, offer that they can use the Apply Button on the code block, or suggest switching to Agent Mode to make updates automatically. " +
-                           "Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use abbreviated placeholders like `// ... existing code ...` at the beginning, middle, or end. " +
-                           "Concisely explain changes unless the user asks for code only.";
+                    return "<important_rules>\n" +
+                           "You are in plan mode, in which you help the user understand and construct a plan.\n" +
+                           "Only use read-only tools. Do not use any tools that would write to non-temporary files.\n" +
+                           "If the user wants to make changes, offer that they can switch to Agent mode to give you access to write tools to make the suggested updates.\n\n" +
+                           CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
+                           BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
+                           "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +
+                           "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
+                           "</important_rules>";
+
+                default:  // chat/ask mode
+                    return "<important_rules>\n" +
+                           "You are in chat mode.\n\n" +
+                           "If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.\n" +
+                           "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
+                           CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
+                           EDIT_CODE_INSTRUCTIONS + "\n" +
+                           "</important_rules>";
             }
         }
     }
