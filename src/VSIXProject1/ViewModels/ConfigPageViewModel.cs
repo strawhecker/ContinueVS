@@ -125,6 +125,11 @@ namespace ContinueVS.ViewModels
             _settingsViewModel.LoadSettings();
             RaisePropertyChanged(nameof(SettingsViewModel));
 
+            Debug.WriteLine("[gap12_3-configvm-ctor-addmodel] Initializing AddModelViewModel eagerly");
+            _addModelViewModel = new AddModelViewModel(_modelDiscoveryService, _configService);
+            AddModelViewModel = _addModelViewModel;
+            RaisePropertyChanged(nameof(AddModelViewModel));
+
             // Subscribe to config changes to refresh filtered models
             _configService.ConfigChanged += (s, e) =>
             {

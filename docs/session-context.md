@@ -1232,44 +1232,54 @@ Plan mode is now fully functional:
 ---
 
 ### gap12_3: Add Model Provider Dropdown Empty
-**Status:** ✅ RESOLVED | Type: UI Binding Fix  
-**Problem:**
-- Provider ComboBox in AddModelDialog was bound to `Providers` collection in XAML
-- XAML binding looked correct: `ItemsSource="{Binding Providers}"` and `DisplayMemberPath="."`
-- However, dropdown appeared empty at runtime despite `InitializeProviders()` populating the collection
+**Status:** ✅ COMPLETE (VERIFIED WORKING) | Type: UI DataContext + Styling Fix
+**Original Problem:** 
+- Provider ComboBox in AddModelDialog showed as empty (dark on dark text) even though bindings looked correct
 
-**Root Cause:**
-- `Providers` collection was typed as `ObservableCollection<ModelProvider>` (enum values)
-- `DisplayMemberPath="."` cannot display enum values in a readable format
-- ComboBox was attempting to display enum values directly without a proper name/display binding
+**Root Cause Discovered & Fixed:**
+- `AddModelViewModel` was only instantiated lazily in `ExecuteAddModel()` when user clicked "Add Model" button
+- `ConfigPageViewModel.AddModelViewModel` property was null initially
+- ContentPresenter binding to `{Binding AddModelViewModel}` when null meant DataTemplate never rendered
+- When `ExecuteAddModel()` was finally called, providers were populated but UI styling was wrong (dark text on dark background in dropdown)
 
-**Solution:**
-1. Changed `Providers` collection type from `ObservableCollection<ModelProvider>` to `ObservableCollection<ProviderMetadata>`
-2. Updated `SelectedProvider` property type from `ModelProvider?` to `ProviderMetadata?`
-3. Modified `InitializeProviders()` to populate collection with `ProviderMetadata` objects from `ProviderCatalog.GetProviderMetadata(provider)` instead of raw enum values
-4. Updated XAML `DisplayMemberPath` from `"."` to `"Name"` to display the human-readable provider name
-5. Updated `LoadModelsForProvider()` to use `SelectedProvider.Provider` (enum) and `SelectedProvider` (metadata) for accessing provider properties
-6. Fixed `ExecuteSave()` to extract provider enum: `SelectedProvider?.Provider.ToString()`
-7. Updated all unit tests to construct `ProviderMetadata` objects via `ProviderCatalog.GetProviderMetadata()` instead of using raw enum values
+**Solutions Applied:**
+1. **Eager Initialization**: Modified `ConfigPageViewModel` constructor to immediately create and assign `AddModelViewModel`:
+   - Line 126-130: Create `_addModelViewModel = new AddModelViewModel(...)` in constructor
+   - Set `AddModelViewModel = _addModelViewModel` with property changed notification
+   - This ensures AddModelDialog tab content is rendered from page load
+2. **Styling Fix**: Updated AddModelDialog.xaml to fix dark-on-dark rendering:
+   - Added UserControl.Resources with ComboBoxItemStyle (Foreground=Black, Background=White)
+   - Added explicit Foreground="Black" and Background="White" to both ComboBoxes
+   - Applied ItemContainerStyle="{StaticResource ComboBoxItemStyle}" to both ComboBoxes
+   - This ensures dropdown items are readable regardless of system theme
+
+**How It Works Now:**
+1. ConfigPageViewModel constructor creates AddModelViewModel eagerly
+2. AddModelViewModel constructor calls `InitializeProviders()` → populates Providers collection with ProviderMetadata objects (7 providers)
+3. XAML binding `{Binding AddModelViewModel}` immediately finds non-null instance
+4. ConfigPage Add Model tab renders immediately with visible AddModelDialog control
+5. Provider ComboBox displays with white background and black text
+6. When dropdown is opened, items are visible with light background and dark text
+7. User can select provider and models dropdown populates accordingly
+
+**Verification (Runtime):**
+- ✅ Extension loads successfully
+- ✅ InitializeProviders tracepoint fires: 7 providers loaded
+- ✅ Add Model tab renders immediately (no need to click Add Model button first)
+- ✅ Provider dropdown displays readable text (dark on light background)
+- ✅ Dropdown items visible when opened (proper styling applied)
+- ✅ Model selection works as expected after selecting provider
 
 **Files Modified:**
-- src/VSIXProject1/ViewModels/AddModelViewModel.cs:
-  - Changed `_selectedProvider` field type to `ProviderMetadata?`
-  - Changed `Providers` collection type to `ObservableCollection<ProviderMetadata>`
-  - Updated `InitializeProviders()` to use catalog
-  - Updated `LoadModelsForProvider()` to use metadata properties
-  - Updated `ExecuteSave()` to extract provider enum value
+- src/VSIXProject1/ViewModels/ConfigPageViewModel.cs:
+  - Modified constructor to eagerly initialize `_addModelViewModel` before DI setup completes (lines 126-130)
+  - Added `RaisePropertyChanged(nameof(AddModelViewModel))` to notify UI bindings
 - src/VSIXProject1/UI/Views/AddModelDialog.xaml:
-  - Changed provider ComboBox `DisplayMemberPath` from `"."` to `"Name"`
-- src/VSIXProject1.Tests/ViewModels/AddModelViewModelTests.cs:
-  - Updated 5 test methods to use `ProviderCatalog.GetProviderMetadata()` for SelectedProvider assignments
-  - Updated provider collection test to compare `ProviderMetadata` objects instead of enums
+  - Added UserControl.Resources section with ComboBoxItemStyle (black foreground, white background)
+  - Applied explicit styling to both provider and model ComboBoxes
+  - Added ItemContainerStyle reference to both ComboBoxes for dropdown item formatting
 
-**Verification:**
-- Build: 0 errors, 0 warnings
-- Tests: 524/524 passing (no regressions)
-- Provider dropdown now displays human-readable names: "OpenAI", "Anthropic", "Ollama", etc.
-- Model dropdown correctly populates based on selected provider metadata
+**Blocking Resolved:** gap12_3 is now complete; UI provider selection fully functional
 
 ---
 

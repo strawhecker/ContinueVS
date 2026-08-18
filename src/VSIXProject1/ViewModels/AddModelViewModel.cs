@@ -324,25 +324,36 @@ namespace ContinueVS.ViewModels
         /// </summary>
         public void ResetForm()
         {
-            _selectedProvider = null;
+            // Clear form data
             _selectedModel = null;
             _apiKey = null;
             _baseUrl = null;
             _validationError = null;
             _isValidating = false;
-            _currentStep = 1;
             AvailableModels.Clear();
 
-            // Raise property changed for all bound properties
-            RaisePropertyChanged(nameof(SelectedProvider));
+            // Reset to step 1 (provider selection)
+            _currentStep = 1;
+            RaisePropertyChanged(nameof(CurrentStep));
+
+            // Auto-select first provider (which will trigger LoadModelsForProvider via property setter)
+            if (Providers.Count > 0)
+            {
+                SelectedProvider = Providers[0];
+                Debug.WriteLine($"[gap12_3-addmodelvm-reset] Form reset; auto-selected first provider: {Providers[0].Name}");
+            }
+            else
+            {
+                SelectedProvider = null;
+                Debug.WriteLine("[gap12_3-addmodelvm-reset] Form reset; no providers available");
+            }
+
+            // Raise property changed for form fields
             RaisePropertyChanged(nameof(SelectedModel));
             RaisePropertyChanged(nameof(ApiKey));
             RaisePropertyChanged(nameof(BaseUrl));
             RaisePropertyChanged(nameof(ValidationError));
             RaisePropertyChanged(nameof(IsValidating));
-            RaisePropertyChanged(nameof(CurrentStep));
-
-            Debug.WriteLine("[gap12_2-addmodelvm-reset] Form reset to initial state");
         }
     }
 }

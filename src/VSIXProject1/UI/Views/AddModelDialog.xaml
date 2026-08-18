@@ -6,6 +6,13 @@
              mc:Ignorable="d"
              d:DesignHeight="400" d:DesignWidth="500"
              Background="White">
+    <UserControl.Resources>
+        <!-- ComboBox Item Style with light text -->
+        <Style x:Key="ComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <StackPanel Margin="20" VerticalAlignment="Top">
             <TextBlock Text="Add Chat Model" FontSize="18" FontWeight="Bold" Margin="0,0,0,20"/>
@@ -13,11 +20,17 @@
                       SelectedItem="{Binding SelectedProvider, Mode=TwoWay}"
                       MinHeight="35"
                       Margin="0,0,0,10"
-                      DisplayMemberPath="Name"/>
+                      DisplayMemberPath="Name"
+                      Foreground="Black"
+                      Background="White"
+                      ItemContainerStyle="{StaticResource ComboBoxItemStyle}"/>
             <ComboBox ItemsSource="{Binding AvailableModels}"
                       SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
                       MinHeight="35"
-                      Margin="0,0,0,10"/>
+                      Margin="0,0,0,10"
+                      Foreground="Black"
+                      Background="White"
+                      ItemContainerStyle="{StaticResource ComboBoxItemStyle}"/>
             <TextBlock Text="API Key" FontSize="11" Margin="0,0,0,5"/>
             <PasswordBox x:Name="ApiKeyBox" MinHeight="30" Margin="0,0,0,20"/>
             <TextBlock Text="Base URL (Ollama)" FontSize="11" Margin="0,0,0,5"/>
