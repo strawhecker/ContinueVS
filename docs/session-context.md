@@ -1145,8 +1145,13 @@ Plan mode is now fully functional:
 
 ---
 
+### gap12_1: Config view completely blank
+
+
+---
+
 ### gap13: Config Persistence NOT TESTED
-**Status:** 🟡 Incomplete | Type: Round-Trip End-to-End Config Test  
+**Status:** 🟡 Partial | Type: Round-Trip End-to-End Config Test  
 **Current State:**
 - ConfigService.SaveConfigAsync() saves to `~/.continueVS/continueVS.json`
 - ConfigService.InitializeAsync() loads from file
@@ -1165,7 +1170,17 @@ Plan mode is now fully functional:
   1. **gap8_1 tools persistence**: Add/enable tool → save → restart → verify in UI (ConfigPageViewModel.AvailableTools updated)
   2. **gap8_2 settings persistence**: Modify setting in UI → save → restart → verify value restored (SettingsViewModel properties match)
 
-**Remediation:**
+**Remediation Completed:**
+1. ✅ Enhanced TestFixtureBase.cs with temp file helpers: `CreateTempConfigPath()`, `CleanupTempFile()`, `_tempFiles` tracking
+   - Integrated into Dispose(bool) for automatic cleanup
+   - Ready for round-trip integration tests
+
+**Blocking Issue:** 
+- Ambiguous ContinueConfig reference: ContinueVS.Services.ContinueConfig vs ContinueVS.Core.Types.ContinueConfig
+- Round-trip tests require Services version (file I/O) but namespace creates conflicts
+- Workaround: Manual round-trip testing only (documented in MANUAL-TESTING-GUIDE.md)
+
+**Next Steps (Manual Testing):**
 1. Implement manual round-trip test for **gap8_1 tools** (gap3 completed):
    - Toggle tool enabled/disabled via ConfigPageViewModel.ToggleToolCommand
    - Click Save Configuration → persists to config.json
@@ -1174,7 +1189,9 @@ Plan mode is now fully functional:
 
 2. Implement manual round-trip test for **gap8_2 settings** (gap8_2 completed):
    - Modify one+ setting in SettingsControl UI (e.g., toggle ShowSessionTabs, change FontSize)
-   - Click Save Configuration → SettingsViewModel.SaveSettingsAsync() called → CustomSettings updated → config.json persisted
+   - Click Save → persists to config.json (delta-based)
+   - Restart extension → verify SettingsViewModel loads persisted values
+
    - Restart extension → ConfigService loads config.json → SettingsViewModel.LoadSettings() restores values
    - Confirm persisted values match user changes in CustomSettings["chat.showSessionTabs"], CustomSettings["appearance.fontSize"], etc.
 

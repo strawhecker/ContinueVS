@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using Moq;
 using Xunit;
 
@@ -23,6 +24,11 @@ namespace ContinueVS.Tests.Infrastructure
         /// Registry of mocks created by this fixture for unified cleanup.
         /// </summary>
         private readonly List<object> _mocks = new List<object>();
+
+        /// <summary>
+        /// List of temp file paths created by this fixture for cleanup on dispose.
+        /// </summary>
+        private readonly List<string> _tempFiles = new List<string>();
 
         /// <summary>
         /// Flag to track disposal state and prevent double-dispose.
@@ -74,6 +80,40 @@ namespace ContinueVS.Tests.Infrastructure
             catch
             {
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Creates a temporary config file path for testing.
+        /// The file is registered for cleanup on fixture disposal.
+        /// </summary>
+        /// <returns>Full path to temp config file (file is not created)</returns>
+        protected string CreateTempConfigPath()
+        {
+            var tempDir = Path.GetTempPath();
+            var tempFileName = $"continueVS_test_{Guid.NewGuid()}.json";
+            var tempPath = Path.Combine(tempDir, tempFileName);
+            _tempFiles.Add(tempPath);
+            return tempPath;
+        }
+
+        /// <summary>
+        /// Manually cleans up a temporary file if it exists.
+        /// Called explicitly or automatically on fixture disposal.
+        /// </summary>
+        /// <param name="filePath">Path to file to delete</param>
+        protected void CleanupTempFile(string filePath)
+        {
+            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+            {
+                try
+                {
+                    File.Delete(filePath);
+                }
+                catch
+                {
+                    // Ignore cleanup errors in tests
+                }
             }
         }
 
@@ -134,6 +174,13 @@ namespace ContinueVS.Tests.Infrastructure
             {
                 // Clear mock registry (Moq doesn't require explicit cleanup)
                 _mocks.Clear();
+
+                // Clean up temp files
+                foreach (var tempFile in _tempFiles)
+                {
+                    CleanupTempFile(tempFile);
+                }
+                _tempFiles.Clear();
             }
 
             _disposed = true;
