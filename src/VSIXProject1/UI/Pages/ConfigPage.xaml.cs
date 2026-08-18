@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
@@ -134,6 +135,15 @@ namespace ContinueVS.UI.Pages
                 Debug.WriteLine($"[gap12_1-configpage-loaded-error] ✗ Loaded event error: {ex.Message}");
                 Debug.WriteLine($"[gap12_1-configpage-loaded-stack] {ex.StackTrace}");
             }
+        }
+
+        /// <summary>
+        /// PreviewTextInput handler for ContextWindow TextBox to allow only numeric input.
+        /// </summary>
+        private void ContextWindowTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            // Allow only digits
+            e.Handled = !int.TryParse(e.Text, out _);
         }
     }
 }

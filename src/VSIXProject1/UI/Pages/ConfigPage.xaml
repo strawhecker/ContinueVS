@@ -8,100 +8,238 @@
              Loaded="ConfigPage_Loaded"
              d:DesignHeight="600" d:DesignWidth="800">
     <Grid Background="#F3F3F3">
-        <StackPanel Margin="20" VerticalAlignment="Top">
-            <!-- Title -->
-            <TextBlock Text="Configuration" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+        <TabControl>
+            <!-- Tab 1: Models -->
+            <TabItem Header="Models">
+                <ScrollViewer>
+                    <StackPanel Margin="20" VerticalAlignment="Top">
+                        <!-- Search FilterBox -->
+                        <TextBlock Text="Search Models" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBox x:Name="SearchTextBox"
+                                 Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="8"
+                                 Margin="0,0,0,15"
+                                 Background="White"
+                                 BorderThickness="1"
+                                 BorderBrush="#DDD"
+                                 Foreground="#333"
+                                 Height="30"/>
 
-            <!-- Models Section -->
-            <TextBlock Text="Models" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
-            <Grid Margin="0,0,0,20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableModels}" 
-                          SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
-                          MinHeight="30">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button Grid.Column="1" Content="Add Model" 
-                        Command="{Binding AddModelCommand}"
-                        Padding="15,5" 
-                        Background="#4CAF50" 
-                        Foreground="White" 
-                        Margin="10,0,0,0"/>
-            </Grid>
+                        <!-- Models ListBox -->
+                        <TextBlock Text="Available Models" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <ListBox x:Name="ModelsListBox"
+                                 ItemsSource="{Binding FilteredModels, Mode=OneWay}"
+                                 SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
+                                 Height="200"
+                                 BorderThickness="1"
+                                 BorderBrush="#DDD"
+                                 Margin="0,0,0,15">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock>
+                                        <Run Text="{Binding Name, Mode=OneWay}"/>
+                                        <Run Text=" (" Foreground="#999"/>
+                                        <Run Text="{Binding Provider, Mode=OneWay}" Foreground="#999"/>
+                                        <Run Text=")" Foreground="#999"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
 
-            <!-- Tools Section -->
-            <TextBlock Text="Available Tools" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
-            <TextBlock Text="Enable/disable tools to control AI assistant capabilities" 
-                       FontSize="11" Foreground="#666" Margin="0,0,0,10"/>
+                        <!-- Model Details Pane -->
+                        <TextBlock Text="Model Details" FontSize="12" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Border BorderThickness="1" BorderBrush="#DDD" Padding="12" Background="White" CornerRadius="4" Margin="0,0,0,15">
+                            <StackPanel>
+                                <!-- Name (read-only) -->
+                                <TextBlock Text="Name" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding SelectedModel.Name, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Padding="8"
+                                         Height="28"
+                                         Background="#F5F5F5"
+                                         Margin="0,0,0,10"/>
 
-            <ScrollViewer Height="300" BorderThickness="1" BorderBrush="#DDD">
-                <StackPanel>
-                    <ItemsControl ItemsSource="{Binding AvailableTools}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Padding="10" BorderThickness="0,0,0,1" BorderBrush="#EEE">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
+                                <!-- Provider (read-only) -->
+                                <TextBlock Text="Provider" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding SelectedModel.Provider, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Padding="8"
+                                         Height="28"
+                                         Background="#F5F5F5"
+                                         Margin="0,0,0,10"/>
 
-                                        <!-- Checkbox for enable/disable -->
-                                        <CheckBox Grid.Column="0" 
-                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}"
-                                                  VerticalAlignment="Top"
-                                                  Margin="0,3,10,0"/>
+                                <!-- BaseUrl (read-only) -->
+                                <TextBlock Text="Base URL" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding SelectedModel.BaseUrl, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Padding="8"
+                                         Height="28"
+                                         Background="#F5F5F5"
+                                         TextWrapping="Wrap"
+                                         Margin="0,0,0,10"/>
 
-                                        <!-- Tool Info -->
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12"/>
-                                            <TextBlock Text="{Binding Description}" Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                                <!-- OllamaModelId (read-only if present) -->
+                                <TextBlock Text="Ollama Model ID" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding SelectedModel.OllamaModelId, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Padding="8"
+                                         Height="28"
+                                         Background="#F5F5F5"
+                                         TextWrapping="Wrap"
+                                         Margin="0,0,0,10"/>
+
+                                <!-- ContextWindow (editable or read-only) -->
+                                <TextBlock Text="Context Window" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ContextWindowTextBox"
+                                             Grid.Column="0"
+                                             Text="{Binding EditingContextWindow, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                             Padding="8"
+                                             Height="28"
+                                             Background="White"
+                                             Margin="0,0,8,0"
+                                             PreviewTextInput="ContextWindowTextBox_PreviewTextInput"/>
+                                    <Button Grid.Column="1"
+                                            Content="Update"
+                                            Command="{Binding UpdateContextWindowCommand}"
+                                            Padding="15,5"
+                                            Background="#0078D4"
+                                            Foreground="White"
+                                            Width="80"/>
+                                </Grid>
+
+                                <!-- SupportsFunctionCalling (read-only) -->
+                                <TextBlock Text="Supports Function Calling" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <CheckBox IsChecked="{Binding SelectedModel.SupportsFunctionCalling, Mode=OneWay}"
+                                          IsEnabled="False"
+                                          Margin="0,0,0,10"/>
+
+                                <!-- SupportedToolFormats (read-only) -->
+                                <TextBlock Text="Supported Tool Formats" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <ItemsControl ItemsSource="{Binding SelectedModel.SupportedToolFormats, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Mode=OneWay}" Margin="0,2,0,0" Foreground="#666"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Fetch from Provider Button (hidden for now) -->
+                                <Button Content="Fetch from Provider"
+                                        Visibility="{Binding FetchFromProviderButtonVisibility}"
+                                        Padding="15,8"
+                                        Background="#6B8E23"
+                                        Foreground="White"
+                                        Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Add/Remove Buttons -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                            <Button Content="Add Model"
+                                    Command="{Binding AddModelCommand}"
+                                    Padding="15,8"
+                                    Background="#4CAF50"
+                                    Foreground="White"
+                                    Margin="0,0,10,0"/>
+                            <Button Content="Remove Model"
+                                    Command="{Binding RemoveModelCommand}"
+                                    Padding="15,8"
+                                    Background="#F44336"
+                                    Foreground="White"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Tools -->
+            <TabItem Header="Tools">
+                <StackPanel Margin="20" VerticalAlignment="Top">
+                    <TextBlock Text="Available Tools" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock Text="Enable/disable tools to control AI assistant capabilities"
+                               FontSize="11" Foreground="#666" Margin="0,0,0,10"/>
+
+                    <ScrollViewer Height="300" BorderThickness="1" BorderBrush="#DDD">
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding AvailableTools}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="10" BorderThickness="0,0,0,1" BorderBrush="#EEE">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Checkbox for enable/disable -->
+                                                <CheckBox Grid.Column="0"
+                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                          VerticalAlignment="Top"
+                                                          Margin="0,3,10,0"/>
+
+                                                <!-- Tool Info -->
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12"/>
+                                                    <TextBlock Text="{Binding Description}" Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Tool Count Display -->
+                    <TextBlock Text="{Binding AvailableTools.Count, StringFormat='Total Tools: {0}'}"
+                               Foreground="#666" FontSize="12" Margin="0,10,0,0" FontWeight="Bold"/>
                 </StackPanel>
-            </ScrollViewer>
+            </TabItem>
 
-            <!-- Tool Count Display -->
-            <TextBlock Text="{Binding AvailableTools.Count, StringFormat='Total Enabled Tools: {0}'}" 
-                       Foreground="#666" FontSize="12" Margin="0,10,0,20" FontWeight="Bold"/>
+            <!-- Tab 3: User Preferences -->
+            <TabItem Header="User Preferences">
+                <StackPanel Margin="20" VerticalAlignment="Top">
+                    <TextBlock Text="User Preferences" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <ScrollViewer Height="400" BorderThickness="1" BorderBrush="#DDD" Padding="0">
+                        <ContentPresenter Content="{Binding SettingsViewModel}">
+                            <ContentPresenter.ContentTemplate>
+                                <DataTemplate>
+                                    <local:SettingsControl/>
+                                </DataTemplate>
+                            </ContentPresenter.ContentTemplate>
+                        </ContentPresenter>
+                    </ScrollViewer>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
 
-            <!-- Settings Section -->
-            <TextBlock Text="User Preferences" FontSize="14" FontWeight="Bold" Margin="0,20,0,10"/>
-            <Border BorderThickness="1" BorderBrush="#DDD" Padding="0" Margin="0,0,0,20">
-                <local:SettingsControl x:Name="SettingsControlHost" Height="400"/>
-            </Border>
-
-            <!-- Buttons -->
-            <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
-                <Button Content="Save Configuration" 
-                        Command="{Binding SaveConfigCommand}"
-                        Padding="15,8" 
-                        Background="#0078D4" 
-                        Foreground="White" 
-                        Margin="0,0,10,0"/>
-                <Button Content="Edit Config in Editor" 
-                        Command="{Binding EditConfigCommand}"
-                        Padding="15,8" 
-                        Background="#6B8E23" 
-                        Foreground="White" 
-                        Margin="0,0,10,0"/>
-                <Button Content="Reindex Workspace" 
-                        Command="{Binding ReindexCommand}"
-                        Padding="15,8" 
-                        Background="#7030A0" 
-                        Foreground="White"/>
-            </StackPanel>
+        <!-- Bottom Buttons -->
+        <StackPanel Orientation="Horizontal"
+                    VerticalAlignment="Bottom"
+                    HorizontalAlignment="Left"
+                    Margin="20"
+                    Height="50">
+            <Button Content="Save Configuration"
+                    Command="{Binding SaveConfigCommand}"
+                    Padding="15,8"
+                    Background="#0078D4"
+                    Foreground="White"
+                    Margin="0,0,10,0"/>
+            <Button Content="Edit Config in Editor"
+                    Command="{Binding EditConfigCommand}"
+                    Padding="15,8"
+                    Background="#6B8E23"
+                    Foreground="White"
+                    Margin="0,0,10,0"/>
+            <Button Content="Reindex Workspace"
+                    Command="{Binding ReindexCommand}"
+                    Padding="15,8"
+                    Background="#7030A0"
+                    Foreground="White"/>
         </StackPanel>
     </Grid>
 </UserControl>

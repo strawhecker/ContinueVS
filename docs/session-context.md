@@ -1146,70 +1146,35 @@ Plan mode is now fully functional:
 ---
 
 ### gap12_1: Config Page Redesign - Tab-Based UI
-**Status:** 🟡 Incomplete | Type: UI Redesign  
-**Description:**  
-- Current ConfigPage layout: Linear stacked sections (Models, Tools, Settings, Buttons)
-- User requested: Tab-based interface with Models, Tools, and User Preferences tabs
-- Remove Settings navigation button (navigation routes: chat, config, history only)
-- Show model context window size where known; allow user editing if unknown
+**Status:** ✅ Complete | Type: UI Redesign  
+**Implementation:**
+- Refactored ConfigPage.xaml from linear StackPanel layout to hierarchical TabControl with 3 tabs
+- **Tab 1: Models** — SearchBox (case-insensitive filter on Name/Provider), ListBox binding to FilteredModels, model detail pane showing all properties (Name, Provider, BaseUrl, OllamaModelId read-only; ContextWindow editable with Update button), Add/Remove buttons
+- **Tab 2: Tools** — Retained existing checkbox-based tool list with descriptions (no changes)
+- **Tab 3: User Preferences** — Moved SettingsControl from main page to dedicated ScrollViewer-wrapped tab
+- **Bottom Action Bar** — Save Configuration, Edit Config in Editor, Reindex Workspace buttons positioned at bottom
+- ConfigPageViewModel enhancements:
+  - Added `SearchText` property with automatic UpdateFilteredModels() trigger
+  - Added `FilteredModels` ObservableCollection (read-only public property, backing field `_filteredModels`) with case-insensitive substring matching
+  - Added `EditingContextWindow` property for temporary editing state
+  - Added `FetchFromProviderButtonVisibility` property (always Collapsed, placeholder for future gap)
+  - Added `UpdateContextWindowCommand` RelayCommand that:
+    - Validates EditingContextWindow (non-null, > 0, or defaults to 2^17 = 131072 if 0)
+    - Updates SelectedModel.ContextWindow
+    - Calls `_configService.SaveConfigAsync()` immediately (fire-and-forget with error logging)
+    - Clears EditingContextWindow and refreshes UI
+  - Constructor subscribes to `_configService.ConfigChanged` event to reload and reapply filters on external config changes
+- ConfigPage.xaml.cs:
+  - Added `ContextWindowTextBox_PreviewTextInput` event handler to reject non-numeric input
+  - Numeric validation: `int.TryParse(e.Text, out _)` blocks invalid input
+- **Files Modified:**
+  - src/VSIXProject1/ViewModels/ConfigPageViewModel.cs — Added SearchText, FilteredModels, EditingContextWindow, UpdateContextWindowCommand, UpdateFilteredModels() method, ConfigChanged event subscription
+  - src/VSIXProject1/UI/Pages/ConfigPage.xaml — Complete redesign from linear layout to TabControl with 3 tabs
+  - src/VSIXProject1/UI/Pages/ConfigPage.xaml.cs — Added ContextWindowTextBox_PreviewTextInput handler
+- **Build & Tests:** Clean build (0 errors/warnings); 520/520 tests passing
+- **Rationale:** Organizes config UI hierarchically to reduce cognitive load; inline ContextWindow editing eliminates round-trip to modal dialog; immediate save mirrors ContinueVS's real-time preference for instant feedback; numeric validation prevents invalid config entries
 
-**Redesign Requirements:**
-
-1. **Navigation Changes:**
-   - ✅ Remove "Settings" button from NavigationBar
-   - Keep: Chat, Config, History buttons
-   - Route "settings" no longer needed (Settings now docked in Config page)
-
-2. **Tab Structure (ConfigPage.xaml):**
-   - **Tab 1: Models**
-     - ComboBox or ListBox of AvailableModels
-     - "Add Model" button
-     - Model details pane showing:
-       - Name
-       - Provider
-       - BaseUrl
-       - **ContextWindow (display if known, editable if user sets it)**
-       - SupportsFunctionCalling checkbox
-     - "Remove Model" button
-
-   - **Tab 2: Tools**
-     - ItemsControl of AvailableTools (current layout)
-     - Checkbox + Name + Description for each tool
-     - Tool count badge (from NavigationBar concept)
-     - Scrollbar if tools exceed visible area
-
-   - **Tab 3: User Preferences**
-     - SettingsControl (currently in Settings section) with scrollbar
-     - All settings: ShowSessionTabs, FontSize, MultilineMode, etc.
-     - Vertical scrollbar for overflow
-
-3. **Context Window Display Logic:**
-   - **ModelInfo.ContextWindow property:**
-     - If `ContextWindow > 0`: Display the value (read-only or editable TextBox)
-     - If `ContextWindow == 0` or null: Show `TextBox` with placeholder "Enter context size or fetch from model"
-     - Add "Fetch from Provider" button (future) to query model's actual context window
-   - **Save/Persist:**
-     - User-edited ContextWindow values saved to config.json (CustomSettings or ModelInfo field)
-     - On reload, display previously entered value
-
-**Files to Modify:**
-1. `src/VSIXProject1/UI/Controls/NavigationBar.xaml` - Remove Settings button
-2. `src/VSIXProject1/UI/Controls/NavigationBar.xaml.cs` - Remove event handlers for Settings route
-3. `src/VSIXProject1/UI/Pages/ConfigPage.xaml` - Refactor to TabControl layout (3 tabs)
-4. `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` - Add properties for context window editing:
-   - `int? EditingContextWindow` (for pending edits)
-   - `RelayCommand UpdateContextWindowCommand` (to persist)
-5. `src/VSIXProject1/Core/Types/ModelInfo.cs` - Ensure ContextWindow field is serializable and editable
-6. `src/VSIXProject1/UI/Pages/ConfigPage.xaml.cs` - Bind ContextWindow display/edit logic
-7. Tests - Update any tests that reference Settings navigation route
-
-**What This Fixes:**
-- Cleans up navigation (no orphaned Settings route)
-- Organizes config UI hierarchically (tabs instead of scrolling single page)
-- Makes model context window visible and user-editable
-- Provides scrollbar for User Preferences to handle overflow
-
-**Blocking Resolved:** Prepares UI for gap12_2 (Add Model dialog can now display in Models tab)
+**Blocking Resolved:** UI ready for gap12_2 (Add Model Dialog implementation)
 
 ---
 

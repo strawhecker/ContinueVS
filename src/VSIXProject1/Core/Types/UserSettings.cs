@@ -55,7 +55,7 @@ namespace ContinueVS.Core.Types
                 { Autocomplete_MultilineMode, "auto" },
                 { Autocomplete_TimeoutMs, 150 },
                 { Autocomplete_DebounceMs, 250 },
-                { Autocomplete_DisableInFiles, "**/*.(txt,md)" },
+                { Autocomplete_DisableInFiles, "" },
 
                 // Experimental defaults
                 { Experimental_AddCurrentFileByDefault, false },

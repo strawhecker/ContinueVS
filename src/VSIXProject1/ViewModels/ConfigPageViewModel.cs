@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using GalaSoft.MvvmLight;
@@ -18,10 +19,16 @@ namespace ContinueVS.ViewModels
 
         private ModelInfo? _selectedModel;
         private SettingsViewModel? _settingsViewModel;
+        private string? _searchText;
+        private int? _editingContextWindow;
+        private ObservableCollection<ModelInfo> _filteredModels;
+
+        private const int DefaultContextWindow = 131072; // 2^17
 
         public ObservableCollection<ModelInfo> AvailableModels { get; }
         public ObservableCollection<ToolDefinition> AvailableTools { get; }
         public ObservableCollection<ProfileInfo> Profiles { get; }
+        public ObservableCollection<ModelInfo> FilteredModels => _filteredModels;
 
         public ModelInfo? SelectedModel
         {
@@ -35,12 +42,33 @@ namespace ContinueVS.ViewModels
             set => Set(ref _settingsViewModel, value);
         }
 
+        public string? SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (Set(ref _searchText, value))
+                {
+                    UpdateFilteredModels();
+                }
+            }
+        }
+
+        public int? EditingContextWindow
+        {
+            get => _editingContextWindow;
+            set => Set(ref _editingContextWindow, value);
+        }
+
+        public Visibility FetchFromProviderButtonVisibility => Visibility.Collapsed;
+
         public RelayCommand AddModelCommand { get; }
         public RelayCommand RemoveModelCommand { get; }
         public RelayCommand SaveConfigCommand { get; }
         public RelayCommand EditConfigCommand { get; }
         public RelayCommand ReindexCommand { get; }
         public RelayCommand<ToolDefinition> ToggleToolCommand { get; }
+        public RelayCommand UpdateContextWindowCommand { get; }
 
         public ConfigPageViewModel(
             IConfigService configService,
@@ -60,6 +88,7 @@ namespace ContinueVS.ViewModels
             AvailableModels = new ObservableCollection<ModelInfo>();
             AvailableTools = new ObservableCollection<ToolDefinition>();
             Profiles = new ObservableCollection<ProfileInfo>();
+            _filteredModels = new ObservableCollection<ModelInfo>();
 
             Debug.WriteLine("[gap8_1-configvm-ctor-cmds] Initializing commands");
             AddModelCommand = new RelayCommand(ExecuteAddModel);
@@ -68,6 +97,7 @@ namespace ContinueVS.ViewModels
             EditConfigCommand = new RelayCommand(ExecuteEditConfig);
             ReindexCommand = new RelayCommand(ExecuteReindex);
             ToggleToolCommand = new RelayCommand<ToolDefinition>(ExecuteToggleTool);
+            UpdateContextWindowCommand = new RelayCommand(ExecuteUpdateContextWindow);
 
             Debug.WriteLine("[gap8_1-configvm-ctor-load] Calling LoadConfiguration()");
             LoadConfiguration();
@@ -77,7 +107,47 @@ namespace ContinueVS.ViewModels
             _settingsViewModel.LoadSettings();
             RaisePropertyChanged(nameof(SettingsViewModel));
 
+            // Subscribe to config changes to refresh filtered models
+            _configService.ConfigChanged += (s, e) =>
+            {
+                Debug.WriteLine("[gap12_1-configvm] ConfigChanged event received, refreshing filtered models");
+                LoadConfiguration();
+                UpdateFilteredModels();
+            };
+
             Debug.WriteLine("[gap8_1-configvm-ctor-end] ConfigPageViewModel CONSTRUCTOR COMPLETE");
+        }
+
+        private void UpdateFilteredModels()
+        {
+            Debug.WriteLine($"[gap12_1-configvm-filter] UpdateFilteredModels called with SearchText='{SearchText}'");
+            _filteredModels.Clear();
+
+            if (string.IsNullOrWhiteSpace(SearchText))
+            {
+                // No filter: show all models
+                foreach (var model in AvailableModels)
+                {
+                    _filteredModels.Add(model);
+                }
+                Debug.WriteLine($"[gap12_1-configvm-filter-all] Showing all {_filteredModels.Count} models");
+            }
+            else
+            {
+                // Filter: case-insensitive substring match on Name or Provider
+                var searchLower = SearchText?.ToLower() ?? string.Empty;
+                foreach (var model in AvailableModels)
+                {
+                    if ((model.Name?.ToLower().Contains(searchLower) ?? false) ||
+                        (model.Provider?.ToLower().Contains(searchLower) ?? false))
+                    {
+                        _filteredModels.Add(model);
+                    }
+                }
+                Debug.WriteLine($"[gap12_1-configvm-filter-results] Found {_filteredModels.Count} models matching '{SearchText}'");
+            }
+
+            RaisePropertyChanged(nameof(FilteredModels));
         }
 
         private void LoadConfiguration()
@@ -287,6 +357,49 @@ namespace ContinueVS.ViewModels
             catch (Exception)
             {
                 // Handle error
+            }
+        }
+
+        private void ExecuteUpdateContextWindow()
+        {
+            try
+            {
+                if (SelectedModel == null)
+                {
+                    Debug.WriteLine("[gap12_1-configvm-context-window-nomodel] No model selected");
+                    return;
+                }
+
+                if (EditingContextWindow == null || EditingContextWindow <= 0)
+                {
+                    // Use default if invalid
+                    EditingContextWindow = DefaultContextWindow;
+                    Debug.WriteLine($"[gap12_1-configvm-context-window-default] Setting default context window: {DefaultContextWindow}");
+                }
+
+                SelectedModel.ContextWindow = EditingContextWindow.Value;
+                Debug.WriteLine($"[gap12_1-configvm-context-window-updated] Model '{SelectedModel.Name}' context window updated to {EditingContextWindow}");
+
+                // Save immediately to config.json (fire-and-forget)
+                _ = _configService.SaveConfigAsync().ContinueWith(t =>
+                {
+                    if (t.Exception != null)
+                    {
+                        Debug.WriteLine($"[gap12_1-configvm-context-window-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}");
+                    }
+                    else
+                    {
+                        Debug.WriteLine("[gap12_1-configvm-context-window-saved] Context window change saved to config.json");
+                    }
+                }, TaskScheduler.Default);
+
+                // Clear editing state and refresh UI
+                EditingContextWindow = null;
+                RaisePropertyChanged(nameof(SelectedModel));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap12_1-configvm-context-window-error] Error updating context window: {ex.Message}");
             }
         }
     }
