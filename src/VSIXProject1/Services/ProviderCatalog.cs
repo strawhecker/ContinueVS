@@ -126,13 +126,23 @@ namespace ContinueVS.Services
                     SupportsAutodetect = false,
                     DefaultModels = new List<string>
                     {
+                        "GPT-5.4 Pro",
+                        "GPT-5.4",
+                        "GPT-5.4 Mini",
+                        "GPT-5.2",
+                        "GPT-5.1",
+                        "GPT-5",
+                        "GPT-5 Mini",
+                        "GPT-5 Codex",
+                        "GPT-4.1",
+                        "GPT-4.1 Mini",
+                        "Codex Mini",
+                        "o3",
+                        "o4",
                         "GPT-4o",
                         "GPT-4o Mini",
                         "GPT-4 Turbo",
-                        "GPT-4",
-                        "GPT-3.5-Turbo",
-                        "o3",
-                        "o1"
+                        "GPT-3.5-Turbo"
                     }
                 }
             },

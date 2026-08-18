@@ -16,12 +16,14 @@ namespace ContinueVS.ViewModels
         private readonly IConfigService _configService;
         private readonly IIndexingService _indexingService;
         private readonly IIdeService _ideService;
+        private readonly IModelDiscoveryService _modelDiscoveryService;
 
         private ModelInfo? _selectedModel;
         private SettingsViewModel? _settingsViewModel;
         private string? _searchText;
         private int? _editingContextWindow;
         private ObservableCollection<ModelInfo> _filteredModels;
+        private AddModelViewModel? _addModelViewModel;
 
         private const int DefaultContextWindow = 131072; // 2^17
 
@@ -42,6 +44,12 @@ namespace ContinueVS.ViewModels
             set => Set(ref _settingsViewModel, value);
         }
 
+        public AddModelViewModel? AddModelViewModel
+        {
+            get => _addModelViewModel;
+            set => Set(ref _addModelViewModel, value);
+        }
+
         public string? SearchText
         {
             get => _searchText;
@@ -60,6 +68,13 @@ namespace ContinueVS.ViewModels
             set => Set(ref _editingContextWindow, value);
         }
 
+        private int _selectedTabIndex = 0;
+        public int SelectedTabIndex
+        {
+            get => _selectedTabIndex;
+            set => Set(ref _selectedTabIndex, value);
+        }
+
         public Visibility FetchFromProviderButtonVisibility => Visibility.Collapsed;
 
         public RelayCommand AddModelCommand { get; }
@@ -73,17 +88,20 @@ namespace ContinueVS.ViewModels
         public ConfigPageViewModel(
             IConfigService configService,
             IIndexingService indexingService,
-            IIdeService ideService)
+            IIdeService ideService,
+            IModelDiscoveryService modelDiscoveryService)
         {
             if (configService == null) throw new ArgumentNullException(nameof(configService));
             if (indexingService == null) throw new ArgumentNullException(nameof(indexingService));
             if (ideService == null) throw new ArgumentNullException(nameof(ideService));
+            if (modelDiscoveryService == null) throw new ArgumentNullException(nameof(modelDiscoveryService));
 
             Debug.WriteLine("[gap8_1-configvm-ctor-start] ConfigPageViewModel CONSTRUCTOR CALLED");
 
             _configService = configService;
             _indexingService = indexingService;
             _ideService = ideService;
+            _modelDiscoveryService = modelDiscoveryService;
 
             AvailableModels = new ObservableCollection<ModelInfo>();
             AvailableTools = new ObservableCollection<ToolDefinition>();
@@ -262,24 +280,38 @@ namespace ContinueVS.ViewModels
             }
         }
 
-#pragma warning disable VSTHRD100
-        private async void ExecuteAddModel()
-#pragma warning restore VSTHRD100
-        {
-            try
-            {
-                Debug.WriteLine("[gap8_4-configvm-addmodel-start] ExecuteAddModel called");
+private void ExecuteAddModel()
+{
+    try
+    {
+        Debug.WriteLine("[gap12_2-configvm-addmodel-start] ExecuteAddModel called");
 
-                // This would normally show a dialog, but in this MVP we delegate to service
-                // In a full UI, this would instantiate AddModelDialog and show modally
-                // For now, just log that the command was invoked
-                Debug.WriteLine("[gap8_4-configvm-addmodel-complete] AddModel command would show dialog");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[gap8_4-configvm-addmodel-error] Error in ExecuteAddModel: {ex.Message}");
-            }
+        // Initialize viewmodel if not already done
+        if (_addModelViewModel == null)
+        {
+            // Callbacks to switch back to Models tab after save or cancel
+            _addModelViewModel = new AddModelViewModel(
+                _modelDiscoveryService,
+                _configService,
+                onSaveCompleted: () => SelectedTabIndex = 0,
+                onCanceled: () => SelectedTabIndex = 0
+            );
+            AddModelViewModel = _addModelViewModel;
+            Debug.WriteLine("[gap12_2-configvm-addmodel-vm-created] AddModelViewModel instantiated");
         }
+
+        // Reset the viewmodel state for a fresh form
+        _addModelViewModel.ResetForm();
+
+        // Switch to the Add Model tab (tab index 3)
+        SelectedTabIndex = 3;
+        Debug.WriteLine("[gap12_2-configvm-addmodel-complete] Switched to Add Model tab");
+    }
+    catch (Exception ex)
+    {
+        Debug.WriteLine($"[gap12_2-configvm-addmodel-error] Error in ExecuteAddModel: {ex.Message}");
+    }
+}
 
 #pragma warning disable VSTHRD100
         private async void ExecuteRemoveModel()

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Moq;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 
@@ -52,15 +53,15 @@ namespace ContinueVS.Tests.ViewModels
         public void SelectedProvider_WhenSet_UpdatesCurrentStep()
         {
             // Arrange
-            var provider = ModelProvider.Ollama;
+            var providerMetadata = ContinueVS.Services.ProviderCatalog.GetProviderMetadata(ModelProvider.Ollama);
             _mockDiscoveryService.Setup(s => s.DiscoverModelsAsync(It.IsAny<ModelProvider>(), null))
                 .ReturnsAsync(new List<string> { "model1" });
 
             // Act
-            _viewModel.SelectedProvider = provider;
+            _viewModel.SelectedProvider = providerMetadata;
 
             // Assert
-            Assert.Equal(provider, _viewModel.SelectedProvider);
+            Assert.Equal(providerMetadata, _viewModel.SelectedProvider);
         }
 
         [Fact]
@@ -94,11 +95,12 @@ namespace ContinueVS.Tests.ViewModels
         public void SaveCommand_WithValidModel_CallsConfigService()
         {
             // Arrange
-            var config = new ContinueConfig { Models = new List<ModelInfo>() };
+            var providerMetadata = ContinueVS.Services.ProviderCatalog.GetProviderMetadata(ModelProvider.OpenAI);
+            var config = new ContinueVS.Core.Types.ContinueConfig { Models = new List<ModelInfo>() };
             _mockConfigService.Setup(s => s.GetCurrentConfig()).Returns(config);
             _mockConfigService.Setup(s => s.SaveConfigAsync()).Returns(Task.CompletedTask);
 
-            _viewModel.SelectedProvider = ModelProvider.OpenAI;
+            _viewModel.SelectedProvider = providerMetadata;
             _viewModel.SelectedModel = "GPT-4o";
             _viewModel.ApiKey = "test-key";
             _viewModel.CurrentStep = 4;
@@ -111,19 +113,16 @@ namespace ContinueVS.Tests.ViewModels
         }
 
         [Fact]
-        public void AutodetectCommand_CallsDiscoveryService()
+        public void AutodetectCommand_LoadsDefaultModelsForProvider()
         {
             // Arrange
-            var models = new List<string> { "model1", "model2" };
-            _mockDiscoveryService.Setup(s => s.DiscoverModelsAsync(ModelProvider.Ollama, null))
-                .ReturnsAsync(models);
-
-            _viewModel.SelectedProvider = ModelProvider.Ollama;
+            var providerMetadata = ContinueVS.Services.ProviderCatalog.GetProviderMetadata(ModelProvider.Ollama);
+            _viewModel.SelectedProvider = providerMetadata;
 
             // Act
             _viewModel.AutodetectCommand.Execute(null);
 
-            // Assert - wait longer and allow dispatcher to process
+            // Assert - wait for async operation to complete and UI to update
             int maxAttempts = 20;
             int attempt = 0;
             while (_viewModel.AvailableModels.Count == 0 && attempt < maxAttempts)
@@ -132,8 +131,8 @@ namespace ContinueVS.Tests.ViewModels
                 attempt++;
             }
 
-            // Either models were loaded or timeout reached - verify we at least tried
-            _mockDiscoveryService.Verify(s => s.DiscoverModelsAsync(It.IsAny<ModelProvider>(), It.IsAny<string>()), Times.AtLeast(1));
+            // Should have default models from catalog for Ollama
+            Assert.True(_viewModel.AvailableModels.Count > 0, "Default models should be populated from catalog");
         }
 
         [Fact]
@@ -154,10 +153,11 @@ namespace ContinueVS.Tests.ViewModels
         public void ConnectCommand_WithValidModel_CallsValidation()
         {
             // Arrange
+            var providerMetadata = ContinueVS.Services.ProviderCatalog.GetProviderMetadata(ModelProvider.OpenAI);
             _mockDiscoveryService.Setup(s => s.ValidateConnectionAsync(It.IsAny<ModelInfo>()))
                 .ReturnsAsync(true);
 
-            _viewModel.SelectedProvider = ModelProvider.OpenAI;
+            _viewModel.SelectedProvider = providerMetadata;
             _viewModel.SelectedModel = "GPT-4o";
             _viewModel.ApiKey = "test-key";
 
@@ -191,8 +191,8 @@ namespace ContinueVS.Tests.ViewModels
         [Fact]
         public void Providers_ContainsAllExpectedProviders()
         {
-            // Assert
-            var providerNames = new List<ModelProvider>
+            // Arrange
+            var expectedProviders = new List<ModelProvider>
             {
                 ModelProvider.Anthropic,
                 ModelProvider.Azure,
@@ -203,9 +203,11 @@ namespace ContinueVS.Tests.ViewModels
                 ModelProvider.OpenRouter
             };
 
-            foreach (var provider in providerNames)
+            // Assert
+            foreach (var provider in expectedProviders)
             {
-                Assert.Contains(provider, _viewModel.Providers);
+                var metadata = ContinueVS.Services.ProviderCatalog.GetProviderMetadata(provider);
+                Assert.Contains(metadata, _viewModel.Providers);
             }
         }
     }

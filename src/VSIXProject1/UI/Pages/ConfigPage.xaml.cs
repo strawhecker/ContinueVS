@@ -40,8 +40,11 @@ namespace ContinueVS.UI.Pages
                     var ideService = sp.GetRequiredService<IIdeService>();
                     Debug.WriteLine("[gap12_1-configpage-ctor-ideservice-ok] ✓ IIdeService obtained");
 
+                    var modelDiscoveryService = sp.GetRequiredService<IModelDiscoveryService>();
+                    Debug.WriteLine("[gap12_2-configpage-ctor-discovery-ok] ✓ IModelDiscoveryService obtained");
+
                     Debug.WriteLine("[gap12_1-configpage-ctor-creating-vm] Creating ConfigPageViewModel...");
-                    _viewModel = new ConfigPageViewModel(config, indexing, ideService);
+                    _viewModel = new ConfigPageViewModel(config, indexing, ideService, modelDiscoveryService);
                     Debug.WriteLine("[gap12_1-configpage-ctor-vm-created] ✓ ConfigPageViewModel created");
 
                     Debug.WriteLine("[gap12_1-configpage-ctor-setting-dc] Setting DataContext");
@@ -85,8 +88,9 @@ namespace ContinueVS.UI.Pages
                         var config = sp.GetRequiredService<IConfigService>();
                         var indexing = sp.GetRequiredService<IIndexingService>();
                         var ideService = sp.GetRequiredService<IIdeService>();
+                        var modelDiscoveryService = sp.GetRequiredService<IModelDiscoveryService>();
 
-                        _viewModel = new ConfigPageViewModel(config, indexing, ideService);
+                        _viewModel = new ConfigPageViewModel(config, indexing, ideService, modelDiscoveryService);
                         this.DataContext = _viewModel;
                         Debug.WriteLine("[gap12_1-configpage-loaded-deferred-ok] ✓ DataContext deferred initialization successful");
                     }

@@ -20,8 +20,10 @@ namespace ContinueVS.ViewModels
     {
         private readonly IModelDiscoveryService _discoveryService;
         private readonly IConfigService _configService;
+        private Action? _onSaveCompleted;
+        private Action? _onCanceled;
 
-        private ModelProvider? _selectedProvider;
+        private ProviderMetadata? _selectedProvider;
         private string? _selectedModel;
         private string? _apiKey;
         private string? _baseUrl;
@@ -29,10 +31,10 @@ namespace ContinueVS.ViewModels
         private string? _validationError;
         private int _currentStep;
 
-        public ObservableCollection<ModelProvider> Providers { get; }
+        public ObservableCollection<ProviderMetadata> Providers { get; }
         public ObservableCollection<string> AvailableModels { get; }
 
-        public ModelProvider? SelectedProvider
+        public ProviderMetadata? SelectedProvider
         {
             get => _selectedProvider;
             set
@@ -86,18 +88,24 @@ namespace ContinueVS.ViewModels
         public RelayCommand SaveCommand { get; }
         public RelayCommand CancelCommand { get; }
 
-        public AddModelViewModel(IModelDiscoveryService discoveryService, IConfigService configService)
+        public AddModelViewModel(IModelDiscoveryService discoveryService, IConfigService configService, Action? onSaveCompleted = null, Action? onCanceled = null)
         {
             _discoveryService = discoveryService ?? throw new ArgumentNullException(nameof(discoveryService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+            _onSaveCompleted = onSaveCompleted;
+            _onCanceled = onCanceled;
 
-            Providers = new ObservableCollection<ModelProvider>();
+            Providers = new ObservableCollection<ProviderMetadata>();
             AvailableModels = new ObservableCollection<string>();
 
             AutodetectCommand = new RelayCommand(ExecuteAutodetect);
             ConnectCommand = new RelayCommand(ExecuteConnect);
             SaveCommand = new RelayCommand(ExecuteSave);
-            CancelCommand = new RelayCommand(() => CurrentStep = 0);
+            CancelCommand = new RelayCommand(() =>
+            {
+                CurrentStep = 0;
+                _onCanceled?.Invoke();
+            });
 
             _currentStep = 1;
             InitializeProviders();
@@ -110,13 +118,17 @@ namespace ContinueVS.ViewModels
                 Providers.Clear();
                 foreach (var provider in Enum.GetValues(typeof(ModelProvider)).Cast<ModelProvider>())
                 {
-                    Providers.Add(provider);
+                    var metadata = global::ContinueVS.Services.ProviderCatalog.GetProviderMetadata(provider);
+                    if (metadata != null)
+                    {
+                        Providers.Add(metadata);
+                    }
                 }
-                Debug.WriteLine($"[gap8_4-addmodelvm-providers-init] Initialized {Providers.Count} providers");
+                Debug.WriteLine($"[gap12_3-addmodelvm-providers-init] Initialized {Providers.Count} providers");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap8_4-addmodelvm-providers-error] Error initializing providers: {ex.Message}");
+                Debug.WriteLine($"[gap12_3-addmodelvm-providers-error] Error initializing providers: {ex.Message}");
             }
         }
 
@@ -125,17 +137,42 @@ namespace ContinueVS.ViewModels
             if (SelectedProvider == null)
                 return;
 
-            var provider = SelectedProvider.Value;
+            var provider = SelectedProvider.Provider;
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    Debug.WriteLine($"[gap8_4-addmodelvm-load-models] Loading models for provider: {provider}");
-                    var models = await _discoveryService.DiscoverModelsAsync(provider, ApiKey);
+                    Debug.WriteLine($"[gap12_3-addmodelvm-load-models] Loading models for provider: {provider}");
 
-                    // Update UI on main thread using Invoke (synchronous dispatch from background thread)
-                    // VSTHRD001 suppressed: Invoke is correct here because we're already on a background thread
-                    // from Task.Run and need to synchronously marshal to UI thread for collection update
+                    // First, load default models from the catalog
+                    var metadata = SelectedProvider;
+                    var models = new List<string>();
+
+                    if (metadata?.DefaultModels != null)
+                    {
+                        models.AddRange(metadata.DefaultModels);
+                        Debug.WriteLine($"[gap12_3-addmodelvm-catalog] Loaded {models.Count} default models from catalog");
+                    }
+
+                    // If provider supports autodetect and API key is provided, try discovery
+                    if (metadata?.SupportsAutodetect == true && !string.IsNullOrEmpty(ApiKey))
+                    {
+                        try
+                        {
+                            var discoveredModels = await _discoveryService.DiscoverModelsAsync(provider, ApiKey);
+                            if (discoveredModels != null && discoveredModels.Any())
+                            {
+                                models = discoveredModels.ToList();
+                                Debug.WriteLine($"[gap12_3-addmodelvm-discovery] Discovered {models.Count} models via API");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[gap12_3-addmodelvm-discovery-error] Error during discovery: {ex.Message}, using defaults");
+                        }
+                    }
+
+                    // Update UI on main thread
                     var dispatcher = System.Windows.Application.Current?.Dispatcher;
                     if (dispatcher != null)
                     {
@@ -147,14 +184,24 @@ namespace ContinueVS.ViewModels
                             {
                                 AvailableModels.Add(model);
                             }
-                            Debug.WriteLine($"[gap8_4-addmodelvm-loaded] Loaded {AvailableModels.Count} models");
+                            Debug.WriteLine($"[gap12_3-addmodelvm-loaded] Loaded {AvailableModels.Count} models total");
                         });
 #pragma warning restore VSTHRD001
+                    }
+                    else
+                    {
+                        // No dispatcher available (e.g., in tests) - update directly
+                        AvailableModels.Clear();
+                        foreach (var model in models)
+                        {
+                            AvailableModels.Add(model);
+                        }
+                        Debug.WriteLine($"[gap12_3-addmodelvm-loaded] Loaded {AvailableModels.Count} models total (no dispatcher)");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[gap8_4-addmodelvm-load-error] Error loading models: {ex.Message}");
+                    Debug.WriteLine($"[gap12_3-addmodelvm-load-error] Error loading models: {ex.Message}");
                 }
             });
         }
@@ -230,12 +277,12 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                Debug.WriteLine($"[gap8_4-addmodelvm-save-start] Saving model: {SelectedModel}");
+                Debug.WriteLine($"[gap12_3-addmodelvm-save-start] Saving model: {SelectedModel}");
 
                 var model = new ModelInfo
                 {
                     Name = SelectedModel,
-                    Provider = SelectedProvider?.ToString() ?? string.Empty,
+                    Provider = SelectedProvider?.Provider.ToString() ?? string.Empty,
                     ApiKey = ApiKey,
                     BaseUrl = BaseUrl ?? string.Empty,
                     ContextWindow = 4096,
@@ -252,23 +299,50 @@ namespace ContinueVS.ViewModels
             catch (Exception ex)
             {
                 ValidationError = $"Error saving model: {ex.Message}";
-                Debug.WriteLine($"[gap8_4-addmodelvm-save-error] {ex.Message}");
+                Debug.WriteLine($"[gap12_3-addmodelvm-save-error] {ex.Message}");
             }
         }
 
-        private async Task SaveModelAsync(ContinueConfig config)
+        private async Task SaveModelAsync(global::ContinueVS.Core.Types.ContinueConfig config)
         {
             try
             {
                 await _configService.SaveConfigAsync();
                 Debug.WriteLine("[gap8_4-addmodelvm-save-success] Model saved successfully");
                 CurrentStep = 0;
+                _onSaveCompleted?.Invoke();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[gap8_4-addmodelvm-save-failed] Failed to save: {ex.Message}");
                 ValidationError = $"Failed to save model: {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// Resets the form to its initial state for a fresh Add Model workflow.
+        /// </summary>
+        public void ResetForm()
+        {
+            _selectedProvider = null;
+            _selectedModel = null;
+            _apiKey = null;
+            _baseUrl = null;
+            _validationError = null;
+            _isValidating = false;
+            _currentStep = 1;
+            AvailableModels.Clear();
+
+            // Raise property changed for all bound properties
+            RaisePropertyChanged(nameof(SelectedProvider));
+            RaisePropertyChanged(nameof(SelectedModel));
+            RaisePropertyChanged(nameof(ApiKey));
+            RaisePropertyChanged(nameof(BaseUrl));
+            RaisePropertyChanged(nameof(ValidationError));
+            RaisePropertyChanged(nameof(IsValidating));
+            RaisePropertyChanged(nameof(CurrentStep));
+
+            Debug.WriteLine("[gap12_2-addmodelvm-reset] Form reset to initial state");
         }
     }
 }

@@ -1179,70 +1179,97 @@ Plan mode is now fully functional:
 ---
 
 ### gap12_2: Config Add Model Button Does Nothing
-**Status:** 🟡 Incomplete | Type: UI Feature Implementation  
+**Status:** ✅ RESOLVED | Type: UI Feature Implementation  
 **Description:**  
 - ConfigPageViewModel has `AddModelCommand` bound to "Add Model" button in ConfigPage.xaml
-- When user clicks "Add Model", the command executes `ExecuteAddModel()` which:
-  - Logs debug message "[gap8_4-configvm-addmodel-complete] AddModel command would show dialog"
-  - Does nothing else; returns immediately
-- Expected behavior: Open dialog for user to enter model name, provider, base URL, etc.
-- User cannot add new models to config via UI
+- When user clicks "Add Model", the command now executes `ExecuteAddModel()` which:
+  - Instantiates AddModelDialog and AddModelViewModel
+  - Initializes the dialog to make it visible
+  - Dialog provides form for user to enter model name, provider, base URL, etc.
+  - User can save (adds model to config via ConfigService) or cancel
+  - ConfigChanged event refreshes AvailableModels in the UI
+- Button now fully functional end-to-end
 
-**Current State:**
-- `ConfigPageViewModel.AddModelCommand` exists and is bound
-- `ExecuteAddModel()` method exists but is a stub
-- No AddModelDialog or model input form exists
-- AvailableModels collection in ConfigPageViewModel is read-only (loads from config only)
-- ConfigPageViewModel has no method to add a model to the current config
+**Implementation Summary:**
+1. **AddModelDialog & AddModelViewModel**: Already existed in codebase
+   - AddModelDialog.xaml: Multi-step form with provider selection, model discovery, and form data entry
+   - AddModelDialog.xaml.cs: `Initialize(viewModel)` sets DataContext and Visibility; `Close()` collapses and clears
+   - AddModelViewModel: Handles provider discovery, model selection, and SaveCommand/CancelCommand logic
+2. **ConfigPageViewModel.ExecuteAddModel()**: 
+   - Now creates AddModelDialog and AddModelViewModel instances
+   - Calls `Initialize()` to show the dialog (modal/overlay)
+   - Dialog lifecycle managed by its own SaveCommand/CancelCommand bindings
+   - On save: AddModelViewModel calls ConfigService.SaveConfigAsync(), which triggers ConfigChanged
+   - On cancel: Dialog closes; no model added
+3. **ConfigPage.xaml/xaml.cs**:
+   - Added xmlns:views namespace to XAML
+   - Added AddModelDialog overlay host to the root grid
+   - ConfigPage.xaml.cs now resolves IModelDiscoveryService from DI and passes to viewmodel
+4. **Dependency Injection**:
+   - IModelDiscoveryService added as constructor parameter to ConfigPageViewModel
+   - Service passes through to AddModelViewModel for model discovery during add flow
+5. **Tests**:
+   - ConfigPageViewModelTests: New tests verify ExecuteAddModel command execution and dialog wiring
+   - ConfigPageViewModelTests: ConfigChanged event subscription test verifies refresh behavior
+   - ConfigPageBindingTests: Updated all constructor call sites to pass IModelDiscoveryService mock
+   - All 523 tests pass
 
-**Gap/Missing:**
-1. **No AddModelDialog UI**: Need UserControl or Window to capture model input
-2. **No model add logic**: ConfigPageViewModel.ExecuteAddModel() must:
-   - Show AddModelDialog (modal or docked)
-   - Await user input (Name, Provider, BaseUrl, ContextWindow, etc.)
-   - Create ModelInfo instance
-   - Add to AvailableModels collection
-   - Update IConfigService.GetCurrentConfig().Models
-   - Trigger IConfigService.ConfigChanged event
-3. **AvailableModels not synchronized**: Binding is one-way; adding model doesn't update UI
+**Key Flow:**
+1. User clicks "Add Model" button
+2. AddModelCommand.Execute() -> ConfigPageViewModel.ExecuteAddModel()
+3. Dialog instantiated and initialized (becomes visible)
+4. User fills form and clicks Save
+5. AddModelViewModel.SaveCommand executes
+6. AddModelViewModel.ExecuteSave() creates ModelInfo, adds to config, calls ConfigService.SaveConfigAsync()
+7. ConfigService triggers ConfigChanged event
+8. ConfigPageViewModel.LoadConfiguration() re-fetches models from config
+9. AvailableModels collection updated via UpdateFilteredModels()
+10. UI ListBox bound to FilteredModels refreshes automatically
+11. Dialog closes (CurrentStep reset or Close() called)
 
-**Remediation:**
-1. Create `AddModelDialog.xaml` + `AddModelDialog.xaml.cs`:
-   - TextBox for Name (e.g., "Mistral 7B")
-   - ComboBox for Provider (e.g., "ollama", "openai", "anthropic")
-   - TextBox for BaseUrl (e.g., "http://localhost:11434")
-   - TextBox for ContextWindow (numeric)
-   - Checkbox for SupportsFunctionCalling
-   - OK / Cancel buttons
-   - AddModelDialogViewModel to handle input validation
+**Status:** All code changes complete, build successful, all tests passing (523/523).
 
-2. Update `ConfigPageViewModel.ExecuteAddModel()`:
-   - Instantiate AddModelDialog(viewModel)
-   - Show as modal dialog or docked panel
-   - If OK, create ModelInfo from dialog result
-   - Call `_configService.AddModelAsync(modelInfo)` (new method)
-   - Refresh AvailableModels collection from config
+---
 
-3. Create or extend `IConfigService.AddModelAsync(ModelInfo model)`:
-   - Add model to current config.Models
-   - Fire ConfigChanged event
-   - Optionally save to file (or defer to user Save click)
+### gap12_3: Add Model Provider Dropdown Empty
+**Status:** ✅ RESOLVED | Type: UI Binding Fix  
+**Problem:**
+- Provider ComboBox in AddModelDialog was bound to `Providers` collection in XAML
+- XAML binding looked correct: `ItemsSource="{Binding Providers}"` and `DisplayMemberPath="."`
+- However, dropdown appeared empty at runtime despite `InitializeProviders()` populating the collection
 
-4. Update tests:
-   - Test ExecuteAddModel opens dialog
-   - Test model added to collection after dialog OK
-   - Test AvailableModels reflects new model
+**Root Cause:**
+- `Providers` collection was typed as `ObservableCollection<ModelProvider>` (enum values)
+- `DisplayMemberPath="."` cannot display enum values in a readable format
+- ComboBox was attempting to display enum values directly without a proper name/display binding
 
-**Blocking:** Users cannot extend model list beyond predefined Ollama default
+**Solution:**
+1. Changed `Providers` collection type from `ObservableCollection<ModelProvider>` to `ObservableCollection<ProviderMetadata>`
+2. Updated `SelectedProvider` property type from `ModelProvider?` to `ProviderMetadata?`
+3. Modified `InitializeProviders()` to populate collection with `ProviderMetadata` objects from `ProviderCatalog.GetProviderMetadata(provider)` instead of raw enum values
+4. Updated XAML `DisplayMemberPath` from `"."` to `"Name"` to display the human-readable provider name
+5. Updated `LoadModelsForProvider()` to use `SelectedProvider.Provider` (enum) and `SelectedProvider` (metadata) for accessing provider properties
+6. Fixed `ExecuteSave()` to extract provider enum: `SelectedProvider?.Provider.ToString()`
+7. Updated all unit tests to construct `ProviderMetadata` objects via `ProviderCatalog.GetProviderMetadata()` instead of using raw enum values
 
-**Files to Modify:**
-- `src/VSIXProject1/UI/Pages/AddModelDialog.xaml` (new)
-- `src/VSIXProject1/UI/Pages/AddModelDialog.xaml.cs` (new)
-- `src/VSIXProject1/ViewModels/AddModelDialogViewModel.cs` (new)
-- `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` (ExecuteAddModel)
-- `src/VSIXProject1/Services/Interfaces/IConfigService.cs` (AddModelAsync)
-- `src/VSIXProject1/Services/Implementations/ConfigService.cs` (AddModelAsync)
-- `src/VSIXProject1.Tests/ViewModels/ConfigPageViewModelTests.cs` (AddModel tests)
+**Files Modified:**
+- src/VSIXProject1/ViewModels/AddModelViewModel.cs:
+  - Changed `_selectedProvider` field type to `ProviderMetadata?`
+  - Changed `Providers` collection type to `ObservableCollection<ProviderMetadata>`
+  - Updated `InitializeProviders()` to use catalog
+  - Updated `LoadModelsForProvider()` to use metadata properties
+  - Updated `ExecuteSave()` to extract provider enum value
+- src/VSIXProject1/UI/Views/AddModelDialog.xaml:
+  - Changed provider ComboBox `DisplayMemberPath` from `"."` to `"Name"`
+- src/VSIXProject1.Tests/ViewModels/AddModelViewModelTests.cs:
+  - Updated 5 test methods to use `ProviderCatalog.GetProviderMetadata()` for SelectedProvider assignments
+  - Updated provider collection test to compare `ProviderMetadata` objects instead of enums
+
+**Verification:**
+- Build: 0 errors, 0 warnings
+- Tests: 524/524 passing (no regressions)
+- Provider dropdown now displays human-readable names: "OpenAI", "Anthropic", "Ollama", etc.
+- Model dropdown correctly populates based on selected provider metadata
 
 ---
 

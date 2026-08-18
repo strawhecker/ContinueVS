@@ -13,7 +13,7 @@
                       SelectedItem="{Binding SelectedProvider, Mode=TwoWay}"
                       MinHeight="35"
                       Margin="0,0,0,10"
-                      DisplayMemberPath="."/>
+                      DisplayMemberPath="Name"/>
             <ComboBox ItemsSource="{Binding AvailableModels}"
                       SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
                       MinHeight="35"

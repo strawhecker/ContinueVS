@@ -4,11 +4,18 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:ContinueVS.UI.Pages"
+             xmlns:views="clr-namespace:ContinueVS.UI.Views"
              mc:Ignorable="d"
              Loaded="ConfigPage_Loaded"
              d:DesignHeight="600" d:DesignWidth="800">
     <Grid Background="#F3F3F3">
-        <TabControl>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Main TabControl -->
+        <TabControl Grid.Row="0" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
             <!-- Tab 1: Models -->
             <TabItem Header="Models">
                 <ScrollViewer>
@@ -17,13 +24,13 @@
                         <TextBlock Text="Search Models" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
                         <TextBox x:Name="SearchTextBox"
                                  Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Padding="8"
-                                 Margin="0,0,0,15"
+                                 Padding="4"
+                                 Margin="0,0,0,0"
                                  Background="White"
                                  BorderThickness="1"
                                  BorderBrush="#DDD"
                                  Foreground="#333"
-                                 Height="30"/>
+                                 Height="28"/>
 
                         <!-- Models ListBox -->
                         <TextBlock Text="Available Models" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
@@ -33,7 +40,7 @@
                                  Height="200"
                                  BorderThickness="1"
                                  BorderBrush="#DDD"
-                                 Margin="0,0,0,15">
+                                 Margin="0,0,0,0">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock>
@@ -48,94 +55,96 @@
 
                         <!-- Model Details Pane -->
                         <TextBlock Text="Model Details" FontSize="12" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Border BorderThickness="1" BorderBrush="#DDD" Padding="12" Background="White" CornerRadius="4" Margin="0,0,0,15">
-                            <StackPanel>
-                                <!-- Name (read-only) -->
-                                <TextBlock Text="Name" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                                <TextBox Text="{Binding SelectedModel.Name, Mode=OneWay}"
+                        <Border BorderThickness="1" BorderBrush="#DDD" Padding="12" Background="White" CornerRadius="4" Margin="0,0,0,15" Height="300">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <!-- Name (read-only) -->
+                                    <TextBlock Text="Name" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <TextBox Text="{Binding SelectedModel.Name, Mode=OneWay}"
                                          IsReadOnly="True"
-                                         Padding="8"
+                                         Padding="4"
                                          Height="28"
                                          Background="#F5F5F5"
                                          Margin="0,0,0,10"/>
 
-                                <!-- Provider (read-only) -->
-                                <TextBlock Text="Provider" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                                <TextBox Text="{Binding SelectedModel.Provider, Mode=OneWay}"
+                                    <!-- Provider (read-only) -->
+                                    <TextBlock Text="Provider" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <TextBox Text="{Binding SelectedModel.Provider, Mode=OneWay}"
                                          IsReadOnly="True"
-                                         Padding="8"
+                                         Padding="4"
                                          Height="28"
                                          Background="#F5F5F5"
                                          Margin="0,0,0,10"/>
 
-                                <!-- BaseUrl (read-only) -->
-                                <TextBlock Text="Base URL" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                                <TextBox Text="{Binding SelectedModel.BaseUrl, Mode=OneWay}"
+                                    <!-- BaseUrl (read-only) -->
+                                    <TextBlock Text="Base URL" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <TextBox Text="{Binding SelectedModel.BaseUrl, Mode=OneWay}"
                                          IsReadOnly="True"
-                                         Padding="8"
-                                         Height="28"
-                                         Background="#F5F5F5"
-                                         TextWrapping="Wrap"
-                                         Margin="0,0,0,10"/>
-
-                                <!-- OllamaModelId (read-only if present) -->
-                                <TextBlock Text="Ollama Model ID" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                                <TextBox Text="{Binding SelectedModel.OllamaModelId, Mode=OneWay}"
-                                         IsReadOnly="True"
-                                         Padding="8"
+                                         Padding="4"
                                          Height="28"
                                          Background="#F5F5F5"
                                          TextWrapping="Wrap"
                                          Margin="0,0,0,10"/>
 
-                                <!-- ContextWindow (editable or read-only) -->
-                                <TextBlock Text="Context Window" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="ContextWindowTextBox"
+                                    <!-- OllamaModelId (read-only if present) -->
+                                    <TextBlock Text="Model ID" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <TextBox Text="{Binding SelectedModel.OllamaModelId, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Padding="4"
+                                         Height="28"
+                                         Background="#F5F5F5"
+                                         TextWrapping="Wrap"
+                                         Margin="0,0,0,10"/>
+
+                                    <!-- ContextWindow (editable or read-only) -->
+                                    <TextBlock Text="Context Window" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="ContextWindowTextBox"
                                              Grid.Column="0"
                                              Text="{Binding EditingContextWindow, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                             Padding="8"
+                                             Padding="4"
                                              Height="28"
                                              Background="White"
                                              Margin="0,0,8,0"
                                              PreviewTextInput="ContextWindowTextBox_PreviewTextInput"/>
-                                    <Button Grid.Column="1"
+                                        <Button Grid.Column="1"
                                             Content="Update"
                                             Command="{Binding UpdateContextWindowCommand}"
                                             Padding="15,5"
                                             Background="#0078D4"
                                             Foreground="White"
                                             Width="80"/>
-                                </Grid>
+                                    </Grid>
 
-                                <!-- SupportsFunctionCalling (read-only) -->
-                                <TextBlock Text="Supports Function Calling" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                                <CheckBox IsChecked="{Binding SelectedModel.SupportsFunctionCalling, Mode=OneWay}"
+                                    <!-- SupportsFunctionCalling (read-only) -->
+                                    <TextBlock Text="Supports Function Calling" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <CheckBox IsChecked="{Binding SelectedModel.SupportsFunctionCalling, Mode=OneWay}"
                                           IsEnabled="False"
                                           Margin="0,0,0,10"/>
 
-                                <!-- SupportedToolFormats (read-only) -->
-                                <TextBlock Text="Supported Tool Formats" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
-                                <ItemsControl ItemsSource="{Binding SelectedModel.SupportedToolFormats, Mode=OneWay}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Mode=OneWay}" Margin="0,2,0,0" Foreground="#666"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                    <!-- SupportedToolFormats (read-only) -->
+                                    <TextBlock Text="Supported Tool Formats" FontSize="11" FontWeight="Bold" Margin="0,0,0,3"/>
+                                    <ItemsControl ItemsSource="{Binding SelectedModel.SupportedToolFormats, Mode=OneWay}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Mode=OneWay}" Margin="0,2,0,0" Foreground="#666"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
 
-                                <!-- Fetch from Provider Button (hidden for now) -->
-                                <Button Content="Fetch from Provider"
+                                    <!-- Fetch from Provider Button (hidden for now) -->
+                                    <Button Content="Fetch from Provider"
                                         Visibility="{Binding FetchFromProviderButtonVisibility}"
                                         Padding="15,8"
                                         Background="#6B8E23"
                                         Foreground="White"
                                         Margin="0,10,0,0"/>
-                            </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
                         </Border>
 
                         <!-- Add/Remove Buttons -->
@@ -214,8 +223,24 @@
                         </ContentPresenter>
                     </ScrollViewer>
                 </StackPanel>
-            </TabItem>
-        </TabControl>
+                 </TabItem>
+
+                <!-- Tab 4: Add Model -->
+                <TabItem Header="Add Model">
+                    <ScrollViewer>
+                        <StackPanel Margin="20" VerticalAlignment="Top">
+                            <TextBlock Text="Add New Model" FontSize="14" FontWeight="Bold" Margin="0,0,0,20"/>
+                            <ContentPresenter Content="{Binding AddModelViewModel}">
+                                <ContentPresenter.ContentTemplate>
+                                    <DataTemplate>
+                                        <views:AddModelDialog DataContext="{Binding}"/>
+                                    </DataTemplate>
+                                </ContentPresenter.ContentTemplate>
+                            </ContentPresenter>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
 
         <!-- Bottom Buttons -->
         <StackPanel Orientation="Horizontal"

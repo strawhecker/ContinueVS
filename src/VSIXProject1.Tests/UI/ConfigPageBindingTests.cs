@@ -6,11 +6,20 @@ using Moq;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
+using System.Collections.Generic;
 
 namespace ContinueVS.Tests.UI
 {
     public class ConfigPageBindingTests : DataBindingTestBase
     {
+        private Mock<IModelDiscoveryService> CreateMockModelDiscoveryService()
+        {
+            var mock = CreateLooseMock<IModelDiscoveryService>();
+            mock.Setup(s => s.DiscoverModelsAsync(It.IsAny<ModelProvider>(), It.IsAny<string>()))
+                .ReturnsAsync(new List<string> { "model1", "model2" });
+            return mock;
+        }
+
         [Fact]
         public void SelectedModel_PropertyChanged_FiresNotification()
         {
@@ -18,11 +27,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             using var tracker = new PropertyChangedTracker(viewModel);
 
@@ -43,11 +54,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             using var collectionTracker = new CollectionChangeTracker(viewModel.AvailableModels);
 
@@ -69,11 +82,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             var modelInfo = new ModelInfo { Name = "gpt-4", Provider = "openai" };
             viewModel.AvailableModels.Add(modelInfo);
@@ -95,11 +110,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             using var collectionTracker = new CollectionChangeTracker(viewModel.AvailableTools);
 
@@ -121,11 +138,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             // Act & Assert
             Assert.NotNull(viewModel.AddModelCommand);
@@ -139,11 +158,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             var modelInfo = new ModelInfo { Name = "gpt-4", Provider = "openai" };
             viewModel.SelectedModel = modelInfo;
@@ -160,11 +181,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             // Act & Assert
             Assert.NotNull(viewModel.SaveConfigCommand);
@@ -178,11 +201,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             // Act & Assert
             Assert.NotNull(viewModel.ReindexCommand);
@@ -196,11 +221,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             using var modelTracker = new CollectionChangeTracker(viewModel.AvailableModels);
             using var toolTracker = new CollectionChangeTracker(viewModel.AvailableTools);
@@ -228,11 +255,13 @@ namespace ContinueVS.Tests.UI
             var mockConfigService = CreateLooseMock<IConfigService>();
             var mockIndexingService = CreateLooseMock<IIndexingService>();
             var mockIdeService = CreateLooseMock<IIdeService>();
+            var mockModelDiscoveryService = CreateMockModelDiscoveryService();
 
             var viewModel = new ConfigPageViewModel(
                 mockConfigService.Object,
                 mockIndexingService.Object,
-                mockIdeService.Object);
+                mockIdeService.Object,
+                mockModelDiscoveryService.Object);
 
             using var collectionTracker = new CollectionChangeTracker(viewModel.Profiles);
 
