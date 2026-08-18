@@ -10,7 +10,6 @@
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
@@ -54,24 +53,11 @@
                     RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
                 CommandParameter="history"/>
 
-        <!-- Settings Button -->
-        <Button Grid.Column="3"
-                x:Name="SettingsButton"
-                Content="Settings"
-                Padding="12,8"
-                BorderThickness="0,0,1,0"
-                BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
-                Background="Transparent"
-                Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding Path=DataContext.NavigateCommand,
-                    RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
-                CommandParameter="settings"/>
-
         <!-- Spacer -->
-        <Border Grid.Column="4"/>
+        <Border Grid.Column="3"/>
 
         <!-- Tool Count Badge -->
-        <Border Grid.Column="5"
+        <Border Grid.Column="4"
                 Background="{DynamicResource VsBrush.AccentBorder}"
                 CornerRadius="4"
                 Padding="8,4"

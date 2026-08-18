@@ -1145,8 +1145,139 @@ Plan mode is now fully functional:
 
 ---
 
-### gap12_1: Config view completely blank
+### gap12_1: Config Page Redesign - Tab-Based UI
+**Status:** 🟡 Incomplete | Type: UI Redesign  
+**Description:**  
+- Current ConfigPage layout: Linear stacked sections (Models, Tools, Settings, Buttons)
+- User requested: Tab-based interface with Models, Tools, and User Preferences tabs
+- Remove Settings navigation button (navigation routes: chat, config, history only)
+- Show model context window size where known; allow user editing if unknown
 
+**Redesign Requirements:**
+
+1. **Navigation Changes:**
+   - ✅ Remove "Settings" button from NavigationBar
+   - Keep: Chat, Config, History buttons
+   - Route "settings" no longer needed (Settings now docked in Config page)
+
+2. **Tab Structure (ConfigPage.xaml):**
+   - **Tab 1: Models**
+     - ComboBox or ListBox of AvailableModels
+     - "Add Model" button
+     - Model details pane showing:
+       - Name
+       - Provider
+       - BaseUrl
+       - **ContextWindow (display if known, editable if user sets it)**
+       - SupportsFunctionCalling checkbox
+     - "Remove Model" button
+
+   - **Tab 2: Tools**
+     - ItemsControl of AvailableTools (current layout)
+     - Checkbox + Name + Description for each tool
+     - Tool count badge (from NavigationBar concept)
+     - Scrollbar if tools exceed visible area
+
+   - **Tab 3: User Preferences**
+     - SettingsControl (currently in Settings section) with scrollbar
+     - All settings: ShowSessionTabs, FontSize, MultilineMode, etc.
+     - Vertical scrollbar for overflow
+
+3. **Context Window Display Logic:**
+   - **ModelInfo.ContextWindow property:**
+     - If `ContextWindow > 0`: Display the value (read-only or editable TextBox)
+     - If `ContextWindow == 0` or null: Show `TextBox` with placeholder "Enter context size or fetch from model"
+     - Add "Fetch from Provider" button (future) to query model's actual context window
+   - **Save/Persist:**
+     - User-edited ContextWindow values saved to config.json (CustomSettings or ModelInfo field)
+     - On reload, display previously entered value
+
+**Files to Modify:**
+1. `src/VSIXProject1/UI/Controls/NavigationBar.xaml` - Remove Settings button
+2. `src/VSIXProject1/UI/Controls/NavigationBar.xaml.cs` - Remove event handlers for Settings route
+3. `src/VSIXProject1/UI/Pages/ConfigPage.xaml` - Refactor to TabControl layout (3 tabs)
+4. `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` - Add properties for context window editing:
+   - `int? EditingContextWindow` (for pending edits)
+   - `RelayCommand UpdateContextWindowCommand` (to persist)
+5. `src/VSIXProject1/Core/Types/ModelInfo.cs` - Ensure ContextWindow field is serializable and editable
+6. `src/VSIXProject1/UI/Pages/ConfigPage.xaml.cs` - Bind ContextWindow display/edit logic
+7. Tests - Update any tests that reference Settings navigation route
+
+**What This Fixes:**
+- Cleans up navigation (no orphaned Settings route)
+- Organizes config UI hierarchically (tabs instead of scrolling single page)
+- Makes model context window visible and user-editable
+- Provides scrollbar for User Preferences to handle overflow
+
+**Blocking Resolved:** Prepares UI for gap12_2 (Add Model dialog can now display in Models tab)
+
+---
+
+### gap12_2: Config Add Model Button Does Nothing
+**Status:** 🟡 Incomplete | Type: UI Feature Implementation  
+**Description:**  
+- ConfigPageViewModel has `AddModelCommand` bound to "Add Model" button in ConfigPage.xaml
+- When user clicks "Add Model", the command executes `ExecuteAddModel()` which:
+  - Logs debug message "[gap8_4-configvm-addmodel-complete] AddModel command would show dialog"
+  - Does nothing else; returns immediately
+- Expected behavior: Open dialog for user to enter model name, provider, base URL, etc.
+- User cannot add new models to config via UI
+
+**Current State:**
+- `ConfigPageViewModel.AddModelCommand` exists and is bound
+- `ExecuteAddModel()` method exists but is a stub
+- No AddModelDialog or model input form exists
+- AvailableModels collection in ConfigPageViewModel is read-only (loads from config only)
+- ConfigPageViewModel has no method to add a model to the current config
+
+**Gap/Missing:**
+1. **No AddModelDialog UI**: Need UserControl or Window to capture model input
+2. **No model add logic**: ConfigPageViewModel.ExecuteAddModel() must:
+   - Show AddModelDialog (modal or docked)
+   - Await user input (Name, Provider, BaseUrl, ContextWindow, etc.)
+   - Create ModelInfo instance
+   - Add to AvailableModels collection
+   - Update IConfigService.GetCurrentConfig().Models
+   - Trigger IConfigService.ConfigChanged event
+3. **AvailableModels not synchronized**: Binding is one-way; adding model doesn't update UI
+
+**Remediation:**
+1. Create `AddModelDialog.xaml` + `AddModelDialog.xaml.cs`:
+   - TextBox for Name (e.g., "Mistral 7B")
+   - ComboBox for Provider (e.g., "ollama", "openai", "anthropic")
+   - TextBox for BaseUrl (e.g., "http://localhost:11434")
+   - TextBox for ContextWindow (numeric)
+   - Checkbox for SupportsFunctionCalling
+   - OK / Cancel buttons
+   - AddModelDialogViewModel to handle input validation
+
+2. Update `ConfigPageViewModel.ExecuteAddModel()`:
+   - Instantiate AddModelDialog(viewModel)
+   - Show as modal dialog or docked panel
+   - If OK, create ModelInfo from dialog result
+   - Call `_configService.AddModelAsync(modelInfo)` (new method)
+   - Refresh AvailableModels collection from config
+
+3. Create or extend `IConfigService.AddModelAsync(ModelInfo model)`:
+   - Add model to current config.Models
+   - Fire ConfigChanged event
+   - Optionally save to file (or defer to user Save click)
+
+4. Update tests:
+   - Test ExecuteAddModel opens dialog
+   - Test model added to collection after dialog OK
+   - Test AvailableModels reflects new model
+
+**Blocking:** Users cannot extend model list beyond predefined Ollama default
+
+**Files to Modify:**
+- `src/VSIXProject1/UI/Pages/AddModelDialog.xaml` (new)
+- `src/VSIXProject1/UI/Pages/AddModelDialog.xaml.cs` (new)
+- `src/VSIXProject1/ViewModels/AddModelDialogViewModel.cs` (new)
+- `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` (ExecuteAddModel)
+- `src/VSIXProject1/Services/Interfaces/IConfigService.cs` (AddModelAsync)
+- `src/VSIXProject1/Services/Implementations/ConfigService.cs` (AddModelAsync)
+- `src/VSIXProject1.Tests/ViewModels/ConfigPageViewModelTests.cs` (AddModel tests)
 
 ---
 
