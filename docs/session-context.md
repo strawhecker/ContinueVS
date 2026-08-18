@@ -1336,28 +1336,134 @@ Plan mode is now fully functional:
 ---
 
 ### gap11: Tools Count NOT SHOWN IN UI
-**Status:** 🟡 Incomplete | Type: Missing Binding  
+**Status:** ✓ Debugged & Fixed | Type: Missing Event Binding + Visibility Logic  
 **Current State:**
-- ConfigPageViewModel has `AvailableTools` collection (exists)
-- No tools loading or display
-- NavigationBar (from gap6) should show tool count badge
+- ConfigPageViewModel.AvailableTools collection fully functional
+- ConfigPage.xaml Tools tab displays all tools (enabled and disabled) with checkboxes
+- CheckBox events properly wired to ToggleToolCommand
+- Disabled tools remain visible but unchecked (not hidden)
+- NavigationBar has ToolCount badge reflecting only enabled tools
 
-**What Continue.js Does (from AGENTS.md):**
-- Tool count badge in navigation (from IConfigService or Core.getKnownTools())
-- ConfigPage shows tool list with enable/disable toggles
+**Root Causes & Fixes:**
 
-**ContinueVS Gap:**
-- IConfigService.GetEnabledTools() exists
-- No UI binding to show count
-- No tool enable/disable UI in ConfigPage
+1. **Missing Checkbox Event Handlers** (First Issue)
+   - Added `Checked="ConfigPage_CheckBox_Checked"` and `Unchecked="ConfigPage_CheckBox_Unchecked"` to CheckBox in ConfigPage.xaml (lines 188–193)
+   - Implemented ConfigPage_CheckBox_Checked() and ConfigPage_CheckBox_Unchecked() in ConfigPage.xaml.cs (lines 157–225)
+   - Extract tool from checkbox DataContext and invoke `_viewModel.ToggleToolCommand.Execute(tool)`
 
-**Remediation:**
-1. Load tools in ConfigPageViewModel.LoadToolsAsync()
-2. Bind AvailableTools to ListBox in ConfigPage.xaml
-3. Add CheckBox for Enable/Disable per tool
-4. Show tool count badge in NavigationBar (total count)
+2. **Disabled Tools Hidden When Unchecked** (Follow-up Issue)
+   - **Original behavior**: RefreshAvailableTools() called `GetEnabledTools()` only → disabled tools disappeared from UI
+   - **Fixed behavior**: RefreshAvailableTools() and LoadConfiguration() now load ALL tools from `config.Tools` (both enabled and disabled)
+   - Disabled tools remain visible in the UI with checkbox unchecked
+   - NavigationBar still shows only count of enabled tools (correct behavior for badge)
 
-**Depends on:** gap3, gap7
+**Implementation Details:**
+- LoadConfiguration() (lines 176–225): Changed from `GetEnabledTools()` to `config.Tools` — loads all tools with counts
+- RefreshAvailableTools() (lines 230–261): Changed from `GetEnabledTools()` to `config.Tools` — preserves visibility of disabled tools
+- Enhanced logging with [gap11-*], [gap8_1-configvm-*] tags to track tool loading and enable/disable state
+
+**Verification:**
+✓ Initial load: All tools (enabled and disabled) loaded into AvailableTools
+✓ Toggle tool: Tool remains visible when unchecked (not hidden)
+✓ SaveConfigAsync: Persists tool state change
+✓ NavigationBar.ToolCount: Shows only enabled tools count
+✓ Config UI: Disabled tools show as unchecked in the list
+
+**Depends on:** gap3 (ConfigService), gap7 (NavigationBar)
+
+---
+
+### gap8_1b: Delta Persistence for Tools (Continuation of gap8_1)
+**Status:** ✓ Fixed | Type: Persistence/Serialization Logic
+
+**Problem:**
+All 19 tools were being persisted to continueVS.json regardless of their enabled/disabled state, even when the state matched the default (enabled=true for all built-in tools). This violated the delta-only persistence pattern implemented for settings (gap12).
+
+**Root Cause:**
+SaveConfigSync() was serializing the entire config including all tools without filtering. The UI loaded all tools (correctly after gap11 fix), but persistence didn't distinguish between default and overridden states.
+
+**Solution Implemented:**
+
+1. **Lightweight ToolOverride class** (src/VSIXProject1/Core/Types/ToolOverride.cs)
+   - Only stores two fields: `name` (string) and `isEnabled` (bool)
+   - Minimal JSON representation: `{ "toolOverrides": [ { "name": "read_file", "isEnabled": false } ] }`
+   - All other tool properties (description, parameters, category, etc.) loaded from BuiltInToolsRegistry at runtime
+
+2. **FilterToolsByDelta() method in ConfigService** (lines 495-545)
+   - Compares each tool's IsEnabled state against the default from BuiltInToolsRegistry
+   - Converts full ToolDefinition objects to lightweight ToolOverride instances
+   - Only returns overrides that differ from defaults
+   - Custom (non-built-in) tools always included
+   - Returns `List<ToolOverride>` for minimal JSON storage
+
+3. **SaveConfigSync() applies delta filtering** (lines 549-572)
+   - Calls FilterToolsByDelta() to get lightweight overrides
+   - Sets `config.ToolOverrides` before JSON serialization
+   - Only tool overrides are written to continueVS.json (not full ToolDefinition objects)
+   - In-memory config.Tools remains as full ToolDefinition instances (UI unaffected)
+
+4. **MergeToolsWithResourceAsync() restores full tool list on load** (lines 445-493)
+   - Loads all default tools from BuiltInToolsRegistry
+   - Applies ToolOverride.IsEnabled values to matching tools
+   - Expands lightweight overrides back to full ToolDefinition instances
+   - Ensures UI always displays all 19 tools with complete metadata
+   - Prevents metadata drift (stale descriptions, outdated parameters)
+
+**Debug Instrumentation:**
+- [gap8_1-configsvc-filter-start]: Filter operation start
+- [gap8_1-configsvc-filter-keep]: Tools being persisted (non-default IsEnabled)
+- [gap8_1-configsvc-filter-exclude]: Tools omitted (IsEnabled matches default)
+- [gap8_1-configsvc-filter-custom]: Custom (non-built-in) tools always kept
+- [gap8_1-configsvc-filter-end]: Summary of filtering result
+- [gap8_1-configsvc-save]: Persistence operation with override count vs full tool count
+- [gap8_1-configsvc-merge-tools]: Merge operation applying overrides to defaults
+
+**Test Coverage:**
+- SaveConfigAsync_FiltersToolsByDelta_ExcludingDefaultEnabledTools (ConfigServiceTests.cs)
+  - Verifies disabled tools are stored in ToolOverrides (differ from default)
+  - Verifies re-enabled tools are excluded from ToolOverrides (match default)
+  - Confirms full tool list restored on reload
+  - Validates minimal JSON representation with only name and isEnabled
+
+**Example JSON Output:**
+
+*Default state (no tools disabled):*
+```json
+{
+  "toolOverrides": []
+}
+```
+
+*User disables read_file (non-default state):*
+```json
+{
+  "toolOverrides": [
+    { "name": "read_file", "isEnabled": false }
+  ]
+}
+```
+
+*User re-enables read_file (back to default):*
+```json
+{
+  "toolOverrides": []
+}
+```
+
+**File Impact:**
+- continueVS.json: Minimal storage (~50 bytes per disabled tool vs ~500+ bytes with full ToolDefinition)
+- In-memory Tools list: Full ToolDefinition instances (no change, UI unaffected)
+- No metadata drift: Descriptions and parameters always fresh from registry
+
+**Verification:**
+✓ Build passed
+✓ Test SaveConfigAsync_FiltersToolsByDelta_ExcludingDefaultEnabledTools passed
+✓ Delta persistence implemented with minimal two-field ToolOverride objects
+✓ UI displays all tools with full metadata
+✓ continueVS.json contains only state overrides (name + isEnabled)
+✓ Metadata loaded from registry prevents staleness
+
+**Depends on:** gap8_1 (Built-in Tools Registry), gap12 (Settings delta pattern)
 
 ---
 
@@ -1404,10 +1510,69 @@ Plan mode is now fully functional:
 
 ---
 
+### gap16: Long Questions and Answers Require Scroll Bar
+**Status:** ☐ Missing | Type: UI/UX Enhancement  
+**Current State:**
+- ChatPage displays messages but has no scroll mechanism for long content
+- Multi-line user questions and LLM responses may overflow viewport without scrolling
+
+**What Continue.js Does:**
+- ScrollViewer on chat message area allows vertical scrolling
+- Messages are stacked vertically with auto-scroll to newest message
+- Long responses (100+ lines) remain readable via scroll
+
+**ContinueVS Gap:**
+- ChatPage.xaml likely has fixed-height message area without ScrollViewer
+- No scroll-to-bottom behavior on new messages
+- Long responses may be truncated or hidden
+
+**Remediation:**
+1. Wrap message display panel in ScrollViewer (XAML)
+2. Add scroll-to-bottom logic on new message insertion
+3. Set reasonable max-height on message panel to ensure UI doesn't grow unbounded
+4. Test with 500+ character responses and multi-paragraph questions
+
+**Priority:** High (UX-blocking for real conversations)
+
+---
+
+### gap17: Allow User to Delete a Send or Response
+**Status:** ☐ Missing | Type: Conversation Management  
+**Current State:**
+- No delete button/command for individual chat messages
+- All messages persist in session once sent
+
+**What Continue.js Does:**
+- Right-click or menu on each message to delete
+- Deletes both user query and LLM response (or individual message)
+- Updates session/context window after deletion
+
+**ContinueVS Gap:**
+- No UI affordance to remove messages
+- Cannot clean up erroneous sends before next LLM call
+- Cannot reduce context token count by removing old messages
+
+**Impact:**
+- Erroneous messages waste context window tokens
+- Long sessions accumulate irrelevant messages
+- User has no control over conversation history fed to next LLM call
+
+**Remediation:**
+1. Add delete button/icon to each ChatMessage UI element
+2. Implement ChatPageViewModel.DeleteMessageCommand<Guid> (message ID)
+3. Remove message from ObservableCollection<ChatMessage> in ChatPageViewModel
+4. Call ISessionService.DeleteMessageAsync(sessionId, messageId) to persist deletion
+5. Recalculate ContextWindowService after deletion (freed tokens)
+6. Add unit + UI tests for delete operation
+
+**Priority:** High (critical for real-world usage; impacts context efficiency)
+
+---
+
 ## REMEDIATION PRIORITY ORDER (User Goals)
 
 | Priority | Gap # | Goal | Blocking | 
-|----------|-------|------|-----------|
+|----------|-------|------|-----------| 
 | 1 | gap1 | Ollama predefined config | gap2, gap3, gap4 all |
 | 2 | gap2 | Fix DataContext binding | gap3, gap5, gap6 all |
 | 3 | gap3 | Load models in ConfigPage | gap7 depends |
@@ -1423,6 +1588,8 @@ Plan mode is now fully functional:
 | 13 | gap13 | Config round-trip end-to-end | verification |
 | 14 | gap14 | Cloud model setup UI | OpenAI support |
 | 15 | gap15 | Subscription service | defer |
+| 16 | gap16 | Scroll bar for long messages | high priority |
+| 17 | gap17 | Delete message functionality | high priority |
 
 ---
 

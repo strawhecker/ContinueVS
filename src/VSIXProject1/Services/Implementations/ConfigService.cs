@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -434,36 +434,53 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Merges tools from embedded resource with user overrides in config.
-        /// Two-tier lookup: User overrides take precedence, defaults from resource fill gaps.
+        /// Applies lightweight ToolOverride entries to full ToolDefinition instances.
         /// </summary>
         private async Task MergeToolsWithResourceAsync(CoreTypes.ContinueConfig config)
         {
             Debug.WriteLine("[gap8_1-configsvc-merge-tools] MergeToolsWithResourceAsync starting");
 
-            // Load defaults from resource
+            // Load all defaults from resource
             var defaultTools = await ToolsResourceLoader.LoadDefaultToolsAsync();
             Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Loaded {defaultTools.Count()} tools from resource");
 
-            if (config.Tools == null)
-                config.Tools = new List<CoreTypes.ToolDefinition>();
+            if (config.ToolOverrides == null)
+                config.ToolOverrides = new List<CoreTypes.ToolOverride>();
 
             // Build a map of user overrides by name
-            var userToolsByName = config.Tools.ToDictionary(t => t.Name);
+            var overridesByName = config.ToolOverrides.ToDictionary(o => o.Name);
 
-            // Merge: For each default tool, use user override if exists, otherwise use default
+            // Merge: For each default tool, apply override if exists
             var mergedTools = new List<CoreTypes.ToolDefinition>();
             foreach (var defaultTool in defaultTools)
             {
-                if (userToolsByName.TryGetValue(defaultTool.Name, out var userTool))
+                var toolCopy = new CoreTypes.ToolDefinition
                 {
-                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Using user override for tool: {defaultTool.Name}");
-                    mergedTools.Add(userTool);
+                    Name = defaultTool.Name,
+                    Description = defaultTool.Description,
+                    Category = defaultTool.Category,
+                    Parameters = defaultTool.Parameters,
+                    ReturnsDescription = defaultTool.ReturnsDescription,
+                    IsAsync = defaultTool.IsAsync,
+                    ToolType = defaultTool.ToolType,
+                    McpServerId = defaultTool.McpServerId,
+                    HttpEndpoint = defaultTool.HttpEndpoint,
+                    LastModified = defaultTool.LastModified,
+                    IsEnabled = defaultTool.IsEnabled // Start with default
+                };
+
+                // Apply override if exists
+                if (overridesByName.TryGetValue(defaultTool.Name, out var overrideTool))
+                {
+                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Applying override for tool: {defaultTool.Name}, IsEnabled: {overrideTool.IsEnabled}");
+                    toolCopy.IsEnabled = overrideTool.IsEnabled;
                 }
                 else
                 {
-                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Using resource default for tool: {defaultTool.Name}");
-                    mergedTools.Add(defaultTool);
+                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Using resource default for tool: {defaultTool.Name}, IsEnabled: {defaultTool.IsEnabled}");
                 }
+
+                mergedTools.Add(toolCopy);
             }
 
             // Assign merged tools back to config
@@ -472,15 +489,79 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
+        /// Filters tools to only include those with non-default enabled state.
+        /// Returns a list of ToolOverride objects (name + isEnabled only) for lightweight persistence.
+        /// </summary>
+        private List<CoreTypes.ToolOverride> FilterToolsByDelta(List<CoreTypes.ToolDefinition> tools)
+        {
+            Debug.WriteLine("[gap8_1-configsvc-filter-start] FilterToolsByDelta: start filtering");
+
+            // Get all default tools from registry
+            var defaultTools = CoreTypes.BuiltInToolsRegistry.GetAllBuiltInTools()
+                .ToDictionary(t => t.Name);
+
+            var overrides = new List<CoreTypes.ToolOverride>();
+            int excludedCount = 0;
+            int includedCount = 0;
+
+            foreach (var tool in tools)
+            {
+                if (defaultTools.TryGetValue(tool.Name, out var defaultTool))
+                {
+                    // Compare IsEnabled; only include if different from default
+                    if (tool.IsEnabled != defaultTool.IsEnabled)
+                    {
+                        Debug.WriteLine($"[gap8_1-configsvc-filter-keep] Tool '{tool.Name}': IsEnabled={tool.IsEnabled} (differs from default={defaultTool.IsEnabled}), KEEPING in JSON");
+                        overrides.Add(new CoreTypes.ToolOverride 
+                        { 
+                            Name = tool.Name, 
+                            IsEnabled = tool.IsEnabled 
+                        });
+                        includedCount++;
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"[gap8_1-configsvc-filter-exclude] Tool '{tool.Name}': IsEnabled={tool.IsEnabled} (matches default), EXCLUDING from JSON");
+                        excludedCount++;
+                    }
+                }
+                else
+                {
+                    // Custom (non-built-in) tool; always include with all properties
+                    Debug.WriteLine($"[gap8_1-configsvc-filter-custom] Tool '{tool.Name}': custom tool, KEEPING in JSON");
+                    overrides.Add(new CoreTypes.ToolOverride 
+                    { 
+                        Name = tool.Name, 
+                        IsEnabled = tool.IsEnabled 
+                    });
+                    includedCount++;
+                }
+            }
+
+            Debug.WriteLine($"[gap8_1-configsvc-filter-end] FilterToolsByDelta: input={tools.Count}, excluded={excludedCount}, kept={includedCount}");
+            return overrides;
+        }
+
+        /// <summary>
         /// Synchronously saves configuration to disk. Must be called within lock.
+        /// Converts full ToolDefinition list to lightweight ToolOverride list for persistence.
         /// </summary>
         private void SaveConfigSync()
         {
             try
             {
                 Directory.CreateDirectory(ContinueDir);
+
+                // Convert full tool list to lightweight overrides for JSON persistence
+                var toolOverrides = FilterToolsByDelta(_currentConfig.Tools);
+                _currentConfig.ToolOverrides = toolOverrides;
+
+                Debug.WriteLine($"[gap8_1-configsvc-save] SaveConfigSync: Persisting {toolOverrides.Count} tool overrides (from {_currentConfig.Tools.Count} full tools)");
+
                 var json = JsonConvert.SerializeObject(_currentConfig, Formatting.Indented);
                 File.WriteAllText(ConfigFilePath, json);
+
+                Debug.WriteLine($"[gap8_1-configsvc-save] SaveConfigSync: Config persisted successfully");
             }
             catch (Exception ex)
             {

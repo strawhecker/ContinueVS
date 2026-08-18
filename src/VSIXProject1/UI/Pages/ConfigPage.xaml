@@ -186,7 +186,10 @@
 
                                                 <!-- Checkbox for enable/disable -->
                                                 <CheckBox Grid.Column="0"
+                                                          x:Name="ToolCheckBox"
                                                           IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                          Checked="ConfigPage_CheckBox_Checked"
+                                                          Unchecked="ConfigPage_CheckBox_Unchecked"
                                                           VerticalAlignment="Top"
                                                           Margin="0,3,10,0"/>
 

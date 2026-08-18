@@ -192,20 +192,27 @@ namespace ContinueVS.ViewModels
                 }
                 Debug.WriteLine($"[gap8_1-configvm-models] Loaded {AvailableModels.Count} models into ObservableCollection");
 
+                // Load ALL tools (enabled and disabled), not just enabled
+                // This way disabled tools remain visible in the UI but show as unchecked
                 AvailableTools.Clear();
-                Debug.WriteLine("[gap8_1-configvm-load-tools-start] About to call GetEnabledTools");
-                var enabledTools = _configService.GetEnabledTools();
-                Debug.WriteLine($"[gap8_1-configvm-load-tools-result] GetEnabledTools returned: {(enabledTools == null ? "NULL" : $"COUNT={enabledTools.Count()}")}");
+                Debug.WriteLine("[gap8_1-configvm-load-tools-start] About to load ALL tools from config");
 
-                if (enabledTools != null)
+                if (config?.Tools != null)
                 {
-                    foreach (var tool in enabledTools)
+                    int enabledCount = 0;
+                    foreach (var tool in config.Tools)
                     {
+                        if (tool.IsEnabled)
+                            enabledCount++;
                         Debug.WriteLine($"[gap8_1-configvm-adding-tool] Adding tool: {tool.Name} (enabled={tool.IsEnabled})");
                         AvailableTools.Add(tool);
                     }
+                    Debug.WriteLine($"[gap8_1-configvm-tools] Loaded {AvailableTools.Count} total tools ({enabledCount} enabled) into ObservableCollection");
                 }
-                Debug.WriteLine($"[gap8_1-configvm-tools] Loaded {AvailableTools.Count} enabled tools into ObservableCollection");
+                else
+                {
+                    Debug.WriteLine("[gap8_1-configvm-tools-null] Config tools is null");
+                }
 
                 var selectedModel = _configService.GetSelectedModel();
                 if (selectedModel != null)
@@ -231,23 +238,34 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                Debug.WriteLine("[gap8_1-configvm-refresh-start] RefreshAvailableTools called");
+                Debug.WriteLine("[gap11-refresh-start] RefreshAvailableTools called");
 
+                int oldCount = AvailableTools.Count;
                 AvailableTools.Clear();
-                var enabledTools = _configService.GetEnabledTools();
-                if (enabledTools != null)
+
+                // Load ALL tools (enabled and disabled), not just enabled
+                // This way disabled tools remain visible in the UI but show as unchecked
+                var config = _configService.GetCurrentConfig();
+                if (config?.Tools != null)
                 {
-                    foreach (var tool in enabledTools)
+                    int enabledCount = 0;
+                    foreach (var tool in config.Tools)
                     {
+                        if (tool.IsEnabled)
+                            enabledCount++;
+                        Debug.WriteLine($"[gap11-refresh-adding] Adding tool: {tool.Name} (IsEnabled={tool.IsEnabled})");
                         AvailableTools.Add(tool);
                     }
+                    Debug.WriteLine($"[gap11-refresh-counts] Total: {config.Tools.Count}, Enabled: {enabledCount}");
                 }
 
-                Debug.WriteLine($"[gap8_1-configvm-refresh-end] Refreshed {AvailableTools.Count} tools");
+                int newCount = AvailableTools.Count;
+                Debug.WriteLine($"[gap11-refresh-end] Refreshed tools: {oldCount} → {newCount} total tools");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap8_1-configvm-refresh-error] RefreshAvailableTools error: {ex.Message}");
+                Debug.WriteLine($"[gap11-refresh-error] RefreshAvailableTools error: {ex.Message}");
+                Debug.WriteLine($"[gap11-refresh-error-stack] {ex.StackTrace}");
             }
         }
 
@@ -263,25 +281,26 @@ namespace ContinueVS.ViewModels
 
             try
             {
-                Debug.WriteLine($"[gap8_1-configvm-toggle-start] Tool '{tool.Name}' toggled to IsEnabled={tool.IsEnabled}");
+                Debug.WriteLine($"[gap11-toggle-start] Tool '{tool.Name}' toggled: IsEnabled before = {tool.IsEnabled}");
 
                 // Fire-and-forget: persist the change; exceptions are caught inside the lambda
                 _ = _configService.SaveConfigAsync().ContinueWith(t =>
                 {
                     if (t.Exception != null)
-                        Debug.WriteLine($"[gap8_1-configvm-toggle-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}");
+                        Debug.WriteLine($"[gap11-toggle-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}");
                     else
-                        Debug.WriteLine("[gap8_1-configvm-toggle-saved] Config saved with tool state change");
+                        Debug.WriteLine($"[gap11-toggle-saved] Config persisted with tool state: IsEnabled = {tool.IsEnabled}");
                 }, TaskScheduler.Default);
 
                 // Refresh the collection to reflect the new enabled count
                 RefreshAvailableTools();
 
-                Debug.WriteLine($"[gap8_1-configvm-toggle-complete] Enabled tool count now: {AvailableTools.Count}");
+                Debug.WriteLine($"[gap11-toggle-complete] Tool '{tool.Name}' toggle complete. Enabled tool count now: {AvailableTools.Count}");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap8_1-configvm-toggle-error] Error toggling tool '{tool.Name}': {ex.Message}");
+                Debug.WriteLine($"[gap11-toggle-error] Error toggling tool '{tool.Name}': {ex.Message}");
+                Debug.WriteLine($"[gap11-toggle-error-stack] {ex.StackTrace}");
             }
         }
 

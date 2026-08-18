@@ -149,5 +149,89 @@ namespace ContinueVS.UI.Pages
             // Allow only digits
             e.Handled = !int.TryParse(e.Text, out _);
         }
+
+        /// <summary>
+        /// Called when a tool checkbox is checked. Invokes ToggleToolCommand to persist the change.
+        /// </summary>
+        private void ConfigPage_CheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            Debug.WriteLine("[gap11-checkbox-checked] Tool checkbox CHECKED event fired");
+
+            try
+            {
+                var checkbox = sender as CheckBox;
+                if (checkbox == null)
+                {
+                    Debug.WriteLine("[gap11-checkbox-checked-null] Checkbox sender is null, aborting");
+                    return;
+                }
+
+                var tool = checkbox.DataContext as ContinueVS.Core.Types.ToolDefinition;
+                if (tool == null)
+                {
+                    Debug.WriteLine("[gap11-checkbox-checked-tool-null] DataContext tool is null, aborting");
+                    return;
+                }
+
+                Debug.WriteLine($"[gap11-checkbox-checked-firing] Tool '{tool.Name}' checked, executing ToggleToolCommand");
+
+                if (_viewModel != null && _viewModel.ToggleToolCommand != null)
+                {
+                    _viewModel.ToggleToolCommand.Execute(tool);
+                    Debug.WriteLine($"[gap11-checkbox-checked-ok] ToggleToolCommand executed for tool '{tool.Name}'");
+                }
+                else
+                {
+                    Debug.WriteLine("[gap11-checkbox-checked-vm-null] ViewModel or ToggleToolCommand is null");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap11-checkbox-checked-error] Error in CheckBox_Checked: {ex.Message}");
+                Debug.WriteLine($"[gap11-checkbox-checked-error-stack] {ex.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// Called when a tool checkbox is unchecked. Invokes ToggleToolCommand to persist the change.
+        /// </summary>
+        private void ConfigPage_CheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Debug.WriteLine("[gap11-checkbox-unchecked] Tool checkbox UNCHECKED event fired");
+
+            try
+            {
+                var checkbox = sender as CheckBox;
+                if (checkbox == null)
+                {
+                    Debug.WriteLine("[gap11-checkbox-unchecked-null] Checkbox sender is null, aborting");
+                    return;
+                }
+
+                var tool = checkbox.DataContext as ContinueVS.Core.Types.ToolDefinition;
+                if (tool == null)
+                {
+                    Debug.WriteLine("[gap11-checkbox-unchecked-tool-null] DataContext tool is null, aborting");
+                    return;
+                }
+
+                Debug.WriteLine($"[gap11-checkbox-unchecked-firing] Tool '{tool.Name}' unchecked, executing ToggleToolCommand");
+
+                if (_viewModel != null && _viewModel.ToggleToolCommand != null)
+                {
+                    _viewModel.ToggleToolCommand.Execute(tool);
+                    Debug.WriteLine($"[gap11-checkbox-unchecked-ok] ToggleToolCommand executed for tool '{tool.Name}'");
+                }
+                else
+                {
+                    Debug.WriteLine("[gap11-checkbox-unchecked-vm-null] ViewModel or ToggleToolCommand is null");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap11-checkbox-unchecked-error] Error in CheckBox_Unchecked: {ex.Message}");
+                Debug.WriteLine($"[gap11-checkbox-unchecked-error-stack] {ex.StackTrace}");
+            }
+        }
     }
 }

@@ -317,5 +317,57 @@ namespace ContinueVS.Services.Tests
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.SelectProfileAsync(null!));
         }
+
+        [Fact]
+        public async Task SaveConfigAsync_FiltersToolsByDelta_UsingToolOverrides()
+        {
+            Dispose();
+            var service = new ConfigService();
+
+            // Initialize and get all tools
+            await service.InitializeAsync();
+            var config = service.GetCurrentConfig();
+
+            // All built-in tools should be loaded (including disabled ones if configured)
+            var initialToolCount = config.Tools.Count;
+            Assert.True(initialToolCount > 0, "Should have loaded default tools");
+
+            // Disable a tool (changing from default enabled=true to disabled=false)
+            var toolToDisable = config.Tools.FirstOrDefault(t => t.IsEnabled && t.Category == "Built-In");
+            Assert.NotNull(toolToDisable);
+
+            // Toggle the tool (internally this calls SaveConfigAsync)
+            await service.SetToolEnabledAsync(toolToDisable.Name, false);
+
+            // Read the JSON file directly
+            var jsonContent = File.ReadAllText(_testConfigPath);
+
+            // Only ToolOverrides should be persisted, not the full Tools array
+            var savedConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(jsonContent);
+            Assert.NotNull(savedConfig.ToolOverrides);
+
+            // Disabled tool should be in ToolOverrides (differs from default enabled=true)
+            var disabledOverride = savedConfig.ToolOverrides.FirstOrDefault(t => t.Name == toolToDisable.Name);
+            Assert.NotNull(disabledOverride);
+            Assert.False(disabledOverride.IsEnabled);
+
+            // Re-enable it (back to default state)
+            await service.SetToolEnabledAsync(toolToDisable.Name, true);
+
+            // Read JSON again
+            jsonContent = File.ReadAllText(_testConfigPath);
+            savedConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(jsonContent) 
+                ?? new CoreTypes.ContinueConfig();
+
+            // Now the tool should NOT be in ToolOverrides (matches default enabled=true)
+            var toolBackToDefault = savedConfig.ToolOverrides?.FirstOrDefault(t => t.Name == toolToDisable.Name);
+            Assert.Null(toolBackToDefault);
+
+            // But it should still appear in the config when reloaded (via merge)
+            var reloadedConfig = service.GetCurrentConfig();
+            var reloadedTool = reloadedConfig.Tools.FirstOrDefault(t => t.Name == toolToDisable.Name);
+            Assert.NotNull(reloadedTool);
+            Assert.True(reloadedTool.IsEnabled);
+        }
     }
 }

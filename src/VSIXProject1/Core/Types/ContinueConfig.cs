@@ -23,9 +23,19 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// List of available tools.
+        /// Note: This property is used for in-memory representation (full ToolDefinition instances).
+        /// For JSON persistence, see ToolOverrides below.
         /// </summary>
-        [JsonProperty("tools")]
+        [JsonIgnore]
         public List<ToolDefinition> Tools { get; set; } = new List<ToolDefinition>();
+
+        /// <summary>
+        /// Lightweight tool state overrides persisted to continueVS.json.
+        /// Only stores name and isEnabled for tools that differ from defaults.
+        /// Full tool definitions are loaded from registry and merged with these overrides.
+        /// </summary>
+        [JsonProperty("toolOverrides")]
+        public List<ToolOverride> ToolOverrides { get; set; } = new List<ToolOverride>();
 
         /// <summary>
         /// List of user profiles.
