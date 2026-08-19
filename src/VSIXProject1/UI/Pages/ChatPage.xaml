@@ -81,15 +81,17 @@
             <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="200" Margin="0,0,5,0" Foreground="White" Background="#2D2D30" Style="{DynamicResource ThemedComboBoxStyle}"/>
         </StackPanel>
 
-        <!-- Messages (Chat List) -->
-        <ItemsControl Grid.Row="2" ItemsSource="{Binding Messages}" VerticalAlignment="Stretch" 
-                      ItemTemplateSelector="{StaticResource MessageTemplateSelector}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <controls:ChatMessageControl DataContext="{Binding}"/>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <!-- Messages (Chat List) with ScrollViewer -->
+        <ScrollViewer Grid.Row="2" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Messages}" VerticalAlignment="Stretch"
+                          ItemTemplateSelector="{StaticResource MessageTemplateSelector}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <controls:ChatMessageControl DataContext="{Binding}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
 
         <!-- Input Area -->
         <Grid Grid.Row="3" Margin="5">
@@ -99,7 +101,9 @@
             </Grid.RowDefinitions>
 
             <TextBox Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
-                     TextWrapping="Wrap" Height="80" Margin="0,0,0,5" Style="{StaticResource DefaultTextBoxStyle}"/>
+                     TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="False" 
+                     MinHeight="80" MaxHeight="200" VerticalScrollBarVisibility="Auto"
+                     Margin="0,0,0,5" Style="{StaticResource DefaultTextBoxStyle}"/>
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

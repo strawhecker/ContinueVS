@@ -31,11 +31,18 @@ namespace ContinueVS.Services
             services.AddSingleton<ISystemPromptService, SystemPromptService>();
 
             // Register HTTP client singleton for MessengerService
-            services.AddSingleton<HttpClient>(sp => new HttpClient { Timeout = TimeSpan.FromSeconds(300) });
+            // Set Timeout to Infinite for streaming operations (Ollama responses may take time)
+            // Individual message timeouts are handled at the message level if needed
+            services.AddSingleton<HttpClient>(sp => new HttpClient { Timeout = TimeSpan.FromMilliseconds(-1) });
 
             // Register core services as singletons (application lifetime)
             services.AddSingleton<IIdeService, VsIdeService>();
             services.AddSingleton<IConfigService, ConfigService>();
+            services.AddSingleton<IContextDumpService>(sp =>
+            {
+                var configService = sp.GetRequiredService<IConfigService>();
+                return new ContextDumpService(configService);
+            });
             services.AddSingleton<IModelDiscoveryService>(sp =>
             {
                 var httpClient = sp.GetRequiredService<HttpClient>();
@@ -45,7 +52,8 @@ namespace ContinueVS.Services
             {
                 var configService = sp.GetRequiredService<IConfigService>();
                 var httpClient = sp.GetRequiredService<HttpClient>();
-                return new MessengerService(configService, httpClient, null);
+                var contextDumpService = sp.GetRequiredService<IContextDumpService>();
+                return new MessengerService(configService, httpClient, null, contextDumpService);
             });
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();

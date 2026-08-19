@@ -241,6 +241,10 @@ namespace ContinueVS.ViewModels
                     Role = ChatMessageRole.User,
                     Content = InputText ?? string.Empty
                 };
+
+                // Clear input text immediately on UI thread before starting async operations
+                InputText = string.Empty;
+
                 await _sessionService.AddMessageAsync(userMessage);
                 Messages.Add(userMessage);
                 System.Diagnostics.Debug.WriteLine($"[a9-command-entry] ExecuteSendMessage started. CurrentMode={CurrentMode}");
@@ -282,32 +286,41 @@ namespace ContinueVS.ViewModels
                         Messages = messages
                     };
 
-                    await RetryPolicyHelper.ExecuteWithRetryAsync(
-                        async ct =>
-                        {
-                            await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, ct))
-                            {
-                                if (chunk.Type == ChunkType.Text)
-                                {
-                                    StreamingResponse += chunk.Content;
-                                }
-                                else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
-                                {
-                                    _pendingToolCalls.Add(chunk.ToolCall);
-                                }
-                            }
-                        },
-                        _streamingCts.Token,
-                        maxRetries: 3);
-
+                    // Create provisional assistant message BEFORE streaming starts
+                    // This allows UI to display responses incrementally as chunks arrive
                     var assistantMessage = new ChatMessage
                     {
                         Role = ChatMessageRole.Assistant,
-                        Content = StreamingResponse,
-                        ToolCalls = _pendingToolCalls.Count > 0 ? new List<ToolCall>(_pendingToolCalls) : null
+                        Content = string.Empty,
+                        ToolCalls = null
                     };
-                    await _sessionService.AddMessageAsync(assistantMessage);
                     Messages.Add(assistantMessage);
+
+                    // Stream directly without retry wrapper:
+                    // Streaming operations can't be safely retried because chunks are consumed as they arrive.
+                    // The HTTP connection is stateful, and mid-stream retries would lose already-received chunks.
+                    // If streaming fails, the entire message is lost and the caller (UI) handles the error.
+                    await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, _streamingCts.Token))
+                    {
+                        if (chunk.Type == ChunkType.Text)
+                        {
+                            // Update the message content in place - this triggers PropertyChanged
+                            // and the UI updates with the new content
+                            assistantMessage.Content += chunk.Content;
+                            StreamingResponse += chunk.Content;
+                        }
+                        else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
+                        {
+                            _pendingToolCalls.Add(chunk.ToolCall);
+                        }
+                    }
+
+                    // Finalize the message with tool calls and add to session
+                    if (_pendingToolCalls.Count > 0)
+                    {
+                        assistantMessage.ToolCalls = new List<ToolCall>(_pendingToolCalls);
+                    }
+                    await _sessionService.AddMessageAsync(assistantMessage);
                     System.Diagnostics.Debug.WriteLine($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
                     // Only execute tools in Agent mode
@@ -336,8 +349,6 @@ namespace ContinueVS.ViewModels
                         break;
                     }
                 }
-
-                InputText = string.Empty;
             }
             catch (OperationCanceledException)
             {

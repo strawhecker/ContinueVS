@@ -26,11 +26,13 @@ namespace ContinueVS.Services.Implementations
         private readonly IConfigService _configService;
         private readonly HttpClient _httpClient;
         private readonly IBridgeLogger? _logger;
+        private readonly IContextDumpService _contextDumpService;
 
         public MessengerService(
             IConfigService configService,
             HttpClient httpClient,
-            IBridgeLogger? logger = null)
+            IBridgeLogger? logger = null,
+            IContextDumpService? contextDumpService = null)
         {
             if (configService == null)
                 throw new ArgumentNullException(nameof(configService));
@@ -40,6 +42,7 @@ namespace ContinueVS.Services.Implementations
             _configService = configService;
             _httpClient = httpClient;
             _logger = logger;
+            _contextDumpService = contextDumpService ?? new NullContextDumpService();
         }
 
         public Task<TResponse> RequestAsync<TRequest, TResponse>(
@@ -228,6 +231,13 @@ namespace ContinueVS.Services.Implementations
 
             System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Building request - Model: {ollamaRequest.Model}, Stream: {ollamaRequest.Stream}, Temperature: {ollamaRequest.Options.Temperature}");
 
+            // Dump context before sending if debug flag is enabled
+            if (options.Messages != null)
+            {
+                var messageList = options.Messages.ToList();
+                await _contextDumpService.DumpContextBeforeSendAsync(messageList);
+            }
+
             // POST to Ollama chat endpoint
             var endpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/api/chat";
             var json = JsonConvert.SerializeObject(ollamaRequest);
@@ -242,7 +252,10 @@ namespace ContinueVS.Services.Implementations
             try
             {
                 System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Sending HTTP POST request to {endpoint}...");
-                response = await _httpClient.PostAsync(endpoint, content, ct);
+                // ResponseHeadersRead prevents HttpClient from buffering the entire response body before returning.
+                // Without it, PostAsync waits until all NDJSON chunks are received, defeating streaming.
+                var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
                 System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Response status code: {response.StatusCode}");
 
                 if (!response.IsSuccessStatusCode)
@@ -272,7 +285,10 @@ namespace ContinueVS.Services.Implementations
             catch (TaskCanceledException ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] TaskCanceledException: {ex.Message}");
-                throw new LlmException("Ollama streaming cancelled by caller", ex);
+                throw new LlmException(
+                    $"Ollama request timeout or was cancelled. " +
+                    $"Ensure Ollama is running at {model.BaseUrl}/api/chat and the model '{model.Name}' is loaded. " +
+                    $"The request may have taken too long to complete.", ex);
             }
             catch (Exception ex)
             {
@@ -348,4 +364,21 @@ namespace ContinueVS.Services.Implementations
             }
         }
     }
+
+    /// <summary>
+    /// No-op implementation of IContextDumpService used as fallback.
+    /// </summary>
+    internal class NullContextDumpService : IContextDumpService
+    {
+        public Task DumpContextBeforeSendAsync(List<ChatMessage> messages, List<ContextItem>? selectedContext = null)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task DumpResponseAfterReceiveAsync(string responseContent)
+        {
+            return Task.CompletedTask;
+        }
+    }
 }
+

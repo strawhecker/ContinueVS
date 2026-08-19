@@ -5,6 +5,25 @@ using Newtonsoft.Json;
 namespace ContinueVS.Core.Types
 {
     /// <summary>
+    /// Debug configuration settings for troubleshooting.
+    /// </summary>
+    public class DebugSettings
+    {
+        /// <summary>
+        /// If true, dumps the full context (system message, context items, user message) 
+        /// to Debug Output before sending to the LLM. Shows raw text before tokenization.
+        /// </summary>
+        [JsonProperty("dumpContextBeforeSend")]
+        public bool DumpContextBeforeSend { get; set; } = false;
+
+        /// <summary>
+        /// If true, dumps the LLM response to Debug Output after receiving.
+        /// </summary>
+        [JsonProperty("dumpResponseAfterReceive")]
+        public bool DumpResponseAfterReceive { get; set; } = false;
+    }
+
+    /// <summary>
     /// Represents the Continue configuration schema.
     /// </summary>
     public partial class ContinueConfig
@@ -54,6 +73,12 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonIgnore]
         public string? ConfigFilePath { get; set; }
+
+        /// <summary>
+        /// Debug configuration for troubleshooting and analysis.
+        /// </summary>
+        [JsonProperty("debug")]
+        public DebugSettings Debug { get; set; } = new DebugSettings();
 
         /// <summary>
         /// Timestamp when the configuration was last modified.

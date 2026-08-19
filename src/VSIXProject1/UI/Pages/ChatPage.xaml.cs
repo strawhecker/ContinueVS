@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -53,6 +55,8 @@ namespace ContinueVS.UI.Pages
 
     public partial class ChatPage : UserControl
     {
+        private ScrollViewer? _messagesScrollViewer;
+
         public ChatPage()
         {
             // Load theme resources before XAML initialization so DynamicResource can resolve them
@@ -107,6 +111,98 @@ namespace ContinueVS.UI.Pages
             }
 
             InitializeComponent();
+
+            // Wire up scroll-to-bottom on messages collection changed
+            this.Loaded += ChatPage_Loaded;
+            this.Unloaded += ChatPage_Unloaded;
+        }
+
+        private void ChatPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Get reference to ScrollViewer
+                _messagesScrollViewer = this.FindName("MessagesScrollViewer") as ScrollViewer;
+
+                // Hook into Messages collection changed event
+                if (this.DataContext is ChatPageViewModel vm && vm.Messages is ObservableCollection<ChatMessage> messages)
+                {
+                    messages.CollectionChanged += Messages_CollectionChanged;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ChatPage] Loaded event error: {ex.Message}");
+            }
+        }
+
+        private void ChatPage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Unhook to prevent memory leaks
+                if (this.DataContext is ChatPageViewModel vm && vm.Messages is ObservableCollection<ChatMessage> messages)
+                {
+                    messages.CollectionChanged -= Messages_CollectionChanged;
+
+                    // Also unhook property changed from all messages
+                    foreach (var msg in messages)
+                    {
+                        if (msg is System.ComponentModel.INotifyPropertyChanged notifiable)
+                        {
+                            notifiable.PropertyChanged -= Message_PropertyChanged;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ChatPage] Unloaded event error: {ex.Message}");
+            }
+        }
+
+        private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            try
+            {
+                // When new messages are added, hook into their PropertyChanged events
+                if (e.NewItems != null)
+                {
+                    foreach (var item in e.NewItems)
+                    {
+                        if (item is ChatMessage msg && msg is System.ComponentModel.INotifyPropertyChanged notifiable)
+                        {
+                            notifiable.PropertyChanged += Message_PropertyChanged;
+                        }
+                    }
+                }
+
+                if (_messagesScrollViewer != null)
+                {
+                    // Auto-scroll to bottom when new messages are added
+                    _messagesScrollViewer.ScrollToEnd();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ChatPage] Messages_CollectionChanged error: {ex.Message}");
+            }
+        }
+
+        private void Message_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            // When a message's Content property changes (during streaming), scroll to bottom to show the new text
+            if (e.PropertyName == nameof(ChatMessage.Content) && _messagesScrollViewer != null)
+            {
+                try
+                {
+                    _messagesScrollViewer.ScrollToEnd();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ChatPage] Message_PropertyChanged scroll error: {ex.Message}");
+                }
+            }
         }
     }
 }

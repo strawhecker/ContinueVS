@@ -175,6 +175,22 @@
                                        Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
                         </StackPanel>
                     </CheckBox>
+
+                    <CheckBox IsChecked="{Binding DumpContextBeforeSend, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Dump Context Before Send" FontWeight="Bold"/>
+                            <TextBlock Text="Outputs the complete LLM request context to Debug Output before sending (for debugging)." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
+
+                    <CheckBox IsChecked="{Binding DumpResponseAfterReceive, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Dump Response After Receive" FontWeight="Bold"/>
+                            <TextBlock Text="Outputs the complete LLM response to Debug Output after receiving (for debugging)." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
                 </StackPanel>
             </TabItem>
         </TabControl>

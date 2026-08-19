@@ -32,6 +32,8 @@ namespace ContinueVS.Core.Types
         public const string Experimental_OnlyUseSystemMessageTools = "experimental.onlyUseSystemMessageTools";
         public const string Experimental_CodebaseUseToolCallingOnly = "experimental.codebaseUseToolCallingOnly";
         public const string Experimental_StreamAfterToolRejection = "experimental.streamAfterToolRejection";
+        public const string Experimental_DumpContextBeforeSend = "experimental.dumpContextBeforeSend";
+        public const string Experimental_DumpResponseAfterReceive = "experimental.dumpResponseAfterReceive";
 
         /// <summary>
         /// Returns a dictionary of all default settings values.
@@ -62,7 +64,9 @@ namespace ContinueVS.Core.Types
                 { Experimental_EnableExperimentalTools, true },
                 { Experimental_OnlyUseSystemMessageTools, false },
                 { Experimental_CodebaseUseToolCallingOnly, false },
-                { Experimental_StreamAfterToolRejection, false }
+                { Experimental_StreamAfterToolRejection, false },
+                { Experimental_DumpContextBeforeSend, false },
+                { Experimental_DumpResponseAfterReceive, false }
             };
         }
 

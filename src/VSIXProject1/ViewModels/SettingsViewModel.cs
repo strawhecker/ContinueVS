@@ -38,6 +38,8 @@ namespace ContinueVS.ViewModels
         private bool _onlyUseSystemMessageTools;
         private bool _codebaseUseToolCallingOnly;
         private bool _streamAfterToolRejection;
+        private bool _dumpContextBeforeSend;
+        private bool _dumpResponseAfterReceive;
 
         // Chat Properties
         public bool ShowSessionTabs
@@ -157,6 +159,18 @@ namespace ContinueVS.ViewModels
             set => Set(ref _streamAfterToolRejection, value);
         }
 
+        public bool DumpContextBeforeSend
+        {
+            get => _dumpContextBeforeSend;
+            set => Set(ref _dumpContextBeforeSend, value);
+        }
+
+        public bool DumpResponseAfterReceive
+        {
+            get => _dumpResponseAfterReceive;
+            set => Set(ref _dumpResponseAfterReceive, value);
+        }
+
         public SettingsViewModel(IConfigService configService)
         {
             if (configService == null) throw new ArgumentNullException(nameof(configService));
@@ -187,6 +201,8 @@ namespace ContinueVS.ViewModels
             _onlyUseSystemMessageTools = GetBool(UserSettings.Experimental_OnlyUseSystemMessageTools, defaults);
             _codebaseUseToolCallingOnly = GetBool(UserSettings.Experimental_CodebaseUseToolCallingOnly, defaults);
             _streamAfterToolRejection = GetBool(UserSettings.Experimental_StreamAfterToolRejection, defaults);
+            _dumpContextBeforeSend = GetBool(UserSettings.Experimental_DumpContextBeforeSend, defaults);
+            _dumpResponseAfterReceive = GetBool(UserSettings.Experimental_DumpResponseAfterReceive, defaults);
 
             Debug.WriteLine("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR COMPLETE");
         }
@@ -231,6 +247,8 @@ namespace ContinueVS.ViewModels
                 OnlyUseSystemMessageTools = GetBoolFromConfig(UserSettings.Experimental_OnlyUseSystemMessageTools, config.CustomSettings);
                 CodebaseUseToolCallingOnly = GetBoolFromConfig(UserSettings.Experimental_CodebaseUseToolCallingOnly, config.CustomSettings);
                 StreamAfterToolRejection = GetBoolFromConfig(UserSettings.Experimental_StreamAfterToolRejection, config.CustomSettings);
+                DumpContextBeforeSend = GetBoolFromConfig(UserSettings.Experimental_DumpContextBeforeSend, config.CustomSettings);
+                DumpResponseAfterReceive = GetBoolFromConfig(UserSettings.Experimental_DumpResponseAfterReceive, config.CustomSettings);
 
                 Debug.WriteLine("[SettingsViewModel.LoadSettings] Settings loaded successfully");
             }
@@ -297,6 +315,8 @@ namespace ContinueVS.ViewModels
                 SetOrRemove(UserSettings.Experimental_OnlyUseSystemMessageTools, OnlyUseSystemMessageTools);
                 SetOrRemove(UserSettings.Experimental_CodebaseUseToolCallingOnly, CodebaseUseToolCallingOnly);
                 SetOrRemove(UserSettings.Experimental_StreamAfterToolRejection, StreamAfterToolRejection);
+                SetOrRemove(UserSettings.Experimental_DumpContextBeforeSend, DumpContextBeforeSend);
+                SetOrRemove(UserSettings.Experimental_DumpResponseAfterReceive, DumpResponseAfterReceive);
 
                 // Persist to disk
                 await _configService.SaveConfigAsync();

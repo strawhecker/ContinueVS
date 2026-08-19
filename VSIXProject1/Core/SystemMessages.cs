@@ -7,12 +7,10 @@
     internal static class ChatModeSystemPrompts
     {
         /// <summary>
-        /// System prompt for Ask mode: guidance for basic Q&A interaction.
+        /// System prompt for Ask mode: guidance for basic Q&A interaction. Note: differs from contune
         /// </summary>
         public const string DEFAULT_ASK_SYSTEM_MESSAGE = 
-            "You are in chat mode. If the user asks to make changes to files, offer that they can use the Apply Button on the code block, or suggest switching to Agent Mode to make updates automatically. " +
-            "Always include the language and file name in the info string when you write code blocks. For larger blocks (>20 lines), use abbreviated placeholders like `// ... existing code ...` at the beginning, middle, or end. " +
-            "Concisely explain changes unless the user asks for code only.";
+            "You are in chat mode.";
 
         /// <summary>
         /// System prompt for Agent mode: guidance for autonomous tool calling.
