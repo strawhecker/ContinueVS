@@ -1790,6 +1790,43 @@ In Continue.js, each model entry includes `contextLength` as a required property
 
 ---
 
+### gap19_1: Wire ModelInfo.ContextWindow to Active Token Limit
+**Status:** ⏳ Pending | Type: Runtime Correctness / Token Budget
+
+**Problem Statement:**
+`ModelInfo.ContextWindow` (stored in `continueVS.json`) is displayed in the UI but is **never used** to enforce the actual token limit when sending messages to the LLM. The token-limiting pipeline reads its budget from a separate file (`~/.continue/vsx-settings.json → maxContextTokens`), which defaults to `131072` regardless of what the active model reports.
+
+This means a model with a true context window of 8192 tokens could silently receive a prompt sized for 131072 tokens, causing truncation or errors at the API level.
+
+**Root Cause (Identified in gap19 investigation):**
+Two independent systems exist with no connection:
+
+| System | Source | Used For |
+|--------|--------|----------|
+| `ModelInfo.ContextWindow` | `continueVS.json` | UI display only |
+| `TokenLimitSettings.MaxContextTokens` | `~/.continue/vsx-settings.json` | Actual prompt trimming in `ContextWindowCollector` |
+
+The `ContextWindowCollector` reads `TokenLimitSettings` directly and has no awareness of the selected model's configured `ContextWindow`. The `DefaultContextWindow = 131072` constant in `ConfigPageViewModel` is a hardcoded holdover that should no longer act as a system-wide ceiling.
+
+**Affected Files:**
+- `src/VSIXProject1/Services/ContextWindowCollector.cs` — reads `TokenLimitSettings`, ignores model
+- `src/VSIXProject1/Services/TokenLimitSettings.cs` — `MaxContextTokens` hardcoded default 131072
+- `src/VSIXProject1/Services/Interfaces/IConfigService.cs` — `GetSelectedModel()` is available but unused here
+- `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` — `DefaultContextWindow = 131072` placeholder constant
+
+**Proposed Solution:**
+When building a context window budget, resolve `MaxContextTokens` from the active model:
+1. In `ContextWindowCollector.GetContextWindowAsync()`, inject or resolve `IConfigService`
+2. Call `configService.GetSelectedModel()` to get the active `ModelInfo`
+3. If `ModelInfo.ContextWindow > 0`, use it as `MaxContextTokens` — overriding the settings file value
+4. Fall back to `TokenLimitSettings` value only if no model is selected or its `ContextWindow` is 0
+5. Remove reliance on `DefaultContextWindow = 131072` constant in `ConfigPageViewModel`
+
+**Blocking:** None
+**Related:** gap19 (ContextWindow now stored correctly in continueVS.json)
+
+---
+
 ### gap20: LLM Context Dumping for Debugging
 **Status:** ✅ Complete | Type: Debug Observability Feature  
 **Latest Update:** Added UI toggles in Experimental settings; config now syncs with user settings
