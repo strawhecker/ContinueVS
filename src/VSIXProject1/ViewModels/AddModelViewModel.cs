@@ -28,6 +28,7 @@ namespace ContinueVS.ViewModels
         private string? _selectedModel;
         private string? _apiKey;
         private string? _baseUrl;
+        private string? _contextWindow;
         private bool _isValidating;
         private string? _validationError;
         private int _currentStep;
@@ -51,7 +52,27 @@ namespace ContinueVS.ViewModels
         public string? SelectedModel
         {
             get => _selectedModel;
-            set => Set(ref _selectedModel, value);
+            set
+            {
+                if (Set(ref _selectedModel, value))
+                {
+                    // When model is selected, auto-populate context window from catalog
+                    if (!string.IsNullOrEmpty(value) && SelectedProvider != null)
+                    {
+                        if (ModelCatalog.TryGetModel(SelectedProvider.Provider, value, out var catalogEntry))
+                        {
+                            ContextWindow = catalogEntry!.ContextWindow.ToString();
+                            Debug.WriteLine($"[gap19-addmodelvm-selected-model-catalog] Auto-populated ContextWindow={ContextWindow} from catalog for {value}");
+                        }
+                        else
+                        {
+                            int defaultContextWindow = ModelCatalog.GetDefaultContextWindow(SelectedProvider.Provider);
+                            ContextWindow = defaultContextWindow.ToString();
+                            Debug.WriteLine($"[gap19-addmodelvm-selected-model-default] Auto-populated ContextWindow={ContextWindow} from provider defaults for {value}");
+                        }
+                    }
+                }
+            }
         }
 
         public string? ApiKey
@@ -64,6 +85,12 @@ namespace ContinueVS.ViewModels
         {
             get => _baseUrl;
             set => Set(ref _baseUrl, value);
+        }
+
+        public string? ContextWindow
+        {
+            get => _contextWindow;
+            set => Set(ref _contextWindow, value);
         }
 
         public bool IsValidating
@@ -308,8 +335,22 @@ namespace ContinueVS.ViewModels
                     BaseUrl = BaseUrl ?? string.Empty
                 };
 
-                // Hydrate model metadata from ModelCatalog; fallback to provider defaults if not found
-                if (SelectedProvider != null && ModelCatalog.TryGetModel(SelectedProvider.Provider, SelectedModel ?? string.Empty, out var catalogEntry))
+                // Validate and use user-provided context window if provided
+                var (isValidContextWindow, userContextWindow) = ValidateContextWindow(ContextWindow);
+                if (!isValidContextWindow)
+                {
+                    ValidationError = "Context Window must be empty or a positive integer (e.g., 8192, 128000).";
+                    Debug.WriteLine($"[gap19-addmodelvm-save-validation-error] Invalid context window: {ContextWindow}");
+                    return;
+                }
+
+                // User-provided context window takes precedence; otherwise fall back to catalog/defaults
+                if (userContextWindow.HasValue)
+                {
+                    model.ContextWindow = userContextWindow.Value;
+                    Debug.WriteLine($"[gap19-addmodelvm-save-user-input] Using user-provided ContextWindow={model.ContextWindow}");
+                }
+                else if (SelectedProvider != null && ModelCatalog.TryGetModel(SelectedProvider.Provider, SelectedModel ?? string.Empty, out var catalogEntry))
                 {
                     model.ContextWindow = catalogEntry!.ContextWindow;
                     model.SupportsFunctionCalling = catalogEntry.SupportsFunctionCalling;
@@ -371,6 +412,7 @@ namespace ContinueVS.ViewModels
             _selectedModel = null;
             _apiKey = null;
             _baseUrl = null;
+            _contextWindow = null;
             _validationError = null;
             _isValidating = false;
             AvailableModels.Clear();
@@ -395,8 +437,29 @@ namespace ContinueVS.ViewModels
             RaisePropertyChanged(nameof(SelectedModel));
             RaisePropertyChanged(nameof(ApiKey));
             RaisePropertyChanged(nameof(BaseUrl));
+            RaisePropertyChanged(nameof(ContextWindow));
             RaisePropertyChanged(nameof(ValidationError));
             RaisePropertyChanged(nameof(IsValidating));
+        }
+
+        /// <summary>
+        /// Validates a context window input string (e.g., user-entered text).
+        /// </summary>
+        /// <param name="input">The input string to validate (can be empty or numeric).</param>
+        /// <returns>A tuple of (isValid, parsedValue). If input is empty, returns (true, null). If input is a positive integer, returns (true, value). Otherwise returns (false, null).</returns>
+        private (bool isValid, int? value) ValidateContextWindow(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return (true, null);
+            }
+
+            if (int.TryParse(input, out var value) && value > 0)
+            {
+                return (true, value);
+            }
+
+            return (false, null);
         }
     }
 }

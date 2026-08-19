@@ -35,7 +35,15 @@ namespace ContinueVS.ViewModels
         public ModelInfo? SelectedModel
         {
             get => _selectedModel;
-            set => Set(ref _selectedModel, value);
+            set
+            {
+                if (Set(ref _selectedModel, value))
+                {
+                    // Populate editing field from the model's saved context window value
+                    EditingContextWindow = value?.ContextWindow > 0 ? value.ContextWindow : (int?)null;
+                    Debug.WriteLine($"[gap19-configvm-selectedmodel] SelectedModel changed to '{value?.Name}'; EditingContextWindow={EditingContextWindow}");
+                }
+            }
         }
 
         public SettingsViewModel? SettingsViewModel
@@ -125,10 +133,8 @@ namespace ContinueVS.ViewModels
             _settingsViewModel.LoadSettings();
             RaisePropertyChanged(nameof(SettingsViewModel));
 
-            Debug.WriteLine("[gap12_3-configvm-ctor-addmodel] Initializing AddModelViewModel eagerly");
-            _addModelViewModel = new AddModelViewModel(_modelDiscoveryService, _configService);
-            AddModelViewModel = _addModelViewModel;
-            RaisePropertyChanged(nameof(AddModelViewModel));
+            // Lazy-create AddModelViewModel; it will be created in ExecuteAddModel with proper callbacks
+            Debug.WriteLine("[gap12_3-configvm-ctor-addmodel-lazy] AddModelViewModel will be created lazily in ExecuteAddModel");
 
             // Subscribe to config changes to refresh filtered models
             _configService.ConfigChanged += (s, e) =>
@@ -449,8 +455,8 @@ private void ExecuteAddModel()
                     }
                 }, TaskScheduler.Default);
 
-                // Clear editing state and refresh UI
-                EditingContextWindow = null;
+                // Refresh editing field from the now-saved value and refresh UI
+                EditingContextWindow = SelectedModel.ContextWindow > 0 ? SelectedModel.ContextWindow : (int?)null;
                 RaisePropertyChanged(nameof(SelectedModel));
             }
             catch (Exception ex)

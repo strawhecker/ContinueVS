@@ -35,6 +35,8 @@
             <PasswordBox x:Name="ApiKeyBox" MinHeight="30" Margin="0,0,0,20"/>
             <TextBlock Text="Base URL (Ollama)" FontSize="11" Margin="0,0,0,5"/>
             <TextBox Text="{Binding BaseUrl, Mode=TwoWay}" MinHeight="30" Margin="0,0,0,20"/>
+            <TextBlock Text="Context Window (tokens)" FontSize="11" Margin="0,0,0,5"/>
+            <TextBox Text="{Binding ContextWindow, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MinHeight="30" Margin="0,0,0,20" Foreground="Black" Background="White"/>
             <Button Content="Autodetect" Command="{Binding AutodetectCommand}" Background="#4CAF50" Foreground="White" MinHeight="35" Margin="0,0,0,10"/>
             <Button Content="Connect" Command="{Binding ConnectCommand}" Background="#2196F3" Foreground="White" MinHeight="35" Margin="0,0,0,10"/>
             <Button Content="Save Model" Command="{Binding SaveCommand}" Background="#4CAF50" Foreground="White" MinHeight="35" Margin="0,0,0,10"/>
