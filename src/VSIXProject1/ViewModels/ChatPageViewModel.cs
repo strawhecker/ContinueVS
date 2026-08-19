@@ -148,6 +148,10 @@ namespace ContinueVS.ViewModels
         /// Command to switch to a specified chat mode.
         /// </summary>
         public RelayCommand<ChatMode> SetModeCommand { get; }
+        /// <summary>
+        /// Command to delete a message by ID.
+        /// </summary>
+        public RelayCommand<string> DeleteMessageCommand { get; }
 
         public ChatPageViewModel(
             ILlmService llmService,
@@ -184,6 +188,7 @@ namespace ContinueVS.ViewModels
             CancelCommand = new RelayCommand(ExecuteCancel, () => IsStreaming);
             AddContextCommand = new RelayCommand<string>(ExecuteAddContext);
             SetModeCommand = new RelayCommand<ChatMode>(mode => CurrentMode = mode);
+            DeleteMessageCommand = new RelayCommand<string>(ExecuteDeleteMessage);
 
             _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
@@ -457,6 +462,59 @@ namespace ContinueVS.ViewModels
         {
             var modeKey = mode.ToString().ToLowerInvariant();
             return _systemPromptService.GetPromptForMode(modeKey);
+        }
+
+        /// <summary>
+        /// Executes the delete message command.
+        /// Removes the message from the collection and persists the deletion to the session service.
+        /// </summary>
+        private void ExecuteDeleteMessage(string messageId)
+        {
+            System.Diagnostics.Debug.WriteLine($"[delete-cmd] ExecuteDeleteMessage called with ID: {messageId}");
+
+            if (string.IsNullOrWhiteSpace(messageId))
+            {
+                System.Diagnostics.Debug.WriteLine($"[delete-cmd] messageId is null/empty, aborting");
+                return;
+            }
+
+            // Find and remove message from collection
+            var messageToDelete = Messages.FirstOrDefault(m => m.Id == messageId);
+            if (messageToDelete == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[delete-cmd] Message with ID {messageId} not found in collection. Available: {string.Join(",", Messages.Select(m => m.Id))}");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[delete-cmd] Found message, removing from collection. Current count: {Messages.Count}");
+            Messages.Remove(messageToDelete);
+            System.Diagnostics.Debug.WriteLine($"[delete-cmd] Message removed. New count: {Messages.Count}");
+
+            // Persist deletion asynchronously (fire-and-forget with error handling)
+            _ = ExecuteDeleteMessageAsync(messageId, messageToDelete);
+        }
+
+        /// <summary>
+        /// Asynchronously persists message deletion to the service.
+        /// If deletion fails, restores the message to the collection and notifies the user.
+        /// </summary>
+        private async Task ExecuteDeleteMessageAsync(string messageId, ChatMessage messageToRestore)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[delete-service] Calling DeleteMessageAsync for ID: {messageId}");
+                await _sessionService.DeleteMessageAsync(messageId);
+                System.Diagnostics.Debug.WriteLine($"[delete-service] Successfully deleted message ID: {messageId}");
+            }
+            catch (Exception ex)
+            {
+                // If service deletion fails, add message back and notify user
+                System.Diagnostics.Debug.WriteLine($"[delete-service] Delete failed, restoring message: {ex.Message}");
+                Messages.Add(messageToRestore);
+                await _notificationService.ShowNotificationAsync("Delete Failed", 
+                    $"Could not delete message: {ex.Message}", NotificationType.Error);
+                System.Diagnostics.Debug.WriteLine($"[delete-error] Service deletion failed: {ex.Message}");
+            }
         }
     }
 }
