@@ -24,6 +24,7 @@ namespace ContinueVS.Services
                     SupportsAutodetect = false,
                     DefaultModels = new List<string>
                     {
+                        "Claude 3.5 Sonnet",
                         "Claude Opus 4.6",
                         "Claude Opus 4.5",
                         "Claude Opus 4.1",
@@ -156,7 +157,31 @@ namespace ContinueVS.Services
                     SupportsAutodetect = true,
                     DefaultModels = new List<string>
                     {
-                        "(Dynamic discovery via API)"
+                        "Claude 3.5 Sonnet",
+                        "Claude 3.5 Haiku",
+                        "Claude Opus 4.1",
+                        "GPT-4o",
+                        "GPT-4o Mini",
+                        "GPT-4 Turbo",
+                        "Mistral Large",
+                        "Mistral Small",
+                        "Mistral 7B",
+                        "Llama 3.1 405B",
+                        "Llama 3.1 70B",
+                        "DeepSeek Coder",
+                        "DeepSeek Chat",
+                        "Qwen 2 Max",
+                        "Qwen 2 Plus",
+                        "Qwen 2 7B",
+                        "Phi 4 (128K)",
+                        "Gemini 2.0 Flash",
+                        "Gemini 1.5 Pro",
+                        "Groq Mixtral 8x7B",
+                        "Jamba 1.5 Large",
+                        "YI Large",
+                        "Perplexity LLaMA",
+                        "Cohere Command R+",
+                        "Together AI Llama"
                     }
                 }
             }

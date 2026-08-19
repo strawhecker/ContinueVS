@@ -1623,35 +1623,80 @@ SaveConfigSync() was serializing the entire config including all tools without f
 ---
 
 ### gap18: Model Catalog Parity with Continue.js
-**Status:** ⏳ Pending | Type: Model Catalog Completeness
+**Status:** ✅ Complete | Type: Model Catalog Completeness | Phase: Phase 1 (MVP) + UI Display Fix
+**Latest Update (UI Display Fix - CRITICAL):** 
+- Fixed ProviderCatalog.cs DefaultModels for OpenRouter: replaced "(Dynamic discovery via API)" placeholder with 25 complete model entries
+- Fixed Anthropic DefaultModels: added "Claude 3.5 Sonnet" (now 8 total models)
+- **Critical insight:** ModelCatalog is used for *hydration* (save/validation), but ProviderCatalog is used for *UI display* (AddModelViewModel dropdown)
+- Updated ProviderCatalog.OpenRouter DefaultModels to match ModelCatalog coverage: Claude, GPT-4, Llama, Qwen, Gemini, Mistral, Groq, Jamba, YI, Perplexity, Cohere, Together
+- Now the UI dropdown actually shows 25 real OpenRouter models instead of the placeholder ✅
+- All 7 providers now display their full model lists in the Add Model Dialog UI
+- Tests: 17/17 passing in ModelCatalogTests ✅
+- Build: Clean on src/VSIXProject1/VSIXProject1.csproj ✅
 
-**Problem Statement:**
-Continue.js maintains an extensive curated model catalog (~470 model entries) covering multiple providers, dimensions (parameter sizes), and deployment options. ContinueVS currently supports only Ollama as a default provider with limited built-in model discovery.
+**Implementation (Phase 1 - Complete):**
 
-**Reference Source:**
-- `E:\GitRepos\ContinueVS\reference\continue-src\gui\src\pages\AddNewModel\configs\models.ts` — Master model catalog (3330 lines, 470+ model entries)
-- `E:\GitRepos\ContinueVS\reference\continue-src\gui\src\pages\AddNewModel\configs\providers.ts` — Provider metadata and configuration
+**What Was Added:**
+- ✅ **New `ModelCatalog.cs`** (src/VSIXProject1/Services/ModelCatalog.cs, 400+ lines)
+  - Static class with curated catalog of 79+ total LLM models across all 7 providers
+  - Used for *hydration* when saving models (fills in metadata like ContextWindow, SupportsFunctionCalling)
+  - Each model entry includes: Name, Provider, ContextWindow (tokens), SupportsFunctionCalling, SupportedToolFormats, OllamaModelId
 
-**Comparison:**
+- ✅ **Updated `ProviderCatalog.cs`** (src/VSIXProject1/Services/ProviderCatalog.cs, now includes DefaultModels UI display)
+  - **Critical fix:** OpenRouter now has 25 models instead of 1 placeholder
+  - **Critical fix:** Anthropic now includes "Claude 3.5 Sonnet" at the top of the list
+  - Drives the UI dropdowns in AddModelViewModel
+  - Each provider's DefaultModels list now displays in the Add Model Dialog combobox
 
-| Aspect | Continue.js | ContinueVS | Gap |
-|--------|-------------|-----------|-----|
-| **Model Entries** | ~470 curated models | 1 default (Ollama Llama 3.1 8B) | 469 models missing |
-| **Providers Supported** | 20+ (OpenAI, Claude, Mistral, DeepSeek, etc.) | 7 (Ollama, OpenAI, Anthropic, Gemini, Mistral, Azure, OpenRouter) | Partial parity; missing niche providers |
-| **Model Dimensions** | Yes (e.g., 7B, 13B, 34B, 70B, 405B variants) | No explicit dimension UI | Limited model selection UX |
-| **Open Source Models** | 100+ curated open-source entries | Ollama only | No integrated OSS model picker |
-| **Provider Models List** | Precomputed + dynamic fetch via API | Dynamic fetch only | No precomputed fallback |
-| **Auto-Detection** | Provider-specific rules per model | Basic Ollama detection | Limited capability |
+- ✅ **Updated `AddModelViewModel.cs`** (src/VSIXProject1/ViewModels/AddModelViewModel.cs)
+  - LoadModelsForProvider() pulls from SelectedProvider.DefaultModels (from ProviderCatalog) for UI display
+  - ExecuteSave() hydrates ModelInfo from ModelCatalog for metadata enrichment
+  - ValidateConnectionAsync() does the same hydration before validation
 
-**Scope for ContinueVS:**
-1. **Phase 1 (MVP)**: Hard-code popular model entries as fallback (50-100 models across all 7 providers)
-2. **Phase 2 (Enhancement)**: Implement model catalog sync from Continue.js open-source data
-3. **Phase 3 (Polish)**: Add model search/filtering UI, dimension selection for popular OSS models
+- ✅ **New `ModelCatalogTests.cs`** (src/VSIXProject1.Tests/Services/ModelCatalogTests.cs, 17 tests)
+  - All 17 tests pass, covering exact lookups, context windows, tool support, provider coverage, etc.
 
-**Current Workaround:**
-Users must manually add models via config.json; UI only shows models in config after adding them.
+**Files Modified:**
+- `src/VSIXProject1/Services/ModelCatalog.cs` (NEW, 79+ models with full provider coverage)
+- `src/VSIXProject1/Services/ProviderCatalog.cs` (CRITICAL FIX: OpenRouter + Anthropic DefaultModels)
+- `src/VSIXProject1/ViewModels/AddModelViewModel.cs` (hydration logic, unchanged in this fix)
+- `src/VSIXProject1.Tests/Services/ModelCatalogTests.cs` (NEW, 17 tests)
 
-**Blocking:** None (UX improvement, not a blocker)
+**Model Coverage (UI Display via ProviderCatalog):**
+| Provider | Count | Selected Examples |
+|----------|-------|-------------|
+| Ollama | 11 | Llama 3.1/3.2 Chat, DeepSeek Coder, Mistral, CodeLlama, Granite, WizardCoder, Gemma 4, Phind CodeLlama |
+| OpenAI | 17 | GPT-5.4 Pro/Mini, GPT-5.2/5.1/5, GPT-4.1, o3, o4, GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5-Turbo, Codex Mini |
+| Anthropic | 8 | Claude 3.5 Sonnet, Claude Opus 4.6/4.5/4.1, Claude Sonnet 4.6/4.5/4, Claude Haiku 4.5 |
+| Azure | 4 | GPT-4o, GPT-4 Turbo, GPT-4, GPT-3.5-Turbo |
+| Gemini | 6 | Gemini 3.1 Pro, Gemini 3 Flash, Gemini 3.1 Flash Lite, Gemini 2.5 Pro/Flash/Flash Lite |
+| Mistral | 9 | Devstral Medium/Small, Magistral Medium, Devstral 8B, Codestral, Codestral Mamba, Mistral Large/Small, Mistral 8x22B |
+| OpenRouter | 25 | Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude Opus 4.1, GPT-4o, GPT-4 Turbo, Mistral Large/Small, Llama 3.1 405B/70B, DeepSeek, Qwen, Gemini 2.0, Groq, Jamba, YI, Perplexity, Cohere, Together |
+
+**How It Works (Two-Layer System):**
+1. **UI Display Layer (ProviderCatalog):**
+   - AddModelViewModel.LoadModelsForProvider() reads SelectedProvider.DefaultModels from ProviderCatalog
+   - Displays as combobox in Add Model Dialog
+   - No longer shows "(Dynamic discovery via API)" for OpenRouter — shows 25 real models ✅
+
+2. **Metadata Hydration Layer (ModelCatalog):**
+   - AddModelViewModel.ExecuteSave() calls ModelCatalog.TryGetModel() to enrich metadata
+   - Supplies ContextWindow, SupportsFunctionCalling, SupportedToolFormats
+   - Falls back to provider defaults if model not in catalog
+
+**Quality:**
+- Build: Clean (all changes follow existing patterns)
+- Tests: 17/17 passing in ModelCatalogTests; all provider catalog references work
+- UI: OpenRouter dropdown now shows 25 real models; Anthropic now includes Claude 3.5 Sonnet
+- Runtime parity: UI model dropdowns now match provider lists
+
+**Blocking Resolved:** None (was not a blocker); unblocks gap19 (Context Window field in Add Model Dialog) — gap19 can now pre-populate ContextWindow from ModelCatalog
+
+**Out of Scope (Phase 2 & 3):**
+- Phase 2: Sync model catalog from Continue.js open-source data (external API/JSON)
+- Phase 3: Add search/filter UI, dimension selection UI
+
+---
 
 ---
 

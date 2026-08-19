@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
@@ -242,9 +243,29 @@ namespace ContinueVS.ViewModels
                             Name = SelectedModel,
                             Provider = SelectedProvider?.ToString() ?? string.Empty,
                             ApiKey = ApiKey,
-                            BaseUrl = BaseUrl ?? string.Empty,
-                            ContextWindow = 4096
+                            BaseUrl = BaseUrl ?? string.Empty
                         };
+
+                        // Hydrate model metadata from ModelCatalog; fallback to provider defaults if not found
+                        if (SelectedProvider != null && ModelCatalog.TryGetModel(SelectedProvider.Provider, SelectedModel ?? string.Empty, out var catalogEntry))
+                        {
+                            model.ContextWindow = catalogEntry!.ContextWindow;
+                            model.SupportsFunctionCalling = catalogEntry.SupportsFunctionCalling;
+                            model.SupportedToolFormats = catalogEntry.SupportedToolFormats ?? new List<string>();
+                            Debug.WriteLine($"[gap18-addmodelvm-validate-catalog] Loaded from catalog: ContextWindow={model.ContextWindow}");
+                        }
+                        else if (SelectedProvider != null)
+                        {
+                            model.ContextWindow = ModelCatalog.GetDefaultContextWindow(SelectedProvider.Provider);
+                            model.SupportsFunctionCalling = ModelCatalog.GetDefaultToolSupport(SelectedProvider.Provider);
+                            model.SupportedToolFormats = ModelCatalog.GetDefaultToolFormats(SelectedProvider.Provider);
+                            Debug.WriteLine($"[gap18-addmodelvm-validate-fallback] Using defaults: ContextWindow={model.ContextWindow}");
+                        }
+                        else
+                        {
+                            model.ContextWindow = 4096;
+                            model.SupportsFunctionCalling = false;
+                        }
 
                         var isValid = await _discoveryService.ValidateConnectionAsync(model);
 
@@ -284,10 +305,32 @@ namespace ContinueVS.ViewModels
                     Name = SelectedModel,
                     Provider = SelectedProvider?.Provider.ToString() ?? string.Empty,
                     ApiKey = ApiKey,
-                    BaseUrl = BaseUrl ?? string.Empty,
-                    ContextWindow = 4096,
-                    SupportsFunctionCalling = false
+                    BaseUrl = BaseUrl ?? string.Empty
                 };
+
+                // Hydrate model metadata from ModelCatalog; fallback to provider defaults if not found
+                if (SelectedProvider != null && ModelCatalog.TryGetModel(SelectedProvider.Provider, SelectedModel ?? string.Empty, out var catalogEntry))
+                {
+                    model.ContextWindow = catalogEntry!.ContextWindow;
+                    model.SupportsFunctionCalling = catalogEntry.SupportsFunctionCalling;
+                    model.SupportedToolFormats = catalogEntry.SupportedToolFormats ?? new List<string>();
+                    model.OllamaModelId = catalogEntry.OllamaModelId;
+                    Debug.WriteLine($"[gap18-addmodelvm-save-catalog-found] Loaded model metadata from catalog: ContextWindow={model.ContextWindow}");
+                }
+                else if (SelectedProvider != null)
+                {
+                    model.ContextWindow = ModelCatalog.GetDefaultContextWindow(SelectedProvider.Provider);
+                    model.SupportsFunctionCalling = ModelCatalog.GetDefaultToolSupport(SelectedProvider.Provider);
+                    model.SupportedToolFormats = ModelCatalog.GetDefaultToolFormats(SelectedProvider.Provider);
+                    Debug.WriteLine($"[gap18-addmodelvm-save-catalog-fallback] Using provider defaults: ContextWindow={model.ContextWindow}");
+                }
+                else
+                {
+                    model.ContextWindow = 4096;
+                    model.SupportsFunctionCalling = false;
+                    model.SupportedToolFormats = new List<string>();
+                    Debug.WriteLine($"[gap18-addmodelvm-save-no-provider] No provider selected; using hardcoded defaults");
+                }
 
                 var config = _configService.GetCurrentConfig();
                 if (config != null)
