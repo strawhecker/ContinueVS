@@ -71,7 +71,7 @@
 
 ---
 
-### gap5.5: ChatPage Model Selector NOT WIRED
+### gap5_5: ChatPage Model Selector NOT WIRED
 **Status:** ✅ Complete | Type: UI Model Selection Feature  
 **Implementation:**
 - Extended ChatPageViewModel with `IConfigService _configService` dependency injection
@@ -114,140 +114,6 @@
 6. SelectedModel persists across config changes and can be read by ILlmService for streaming
 
 **Blocking Resolved:** Users can now select which LLM model to use directly from the chat UI without switching to ConfigPage
-
----
-
-### gap20: LLM Context Dumping for Debugging
-**Status:** ✅ Complete | Type: Debug Observability Feature  
-**Latest Update:** Added UI toggles in Experimental settings; config now syncs with user settings
-
-**Implementation:**
-- **Config Layer** (ContinueConfig.cs):
-  - Added `DebugSettings` class with two boolean flags: `DumpContextBeforeSend` and `DumpResponseAfterReceive` (both default: false)
-  - These can be set directly in JSON if needed
-
-- **User Settings Layer** (UserSettings.cs + SettingsViewModel.cs):
-  - Added `experimental.dumpContextBeforeSend` and `experimental.dumpResponseAfterReceive` keys to UserSettings registry
-  - Both default to false (opt-in)
-  - Exposed as `bool DumpContextBeforeSend` and `bool DumpResponseAfterReceive` properties in SettingsViewModel
-  - Integrated into LoadSettings() and SaveSettingsAsync() methods for persistence
-
-- **UI Layer** (SettingsControl.xaml):
-  - Added two CheckBox toggles in the Experimental tab:
-    - "Dump Context Before Send" - Outputs complete LLM request context to Debug Output before sending
-    - "Dump Response After Receive" - Outputs complete LLM response to Debug Output after receiving
-  - Both include descriptive tooltips explaining they're for debugging
-
-- **Service Layer** (ContextDumpService.cs):
-  - Reads from both sources: `config.Debug.DumpContextBeforeSend` OR `CustomSettings["experimental.dumpContextBeforeSend"]`
-  - Allows either config file or UI settings to enable dumping
-  - Includes token estimation heuristic (~1.3 tokens/word)
-  - Dumps full untruncated content to Debug Output when enabled
-  - Output tagged with `[CONTEXT_DUMP]` prefix for easy filtering
-
-**Files Created:**
-- src/VSIXProject1/Services/Interfaces/IContextDumpService.cs
-
-**Files Modified:**
-- src/VSIXProject1/Core/Types/ContinueConfig.cs: DebugSettings class with two flags
-- src/VSIXProject1/Core/Types/UserSettings.cs: Added registry keys for both debug settings with false defaults
-- src/VSIXProject1/ViewModels/SettingsViewModel.cs: Added properties, load/save logic, constructor initialization
-- src/VSIXProject1/UI/Pages/SettingsControl.xaml: Added two CheckBox toggles in Experimental tab
-- src/VSIXProject1/Services/Implementations/ContextDumpService.cs: Dual-source config reading (file or settings)
-- src/VSIXProject1/Services/ServiceBootstrapper.cs: Registered IContextDumpService singleton
-- src/VSIXProject1/Services/Implementations/MessengerService.cs: Injected dump service, call before HTTP send
-
-**Build Status:**
-- ✅ Clean compilation (no errors)
-- ✅ All three core service files compile
-- ✅ XAML binding validation passed
-
-**How to Use:**
-1. Open ContinueVS extension
-2. Go to Settings > Experimental tab
-3. Enable "Dump Context Before Send" to see raw messages before LLM
-4. Enable "Dump Response After Receive" to see raw response after LLM
-5. Send a message to the LLM
-6. Open Debug Output pane (Debug > Windows > Output or Ctrl+Alt+O)
-7. Look for `[CONTEXT_DUMP]` tagged output showing:
-   - Each message with role, token count, character count, and full content
-   - Summary with total tokens and message count
-   - Context items if selected
-
-**Benefits:**
-- Opt-in (doesn't affect normal operation when disabled)
-- UI-driven (no need to edit JSON config)
-- Shows exactly what's sent before tokenization
-- Helps debug prompt engineering and context assembly issues
-
----
-
-### gap21: Markdown + Multi-Language Code Block Rendering Gap
-**Status:** 🔲 Pending | Type: Content Rendering Architecture
-**Problem Statement:**
-- ChatMessageControl.xaml renders LLM responses as plain-text `TextBlock`
-- Zero markdown parsing: code blocks, bold, italics, links all appear as raw markdown syntax
-- No syntax highlighting, monospace fonts, or code-block backgrounds
-- Terminal output (from tool calls), diffs, and file previews also lack proper formatting
-- Makes LLM responses and tool output hard to parse visually
-
-**Reference Architecture Scope** (from AGENTS.md scan):
-Continue.js supports **seven+ document styling categories** across multiple components:
-1. **Markdown Rendering**: `TextDialog` component (Markdown/JSX content), session export with `toMarkDown()`
-2. **Language-Specific Syntax Highlighting**: 16+ language templates (C#, Python, JavaScript, TypeScript, Java, Go, Rust, etc.)
-   - Via Highlight.js + VSCode TextMate theme mapping (hljs CSS class → color)
-   - `CreateFile` renders code with language highlighting
-   - `EditFile` renders diffs with syntax coloring
-3. **Code Block Detection & Formatting**: 
-   - Language identifier extraction from markdown fence (` ```csharp `)
-   - File path + language required in prompt instructions (`CODEBLOCK_FORMATTING_INSTRUCTIONS`)
-4. **Terminal Output Rendering**: `TerminalCollapsibleContainer` with gradient fade + status badges
-5. **Diff/Multi-File Preview**: `FindAndReplaceDisplay` with collapsible diffs and stats
-6. **Theme-Aware Coloring**: `VscThemeContext` maps VSCode theme colors to syntax highlighting
-7. **Rich Text Editing**: ProseMirror integration for input (TipTapEditor) with markdown support
-
-**Root Cause Analysis:**
-- ContinueVS uses `TextBlock`: plain-text rendering only, no markdown/markup parsing
-- No language detection from code blocks
-- No theme integration for syntax highlighting
-- No separate rendering paths for different output types (code vs. terminal vs. diff)
-
-**Solution Scope (NOT just C#):**
-- Implement markdown parser (Markdig recommended: .NET-native, fast, extends easily)
-- Map 16+ language lexers to syntax highlighting (via highlight.net or custom CSS)
-- Create rendering components for:
-  1. `MarkdownRenderer` (code blocks → styled output, links, bold/italic, etc.)
-  2. `TerminalOutputRenderer` (terminal output with status coloring)
-  3. `DiffRenderer` (side-by-side or unified diffs with syntax highlighting)
-  4. `FilePreviewRenderer` (tool output for CreateFile/EditFile)
-- Integrate VSCode theme colors for syntax highlighting (light/dark mode support)
-- Add copy-button UX to code blocks and terminal output
-
-**Files to Modify:**
-- src/VSIXProject1/UI/Views/ChatMessageControl.xaml - Replace TextBlock with markdown renderer
-- src/VSIXProject1/UI/Views/ChatMessageControl.xaml.cs - Integrate markdown parsing
-- src/VSIXProject1/UI/Renderers/ (new folder) - Add language-specific renderers
-- src/VSIXProject1/Services/IMarkdownService.cs + Implementations - Markdown parsing & language detection
-- src/VSIXProject1/Core/Types/ContinueConfig.cs - Add language lexer mappings (if config-driven)
-
-**Dependencies:**
-- NuGet: **Markdig** (markdown parsing, extensible, MIT license)
-- NuGet: **highlight.net** or custom CSS-based syntax highlighting
-- Potentially: **Prism.js** or **Highlight.js** via interop (if client-side needed later)
-- Threading: markdown parsing + syntax highlighting should be async to prevent UI blocking
-
-**Implementation Order:**
-1. Add Markdig; parse markdown and extract code blocks by language
-2. Build code block renderer (TextBlock → styled container with monospace font + background)
-3. Implement language detection and basic syntax highlighting (start with C#, Python, JavaScript)
-4. Add theme integration (dark/light mode via VSCode theme colors)
-5. Extend to terminal output and diff rendering as secondary phases
-
-**Next Steps:**
-- Prototype Markdig parsing + language detection
-- Design renderer hierarchy (base MarkdownBlock → CodeBlockRenderer, TerminalRenderer, etc.)
-- Mock VSCode theme color mapping for syntax styling
-- Test streaming updates (ensure markdown re-parses on each chunk)
 
 ---
 
@@ -1823,6 +1689,140 @@ Users must:
 4. Pre-populate with provider defaults if available (e.g., Ollama 8192, OpenAI varies)
 
 **Blocking:** None (usability issue; users can work around via ConfigPage)
+
+---
+
+### gap20: LLM Context Dumping for Debugging
+**Status:** ✅ Complete | Type: Debug Observability Feature  
+**Latest Update:** Added UI toggles in Experimental settings; config now syncs with user settings
+
+**Implementation:**
+- **Config Layer** (ContinueConfig.cs):
+  - Added `DebugSettings` class with two boolean flags: `DumpContextBeforeSend` and `DumpResponseAfterReceive` (both default: false)
+  - These can be set directly in JSON if needed
+
+- **User Settings Layer** (UserSettings.cs + SettingsViewModel.cs):
+  - Added `experimental.dumpContextBeforeSend` and `experimental.dumpResponseAfterReceive` keys to UserSettings registry
+  - Both default to false (opt-in)
+  - Exposed as `bool DumpContextBeforeSend` and `bool DumpResponseAfterReceive` properties in SettingsViewModel
+  - Integrated into LoadSettings() and SaveSettingsAsync() methods for persistence
+
+- **UI Layer** (SettingsControl.xaml):
+  - Added two CheckBox toggles in the Experimental tab:
+    - "Dump Context Before Send" - Outputs complete LLM request context to Debug Output before sending
+    - "Dump Response After Receive" - Outputs complete LLM response to Debug Output after receiving
+  - Both include descriptive tooltips explaining they're for debugging
+
+- **Service Layer** (ContextDumpService.cs):
+  - Reads from both sources: `config.Debug.DumpContextBeforeSend` OR `CustomSettings["experimental.dumpContextBeforeSend"]`
+  - Allows either config file or UI settings to enable dumping
+  - Includes token estimation heuristic (~1.3 tokens/word)
+  - Dumps full untruncated content to Debug Output when enabled
+  - Output tagged with `[CONTEXT_DUMP]` prefix for easy filtering
+
+**Files Created:**
+- src/VSIXProject1/Services/Interfaces/IContextDumpService.cs
+
+**Files Modified:**
+- src/VSIXProject1/Core/Types/ContinueConfig.cs: DebugSettings class with two flags
+- src/VSIXProject1/Core/Types/UserSettings.cs: Added registry keys for both debug settings with false defaults
+- src/VSIXProject1/ViewModels/SettingsViewModel.cs: Added properties, load/save logic, constructor initialization
+- src/VSIXProject1/UI/Pages/SettingsControl.xaml: Added two CheckBox toggles in Experimental tab
+- src/VSIXProject1/Services/Implementations/ContextDumpService.cs: Dual-source config reading (file or settings)
+- src/VSIXProject1/Services/ServiceBootstrapper.cs: Registered IContextDumpService singleton
+- src/VSIXProject1/Services/Implementations/MessengerService.cs: Injected dump service, call before HTTP send
+
+**Build Status:**
+- ✅ Clean compilation (no errors)
+- ✅ All three core service files compile
+- ✅ XAML binding validation passed
+
+**How to Use:**
+1. Open ContinueVS extension
+2. Go to Settings > Experimental tab
+3. Enable "Dump Context Before Send" to see raw messages before LLM
+4. Enable "Dump Response After Receive" to see raw response after LLM
+5. Send a message to the LLM
+6. Open Debug Output pane (Debug > Windows > Output or Ctrl+Alt+O)
+7. Look for `[CONTEXT_DUMP]` tagged output showing:
+   - Each message with role, token count, character count, and full content
+   - Summary with total tokens and message count
+   - Context items if selected
+
+**Benefits:**
+- Opt-in (doesn't affect normal operation when disabled)
+- UI-driven (no need to edit JSON config)
+- Shows exactly what's sent before tokenization
+- Helps debug prompt engineering and context assembly issues
+
+---
+
+### gap21: Markdown + Multi-Language Code Block Rendering Gap
+**Status:** 🔲 Pending | Type: Content Rendering Architecture
+**Problem Statement:**
+- ChatMessageControl.xaml renders LLM responses as plain-text `TextBlock`
+- Zero markdown parsing: code blocks, bold, italics, links all appear as raw markdown syntax
+- No syntax highlighting, monospace fonts, or code-block backgrounds
+- Terminal output (from tool calls), diffs, and file previews also lack proper formatting
+- Makes LLM responses and tool output hard to parse visually
+
+**Reference Architecture Scope** (from AGENTS.md scan):
+Continue.js supports **seven+ document styling categories** across multiple components:
+1. **Markdown Rendering**: `TextDialog` component (Markdown/JSX content), session export with `toMarkDown()`
+2. **Language-Specific Syntax Highlighting**: 16+ language templates (C#, Python, JavaScript, TypeScript, Java, Go, Rust, etc.)
+   - Via Highlight.js + VSCode TextMate theme mapping (hljs CSS class → color)
+   - `CreateFile` renders code with language highlighting
+   - `EditFile` renders diffs with syntax coloring
+3. **Code Block Detection & Formatting**: 
+   - Language identifier extraction from markdown fence (` ```csharp `)
+   - File path + language required in prompt instructions (`CODEBLOCK_FORMATTING_INSTRUCTIONS`)
+4. **Terminal Output Rendering**: `TerminalCollapsibleContainer` with gradient fade + status badges
+5. **Diff/Multi-File Preview**: `FindAndReplaceDisplay` with collapsible diffs and stats
+6. **Theme-Aware Coloring**: `VscThemeContext` maps VSCode theme colors to syntax highlighting
+7. **Rich Text Editing**: ProseMirror integration for input (TipTapEditor) with markdown support
+
+**Root Cause Analysis:**
+- ContinueVS uses `TextBlock`: plain-text rendering only, no markdown/markup parsing
+- No language detection from code blocks
+- No theme integration for syntax highlighting
+- No separate rendering paths for different output types (code vs. terminal vs. diff)
+
+**Solution Scope (NOT just C#):**
+- Implement markdown parser (Markdig recommended: .NET-native, fast, extends easily)
+- Map 16+ language lexers to syntax highlighting (via highlight.net or custom CSS)
+- Create rendering components for:
+  1. `MarkdownRenderer` (code blocks → styled output, links, bold/italic, etc.)
+  2. `TerminalOutputRenderer` (terminal output with status coloring)
+  3. `DiffRenderer` (side-by-side or unified diffs with syntax highlighting)
+  4. `FilePreviewRenderer` (tool output for CreateFile/EditFile)
+- Integrate VSCode theme colors for syntax highlighting (light/dark mode support)
+- Add copy-button UX to code blocks and terminal output
+
+**Files to Modify:**
+- src/VSIXProject1/UI/Views/ChatMessageControl.xaml - Replace TextBlock with markdown renderer
+- src/VSIXProject1/UI/Views/ChatMessageControl.xaml.cs - Integrate markdown parsing
+- src/VSIXProject1/UI/Renderers/ (new folder) - Add language-specific renderers
+- src/VSIXProject1/Services/IMarkdownService.cs + Implementations - Markdown parsing & language detection
+- src/VSIXProject1/Core/Types/ContinueConfig.cs - Add language lexer mappings (if config-driven)
+
+**Dependencies:**
+- NuGet: **Markdig** (markdown parsing, extensible, MIT license)
+- NuGet: **highlight.net** or custom CSS-based syntax highlighting
+- Potentially: **Prism.js** or **Highlight.js** via interop (if client-side needed later)
+- Threading: markdown parsing + syntax highlighting should be async to prevent UI blocking
+
+**Implementation Order:**
+1. Add Markdig; parse markdown and extract code blocks by language
+2. Build code block renderer (TextBlock → styled container with monospace font + background)
+3. Implement language detection and basic syntax highlighting (start with C#, Python, JavaScript)
+4. Add theme integration (dark/light mode via VSCode theme colors)
+5. Extend to terminal output and diff rendering as secondary phases
+
+**Next Steps:**
+- Prototype Markdig parsing + language detection
+- Design renderer hierarchy (base MarkdownBlock → CodeBlockRenderer, TerminalRenderer, etc.)
+- Mock VSCode theme color mapping for syntax styling
+- Test streaming updates (ensure markdown re-parses on each chunk)
 
 ---
 
