@@ -1791,7 +1791,8 @@ In Continue.js, each model entry includes `contextLength` as a required property
 ---
 
 ### gap19_1: Wire ModelInfo.ContextWindow to Active Token Limit
-**Status:** ⏳ Pending | Type: Runtime Correctness / Token Budget
+**Status:** ✅ Complete | Type: Runtime Correctness / Token Budget
+**Latest Update:** Implemented active model context-window precedence in `ContextWindowCollector`
 
 **Problem Statement:**
 `ModelInfo.ContextWindow` (stored in `continueVS.json`) is displayed in the UI but is **never used** to enforce the actual token limit when sending messages to the LLM. The token-limiting pipeline reads its budget from a separate file (`~/.continue/vsx-settings.json → maxContextTokens`), which defaults to `131072` regardless of what the active model reports.
@@ -1814,13 +1815,32 @@ The `ContextWindowCollector` reads `TokenLimitSettings` directly and has no awar
 - `src/VSIXProject1/Services/Interfaces/IConfigService.cs` — `GetSelectedModel()` is available but unused here
 - `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` — `DefaultContextWindow = 131072` placeholder constant
 
-**Proposed Solution:**
-When building a context window budget, resolve `MaxContextTokens` from the active model:
-1. In `ContextWindowCollector.GetContextWindowAsync()`, inject or resolve `IConfigService`
-2. Call `configService.GetSelectedModel()` to get the active `ModelInfo`
-3. If `ModelInfo.ContextWindow > 0`, use it as `MaxContextTokens` — overriding the settings file value
-4. Fall back to `TokenLimitSettings` value only if no model is selected or its `ContextWindow` is 0
-5. Remove reliance on `DefaultContextWindow = 131072` constant in `ConfigPageViewModel`
+**Implementation Summary:**
+✅ **Modified `src/VSIXProject1/Services/ContextWindowCollector.cs`:**
+- Added optional `IConfigService` parameter to constructor for dependency injection
+- Created `ResolveMaxContextTokens()` method that implements precedence logic:
+  1. Checks if an active model is selected via `configService.GetSelectedModel()`
+  2. If model exists and `ContextWindow > 0`, uses model's context window
+  3. Otherwise, falls back to `TokenLimitSettings.MaxContextTokens` from settings file
+  4. Added `[gap19-...]` debug logging for transparency
+- Updated `GetContextWindowAsync()` to compute resolved token budget before calling internal calculation
+- Modified `GetContextWindowInternal()` signature to accept pre-resolved `maxContextTokens` parameter
+
+**Precedence Logic (now implemented):**
+```
+if (active model selected && model.ContextWindow > 0)
+  use model.ContextWindow
+else
+  use TokenLimitSettings.MaxContextTokens (default 131072)
+```
+
+**Testing:**
+- Created unit tests in `src/VSIXProject1.Tests/Services/ContextWindowCollectorTests.cs`:
+  - Test active model context window override
+  - Test fallback to settings when no model selected
+  - Test fallback to settings when model context window is 0
+  - General constructor, exception handling, and concurrent call tests
+- Build: ✅ Successful (556 tests, 547 passed)
 
 **Blocking:** None
 **Related:** gap19 (ContextWindow now stored correctly in continueVS.json)

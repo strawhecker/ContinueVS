@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using ContinueVS.Services.Interfaces;
 using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Services
@@ -10,7 +11,7 @@ namespace ContinueVS.Services
     /// Collects context window token budget and utilization information from Visual Studio.
     /// 
     /// Exposes the following data:
-    /// - maxTokens: Total context window size (from TokenLimitSettings)
+    /// - maxTokens: Total context window size (from active model, or TokenLimitSettings as fallback)
     /// - usedTokens: Estimated tokens consumed by active conversation
     /// - estimatedTokens: Breakdown by source (editor, selected text, files, history)
     /// 
@@ -20,12 +21,17 @@ namespace ContinueVS.Services
     /// - Recent files: 1 token per ~N characters (limited to ~5 recent files)
     /// - Conversation history: Estimated from message count
     /// 
-    /// Token limits are read from ~/.continue/vsx-settings.json at startup.
+    /// Token limits resolve in precedence order:
+    /// 1. Active model's ContextWindow (if selected and non-zero)
+    /// 2. TokenLimitSettings from ~/.continue/vsx-settings.json
+    /// 3. Hardcoded default 131072
+    /// 
     /// All DTE access must occur on the UI thread.
     /// </summary>
     public class ContextWindowCollector
     {
         private readonly DTE _dte;
+        private readonly IConfigService? _configService;
         private const int MaxRecentFiles = 5;
         private const int EstimatedTokensPerMessage = 250;
 
@@ -51,18 +57,19 @@ namespace ContinueVS.Services
         }
 
         /// <summary>
-        /// Initialize the context window collector with a DTE instance
+        /// Initialize the context window collector with a DTE instance and optional config service.
         /// </summary>
         /// <param name="dte">Visual Studio DTE object</param>
-        public ContextWindowCollector(DTE dte)
+        /// <param name="configService">Optional config service for resolving active model's context window</param>
+        public ContextWindowCollector(DTE dte, IConfigService? configService = null)
         {
             _dte = dte ?? throw new ArgumentNullException(nameof(dte));
+            _configService = configService;
         }
 
         /// <summary>
         /// Asynchronously retrieve context window information.
-        /// Reads token limits from ~/.continue/vsx-settings.json.
-        /// Falls back to hardcoded defaults if settings unavailable.
+        /// Resolves max tokens from active model's ContextWindow, TokenLimitSettings, or hardcoded default.
         /// Must be called from the UI thread or after switching to it.
         /// </summary>
         /// <returns>ContextWindowInfo object with token budget and utilization</returns>
@@ -73,10 +80,14 @@ namespace ContinueVS.Services
                 // Load token limit settings from ~/.continue/vsx-settings.json
                 var settings = await TokenLimitSettings.ReadSettingsAsync();
 
+                // Determine MaxContextTokens with precedence: model > settings > hardcoded default
+                int maxContextTokens = ResolveMaxContextTokens(settings);
+                System.Diagnostics.Debug.WriteLine($"[gap19-collector-resolve-tokens] ResolvedMaxContextTokens={maxContextTokens}");
+
                 // Switch to UI thread for DTE access
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-                return GetContextWindowInternal(settings);
+                return GetContextWindowInternal(settings, maxContextTokens);
             }
             catch (Exception ex)
             {
@@ -87,10 +98,52 @@ namespace ContinueVS.Services
         }
 
         /// <summary>
+        /// Resolve MaxContextTokens from active model (if available) with fallback to settings.
+        /// Precedence: model.ContextWindow > settings.MaxContextTokens > 131072
+        /// </summary>
+        private int ResolveMaxContextTokens(TokenLimitSettings.TokenLimitConfig settings)
+        {
+            try
+            {
+                // Try to get active model's context window from config service
+                if (_configService != null)
+                {
+                    var activeModel = _configService.GetSelectedModel();
+                    if (activeModel != null && activeModel.ContextWindow > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[gap19-collector-active-model] Using active model context window: {activeModel.ContextWindow} (model: {activeModel.Name})");
+                        return activeModel.ContextWindow;
+                    }
+                    else if (activeModel != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[gap19-collector-no-context-window] Active model selected but ContextWindow is 0 or null: {activeModel.Name}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[gap19-collector-no-active-model] No active model selected; using settings file");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[gap19-collector-no-config-service] ConfigService not available; using settings file");
+                }
+
+                // Fall back to settings file value
+                System.Diagnostics.Debug.WriteLine($"[gap19-collector-settings-fallback] Using TokenLimitSettings.MaxContextTokens: {settings.MaxContextTokens}");
+                return settings.MaxContextTokens;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap19-collector-resolve-error] Error resolving max context tokens: {ex.Message}; falling back to settings");
+                return settings.MaxContextTokens;
+            }
+        }
+
+        /// <summary>
         /// Internal synchronous implementation of context window collection
         /// Must be called on the UI thread
         /// </summary>
-        private ContextWindowInfo GetContextWindowInternal(TokenLimitSettings.TokenLimitConfig settings)
+        private ContextWindowInfo GetContextWindowInternal(TokenLimitSettings.TokenLimitConfig settings, int maxContextTokens)
         {
             try
             {
@@ -98,7 +151,7 @@ namespace ContinueVS.Services
 
                 var info = new ContextWindowInfo
                 {
-                    MaxTokens = settings.MaxContextTokens,
+                    MaxTokens = maxContextTokens,
                     EstimatedTokens = new EstimatedTokensBreakdown()
                 };
 
