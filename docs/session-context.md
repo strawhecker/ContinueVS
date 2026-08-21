@@ -2199,7 +2199,130 @@ User sends → Add message (session) → Check context window
 - AGENTS.md line 1994: `DEFAULT_PRUNING_LENGTH = 128,000`
 - AGENTS.md line 32-34, 58: `useCompactConversation()` and `useDeleteCompaction()` React hooks
 
+### gap23 Agent Mode: Core Loop & Tool Cycling Not Implemented
+
+**Status:** STRUCTURAL GAP — 24-30% of required functionality present  
+**Severity:** 🔴 CRITICAL for functional agent mode  
+**Analysis Date:** 2026-08-05
+
 ---
+
+#### **Real State: What's Implemented**
+
+| Component | Coverage | Notes |
+|-----------|----------|-------|
+| **Agent Mode Enum** | ✅ 100% | `ChatMode.Agent` exists |
+| **Built-in Tools** | ✅ ~80% | 8+ tools defined, routing stubbed |
+| **Tool Types** | ✅ ~70% | `ToolDefinition`, `ToolCall`, `ToolResult` present |
+| **ToolService Routing** | ✅ ~60% | Basic switch routing; no policy/preprocessing |
+| **IToolService Interface** | ✅ 100% | Defined but sparse implementations |
+
+---
+
+#### **Critical Gaps: What Breaks Agent Loop**
+
+**TIER 1: Orchestration (MISSING)**
+
+| Gap | TypeScript Reference | C# Status | Impact |
+|-----|----------------------|-----------|--------|
+| **Agent Loop Orchestrator** | `core.ts:700-900` (150+ lines) | NOT FOUND | 🔴 No multi-turn reasoning |
+| **Tool-to-LLM Result Cycling** | `llm/streamChat()` injects `role:tool` messages | NOT IMPLEMENTED | 🔴 LLM doesn't see tool outputs |
+| **Streaming Tool Deltas** | `streamChat()` yields incremental tool calls | STUBBED | 🔴 No partial feedback to UI |
+
+**Without these:** Agent mode button exists but pressing it stops after LLM generates first tool call.
+
+**TIER 2: Tool System Runtime (STUBBED)**
+
+| Feature | TS Lines | C# Gap |
+|---------|----------|--------|
+| **Tool Argument Preprocessing** | `parseArgs()` with type coercion (lines 17-120) | Not found |
+| **Tool Policy Evaluation** | `evaluateToolCallPolicy()` callback (lines 130-150) | Not found |
+| **Tool Extras Context** | `ToolExtras` (ide, llm, config, fetch) passed to tools | Services exist but not wired |
+| **Tool Result Streaming** | `onPartialOutput()` during execution | Not found |
+| **Error Taxonomy** | `ContinueError` + 29 specific codes | `ToolErrorEventArgs` only (basic) |
+
+**Result:** Tools can't parse complex args, can't be gated by policy, can't report progress.
+
+**TIER 3: MCP Integration (0% DONE)**
+
+| What's Needed | TS Code | C# | Status |
+|---------------|---------|----|----|
+| **MCP Server Lifecycle** | `MCPManagerSingleton` + `setConnections()` (200+ lines) | `IMcpService` interface stub | 0% |
+| **OAuth Handler** | `MCPOauth.ts` (349 lines) | Not found | 0% |
+| **Tool Loading** | Fetch tool definitions from MCP servers | Stubbed | 0% |
+| **Tool Invocation** | Route calls to MCP servers | Stubbed | 0% |
+
+**Result:** MCP tools won't load or execute.
+
+**TIER 4: Config & Codebase Integration (MISSING)**
+
+| Missing Piece | TS Location | C# Status |
+|---------------|-------------|-----------|
+| **Tool Overrides** | `applyToolOverrides()` (disable, rename, re-describe) | Static registry only |
+| **Codebase Rules** | `.continue/rules.md` loader (129 lines) | Not found |
+| **Local Assistants** | `.continue/{agents,assistants,configs}` scanner | Not found |
+| **Context Provider System** | 44-line provider interfaces | `IContextService` basic |
+| **Token Counting** | `countTokens()` integration (112-132 lines of logic) | Service exists but unused |
+
+**Result:** No dynamic tool configuration, no context rules, no rule-based task decomposition.
+
+---
+
+#### **Coverage Gap Visualization**
+
+```
+TypeScript Continue Agent System: ~5,000+ LOC
+├─ core.ts (orchestration):              [████████████░░░░░░░░░] 0% in C#
+├─ tools/* (routing/policy/parsing):     [████████░░░░░░░░░░░░░] 15% in C#
+├─ config/* (handlers/loaders/rules):    [██░░░░░░░░░░░░░░░░░░░] 5% in C#
+├─ llm/* (streaming/validation/logging): [██████░░░░░░░░░░░░░░░] 20% in C#
+├─ protocol/* (messaging):               [████░░░░░░░░░░░░░░░░░] 10% in C#
+└─ mcp/* (server lifecycle/auth):        [░░░░░░░░░░░░░░░░░░░░░] 0% in C#
+
+C# Coverage: ~24-30% of full agent system
+```
+
+---
+
+#### **Why It's "Real" and "Structural"**
+
+1. **Not just UI missing** — Core orchestration logic absent
+2. **Not just integration** — No loop to wire together existing pieces
+3. **Blocking downstream** — gap9 (Plan mode), gap16 (streaming feedback), advanced agent features all depend on this
+4. **Different architecture** — TS uses async generators + streaming; C# uses event-based model, incompatible patterns
+
+**Current Reality:**
+- ✅ Types exist (scaffolding)
+- ✅ Services exist (contracts)
+- ❌ **Loop logic is missing** (the orchestrator that makes agent work)
+- ❌ **Tool-result injection missing** (how LLM learns from tool outputs)
+- ❌ **Tool system incomplete** (no policy, preprocessing, streaming feedback)
+
+---
+
+#### **Implementation Estimate for Full Fix**
+
+| Component | LOC | Complexity | Timeline |
+|-----------|-----|------------|----------|
+| Agent loop orchestrator | 300-400 | 🔴 High | 2-3 sprints |
+| Tool preprocessing + policy | 200-300 | 🟡 Medium | 1-2 sprints |
+| Tool result cycling | 150-200 | 🟡 Medium | 1 sprint |
+| MCP lifecycle + server mgmt | 400-500 | 🔴 High | 2-3 sprints |
+| Codebase rules + context | 300-400 | 🟡 Medium | 1-2 sprints |
+| **Total** | **1,350-1,800** | — | **6-11 sprints** |
+
+---
+
+#### **Continue Reference**
+
+- **AGENTS.md Lines 222-263:** Dependency graph (tools → config → orchestration)
+- **AGENTS.md Lines 700-1130:** Core agent orchestration (llm/streamChat, tool routing, message cycling)
+- **AGENTS.md Lines 1500-1550:** Tool system architecture (preprocessing, policy, result streaming)
+- **AGENTS.md Lines 2544-2608:** Runtime contexts (ToolExtras, ContextProviderExtras)
+
+---
+
+
 
 ## REMEDIATION PRIORITY ORDER (User Goals)
 
