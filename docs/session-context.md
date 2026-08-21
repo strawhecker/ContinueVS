@@ -2322,7 +2322,680 @@ C# Coverage: ~24-30% of full agent system
 
 ---
 
+### gap24 Tools Implementation Coverage: Systematic Audit vs. Continue Reference
 
+**Status:** PARTIAL IMPLEMENTATION — 11/21 tools 100% complete, 5 partial, 5 missing  
+**Severity:** 🟡 HIGH for agent mode functionality  
+**Analysis Date:** 2026-08-05  
+**Reference:** AGENTS.md lines 4436-4500 (BuiltInToolNames enum) + Continue.js source
+
+---
+
+#### **Summary: Tool Inventory**
+
+Continue.js defines **21 built-in tools** across categories:
+
+| Tool List | C# Status |
+|-----------|-----------|
+| **COMPLETE (11):** read_file, create_new_file, run_terminal_command, file_glob_search, view_diff, read_currently_open_file, list_directory, create_rule_block, git_status, git_log, create_snippet | ✅ 100% |
+| **PARTIAL (5):** edit_file_range❌, multi_edit⚠️, single_find_and_replace⚠️, git_diff⚠️, grep_search⚠️ | 🟡 40% |
+| **MISSING (5):** read_skill❌, request_rule❌, search_web❌, codebase❌, view_repo_map/view_subdirectory❌ | ❌ 0% |
+
+**Overall Coverage: 11/21 (52%) completely defined** | 5 partial (need fixes) | 5 stubbed entirely
+
+---
+
+#### **DETAILED TOOL-BY-TOOL AUDIT**
+
+---
+
+#### **gap24_1: read_file_range (MISSING)**
+
+**TS Reference:** AGENTS.md line 4443 `ReadFileRange | "read_file_range"`  
+**Purpose:** Read specific line range of file (not entire file)  
+**Why Critical:** Agent mode needs to read large files efficiently without loading everything  
+**Current C# Status:** ❌ MISSING — No GetReadFileRangeTool() method in BuiltInTools.cs  
+**Required Implementation:**
+
+```
+GetReadFileRangeTool()
+├─ Parameters:
+│  ├─ filepath: string (required) — File path
+│  ├─ startLine: number (required) — Starting line (1-indexed)
+│  └─ endLine: number (required) — Ending line inclusive
+├─ Returns: Lines of code + content in range
+└─ DefaultPerm: Automatic
+```
+
+**Blocking:** Agent mode cannot efficiently handle large files without this  
+**Add to BuiltInTools.cs:** ~30 lines of code
+
+**Fix Priority:** 🔴 CRITICAL for gap9 (Agent mode)
+
+---
+
+#### **gap24_2: multi_edit (PARTIAL - NAME MISMATCH)**
+
+**TS Reference:** AGENTS.md line 4446 `MultiEdit | "multi_edit"`  
+**Purpose:** Apply multiple file edits in single tool call  
+**Current C# Status:** ⚠️ PARTIAL — Tool exists but INCORRECTLY NAMED  
+**Issue:** Called `GetEditFileTool()` instead of `GetMultiEditTool()`  
+**Location:** BuiltInTools.cs lines 162-214  
+**Parameter Structure Issue:**
+- C# version: Not fully specified
+- TS expects: Array of `{ filepath, oldContent, newContent }` objects
+
+**Missing:** Client-side implementation for applying multi-file edits in WPF GUI  
+**Fix Required:**
+1. Rename method to GetMultiEditTool()
+2. Verify parameter structure matches TS spec
+3. Implement `callClientTool()` equivalent in WPF
+
+**Fix Priority:** 🟡 MEDIUM — Workaround exists (use individual edits)
+
+---
+
+#### **gap24_3: single_find_and_replace (PARTIAL - STUBBED)**
+
+**TS Reference:** AGENTS.md line 4445 `SingleFindAndReplace | "single_find_and_replace"`  
+**Purpose:** Single regex find-and-replace across file  
+**Current C# Status:** ⚠️ STUBBED — Not in BuiltInTools.cs  
+**Parameters Expected (TS):**
+- `filepath`: string (required)
+- `regex`: string (required) — Regex pattern
+- `replacement`: string (required) — Replacement text
+- `flags`: string (optional, e.g., "g", "i")
+
+**Missing:**
+1. Tool definition in BuiltInTools.cs
+2. ToolService.InvokeAsync() handler for single_find_and_replace case
+3. GUI client tool implementation (callClientTool)
+
+**Workaround:** Use multi_edit instead  
+**Fix Priority:** 🟡 MEDIUM — Non-critical, has fallback
+
+---
+
+#### **gap24_4: git_diff (PARTIAL - INCOMPLETE)**
+
+**TS Reference:** AGENTS.md 4453 (view_diff with git variant)  
+**Purpose:** Show git diff (staged or unstaged changes)  
+**Current C# Status:** ⚠️ PARTIAL — GetGitDiffTool() exists but incomplete  
+**Location:** BuiltInTools.cs lines 390-409  
+**Current Limitations:**
+- Only supports `filePath` parameter
+- Missing `staged` boolean (show only staged changes vs. unstaged)
+- Missing `commitRange` (e.g., "HEAD~5..HEAD", "commit1..commit2")
+- Missing `includedFiles` array filter
+
+**Needs Enhancement:**
+```
+Parameters should include:
+├─ filePath: string (optional) — Specific file
+├─ staged: boolean (optional, default false) — Show staged vs. unstaged
+└─ commitRange: string (optional) — Commit range for diff
+```
+
+**Fix Priority:** 🟡 MEDIUM — Feature gap, not breaking
+
+---
+
+#### **gap24_5: grep_search (MISSING)**
+
+**TS Reference:** AGENTS.md line 4450 `GrepSearch | "grep_search"`  
+**Purpose:** Grep-based pattern search (different from glob file search)  
+**Current C# Status:** ❌ MISSING — Not in BuiltInTools.cs  
+**Difference from file_glob_search:**
+- `grep_search`: Pattern matching within files (like Unix `grep`)
+- `file_glob_search`: Finding files by glob pattern
+
+**Expected Parameters:**
+- `query`: string (required) — Regex pattern to search
+- `path`: string (optional) — Search directory
+- `maxResults`: number (optional, default 20)
+
+**Note (from AGENTS.md 2298):** "Only on local (not remote)" — Don't expose for remote IDEs  
+**Workaround:** Users can use file_glob_search + read_file  
+**Fix Priority:** 🟡 MEDIUM — Enhancement, non-essential
+
+---
+
+#### **gap24_6: read_skill (MISSING)**
+
+**TS Reference:** AGENTS.md line 4459 `ReadSkill | "read_skill"`  
+**Purpose:** Load knowledge/skill reference files from `.continue/skills/` directory  
+**Current C# Status:** ❌ MISSING — Not in BuiltInTools.cs  
+**Expected Parameters:**
+- `skillName`: string (required) — Name of skill file to load
+- `filePath`: string (optional) — Path within skills directory
+
+**Returns:** Skill file content for context injection  
+**Note:** Requires `.continue/skills/` directory scanning (may not exist if user doesn't create it)  
+**Priority:** 🟠 LOW — Knowledge enhancement, not MVP
+
+---
+
+#### **gap24_7: request_rule (MISSING)**
+
+**TS Reference:** AGENTS.md line 4456 `RequestRule | "request_rule"`  
+**Purpose:** Dynamically load context rules during agent execution  
+**Current C# Status:** ❌ MISSING  
+**Different From:** `create_rule_block` (which creates rules)  
+`request_rule` loads existing rules from `.continue/rules.md`
+
+**Expected Parameters:**
+- `ruleName`: string (required) — Rule identifier
+- `context`: string (optional) — Context for rule scope
+
+**Note:** Requires rules.md parser (gap24_missing_rules)  
+**Priority:** 🟠 LOW — Rule system, non-essential for MVP
+
+---
+
+#### **gap24_8: search_web (MISSING)**
+
+**TS Reference:** AGENTS.md line 4452 `SearchWeb | "search_web"`  
+**Purpose:** Web search integration (e.g., Brave Search API)  
+**Current C# Status:** ❌ MISSING  
+**Expected Parameters:**
+- `query`: string (required) — Search query
+- `maxResults`: number (optional, default 5)
+
+**Note:** Requires API key configuration (conditional tool)  
+**Workaround:** Disabled if no API key; agent can skip  
+**Priority:** 🟠 LOW — Feature enhancement
+
+---
+
+#### **gap24_9: codebase (MISSING - CRITICAL)**
+
+**TS Reference:** AGENTS.md line 4458 `CodebaseTool | "codebase"`  
+**Purpose:** High-level codebase search/navigation (semantic + indexed)  
+**Current C# Status:** ❌ MISSING — Not in BuiltInTools.cs  
+**Expected Parameters:**
+- `query`: string (required) — Search/analysis query
+- `type`: enum (optional) — "symbol" | "file" | "definition"
+- `maxResults`: number (optional)
+
+**Why Critical:** Key tool for agent understanding codebase (find related files, symbols, etc.)  
+**Requires Integration With:**
+- Codebase indexer (not yet implemented)
+- Symbol index (from IdeService.GetDocumentSymbols)
+
+**Blocking:** Gap9 (Agent mode) — Agents need intelligent code search  
+**Fix Priority:** 🔴 CRITICAL — Add to gap24 dependency chain
+
+---
+
+#### **gap24_10: view_repo_map / view_subdirectory (EXPERIMENTAL - EXCLUDED)**
+
+**TS Reference:** AGENTS.md lines 4460-4461  
+**Purpose:** Show repository structure visualization  
+**Current C# Status:** ❌ MISSING  
+**Note:** Marked as **excluded from allTools** per Continue spec — Not part of standard toolset  
+**Priority:** ⚠️ SKIP FOR NOW — Experimental, excluded by design
+
+---
+
+#### **MISSING: Tool Argument Parsing Layer**
+
+**TS Reference:** AGENTS.md lines 324-329 (parseArgs.ts)
+
+| Function | Purpose | C# Status |
+|----------|---------|-----------|
+| `safeParseToolCallArgs()` | Parse JSON/object LLM tool call args; fallback {} | ❌ MISSING |
+| `coerceArgsToSchema()` | Convert parsed objects back to strings for string-typed fields | ❌ MISSING |
+| `getStringArg(name, args)` | Extract + validate string argument | ❌ MISSING |
+| `getNumberArg(name, args)` | Extract + parse number (floor); convert string "123" → 123 | ❌ MISSING |
+| `getBooleanArg(name, args)` | Extract + parse boolean ("true"/"false" strings) | ❌ MISSING |
+
+**Impact:** Tools can't safely extract/validate parameters from LLM-generated tool calls  
+**Required in C#:** Create `ToolArgumentParser` class with 5 static methods  
+**Blocking:** All tool execution (both built-in + user-defined)  
+**Fix Priority:** 🔴 CRITICAL — Prerequisite for tool invocation
+
+---
+
+#### **MISSING: Tool Override System**
+
+**TS Reference:** AGENTS.md lines 4401-4433 (applyToolOverrides.ts)
+
+| Capability | TypeScript Implementation | C# Status |
+|-----------|--------------------------|-----------|
+| Disable tools | `override.disabled = true` filters from list | ❌ MISSING |
+| Rename tools | `override.displayTitle` changes user-facing name | ❌ MISSING |
+| Update descriptions | `override.description` replaces tool description | ❌ MISSING |
+| Validation errors | Returns `ConfigValidationError[]` if override name invalid | ❌ MISSING |
+
+**Impact:** Users can't customize tool availability via config  
+**Required in C#:** `ToolOverrideProcessor` class in ConfigService  
+**Flow:**
+1. Load configOverrides from config.json
+2. For each override, find matching tool
+3. Apply disable/rename/re-describe
+4. Filter out disabled tools from GetAvailableTools()
+
+**Priority:** 🟡 MEDIUM — Configuration flexibility
+
+---
+
+#### **TOOL EXECUTION PATH: What's Stubbed**
+
+**Current ToolService.InvokeAsync() (lines 103-137):**
+
+```csharp
+✅ GetTool(toolName) — Finds tool in registry
+✅ InvokeAsync(toolName, args) → Dispatches by ToolType
+🟡 BuiltIn branch → Calls backend helper method
+   ├─ read_file → ReadFileInternalAsync() [stubbed]
+   ├─ write_file → WriteFileInternalAsync() [stubbed]
+   ├─ run_terminal → RunTerminalInternalAsync() [stubbed]
+   └─ ... (pattern continues)
+❌ Tool result streaming → Not implemented
+❌ Tool policy evaluation → Not implemented
+❌ Tool extras (ide, llm, config, fetch) → Not passed to tools
+❌ Error taxonomy → Only ToolErrorEventArgs (basic)
+```
+
+**What's Needed:**
+1. Implement each stubbed backend method in IIdeService
+2. Add policy evaluation before execution
+3. Stream partial tool results back to LLM
+4. Pass ToolExtras context (ide, llm, config) to tool handlers
+5. Expand error handling to match TS error taxonomy
+
+---
+
+#### **COMPARISON TABLE: TypeScript vs C# Tool Systems**
+
+| Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
+|--------|--------------------------|-----------------|-----|
+| **Tool Definitions** | 21 tools in BuiltInToolNames enum | 11 complete + 5 partial | -5 missing |
+| **Type Safety** | Union types + Function overloads | Public static methods | Similar |
+| **Parameter Parsing** | 5 utility functions (getStringArg, etc.) | None exist | Critical gap |
+| **Tool Overrides** | applyToolOverrides() (68 lines) | None | High gap |
+| **Tool Routing** | callTool() dispatcher (280 LOC) | ToolService.InvokeAsync() (100 LOC) | ~50% implemented |
+| **Client-Side Tools** | editImpl, multiEditImpl, callClientTool (160 LOC) | Not in C# (WPF will need similar) | Future work |
+| **Error Handling** | ContinueError + 29 error codes | ToolErrorEventArgs (5 types) | 85% reduction |
+| **Tool Streaming** | Partial results via onPartialOutput() | Not implemented | Critical gap |
+
+---
+
+#### **100% COMPLETE TOOLS (Ready for Backend Implementation)**
+
+**The following 11 tools have fully specified ToolDefinition objects in C#:**
+
+1. ✅ **read_file** — File reading (BuiltInTools.cs:45-61)
+2. ✅ **create_new_file** — New file creation (67-90)
+3. ✅ **run_terminal_command** — Shell execution (97-121)
+4. ✅ **file_glob_search** — Glob file search (127-150)
+5. ✅ **view_diff** — Unified diff display (375-409)
+6. ✅ **read_currently_open_file** — Current editor file (340-374)
+7. ✅ **list_directory** — Directory listing (290-339)
+8. ✅ **create_rule_block** — System prompt rule (215-251)
+9. ✅ **git_status** — Git status query (252-289)
+10. ✅ **git_log** — Commit history (415-432)
+11. ✅ **create_snippet** — Code snippet storage (460-484)
+
+**Note:** Tool **definitions** are complete (parameters, descriptions, return types), but **execution backends** (methods called by ToolService) remain stubbed. Backend work is separate from definition coverage.
+
+---
+
+#### **CONTINUE.JS REFERENCE CITATIONS**
+
+- **BuiltInToolNames Enum:** AGENTS.md lines 4436-4466
+- **Tool Definitions Detail:** AGENTS.md lines 2277-2299 (base 9) + 2288-2298 (conditional)
+- **Tool Call Dispatcher:** AGENTS.md lines 4469-4500 (callTool orchestration)
+- **Argument Parsing Utilities:** AGENTS.md lines 320-329 (safeParseToolCallArgs, getStringArg, etc.)
+- **Tool Override Processing:** AGENTS.md lines 4401-4433 (applyToolOverrides)
+- **MCP Tool Integration:** AGENTS.md lines 2302-2315 (tool discovery from servers)
+
+---
+
+### gap25: User Settings and State Persistence NOT FULLY IMPLEMENTED
+
+**Status:** PARTIAL IMPLEMENTATION — 13/19 UI settings implemented, localStorage/theme system incomplete  
+**Severity:** 🟡 MEDIUM — Core functionality works, but settings consistency & persistence gaps remain  
+**Analysis Date:** 2026-08-05  
+**Reference:** AGENTS.md localStorage.ts, migrateLocalStorage.ts, theme.ts, uiSlice.ts, LocalStorage context
+
+---
+
+#### **Summary: Settings vs. Continue Reference**
+
+Continue.js implements a **multi-layer settings architecture**:
+
+| Layer | TypeScript Implementation | C# (ContinueVS) | Gap |
+|-------|--------------------------|-----------------|-----|
+| **User Settings (Config)** | 19 settings in CustomSettings | 19 settings in UserSettings registry ✅ | 0 |
+| **UI State (Redux)** | UIState slice (tool/rule/reasoning policies) | Partial — ChatPageViewModel only | Missing |
+| **Theme Persistence** | THEME_CSS_VARS → localStorage → CSS vars | Color vars hardcoded to defaults | HIGH gap |
+| **localStorage Integration** | LocalStorageContext + custom events | No browser storage wrapper | HIGH gap |
+| **Settings Migration** | migrateLocalStorage() + schema versioning | No migration pipeline | MEDIUM gap |
+| **Font Size Sync** | LocalStorageProvider syncs across tabs | SettingsControl UI only | MEDIUM gap |
+
+**Overall Coverage: 13/19 (68%)** — Config storage works, but UI state & persistence layer incomplete
+
+---
+
+#### **gap25_1: Redux UIState Slice NOT PORTED (CRITICAL)**
+
+**TS Reference:** AGENTS.md lines 840-900 (uiSlice.ts)
+
+**What it is:**
+Redux Slice managing transient UI state:
+- Tool policies (per-tool: auto_approve/ask_first/disabled)
+- Tool group policies
+- Rule settings (enabled/disabled)
+- Reasoning settings (enabled/budget)
+- Dialog visibility states (onboarding, explore, etc.)
+- TTS active state
+- File editing state
+
+**Current C# Status:** ❌ MISSING — No equivalent Redux slice
+
+**Why Critical:**
+1. Tool policies must be persisted across sessions
+2. User toggles tool access → stored in UI state
+3. Agent mode reads tool policies at execution time
+4. Without this, all tools execute with default policy
+
+**Required Implementation:**
+
+```csharp
+// Core/Types/UIState.cs
+public class UIState
+{
+    public Dictionary<string, ToolPolicy> ToolSettings { get; set; }  // toolName → policy
+    public Dictionary<string, bool> ToolGroupSettings { get; set; }    // group name → enabled
+    public Dictionary<string, bool> RuleSettings { get; set; }         // rule name → enabled
+    public Dictionary<string, Reasoning> ReasoningSettings { get; set; }
+    public bool OnboardingCardVisible { get; set; }
+    public bool ExploreDialogOpen { get; set; }
+    public bool TTSActive { get; set; }
+}
+
+// Persist in ContinueConfig.CustomSettings with prefix "ui."
+```
+
+**Blocking:** gap9 (Agent mode tool execution)
+
+**Fix Priority:** 🔴 CRITICAL — Tool policies must persist
+
+---
+
+#### **gap25_2: localStorage Context & Custom Events MISSING**
+
+**TS Reference:** AGENTS.md lines 56, 708-710 (LocalStorageContext)
+
+**What it is:**
+Continue.js uses `LocalStorageContext` to:
+1. Wrap browser `localStorage` API with type safety
+2. Fire custom events on value changes
+3. Sync font size across browser tabs
+4. Persist onboarding dismissals
+
+**Current C# Status:** ❌ MISSING — No equivalent
+
+**Why it matters:**
+1. Multi-tab sync: User changes font size in one window → other windows update
+2. Onboarding state: "Don't show this again" persisted indefinitely
+3. IDE state: Explore dialog, file editor, etc.
+
+**Required Implementation:**
+
+```csharp
+// Services/Interfaces/ILocalStorageService.cs
+public interface ILocalStorageService
+{
+    void SetItem<T>(string key, T value);      // Store + fire event
+    T? GetItem<T>(string key);                 // Retrieve
+    void RemoveItem(string key);
+    event EventHandler<LocalStorageChangedEventArgs> LocalStorageChanged;
+}
+
+// Use ContinueVS registry (not actual localStorage)
+// Store in %APPDATA%/Continue/localStorageCache.json
+```
+
+**Workaround:** Use `SettingsViewModel` for font size persistence (currently working)
+
+**Fix Priority:** 🟡 MEDIUM — Enhancement, existing workarounds functional
+
+---
+
+#### **gap25_3: Theme Color Persistence NOT IMPLEMENTED**
+
+**TS Reference:** AGENTS.md lines 38, 226-266, 268-280 (setDocumentStylesFromTheme, setDocumentStylesFromLocalStorage)
+
+**What it is:**
+Continue.js caches theme colors in localStorage:
+1. IDE sends VSCode theme colors
+2. UI calculates derived colors (shadows, borders, etc.)
+3. **Cached in localStorage to avoid recalculation**
+4. On reload, restore from cache before IDE sends theme again
+
+**Current C# Status:** ⚠️ PARTIAL — Colors hardcoded to defaults
+
+**Location:** `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+- Background: `#1e1e1e` (hardcoded)
+- Foreground: `#d4d4d4` (hardcoded)
+- Accent: `#007acc` (hardcoded)
+
+**Why it matters:**
+1. **No cache**: Each session recalculates theme (slow)
+2. **IDE theme mismatch**: Chat colors don't track IDE theme changes
+3. **Custom themes unsupported**: If user changes VS color theme mid-session, chat doesn't update
+
+**Required Implementation:**
+
+```csharp
+// Core/Types/ThemeCache.cs
+public class ThemeCache
+{
+    public Dictionary<string, string> Colors { get; set; }  // CSS var name → hex
+    public DateTime CachedAt { get; set; }
+}
+
+// Services/Interfaces/IThemeCacheService.cs
+public interface IThemeCacheService
+{
+    void CacheThemeColors(Dictionary<string, string> colors);
+    Dictionary<string, string>? GetCachedTheme();
+    void ClearThemeCache();
+}
+
+// Store in ~/.continueVS/themeCache.json
+```
+
+**Workaround:** Hardcoded defaults work for now; IDE theme sync is handled by WebView2
+
+**Fix Priority:** 🟡 MEDIUM — Visual consistency enhancement
+
+---
+
+#### **gap25_4: Settings Migration Pipeline MISSING**
+
+**TS Reference:** AGENTS.md lines 44, 66-68 (migrateLocalStorage, v0→v1 migration)
+
+**What it is:**
+Continue handles localStorage schema upgrades via Redux-persist migrations:
+- **v0 → v1**: Rename old setting keys to new names
+- Example: `oldState.state.sessionId` → `session.id`
+
+**Current C# Status:** ❌ MISSING — No schema migration
+
+**Why it matters:**
+1. User runs ContinueVS v1.0 with 15 settings
+2. We release v2.0 with 19 settings (new ones added)
+3. **Without migration:** New settings revert to defaults for existing users
+4. **With migration:** New settings inherit from config or get sensible defaults
+
+**Required Implementation:**
+
+```csharp
+// Core/Config/SettingsMigration.cs
+public static class SettingsMigration
+{
+    private static int CurrentVersion = 1;
+
+    public static void MigrateCustomSettings(ContinueConfig config)
+    {
+        // Check version in config metadata
+        int fileVersion = config.CustomSettings.TryGetValue("_schemaVersion", out var v) 
+            ? (int)v 
+            : 0;
+
+        if (fileVersion < CurrentVersion)
+        {
+            // Apply v0→v1: Rename old keys
+            // e.g., if CustomSettings contains old key, rename to new
+
+            config.CustomSettings["_schemaVersion"] = CurrentVersion;
+            // ConfigService.SaveConfigAsync() commits update
+        }
+    }
+}
+```
+
+**Workaround:** Manual setting reset (delete continueVS.json, re-run)
+
+**Fix Priority:** 🟡 MEDIUM — Future-proofing for upgrades
+
+---
+
+#### **gap25_5: Font Size Cross-Tab Sync NOT IMPLEMENTED**
+
+**TS Reference:** AGENTS.md lines 708-710 (LocalStorageProvider syncs fontSize)
+
+**What it is:**
+If user has two Continue windows open:
+1. **Window A:** User sets font size → 16px
+2. **Window B:** Should automatically update to 16px (via custom event)
+
+**Current C# Status:** ⚠️ PARTIAL — Single-window only
+
+**Why it matters:**
+1. WPF doesn't have native cross-process messaging (unlike browser tabs)
+2. Would require IPC (named pipes or file watch)
+3. User expectation: Settings changes apply globally
+
+**Alternative Implementation (Polling):**
+
+```csharp
+// Services/Implementations/SettingsSyncService.cs
+public class SettingsSyncService : INotifyPropertyChanged
+{
+    private Timer _pollTimer;
+
+    public SettingsSyncService()
+    {
+        _pollTimer = new Timer(_ => CheckForChanges(), null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
+    }
+
+    private void CheckForChanges()
+    {
+        var onDiskConfig = ConfigService.GetCurrentConfig();
+        if (onDiskConfig.CustomSettings["ui.fontSize"] != _cachedFontSize)
+        {
+            OnPropertyChanged(nameof(FontSize));
+        }
+    }
+}
+```
+
+**Workaround:** Restart ContinueVS to pick up changes
+
+**Fix Priority:** 🟠 LOW — Single-window workflow typical for VS extension; polling adds overhead
+
+---
+
+#### **gap25_6: Onboarding Dismissal State NOT PERSISTED**
+
+**TS Reference:** AGENTS.md lines 24-26 (localStorage tracking onboarding status)
+
+**What it is:**
+Continue tracks onboarding wizard callbacks with localStorage:
+- `onboardingStatus = "Started"` → User saw wizard
+- `onboardingStatus = "Completed"` → Don't show wizard again
+
+**Current C# Status:** ⚠️ PARTIAL — OnboardingCard shown in UI, but no dismissal memory
+
+**Why it matters:**
+1. Persistence pattern needed for "Don't show this again" for exploration UI
+2. Users should only see onboarding once
+3. Modal dialogs need visibility tracking
+
+**Required Implementation:**
+
+```csharp
+// Core/Types/OnboardingState.cs
+public class OnboardingState
+{
+    public bool HasSeenWizard { get; set; } = false;
+    public DateTime? FirstSeenAt { get; set; }
+}
+
+// Store in ContinueConfig.CustomSettings["ui.onboarding.status"]
+```
+
+**Workaround:** Onboarding card auto-closes if models available
+
+**Fix Priority:** 🟡 MEDIUM — User experience enhancement
+
+---
+
+#### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
+
+| Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
+|--------|--------------------------|-----------------|-----|
+| **User Settings** | 19 settings in CustomSettings | 19 implemented ✅ | 0 |
+| **Config Persistence** | Partial + Redux (localStorage) | Partial (config.json only) | 50% |
+| **Redux UIState** | Full (tool policies, dialogs, etc.) | Missing | HIGH |
+| **localStorage Wrapper** | LocalStorageContext + type safety | None | HIGH |
+| **Theme Caching** | In localStorage → CSS vars | Hardcoded defaults | MEDIUM |
+| **Settings Migration** | v0→v1 via Redux-persist | None | MEDIUM |
+| **Cross-Tab Sync** | Custom events | File polling (not implemented) | LOW |
+| **Onboarding Dismissal** | localStorage persistence | Manual (config.json) | MEDIUM |
+| **Total Implementation** | ~95% (multi-layer) | ~55% (single-layer) | 40% gap |
+
+---
+
+#### **WHAT IS 100% WORKING**
+
+**User Settings Implementation (13/19 settings):**
+
+1. ✅ **Show Session Tabs** (bool)
+2. ✅ **Wrap Codeblocks** (bool)
+3. ✅ **Show Chat Scrollbar** (bool)
+4. ✅ **Text-to-Speech Output** (bool)
+5. ✅ **Enable Session Titles** (bool)
+6. ✅ **Format Markdown** (bool)
+7. ✅ **Font Size** (int, 10-24)
+8. ✅ **Multiline Autocompletions** (enum)
+9. ✅ **Autocomplete Timeout** (ms)
+10. ✅ **Autocomplete Debounce** (ms)
+11. ✅ **Disable Autocomplete in Files** (string)
+12. ✅ **Add Current File by Default** (bool)
+13. ✅ **Enable Experimental Tools** (bool)
+
+**Storage & Retrieval:** Files created: `UserSettings.cs`, `SettingsViewModel.cs`, `SettingsControl.xaml`
+
+**Test Status:** All 519 tests passing
+
+---
+
+#### **CONTINUE.JS REFERENCE CITATIONS**
+
+- **UIState Redux Slice:** AGENTS.md lines 840-900 (uiSlice.ts)
+- **Tool Policies:** AGENTS.md lines 2375-2378, 3553-3566 (tool policy enum)
+- **localStorage Wrapper:** AGENTS.md lines 658-661 (localStorage.ts)
+- **LocalStorageContext:** AGENTS.md lines 708-710 (LocalStorage.tsx)
+- **Theme Caching:** AGENTS.md lines 226-280 (setDocumentStylesFromTheme, cache functions)
+- **Settings Migration:** AGENTS.md lines 66-90 (Redux-persist createMigrate)
+- **Font Size Sync:** AGENTS.md lines 16-63 (LocalStorageProvider)
+
+---
 
 ## REMEDIATION PRIORITY ORDER (User Goals)
 
