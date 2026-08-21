@@ -59,7 +59,7 @@ namespace ContinueVS.ViewModels
                     // When model is selected, auto-populate context window from catalog
                     if (!string.IsNullOrEmpty(value) && SelectedProvider != null)
                     {
-                        if (ModelCatalog.TryGetModel(SelectedProvider.Provider, value, out var catalogEntry))
+                        if (ModelCatalog.TryGetModel(SelectedProvider.Provider, value ?? string.Empty, out var catalogEntry))
                         {
                             ContextWindow = catalogEntry!.ContextWindow.ToString();
                             Debug.WriteLine($"[gap19-addmodelvm-selected-model-catalog] Auto-populated ContextWindow={ContextWindow} from catalog for {value}");

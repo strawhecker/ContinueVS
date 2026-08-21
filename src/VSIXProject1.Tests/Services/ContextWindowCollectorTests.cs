@@ -8,6 +8,9 @@ using ContinueVS.Services.Interfaces;
 using ContinueVS.Core.Types;
 using System.Threading.Tasks;
 
+#nullable enable
+#pragma warning disable VSTHRD010 // Accessing DTE/Documents in unit tests is acceptable
+
 namespace ContinueVS.Tests.Services
 {
     public class ContextWindowCollectorTests
@@ -38,7 +41,7 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void Constructor_WithNullDTE_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new ContextWindowCollector(null));
+            Assert.Throws<ArgumentNullException>(() => new ContextWindowCollector(null!));
         }
 
         [Fact]
@@ -58,7 +61,7 @@ namespace ContinueVS.Tests.Services
         public async Task GetContextWindowAsync_HandlesNullActiveDocument()
         {
             var dteMock = CreateMockDte();
-            dteMock.Setup(d => d.ActiveDocument).Returns((Document)null);
+            dteMock.Setup(d => d.ActiveDocument).Returns((Document?)null!);
 
             var collector = new ContextWindowCollector(dteMock.Object);
             var result = await collector.GetContextWindowAsync();

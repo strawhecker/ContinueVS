@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using ContinueVS.Core;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
@@ -194,6 +195,21 @@ namespace ContinueVS.ViewModels
             _configService.ConfigChanged += ConfigService_ConfigChanged;
         }
 
+        /// <summary>
+        /// Switches to the UI/main thread via Dispatcher.InvokeAsync.
+        /// This is safe for both VS runtime and unit test contexts.
+        /// </summary>
+        private static async Task SwitchToMainThreadAsync()
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
+                await dispatcher.InvokeAsync(() => { });
+#pragma warning restore VSTHRD001
+            }
+        }
+
         private async Task InitializeAsync()
         {
             await _systemPromptService.LoadAsync();
@@ -251,7 +267,11 @@ namespace ContinueVS.ViewModels
                 InputText = string.Empty;
 
                 await _sessionService.AddMessageAsync(userMessage);
+
+                // Switch to main thread to update ObservableCollection
+                await SwitchToMainThreadAsync();
                 Messages.Add(userMessage);
+
                 System.Diagnostics.Debug.WriteLine($"[a9-command-entry] ExecuteSendMessage started. CurrentMode={CurrentMode}");
                 System.Diagnostics.Debug.WriteLine($"[a9-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
 
@@ -299,6 +319,9 @@ namespace ContinueVS.ViewModels
                         Content = string.Empty,
                         ToolCalls = null
                     };
+
+                    // Switch to main thread to update ObservableCollection
+                    await SwitchToMainThreadAsync();
                     Messages.Add(assistantMessage);
 
                     // Stream directly without retry wrapper:
@@ -396,8 +419,10 @@ namespace ContinueVS.ViewModels
                     ExecutionStartTime = DateTime.Now
                 };
                 await _sessionService.AddMessageAsync(toolMessage);
-                Messages.Add(toolMessage);
 
+                // Switch to main thread to update ObservableCollection
+                await SwitchToMainThreadAsync();
+                Messages.Add(toolMessage);
                 try
                 {
                     var result = await _toolService.InvokeAsync(

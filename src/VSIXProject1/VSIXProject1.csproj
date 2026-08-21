@@ -50,6 +50,8 @@
         <PackageReference Include="System.Reactive" Version="6.0.0" />
         <!-- MVVM Light for ViewModel databinding and RelayCommand -->
         <PackageReference Include="MvvmLight" Version="5.4.1.1" />
+        <!-- Markdown parsing for rendering LLM responses with syntax highlighting -->
+        <PackageReference Include="Markdig" Version="0.37.0" />
       </ItemGroup>
   <ItemGroup>
     <Reference Include="System.ComponentModel.Composition" />

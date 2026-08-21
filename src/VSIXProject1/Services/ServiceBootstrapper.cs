@@ -29,6 +29,7 @@ namespace ContinueVS.Services
             services.AddSingleton<IPageNavigator, PageNavigator>();
             services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<ISystemPromptService, SystemPromptService>();
+            services.AddSingleton<IMarkdownService, MarkdownService>();
 
             // Register HTTP client singleton for MessengerService
             // Set Timeout to Infinite for streaming operations (Ollama responses may take time)

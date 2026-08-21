@@ -90,6 +90,8 @@ namespace ContinueVS.UI.Pages
                 System.Diagnostics.Debug.WriteLine($"[ChatPage] Failed to load theme: {ex.Message}");
             }
 
+            InitializeComponent();
+
             try
             {
                 var sp = ViewModelLocator.ServiceProvider;
@@ -109,8 +111,6 @@ namespace ContinueVS.UI.Pages
             {
                 System.Diagnostics.Debug.WriteLine($"[ChatPage] DataContext initialization error: {ex.Message}");
             }
-
-            InitializeComponent();
 
             // Wire up scroll-to-bottom on messages collection changed
             this.Loaded += ChatPage_Loaded;

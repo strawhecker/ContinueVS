@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace ContinueVS.Core.Types
@@ -102,6 +103,7 @@ namespace ContinueVS.Core.Types
         private ToolInvocationStatus? _invocationStatus;
         private DateTime? _executionStartTime;
         private DateTime? _executionEndTime;
+        private MarkdownNode? _renderedMarkdown;
 
         /// <summary>
         /// Unique identifier for this message.
@@ -163,6 +165,17 @@ namespace ContinueVS.Core.Types
         {
             get => _invocationStatus;
             set => SetProperty(ref _invocationStatus, value);
+        }
+
+        /// <summary>
+        /// Parsed markdown content for rich rendering.
+        /// Lazily computed from Content via IMarkdownService.
+        /// </summary>
+        [JsonIgnore]
+        public MarkdownNode? RenderedMarkdown
+        {
+            get => _renderedMarkdown;
+            set => SetProperty(ref _renderedMarkdown, value);
         }
 
         /// <summary>
