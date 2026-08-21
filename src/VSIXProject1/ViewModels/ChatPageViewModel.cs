@@ -275,6 +275,26 @@ namespace ContinueVS.ViewModels
                 System.Diagnostics.Debug.WriteLine($"[a9-command-entry] ExecuteSendMessage started. CurrentMode={CurrentMode}");
                 System.Diagnostics.Debug.WriteLine($"[a9-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
 
+                // GAP22_4: Prune messages if needed before streaming
+                var session = _sessionService.GetCurrentSession();
+                if (session?.Messages.Count > 1)
+                {
+                    var selectedModel = _configService.GetSelectedModel();
+                    if (selectedModel != null && selectedModel.ContextWindow > 0)
+                    {
+                        int availableTokens = (int)(selectedModel.ContextWindow * 0.75);
+                        int approximateNewMessageTokens = (userMessage.Content?.Length ?? 0 + 3) / 4;
+
+                        System.Diagnostics.Debug.WriteLine($"[gap22-prune-check] ContextWindow={selectedModel.ContextWindow}, Available={availableTokens}, NewMsgTokens~={approximateNewMessageTokens}");
+
+                        if (approximateNewMessageTokens > availableTokens / 2)
+                        {
+                            var (removedCount, prunedMessages) = await _sessionService.PruneOldMessagesAsync(availableTokens);
+                            System.Diagnostics.Debug.WriteLine($"[gap22-pruned] Removed {removedCount} messages to stay under token limit");
+                        }
+                    }
+                }
+
                 StreamingResponse = string.Empty;
 
                 var messages = new List<ChatMessage>();

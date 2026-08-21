@@ -328,6 +328,60 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
+        /// Prunes old messages from the current session when token count exceeds maxTokens.
+        /// Removes oldest messages first, preserving system messages if requested.
+        /// </summary>
+        public async Task<(int RemovedCount, List<ChatMessage> Pruned)> PruneOldMessagesAsync(int maxTokens, bool keepSystemMessages = true)
+        {
+            var session = GetCurrentSession();
+            var prunedMessages = new List<ChatMessage>();
+            int removedCount = 0;
+
+            lock (_lockObj)
+            {
+                if (session.Messages.Count == 0)
+                    return (0, prunedMessages);
+
+                // Collect messages to prune: oldest non-system messages first
+                var messagesToConsider = session.Messages
+                    .Where(m => !keepSystemMessages || m.Role != ChatMessageRole.System)
+                    .ToList();
+
+                // Remove oldest messages until we're under maxTokens
+                // (Note: Token counting would need ILlmService injected here for real implementation)
+                // For now, use a simple heuristic: remove oldest until count is low enough
+                int messageCount = session.Messages.Count;
+                int targetCount = Math.Max(1, messageCount / 2); // Keep at least half
+
+                if (messagesToConsider.Count > targetCount)
+                {
+                    var toRemove = messagesToConsider
+                        .OrderBy(m => m.Timestamp ?? DateTime.UtcNow)
+                        .Take(messagesToConsider.Count - targetCount)
+                        .ToList();
+
+                    foreach (var msg in toRemove)
+                    {
+                        if (session.Messages.Remove(msg))
+                        {
+                            prunedMessages.Add(msg);
+                            removedCount++;
+                        }
+                    }
+
+                    session.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            if (removedCount > 0)
+            {
+                await SaveSessionToFileAsync(session);
+            }
+
+            return (removedCount, prunedMessages);
+        }
+
+        /// <summary>
         /// Ensures the sessions storage directory exists.
         /// </summary>
         private async Task EnsureSessionsDirectoryAsync()

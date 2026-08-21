@@ -18,15 +18,17 @@ namespace ContinueVS.Services.Implementations
     public class LlmService : ILlmService
     {
         private readonly IMessengerService _messengerService;
+        private readonly IConfigService? _configService;
         private readonly IBridgeLogger? _logger;
 
         public event EventHandler<LlmErrorEventArgs>? Error;
 
-        public LlmService(IMessengerService messengerService, IBridgeLogger? logger = null)
+        public LlmService(IMessengerService messengerService, IConfigService? configService = null, IBridgeLogger? logger = null)
         {
             if (messengerService == null)
                 throw new ArgumentNullException(nameof(messengerService));
             _messengerService = messengerService;
+            _configService = configService;
             _logger = logger;
         }
 
@@ -82,6 +84,14 @@ namespace ContinueVS.Services.Implementations
         {
             if (string.IsNullOrWhiteSpace(modelId))
                 throw new ArgumentException("Model ID cannot be null or empty", nameof(modelId));
+
+            if (_configService != null)
+            {
+                var selectedModel = _configService.GetSelectedModel();
+                if (selectedModel != null && selectedModel.ContextWindow > 0)
+                    return selectedModel.ContextWindow;
+            }
+
             return 4096;
         }
 

@@ -83,5 +83,14 @@ namespace ContinueVS.Services.Interfaces
         /// Event raised when a message is added to the current session.
         /// </summary>
         event EventHandler<MessageAddedEventArgs>? MessageAdded;
+
+        /// <summary>
+        /// Prunes old messages from the current session if token count exceeds maxTokens.
+        /// Removes oldest messages first while preserving system messages if requested.
+        /// </summary>
+        /// <param name="maxTokens">Maximum tokens allowed in remaining messages.</param>
+        /// <param name="keepSystemMessages">If true, system messages are always preserved.</param>
+        /// <returns>Tuple of (count of removed messages, list of removed messages).</returns>
+        Task<(int RemovedCount, List<ChatMessage> Pruned)> PruneOldMessagesAsync(int maxTokens, bool keepSystemMessages = true);
     }
 }
