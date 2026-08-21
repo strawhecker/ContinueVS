@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Implementations;
+using ContinueVS.Services.Interfaces;
 using Xunit;
 
 namespace VSIXProject1.Tests.Services
@@ -19,7 +20,8 @@ namespace VSIXProject1.Tests.Services
 
         public SessionServiceTests()
         {
-            _sessionService = new SessionService();
+            var tokenCounter = new SimpleTokenCounterService();
+            _sessionService = new SessionService(tokenCounter);
             _testSessionsDir = Path.Combine(Path.GetTempPath(), "continue_test_sessions_" + Guid.NewGuid().ToString());
             Directory.CreateDirectory(_testSessionsDir);
         }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Implementations;
+using ContinueVS.Services.Interfaces;
 using Xunit;
 
 namespace ContinueVS.Tests.Services
@@ -17,7 +18,8 @@ namespace ContinueVS.Tests.Services
     {
         private SessionService CreateSessionService()
         {
-            return new SessionService();
+            var tokenCounter = new SimpleTokenCounterService();
+            return new SessionService(tokenCounter);
         }
 
         [Fact]

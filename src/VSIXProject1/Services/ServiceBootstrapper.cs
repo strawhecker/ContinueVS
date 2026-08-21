@@ -56,6 +56,7 @@ namespace ContinueVS.Services
                 var contextDumpService = sp.GetRequiredService<IContextDumpService>();
                 return new MessengerService(configService, httpClient, null, contextDumpService);
             });
+            services.AddSingleton<ITokenCountingService, SimpleTokenCounterService>();
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();
             services.AddSingleton<IToolService, ToolService>();

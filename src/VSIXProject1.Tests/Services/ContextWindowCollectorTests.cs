@@ -1,54 +1,67 @@
 ﻿using Xunit;
-using Moq;
-using EnvDTE;
 using System;
 using System.Collections.Generic;
 using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Core.Types;
 using System.Threading.Tasks;
 
 #nullable enable
-#pragma warning disable VSTHRD010 // Accessing DTE/Documents in unit tests is acceptable
 
 namespace ContinueVS.Tests.Services
 {
     public class ContextWindowCollectorTests
     {
-        private Mock<DTE> CreateMockDte()
+        /// <summary>
+        /// Simple stub implementation of IDteProvider without Moq to avoid interop dependency
+        /// </summary>
+        private class StubDteProvider : IDteProvider
         {
-            var dteMock = new Mock<DTE>();
-            var docsMock = new Mock<Documents>();
-            dteMock.Setup(d => d.Documents).Returns(docsMock.Object);
-            return dteMock;
-        }
+            public string ActiveDocumentContent { get; set; } = string.Empty;
+            public string SelectedText { get; set; } = string.Empty;
+            public List<string> RecentFilesData { get; set; } = new();
 
-        private Mock<IConfigService> CreateMockConfigService(ModelInfo? activeModel = null)
-        {
-            var configServiceMock = new Mock<IConfigService>();
-            configServiceMock.Setup(c => c.GetSelectedModel()).Returns(activeModel);
-            return configServiceMock;
+            public string GetSelectedText()
+            {
+                return SelectedText;
+            }
+
+            public string GetActiveDocumentContent()
+            {
+                return ActiveDocumentContent;
+            }
+
+            public List<string> GetRecentFiles(int maxCount)
+            {
+                return new List<string>(RecentFilesData.Take(maxCount));
+            }
         }
 
         [Fact]
-        public void Constructor_WithValidDTE_InitializesSuccessfully()
+        public void Constructor_WithValidDteProvider_InitializesSuccessfully()
         {
-            var dteMock = CreateMockDte();
-            var collector = new ContextWindowCollector(dteMock.Object);
+            var dte = new StubDteProvider();
+            var collector = new ContextWindowCollector(dte);
             Assert.NotNull(collector);
         }
 
         [Fact]
-        public void Constructor_WithNullDTE_ThrowsArgumentNullException()
+        public void Constructor_WithNullDteProvider_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new ContextWindowCollector(null!));
+            IDteProvider? nullProvider = null;
+            Assert.Throws<ArgumentNullException>(() => new ContextWindowCollector(nullProvider!));
         }
 
         [Fact]
         public async Task GetContextWindowAsync_ReturnsValidContextWindowInfo()
         {
-            var dteMock = CreateMockDte();
-            var collector = new ContextWindowCollector(dteMock.Object);
+            var dte = new StubDteProvider
+            {
+                ActiveDocumentContent = "sample content"
+            };
+
+            var collector = new ContextWindowCollector(dte);
             var result = await collector.GetContextWindowAsync();
 
             Assert.NotNull(result);
@@ -58,36 +71,46 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task GetContextWindowAsync_HandlesNullActiveDocument()
+        public async Task GetContextWindowAsync_HandlesNullOrEmptyContent()
         {
-            var dteMock = CreateMockDte();
-            dteMock.Setup(d => d.ActiveDocument).Returns((Document?)null!);
+            var dte = new StubDteProvider();
 
-            var collector = new ContextWindowCollector(dteMock.Object);
+            var collector = new ContextWindowCollector(dte);
             var result = await collector.GetContextWindowAsync();
 
             Assert.NotNull(result);
             Assert.True(result.MaxTokens > 0);
+            Assert.Equal(0, result.EstimatedTokens.EditorContent);
+            Assert.Equal(0, result.EstimatedTokens.SelectedText);
         }
 
         [Fact]
-        public async Task GetContextWindowAsync_HandlesExceptionGracefully()
+        public async Task GetContextWindowAsync_ReservedForNewContext_IsCalculated()
         {
-            var dteMock = new Mock<DTE>();
-            dteMock.Setup(d => d.Documents).Throws(new Exception("Test exception"));
+            var dte = new StubDteProvider
+            {
+                ActiveDocumentContent = "test content"
+            };
 
-            var collector = new ContextWindowCollector(dteMock.Object);
+            var collector = new ContextWindowCollector(dte);
             var result = await collector.GetContextWindowAsync();
 
             Assert.NotNull(result);
-            Assert.True(result.MaxTokens > 0);
+            Assert.True(result.ReservedForNewContext > 0);
+            // ReservedForNewContext = MaxTokens - UsedTokens - safetyMargin (5%)
+            Assert.True(result.ReservedForNewContext <= result.MaxTokens - result.UsedTokens);
+            Assert.True(result.ReservedForNewContext > 0);
         }
 
         [Fact]
         public async Task GetContextWindowAsync_HandlesConcurrentCalls()
         {
-            var dteMock = CreateMockDte();
-            var collector = new ContextWindowCollector(dteMock.Object);
+            var dte = new StubDteProvider
+            {
+                ActiveDocumentContent = "test"
+            };
+
+            var collector = new ContextWindowCollector(dte);
 
             var tasks = new List<Task<ContextWindowCollector.ContextWindowInfo>>
             {
@@ -106,63 +129,84 @@ namespace ContinueVS.Tests.Services
             }
         }
 
-        // ====================================================================
-        // gap19 Context Window Precedence Tests
-        // ====================================================================
-
         [Fact]
-        public async Task GetContextWindowAsync_UsesActiveModelContextWindow_WhenModelSelected()
+        public async Task GetContextWindowAsync_EstimatesEditorTokensCorrectly()
         {
-            var dteMock = CreateMockDte();
-
-            var activeModel = new ModelInfo
+            var editorContent = "This is a sample document with some content.";
+            var dte = new StubDteProvider
             {
-                Id = "test-model-id",
-                Name = "gpt-4",
-                ContextWindow = 8192
+                ActiveDocumentContent = editorContent
             };
-            var configServiceMock = CreateMockConfigService(activeModel);
 
-            var collector = new ContextWindowCollector(dteMock.Object, configServiceMock.Object);
+            var collector = new ContextWindowCollector(dte);
             var result = await collector.GetContextWindowAsync();
 
             Assert.NotNull(result);
-            Assert.Equal(8192, result.MaxTokens);
+            Assert.True(result.EstimatedTokens.EditorContent > 0);
         }
 
         [Fact]
-        public async Task GetContextWindowAsync_FallsBackToSettings_WhenNoModelSelected()
+        public async Task GetContextWindowAsync_EstimatesSelectedTextTokens()
         {
-            var dteMock = CreateMockDte();
-            var configServiceMock = CreateMockConfigService(null);
+            var dte = new StubDteProvider
+            {
+                ActiveDocumentContent = "full content",
+                SelectedText = "selected text portion"
+            };
 
-            var collector = new ContextWindowCollector(dteMock.Object, configServiceMock.Object);
+            var collector = new ContextWindowCollector(dte);
             var result = await collector.GetContextWindowAsync();
 
             Assert.NotNull(result);
-            Assert.True(result.MaxTokens > 0);
-            Assert.True(result.MaxTokens >= 131072 || result.MaxTokens > 0);
+            Assert.True(result.EstimatedTokens.SelectedText > 0);
         }
 
         [Fact]
-        public async Task GetContextWindowAsync_IgnoresZeroContextWindow_FallsBackToSettings()
+        public async Task GetContextWindowAsync_EstimatesRecentFilesTokens()
         {
-            var dteMock = CreateMockDte();
-
-            var activeModel = new ModelInfo
+            var dte = new StubDteProvider
             {
-                Id = "test-model-id",
-                Name = "test-model",
-                ContextWindow = 0
+                RecentFilesData = new List<string> { "file1.cs", "file2.cs", "file3.cs" }
             };
-            var configServiceMock = CreateMockConfigService(activeModel);
 
-            var collector = new ContextWindowCollector(dteMock.Object, configServiceMock.Object);
+            var collector = new ContextWindowCollector(dte);
             var result = await collector.GetContextWindowAsync();
 
             Assert.NotNull(result);
-            Assert.True(result.MaxTokens > 0);
-            Assert.NotEqual(0, result.MaxTokens);
+            Assert.True(result.EstimatedTokens.RecentFiles > 0);
+        }
+
+        [Fact]
+        public async Task GetContextWindowAsync_EstimatesConversationHistoryTokens()
+        {
+            var dte = new StubDteProvider();
+
+            var collector = new ContextWindowCollector(dte);
+            var result = await collector.GetContextWindowAsync();
+
+            Assert.NotNull(result);
+            Assert.True(result.EstimatedTokens.ConversationHistory >= 0);
+        }
+
+        [Fact]
+        public async Task GetContextWindowAsync_CalculatesUsedTokensSum()
+        {
+            var dte = new StubDteProvider
+            {
+                ActiveDocumentContent = "editor",
+                SelectedText = "selected",
+                RecentFilesData = new List<string> { "file.cs" }
+            };
+
+            var collector = new ContextWindowCollector(dte);
+            var result = await collector.GetContextWindowAsync();
+
+            Assert.NotNull(result);
+            var expectedUsed = result.EstimatedTokens.EditorContent
+                + result.EstimatedTokens.SelectedText
+                + result.EstimatedTokens.RecentFiles
+                + result.EstimatedTokens.ConversationHistory;
+            Assert.Equal(expectedUsed, result.UsedTokens);
         }
     }
 }

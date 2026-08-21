@@ -18,6 +18,7 @@ namespace ContinueVS.Services.Implementations
     {
         private Session? _currentSession;
         private readonly object _lockObj = new object();
+        private readonly ITokenCountingService _tokenCountingService;
 
         /// <summary>
         /// Computes the base directory for session storage: ~/.continue/sessions/
@@ -33,6 +34,15 @@ namespace ContinueVS.Services.Implementations
 
         public event EventHandler<SessionChangedEventArgs>? SessionChanged;
         public event EventHandler<MessageAddedEventArgs>? MessageAdded;
+
+        /// <summary>
+        /// Initializes a new instance of the SessionService with token counting dependency.
+        /// </summary>
+        /// <param name="tokenCountingService">Service for estimating message tokens</param>
+        public SessionService(ITokenCountingService tokenCountingService)
+        {
+            _tokenCountingService = tokenCountingService ?? throw new ArgumentNullException(nameof(tokenCountingService));
+        }
 
         /// <summary>
         /// Gets the currently active session.
@@ -330,6 +340,7 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Prunes old messages from the current session when token count exceeds maxTokens.
         /// Removes oldest messages first, preserving system messages if requested.
+        /// Uses ITokenCountingService for accurate token estimation.
         /// </summary>
         public async Task<(int RemovedCount, List<ChatMessage> Pruned)> PruneOldMessagesAsync(int maxTokens, bool keepSystemMessages = true)
         {
@@ -347,25 +358,29 @@ namespace ContinueVS.Services.Implementations
                     .Where(m => !keepSystemMessages || m.Role != ChatMessageRole.System)
                     .ToList();
 
-                // Remove oldest messages until we're under maxTokens
-                // (Note: Token counting would need ILlmService injected here for real implementation)
-                // For now, use a simple heuristic: remove oldest until count is low enough
-                int messageCount = session.Messages.Count;
-                int targetCount = Math.Max(1, messageCount / 2); // Keep at least half
+                // Calculate current token usage using token counting service
+                int currentTokens = _tokenCountingService.CountMessagesTokens(messagesToConsider);
 
-                if (messagesToConsider.Count > targetCount)
+                // Remove oldest messages until we're under maxTokens
+                if (currentTokens > maxTokens)
                 {
                     var toRemove = messagesToConsider
                         .OrderBy(m => m.Timestamp ?? DateTime.UtcNow)
-                        .Take(messagesToConsider.Count - targetCount)
                         .ToList();
 
+                    // Remove messages from oldest to newest until under threshold
                     foreach (var msg in toRemove)
                     {
+                        if (currentTokens <= maxTokens)
+                            break;
+
                         if (session.Messages.Remove(msg))
                         {
                             prunedMessages.Add(msg);
                             removedCount++;
+                            // Recalculate tokens after removal
+                            int msgTokens = _tokenCountingService.CountMessageTokens(msg);
+                            currentTokens -= msgTokens;
                         }
                     }
 

@@ -1,9 +1,7 @@
-﻿using EnvDTE;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Services.Interfaces;
-using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Services
 {
@@ -30,7 +28,7 @@ namespace ContinueVS.Services
     /// </summary>
     public class ContextWindowCollector
     {
-        private readonly DTE _dte;
+        private readonly IDteProvider _dteProvider;
         private readonly IConfigService? _configService;
         private const int MaxRecentFiles = 5;
         private const int EstimatedTokensPerMessage = 250;
@@ -42,6 +40,7 @@ namespace ContinueVS.Services
         {
             public int MaxTokens { get; set; }
             public int UsedTokens { get; set; }
+            public int ReservedForNewContext { get; set; }
             public EstimatedTokensBreakdown EstimatedTokens { get; set; } = new EstimatedTokensBreakdown();
         }
 
@@ -57,13 +56,13 @@ namespace ContinueVS.Services
         }
 
         /// <summary>
-        /// Initialize the context window collector with a DTE instance and optional config service.
+        /// Initialize the context window collector with a DTE provider abstraction.
         /// </summary>
-        /// <param name="dte">Visual Studio DTE object</param>
+        /// <param name="dteProvider">Abstraction over DTE for testing</param>
         /// <param name="configService">Optional config service for resolving active model's context window</param>
-        public ContextWindowCollector(DTE dte, IConfigService? configService = null)
+        public ContextWindowCollector(IDteProvider dteProvider, IConfigService? configService = null)
         {
-            _dte = dte ?? throw new ArgumentNullException(nameof(dte));
+            _dteProvider = dteProvider ?? throw new ArgumentNullException(nameof(dteProvider));
             _configService = configService;
         }
 
@@ -84,9 +83,8 @@ namespace ContinueVS.Services
                 int maxContextTokens = ResolveMaxContextTokens(settings);
                 System.Diagnostics.Debug.WriteLine($"[gap19-collector-resolve-tokens] ResolvedMaxContextTokens={maxContextTokens}");
 
-                // Switch to UI thread for DTE access
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-
+                // DTE access is handled inside IDteProvider implementations;
+                // those implementations are responsible for their own thread marshalling.
                 return GetContextWindowInternal(settings, maxContextTokens);
             }
             catch (Exception ex)
@@ -147,8 +145,6 @@ namespace ContinueVS.Services
         {
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
                 var info = new ContextWindowInfo
                 {
                     MaxTokens = maxContextTokens,
@@ -177,6 +173,10 @@ namespace ContinueVS.Services
                 // Cap at maxTokens
                 info.UsedTokens = Math.Min(totalUsedTokens, info.MaxTokens);
 
+                // Calculate reserved space for new context (remaining available tokens minus 5% safety margin)
+                int safetyMargin = Math.Max(1, info.MaxTokens / 20); // 5% safety margin
+                info.ReservedForNewContext = Math.Max(0, info.MaxTokens - info.UsedTokens - safetyMargin);
+
                 return info;
             }
             catch
@@ -194,34 +194,11 @@ namespace ContinueVS.Services
         {
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
-                if (_dte?.ActiveDocument == null)
+                var content = _dteProvider.GetActiveDocumentContent();
+                if (string.IsNullOrEmpty(content))
                     return 0;
 
-                // Access the Object property and check for TextDocument
-                #pragma warning disable CS8974
-                object? docObjValue = _dte.ActiveDocument.Object;
-                #pragma warning restore CS8974
-                if (!(docObjValue is TextDocument textDocument))
-                    return 0;
-
-                // Count characters in the document
-                int charCount = 0;
-                try
-                {
-                    EditPoint startPoint = textDocument.StartPoint.CreateEditPoint();
-                    EditPoint endPoint = textDocument.EndPoint.CreateEditPoint();
-                    charCount = endPoint.AbsoluteCharOffset - startPoint.AbsoluteCharOffset;
-                }
-                catch
-                {
-                    // Fallback: estimate from line count if character counting fails
-                    charCount = textDocument.EndPoint.Line * 80; // Assume ~80 chars per line
-                }
-
-                // Estimate tokens using configured ratio
-                return Math.Max(1, charCount / settings.CharsPerToken);
+                return Math.Max(1, content.Length / settings.CharsPerToken);
             }
             catch
             {
@@ -238,51 +215,10 @@ namespace ContinueVS.Services
         {
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
-                if (_dte?.ActiveDocument == null)
-                    return 0;
-
-                // Access the Object property and check for TextDocument
-                #pragma warning disable CS8974
-                object? docObjValue = _dte.ActiveDocument.Object;
-                #pragma warning restore CS8974
-                if (!(docObjValue is TextDocument textDocument))
-                    return 0;
-
-                // Get selection - safely check type first  
-                object? selection = null;
-                try
-                {
-                    selection = _dte.ActiveWindow?.Selection;
-                }
-                catch
-                {
-                    return 0;
-                }
-
-                // Type-check for TextSelection before accessing properties
-                if (selection is not TextSelection textSelection)
-                    return 0;
-
-                if (textSelection.IsEmpty)
-                    return 0;
-
-                // Get selected text
-                string? selectedText = null;
-                try
-                {
-                    selectedText = textSelection.Text;
-                }
-                catch
-                {
-                    return 0;
-                }
-
+                var selectedText = _dteProvider.GetSelectedText();
                 if (string.IsNullOrEmpty(selectedText))
                     return 0;
 
-                // Estimate tokens from selected text using configured ratio
                 return Math.Max(1, selectedText.Length / settings.CharsPerToken);
             }
             catch
@@ -300,50 +236,17 @@ namespace ContinueVS.Services
         {
             try
             {
-                ThreadHelper.ThrowIfNotOnUIThread();
-
-                if (_dte?.Documents == null)
+                var recentFiles = _dteProvider.GetRecentFiles(MaxRecentFiles);
+                if (recentFiles == null || recentFiles.Count == 0)
                     return 0;
 
+                // Estimate: assume each file is about 500 bytes on average
                 int totalTokens = 0;
-                int fileCount = 0;
-
-                foreach (Document doc in _dte.Documents)
+                foreach (var filePath in recentFiles)
                 {
-                    if (fileCount >= MaxRecentFiles)
-                        break;
-
-                    try
-                    {
-                        // Access the Object property and check for TextDocument
-                        #pragma warning disable CS8974
-                        object? docObjValue = doc.Object;
-                        #pragma warning restore CS8974
-                        if (!(docObjValue is TextDocument textDoc))
-                            continue;
-
-                        // Estimate this file's size
-                        int charCount = 0;
-                        try
-                        {
-                            EditPoint startPoint = textDoc.StartPoint.CreateEditPoint();
-                            EditPoint endPoint = textDoc.EndPoint.CreateEditPoint();
-                            charCount = endPoint.AbsoluteCharOffset - startPoint.AbsoluteCharOffset;
-                        }
-                        catch
-                        {
-                            // Fallback
-                            charCount = textDoc.EndPoint.Line * 80;
-                        }
-
-                        int fileTokens = Math.Max(1, charCount / settings.CharsPerToken);
-                        totalTokens += fileTokens;
-                        fileCount++;
-                    }
-                    catch
-                    {
-                        // Skip this file and continue
-                    }
+                    // Rough estimate: file path + assumed content
+                    int estimatedChars = filePath.Length + 500;
+                    totalTokens += Math.Max(1, estimatedChars / settings.CharsPerToken);
                 }
 
                 return totalTokens;

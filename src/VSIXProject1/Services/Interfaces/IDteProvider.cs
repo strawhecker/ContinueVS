@@ -1,0 +1,27 @@
+﻿using System.Collections.Generic;
+
+namespace ContinueVS.Services.Interfaces
+{
+    /// <summary>
+    /// Abstraction over the Visual Studio DTE object.
+    /// Allows tests to mock DTE without requiring Microsoft.VisualStudio.Interop assembly.
+    /// </summary>
+    public interface IDteProvider
+    {
+        /// <summary>
+        /// Get the selected text from the active document, or empty string if none.
+        /// </summary>
+        string GetSelectedText();
+
+        /// <summary>
+        /// Get the content of the active document.
+        /// </summary>
+        string GetActiveDocumentContent();
+
+        /// <summary>
+        /// Get recently opened file paths (up to maxCount).
+        /// </summary>
+        System.Collections.Generic.List<string> GetRecentFiles(int maxCount);
+    }
+}
+
