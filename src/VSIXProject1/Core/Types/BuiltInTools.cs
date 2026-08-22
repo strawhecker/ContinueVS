@@ -394,7 +394,7 @@ namespace ContinueVS.Core.Types
         {
             return CreateToolDefinition(
                 name: "git_diff",
-                description: "Show git diff of current changes in the repository",
+                description: "Show git diff of current changes in the repository. Can show staged changes, unstaged changes, or diff between commits",
                 parameters: new List<ParameterDefinition>
                 {
                     new ParameterDefinition
@@ -402,6 +402,21 @@ namespace ContinueVS.Core.Types
                         Name = "filePath",
                         Type = "string",
                         Description = "Optional. Specific file to show diff for. If empty, shows all diffs",
+                        IsRequired = false
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "staged",
+                        Type = "boolean",
+                        Description = "If true, shows only staged (cached) changes. Default is false (all changes)",
+                        IsRequired = false,
+                        DefaultValue = false
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "commitRange",
+                        Type = "string",
+                        Description = "Optional. Show diff between commits (e.g., 'abc123..def456' or 'HEAD~1..HEAD'). If provided, ignores staged parameter",
                         IsRequired = false
                     }
                 },
@@ -484,8 +499,126 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// read_file_range: Read a specific line range from a file (not the entire file).
+        /// Default: Automatic
+        /// </summary>
+        public static ToolDefinition GetReadFileRangeTool()
+        {
+            return CreateToolDefinition(
+                name: "read_file_range",
+                description: "Use this tool to view a specific range of lines from an existing file without loading the entire file",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "filepath",
+                        Type = "string",
+                        Description = "The path of the file to read. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "startLine",
+                        Type = "number",
+                        Description = "The starting line number (1-based indexing)",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "endLine",
+                        Type = "number",
+                        Description = "The ending line number (1-based indexing, inclusive)",
+                        IsRequired = true
+                    }
+                },
+                returnsDescription: "The file contents for the specified line range");
+        }
+
+        /// <summary>
+        /// grep_search: Pattern search within files using regex.
+        /// Default: Automatic
+        /// </summary>
+        public static ToolDefinition GetGrepSearchTool()
+        {
+            return CreateToolDefinition(
+                name: "grep_search",
+                description: "Search for files matching a regex pattern. Supports capturing groups and multiline patterns. Returns matching lines with file paths and line numbers",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "directory",
+                        Type = "string",
+                        Description = "The directory to search in (relative or absolute path)",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "pattern",
+                        Type = "string",
+                        Description = "Regex pattern to search for",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "filePattern",
+                        Type = "string",
+                        Description = "Optional glob pattern to filter files (e.g., '*.cs' or '**/*.txt'). Default is '*' (all files)",
+                        IsRequired = false,
+                        DefaultValue = "*"
+                    }
+                },
+                returnsDescription: "Array of matching lines with file paths, line numbers, and matched content");
+        }
+
+        /// <summary>
+        /// single_find_and_replace: Regex find-replace in one file.
+        /// Default: Ask First
+        /// </summary>
+        public static ToolDefinition GetSingleFindAndReplaceTool()
+        {
+            return CreateToolDefinition(
+                name: "single_find_and_replace",
+                description: "Find and replace text in a single file using regex. Safely replaces all occurrences matching the pattern",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "filepath",
+                        Type = "string",
+                        Description = "The path of the file to edit",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "pattern",
+                        Type = "string",
+                        Description = "Regex pattern to search for",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "replacement",
+                        Type = "string",
+                        Description = "Text to replace matched pattern with. Supports backreferences like $1, $2, etc.",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "flags",
+                        Type = "string",
+                        Description = "Optional regex flags: 'i' for case-insensitive, 'm' for multiline. Default is '' (no flags)",
+                        IsRequired = false,
+                        DefaultValue = ""
+                    }
+                },
+                returnsDescription: "Confirmation of replacement with number of replacements made",
+                invokePerm: "Ask First");
+        }
+
+        /// <summary>
         /// Gets all built-in tool definitions.
-        /// Returns a collection of 19 core tools for code editing, navigation, and diagnostics.
+        /// Returns a collection of 22 core tools for code editing, navigation, and diagnostics.
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
@@ -510,7 +643,10 @@ namespace ContinueVS.Core.Types
                 GetGitDiffTool(),
                 GetGitLogTool(),
                 GetGitCommitTool(),
-                GetCreateSnippetTool()
+                GetCreateSnippetTool(),
+                GetReadFileRangeTool(),
+                GetGrepSearchTool(),
+                GetSingleFindAndReplaceTool()
             };
             Debug.WriteLine($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;

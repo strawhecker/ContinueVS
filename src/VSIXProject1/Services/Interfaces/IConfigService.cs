@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
+using ContinueVS.Services.Implementations;
 
 namespace ContinueVS.Services.Interfaces
 {
@@ -89,6 +90,13 @@ namespace ContinueVS.Services.Interfaces
         /// </summary>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task ReloadConfigAsync();
+
+        /// <summary>
+        /// Gets the tool override configuration (disable, rename, validate).
+        /// Returns null if no overrides are configured.
+        /// </summary>
+        /// <returns>ToolOverrideConfig instance or null</returns>
+        ToolOverrideConfig? GetToolOverrideConfig();
 
         /// <summary>
         /// Event raised when configuration is changed.

@@ -188,7 +188,7 @@ namespace ContinueVS.Tests.Core.Types
 
             Assert.NotNull(tool);
             Assert.Equal("git_diff", tool.Name);
-            Assert.Single(tool.Parameters);
+            Assert.Equal(3, tool.Parameters.Count);
             Assert.True(tool.IsEnabled);
         }
 
@@ -231,7 +231,7 @@ namespace ContinueVS.Tests.Core.Types
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools();
 
             Assert.NotNull(tools);
-            Assert.Equal(19, tools.Count());
+            Assert.Equal(22, tools.Count());
         }
 
         [Fact]

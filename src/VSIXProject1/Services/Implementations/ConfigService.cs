@@ -391,6 +391,23 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
+        /// Gets the tool override configuration (disable, rename, validate).
+        /// Returns null if no overrides are configured.
+        /// </summary>
+        /// <returns>ToolOverrideConfig instance or null for no overrides</returns>
+        public ToolOverrideConfig? GetToolOverrideConfig()
+        {
+            lock (_lock)
+            {
+                ThrowIfNotInitialized();
+
+                // For now, return null (no overrides configured)
+                // This can be extended to load overrides from config file in the future
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Creates a default configuration object with predefined Ollama model.
         /// Tools populated from embedded resource via MergeToolsWithResourceAsync.
         /// </summary>

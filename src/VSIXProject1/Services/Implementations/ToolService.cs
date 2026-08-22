@@ -26,6 +26,7 @@ namespace ContinueVS.Services.Implementations
         private readonly Dictionary<string, ToolDefinition> _builtInToolRegistry = new();
         private readonly Dictionary<string, ToolDefinition> _mcpToolRegistry = new();
         private readonly object _registryLock = new object();
+        private readonly ToolOverrideProcessor _overrideProcessor = new();
 
         public event EventHandler<ToolErrorEventArgs>? Error;
 
@@ -51,7 +52,7 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Gets all available tools (both built-in and MCP).
+        /// Gets all available tools (both built-in and MCP), with overrides applied.
         /// </summary>
         public IEnumerable<ToolDefinition> GetAvailableTools()
         {
@@ -59,6 +60,10 @@ namespace ContinueVS.Services.Implementations
             {
                 var allTools = _builtInToolRegistry.Values.Concat(_mcpToolRegistry.Values).ToList();
                 Debug.WriteLine($"[gap8_1-toolsvc-available] GetAvailableTools: {_builtInToolRegistry.Count} built-in, {_mcpToolRegistry.Count} mcp, total={allTools.Count}");
+
+                // Apply overrides from configuration
+                var overrideConfig = _configService.GetToolOverrideConfig();
+                allTools = _overrideProcessor.ApplyOverrides(allTools, overrideConfig).ToList();
 
                 // Defensive: Log warning if tools are unexpectedly empty
                 if (allTools.Count == 0)

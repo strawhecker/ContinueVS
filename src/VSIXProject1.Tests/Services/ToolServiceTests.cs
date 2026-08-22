@@ -62,14 +62,14 @@ namespace ContinueVS.Tests.Services
         public void GetAvailableTools_ReturnsAllBuiltInTools()
         {
             var ideServiceMock = CreateMockIdeService();
-            var configServiceMock = CreateMockConfigService();
-            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+                var configServiceMock = CreateMockConfigService();
+                var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
 
-            var tools = service.GetAvailableTools().ToList();
+                var tools = service.GetAvailableTools().ToList();
 
-            Assert.NotEmpty(tools);
-            Assert.Equal(19, tools.Count);
-        }
+                Assert.NotEmpty(tools);
+                Assert.Equal(22, tools.Count);
+            }
 
         [Fact]
         public void GetAvailableTools_ContainsExpectedToolNames()
