@@ -59,14 +59,16 @@ namespace ContinueVS.ViewModels
     }
 
     public class ChatPageViewModel : ViewModelBase
-    {
-        private readonly ILlmService _llmService;
-        private readonly IContextService _contextService;
-        private readonly IToolService _toolService;
-        private readonly ISessionService _sessionService;
-        private readonly INotificationService _notificationService;
-        private readonly IConfigService _configService;
-        private readonly ISystemPromptService _systemPromptService;
+        {
+            private readonly ILlmService _llmService;
+            private readonly IContextService _contextService;
+            private readonly IToolService _toolService;
+            private readonly ISessionService _sessionService;
+            private readonly INotificationService _notificationService;
+            private readonly IConfigService _configService;
+            private readonly ISystemPromptService _systemPromptService;
+            private readonly IUIStateService _uiStateService;
+            private UIState? _cachedUIState;
 
         private string? _inputText;
         private bool _isStreaming;
@@ -169,7 +171,8 @@ namespace ContinueVS.ViewModels
             ISessionService sessionService,
             INotificationService notificationService,
             IConfigService configService,
-            ISystemPromptService systemPromptService)
+            ISystemPromptService systemPromptService,
+            IUIStateService uiStateService)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -178,6 +181,7 @@ namespace ContinueVS.ViewModels
             if (notificationService == null) throw new ArgumentNullException(nameof(notificationService));
             if (configService == null) throw new ArgumentNullException(nameof(configService));
             if (systemPromptService == null) throw new ArgumentNullException(nameof(systemPromptService));
+            if (uiStateService == null) throw new ArgumentNullException(nameof(uiStateService));
 
             _llmService = llmService;
             _contextService = contextService;
@@ -186,6 +190,7 @@ namespace ContinueVS.ViewModels
             _notificationService = notificationService;
             _configService = configService;
             _systemPromptService = systemPromptService;
+            _uiStateService = uiStateService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -222,6 +227,19 @@ namespace ContinueVS.ViewModels
         {
             await _systemPromptService.LoadAsync();
             await LoadModelsAsync();
+
+            // Cache UIState for tool policy decisions in ExecuteToolCallsAsync
+            try
+            {
+                _cachedUIState = await _uiStateService.GetUIStateAsync();
+                System.Diagnostics.Debug.WriteLine($"[gap9-uistate-load] UIState cached: {_cachedUIState?.ToolSettings.Count ?? 0} tool policies loaded");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap9-uistate-error] Failed to load UIState: {ex.Message}");
+                // Fall back to empty UIState (all tools default to AskFirst)
+                _cachedUIState = new UIState();
+            }
         }
 
         private async Task LoadModelsAsync()
@@ -449,15 +467,85 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
+        /// Gets the policy for a tool from cached UIState.
+        /// Defaults to AskFirst (safe) if:
+        ///   - Tool not found in UIState
+        ///   - UIState is null
+        /// </summary>
+        private ToolPolicy GetToolPolicy(string toolName)
+        {
+            if (_cachedUIState == null || _cachedUIState.ToolSettings == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap9-policy-default] No UIState cached; defaulting {toolName} to AskFirst");
+                return ToolPolicy.AskFirst;
+            }
+
+            if (_cachedUIState.ToolSettings.TryGetValue(toolName, out var policy))
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap9-policy-lookup] Tool {toolName} policy: {policy}");
+                return policy;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[gap9-policy-missing] Tool {toolName} not in UIState; defaulting to AskFirst");
+            return ToolPolicy.AskFirst;
+        }
+
+        /// <summary>
         /// Executes pending tool calls and creates Tool role messages with results.
         /// Gap23_3: Returns the number of failures in this batch for error accumulation.
         /// Tracks cumulative failures for loop termination logic (2+ failures = stop).
+        /// Gap9: Respects tool policies (AutoApprove, AskFirst, Disabled) from UIState.
         /// </summary>
         private async Task<int> ExecuteToolCallsAsync(List<ToolCall> toolCalls)
         {
             int failureCount = 0;
             foreach (var toolCall in toolCalls)
             {
+                // Get tool policy from cached UIState
+                var policy = GetToolPolicy(toolCall.Name);
+
+                // Apply policy logic
+                if (policy == ToolPolicy.Disabled)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[gap9-policy-apply] Tool {toolCall.Name} is DISABLED; skipping execution");
+
+                    await SwitchToMainThreadAsync();
+                    var disabledMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Tool,
+                        Content = $"[Policy: Disabled] Tool '{toolCall.Name}' is disabled and cannot be executed.",
+                        InvocationStatus = ToolInvocationStatus.Skipped,
+                        ExecutionStartTime = DateTime.Now,
+                        ExecutionEndTime = DateTime.Now
+                    };
+                    Messages.Add(disabledMessage);
+                    await _sessionService.AddMessageAsync(disabledMessage);
+                    continue;
+                }
+
+                if (policy == ToolPolicy.AskFirst)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[gap9-policy-apply] Tool {toolCall.Name} requires approval (AskFirst); skipping for now");
+
+                    // TODO: Show approval dialog for AskFirst tools
+                    // For now, stub it with a message
+                    await SwitchToMainThreadAsync();
+                    var askFirstMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Tool,
+                        Content = $"[Policy: AskFirst] Tool '{toolCall.Name}' requires your approval. Use Agent Mode with tool approval dialog to execute.",
+                        InvocationStatus = ToolInvocationStatus.Skipped,
+                        ExecutionStartTime = DateTime.Now,
+                        ExecutionEndTime = DateTime.Now
+                    };
+                    Messages.Add(askFirstMessage);
+                    await _sessionService.AddMessageAsync(askFirstMessage);
+                    continue;
+                }
+
+                // AutoApprove: Execute immediately
+                System.Diagnostics.Debug.WriteLine($"[gap9-policy-apply] Tool {toolCall.Name} is AutoApprove; executing immediately");
+
                 var toolMessage = new ChatMessage
                 {
                     Role = ChatMessageRole.Tool,
@@ -482,6 +570,7 @@ namespace ContinueVS.ViewModels
                     toolMessage.ExecutionEndTime = DateTime.Now;
 
                     System.Diagnostics.Debug.WriteLine($"[gap9-exec] Tool '{toolCall.Name}' executed successfully. Result: {result.Output}");
+
                 }
                 catch (Exception ex)
                 {

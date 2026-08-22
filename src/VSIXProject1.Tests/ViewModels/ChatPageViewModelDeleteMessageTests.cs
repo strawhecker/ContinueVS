@@ -83,6 +83,14 @@ namespace ContinueVS.Tests.ViewModels
             return mock;
         }
 
+        private static Mock<IUIStateService> CreateUIStateServiceMock()
+        {
+            var mock = new Mock<IUIStateService>();
+            mock.Setup(x => x.GetUIStateAsync())
+                .ReturnsAsync(new UIState { ToolSettings = new Dictionary<string, ToolPolicy>() });
+            return mock;
+        }
+
         [Fact]
         public void DeleteMessageCommand_RemovesMessageFromCollection()
         {
@@ -94,6 +102,7 @@ namespace ContinueVS.Tests.ViewModels
             var notificationService = CreateNotificationServiceMock();
             var configService = CreateConfigServiceMock();
             var systemPromptService = CreateSystemPromptServiceMock();
+            var uiStateService = CreateUIStateServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 llmService.Object,
@@ -102,7 +111,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
 
             // Add 3 messages to the collection
             var msg1 = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Message 1" };
@@ -136,6 +146,7 @@ namespace ContinueVS.Tests.ViewModels
             var notificationService = CreateNotificationServiceMock();
             var configService = CreateConfigServiceMock();
             var systemPromptService = CreateSystemPromptServiceMock();
+            var uiStateService = CreateUIStateServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 llmService.Object,
@@ -144,7 +155,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
 
             var messageId = "test-message-id";
             var msg = new ChatMessage { Id = messageId, Role = ChatMessageRole.User, Content = "Test" };
@@ -171,6 +183,7 @@ namespace ContinueVS.Tests.ViewModels
             var notificationService = CreateNotificationServiceMock();
             var configService = CreateConfigServiceMock();
             var systemPromptService = CreateSystemPromptServiceMock();
+            var uiStateService = CreateUIStateServiceMock();
 
             // Mock service to throw error
             sessionService.Setup(x => x.DeleteMessageAsync(It.IsAny<string>()))
@@ -183,7 +196,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
 
             var messageId = "test-message-id";
             var msg = new ChatMessage { Id = messageId, Role = ChatMessageRole.User, Content = "Test" };
@@ -219,6 +233,7 @@ namespace ContinueVS.Tests.ViewModels
             var notificationService = CreateNotificationServiceMock();
             var configService = CreateConfigServiceMock();
             var systemPromptService = CreateSystemPromptServiceMock();
+            var uiStateService = CreateUIStateServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 llmService.Object,
@@ -227,7 +242,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);
@@ -256,6 +272,7 @@ namespace ContinueVS.Tests.ViewModels
             var notificationService = CreateNotificationServiceMock();
             var configService = CreateConfigServiceMock();
             var systemPromptService = CreateSystemPromptServiceMock();
+            var uiStateService = CreateUIStateServiceMock();
 
             var viewModel = new ChatPageViewModel(
                 llmService.Object,
@@ -264,7 +281,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);

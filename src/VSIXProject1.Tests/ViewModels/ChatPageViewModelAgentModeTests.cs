@@ -79,6 +79,22 @@ namespace ContinueVS.Tests.ViewModels
             return mock;
         }
 
+        private static Mock<IUIStateService> CreateUIStateServiceMock()
+        {
+            var uiState = new UIState
+            {
+                ToolSettings = new Dictionary<string, ToolPolicy>
+                {
+                    { "grep_search", ToolPolicy.AutoApprove },
+                    { "find_symbol", ToolPolicy.AutoApprove }
+                }
+            };
+            var mock = new Mock<IUIStateService>();
+            mock.Setup(x => x.GetUIStateAsync())
+                .ReturnsAsync(uiState);
+            return mock;
+        }
+
         [Fact]
         public void AgentMode_IsAvailable()
         {
@@ -352,6 +368,7 @@ namespace ContinueVS.Tests.ViewModels
             var notificationService = CreateNotificationServiceMock();
             var configService = CreateConfigServiceMock();
             var systemPromptService = CreateSystemPromptServiceMock();
+            var uiStateService = CreateUIStateServiceMock();
 
             return new ChatPageViewModel(
                 llmService.Object,
@@ -360,7 +377,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
         }
 
         /// <summary>

@@ -1108,6 +1108,10 @@ Experimental
 
 ---
 
+**[gap9 COMPLETION UPDATE]:** Tool policy enforcement successfully integrated. ChatPageViewModel now caches UIState (gap25_1) and gates tool execution via GetToolPolicy(). Disabled/AskFirst tools skip with ToolInvocationStatus.Skipped. All 7 policy tests pass. Build: 0 errors/warnings.
+
+---
+
 ### gap10: Plan Mode NOT VISIBLE
 **Status:** âœ… COMPLETED | Type: UI Binding Fix
 **Resolution Date:** Current Session

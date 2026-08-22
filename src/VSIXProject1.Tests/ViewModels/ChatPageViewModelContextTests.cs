@@ -82,6 +82,14 @@ namespace ContinueVS.Tests.ViewModels
             return mock;
         }
 
+        private Mock<IUIStateService> CreateMockUIStateService()
+        {
+            var mock = new Mock<IUIStateService>();
+            mock.Setup(x => x.GetUIStateAsync())
+                .ReturnsAsync(new UIState { ToolSettings = new Dictionary<string, ToolPolicy>() });
+            return mock;
+        }
+
         [Fact]
         public void ChatPageViewModel_UsesModelContextWindow_NotHardcoded()
         {
@@ -93,6 +101,7 @@ namespace ContinueVS.Tests.ViewModels
             var toolService = CreateMockToolService();
             var notificationService = CreateMockNotificationService();
             var systemPromptService = CreateMockSystemPromptService();
+            var uiStateService = CreateMockUIStateService();
 
             // Act
             var viewModel = new ChatPageViewModel(
@@ -102,7 +111,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
 
             // Assert
             var selectedModel = configService.Object.GetSelectedModel();
@@ -143,6 +153,7 @@ namespace ContinueVS.Tests.ViewModels
             sessionService.Setup(x => x.PruneOldMessagesAsync(It.IsAny<int>(), It.IsAny<bool>()))
                 .ReturnsAsync((1, new List<ChatMessage>()));
 
+            var uiStateService = CreateMockUIStateService();
             var viewModel = new ChatPageViewModel(
                 llmService.Object,
                 contextService.Object,
@@ -150,7 +161,8 @@ namespace ContinueVS.Tests.ViewModels
                 sessionService.Object,
                 notificationService.Object,
                 configService.Object,
-                systemPromptService.Object);
+                systemPromptService.Object,
+                uiStateService.Object);
 
             // Assert - the pruning method should be available
             Assert.NotNull(sessionService.Object);

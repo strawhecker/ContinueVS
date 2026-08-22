@@ -61,7 +61,12 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Tool execution failed with an error.
         /// </summary>
-        Failed
+        Failed,
+
+        /// <summary>
+        /// Tool execution was skipped due to policy (Disabled, AskFirst not approved, etc.).
+        /// </summary>
+        Skipped
     }
 
     /// <summary>
