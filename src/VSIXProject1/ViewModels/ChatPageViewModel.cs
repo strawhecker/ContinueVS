@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -76,6 +77,13 @@ namespace ContinueVS.ViewModels
         private List<ToolCall> _pendingToolCalls = new List<ToolCall>();
         private const int MaxToolCallIterations = 10;
         private int _toolCallIterationCount = 0;
+
+        /// <summary>
+        /// Tracks cumulative tool failures in current iteration.
+        /// Gap23_3: If 2+ tools fail in same iteration, loop terminates.
+        /// Reset each iteration; single failures continue loop.
+        /// </summary>
+        private int _toolFailureCount = 0;
 
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
@@ -324,6 +332,7 @@ namespace ContinueVS.ViewModels
                 while (_toolCallIterationCount < MaxToolCallIterations)
                 {
                     _toolCallIterationCount++;
+                    _toolFailureCount = 0;  // Reset failure counter for this iteration
                     _pendingToolCalls.Clear();
 
                     var streamOptions = new StreamOptions
@@ -376,7 +385,15 @@ namespace ContinueVS.ViewModels
                     if (CurrentMode == ChatMode.Agent && _pendingToolCalls.Count > 0)
                     {
                         System.Diagnostics.Debug.WriteLine($"[a9-command-toolexec] Executing tools in Agent mode");
-                        await ExecuteToolCallsAsync(_pendingToolCalls);
+                        _toolFailureCount = await ExecuteToolCallsAsync(_pendingToolCalls);
+                        System.Diagnostics.Debug.WriteLine($"[gap23_3-loop] Iteration {_toolCallIterationCount}: {_pendingToolCalls.Count} tools executed, {_toolFailureCount} failures");
+
+                        // Check error accumulation: 2+ failures trigger loop termination
+                        if (_toolFailureCount >= 2)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[gap23_3-error] Too many tool failures ({_toolFailureCount}). Terminating loop.");
+                            break;
+                        }
 
                         // Collect tool results for next iteration
                         var toolResultMessages = new List<ChatMessage>();
@@ -394,6 +411,7 @@ namespace ContinueVS.ViewModels
                     else
                     {
                         // No tools or not in Agent mode, break the loop
+                        System.Diagnostics.Debug.WriteLine($"[gap23_3-loop] No tools or not in Agent mode. Breaking loop.");
                         break;
                     }
                 }
@@ -408,6 +426,12 @@ namespace ContinueVS.ViewModels
                 System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception caught: {ex.GetType().Name}");
                 System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception message: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"[ChatPageViewModel.ExecuteSendMessage] Exception stack trace: {ex.StackTrace}");
+
+                // Gap23_3: Distinguish between LLM streaming failure and other errors
+                if (ex is HttpRequestException || ex is InvalidOperationException && ex.Message.Contains("stream"))
+                {
+                    System.Diagnostics.Debug.WriteLine("[gap23_3-error] LLM streaming failed, terminating loop");
+                }
 
                 if (ex.InnerException != null)
                 {
@@ -426,9 +450,12 @@ namespace ContinueVS.ViewModels
 
         /// <summary>
         /// Executes pending tool calls and creates Tool role messages with results.
+        /// Gap23_3: Returns the number of failures in this batch for error accumulation.
+        /// Tracks cumulative failures for loop termination logic (2+ failures = stop).
         /// </summary>
-        private async Task ExecuteToolCallsAsync(List<ToolCall> toolCalls)
+        private async Task<int> ExecuteToolCallsAsync(List<ToolCall> toolCalls)
         {
+            int failureCount = 0;
             foreach (var toolCall in toolCalls)
             {
                 var toolMessage = new ChatMessage
@@ -461,10 +488,12 @@ namespace ContinueVS.ViewModels
                     toolMessage.Content = $"Tool '{toolCall.Name}' failed: {ex.Message}";
                     toolMessage.InvocationStatus = ToolInvocationStatus.Failed;
                     toolMessage.ExecutionEndTime = DateTime.Now;
+                    failureCount++;
 
                     System.Diagnostics.Debug.WriteLine($"[gap9-exec] Tool '{toolCall.Name}' execution failed: {ex.Message}");
                 }
             }
+            return failureCount;
         }
 
         private bool CanSendMessage()

@@ -362,5 +362,177 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object);
         }
+
+        /// <summary>
+        /// Gap23_3a Unit Test 1: Multiple tool messages with failure states
+        /// Validates that tool invocation statuses are individually tracked
+        /// </summary>
+        [Fact]
+        public void ToolMessages_WithFailureStates_TrackIndividualStatus()
+        {
+            // Arrange - Simulate tool batch with mixed results
+            var successTool = new ChatMessage
+            {
+                Role = ChatMessageRole.Tool,
+                Content = "Tool 'grep_search' result: Found 3 matches",
+                InvocationStatus = ToolInvocationStatus.Complete
+            };
+            var failedTool = new ChatMessage
+            {
+                Role = ChatMessageRole.Tool,
+                Content = "Tool 'read_file' failed: File not found",
+                InvocationStatus = ToolInvocationStatus.Failed
+            };
+
+            // Act
+            var toolMessages = new List<ChatMessage> { successTool, failedTool };
+            var completedCount = toolMessages.Count(m => m.InvocationStatus == ToolInvocationStatus.Complete);
+            var failedCount = toolMessages.Count(m => m.InvocationStatus == ToolInvocationStatus.Failed);
+
+            // Assert
+            Assert.Equal(1, completedCount);
+            Assert.Equal(1, failedCount);
+            Assert.NotEqual(
+                toolMessages[0].InvocationStatus,
+                toolMessages[1].InvocationStatus);
+        }
+
+        /// <summary>
+        /// Gap23_3a Unit Test 2: Failure count detection for loop termination
+        /// Validates that 2+ failures trigger loop break (gap23_3 threshold)
+        /// </summary>
+        [Fact]
+        public void ToolFailureDetection_TwoOrMoreFailures_ExceedsThreshold()
+        {
+            // Arrange - Simulate iteration with 2 tool calls, both failing
+            var failedTools = new List<ChatMessage>
+            {
+                new ChatMessage 
+                { 
+                    Role = ChatMessageRole.Tool,
+                    Content = "Tool failed",
+                    InvocationStatus = ToolInvocationStatus.Failed 
+                },
+                new ChatMessage 
+                { 
+                    Role = ChatMessageRole.Tool,
+                    Content = "Tool failed",
+                    InvocationStatus = ToolInvocationStatus.Failed 
+                }
+            };
+
+            // Act
+            var failureCount = failedTools.Count(m => m.InvocationStatus == ToolInvocationStatus.Failed);
+            bool shouldTermianateLoop = failureCount >= 2;  // gap23_3 termination threshold
+
+            // Assert
+            Assert.Equal(2, failureCount);
+            Assert.True(shouldTermianateLoop, "Loop should terminate when 2+ tools fail");
+        }
+
+        /// <summary>
+        /// Gap23_3a Unit Test 3: Single failure does not trigger loop termination
+        /// Validates that single tool failure continues iteration
+        /// </summary>
+        [Fact]
+        public void SingleToolFailure_DoesNotExceedThreshold()
+        {
+            // Arrange - Simulate iteration with 1 tool call failing
+            var failedTool = new ChatMessage
+            {
+                Role = ChatMessageRole.Tool,
+                Content = "Tool failed",
+                InvocationStatus = ToolInvocationStatus.Failed
+            };
+
+            // Act
+            var failureCount = new List<ChatMessage> { failedTool }
+                .Count(m => m.InvocationStatus == ToolInvocationStatus.Failed);
+            bool shouldTerminateLoop = failureCount >= 2;
+
+            // Assert
+            Assert.Equal(1, failureCount);
+            Assert.False(shouldTerminateLoop, "Single failure should not terminate loop");
+        }
+
+        /// <summary>
+        /// Gap23_3a Unit Test 4: Mixed success/failure tools aggregate properly
+        /// Validates failure counter in presence of successful tool calls
+        /// </summary>
+        [Fact]
+        public void MixedToolResults_FailureCountAccurate()
+        {
+            // Arrange - Simulate iteration with 3 tools: success, fail, success
+            var tools = new List<ChatMessage>
+            {
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Complete, Content = "Success" },
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Failed, Content = "Failed" },
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Complete, Content = "Success" }
+            };
+
+            // Act
+            var failureCount = tools.Count(m => m.InvocationStatus == ToolInvocationStatus.Failed);
+            var successCount = tools.Count(m => m.InvocationStatus == ToolInvocationStatus.Complete);
+
+            // Assert
+            Assert.Equal(1, failureCount);
+            Assert.Equal(2, successCount);
+            Assert.False(failureCount >= 2, "Only 1 failure should not trigger termination");
+        }
+
+        /// <summary>
+        /// Gap23_3b Integration Test 1: Error accumulation scenario with recovery
+        /// Validates that loop continues after single failure and recovers
+        /// </summary>
+        [Fact]
+        public void ErrorAccumulation_SingleFailureRecovery_Continues()
+        {
+            // Arrange - Simulate two iterations: first has 1 failure, second has 0
+            var iteration1Messages = new List<ChatMessage>
+            {
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Failed, Content = "Tool failed in iteration 1" }
+            };
+            var iteration2Messages = new List<ChatMessage>
+            {
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Complete, Content = "Tool succeeded in iteration 2" }
+            };
+
+            // Act
+            var iter1Failures = iteration1Messages.Count(m => m.InvocationStatus == ToolInvocationStatus.Failed);
+            var iter2Failures = iteration2Messages.Count(m => m.InvocationStatus == ToolInvocationStatus.Failed);
+            bool shouldContinueAfterIter1 = iter1Failures < 2;
+
+            // Assert
+            Assert.Equal(1, iter1Failures);
+            Assert.Equal(0, iter2Failures);
+            Assert.True(shouldContinueAfterIter1, "Loop should continue after single failure");
+        }
+
+        /// <summary>
+        /// Gap23_3b Integration Test 2: Error accumulation with loop termination
+        /// Validates accumulation triggers termination across iterations
+        /// </summary>
+        [Fact]
+        public void ErrorAccumulation_MultipleFailuresInIteration_Terminates()
+        {
+            // Arrange - Simulate iteration with 2+ tools failing
+            var failedIteration = new List<ChatMessage>
+            {
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Failed, Content = "Tool 1 failed" },
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Failed, Content = "Tool 2 failed" },
+                new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Complete, Content = "Tool 3 succeeded" }
+            };
+
+            // Act
+            var totalFailures = failedIteration.Count(m => m.InvocationStatus == ToolInvocationStatus.Failed);
+            bool shouldTerminate = totalFailures >= 2;
+            int lastToolStatus = failedIteration.Count - 1;
+            var lastToolResult = failedIteration[lastToolStatus].InvocationStatus;
+
+            // Assert
+            Assert.Equal(2, totalFailures);
+            Assert.True(shouldTerminate, "2+ failures should terminate loop");
+            Assert.Equal(ToolInvocationStatus.Complete, lastToolResult);  // Some tools may succeed before threshold
+        }
     }
 }

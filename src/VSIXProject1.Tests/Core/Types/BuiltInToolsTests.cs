@@ -319,5 +319,103 @@ namespace ContinueVS.Tests.Core.Types
                 }
             }
         }
+
+        /// <summary>
+        /// Gap23_2b test 1: read_file_range tool definition validation
+        /// </summary>
+        [Fact]
+        public void GetReadFileRangeTool_ReturnsValidDefinition()
+        {
+            var tool = BuiltInToolsRegistry.GetReadFileRangeTool();
+
+            Assert.NotNull(tool);
+            Assert.Equal("read_file_range", tool.Name);
+            Assert.NotNull(tool.Description);
+            Assert.Equal(3, tool.Parameters.Count);
+            Assert.Equal("filepath", tool.Parameters[0].Name);
+            Assert.Equal("startLine", tool.Parameters[1].Name);
+            Assert.Equal("endLine", tool.Parameters[2].Name);
+            Assert.True(tool.IsEnabled);
+            Assert.Equal("builtin", tool.ToolType);
+        }
+
+        /// <summary>
+        /// Gap23_2b test 2: read_file_range parameter validation
+        /// </summary>
+        [Fact]
+        public void GetReadFileRangeTool_AllParametersRequired()
+        {
+            var tool = BuiltInToolsRegistry.GetReadFileRangeTool();
+
+            foreach (var param in tool.Parameters)
+            {
+                Assert.True(param.IsRequired, $"Parameter {param.Name} should be required");
+            }
+        }
+
+        /// <summary>
+        /// Gap23_2b test 3: grep_search tool definition validation
+        /// </summary>
+        [Fact]
+        public void GetGrepSearchTool_ReturnsValidDefinition()
+        {
+            var tool = BuiltInToolsRegistry.GetGrepSearchTool();
+
+            Assert.NotNull(tool);
+            Assert.Equal("grep_search", tool.Name);
+            Assert.NotNull(tool.Description);
+            Assert.True(tool.Parameters.Count >= 2, "grep_search should have at least 2 parameters");
+            Assert.Contains(tool.Parameters, p => p.Name == "directory");
+            Assert.Contains(tool.Parameters, p => p.Name == "pattern");
+            Assert.True(tool.IsEnabled);
+            Assert.Equal("builtin", tool.ToolType);
+        }
+
+        /// <summary>
+        /// Gap23_2b test 4: grep_search pattern parameter validation
+        /// </summary>
+        [Fact]
+        public void GetGrepSearchTool_PatternParameterRequired()
+        {
+            var tool = BuiltInToolsRegistry.GetGrepSearchTool();
+            var patternParam = tool.Parameters.First(p => p.Name == "pattern");
+
+            Assert.True(patternParam.IsRequired, "pattern parameter should be required for grep_search");
+        }
+
+        /// <summary>
+        /// Gap23_2b test 5: single_find_and_replace tool definition validation
+        /// </summary>
+        [Fact]
+        public void GetSingleFindAndReplaceTool_ReturnsValidDefinition()
+        {
+            var tool = BuiltInToolsRegistry.GetSingleFindAndReplaceTool();
+
+            Assert.NotNull(tool);
+            Assert.Equal("single_find_and_replace", tool.Name);
+            Assert.NotNull(tool.Description);
+            Assert.True(tool.Parameters.Count >= 3, "single_find_and_replace should have at least 3 parameters");
+            Assert.Contains(tool.Parameters, p => p.Name == "filepath");
+            Assert.Contains(tool.Parameters, p => p.Name == "pattern");
+            Assert.Contains(tool.Parameters, p => p.Name == "replacement");
+            Assert.True(tool.IsEnabled, "single_find_and_replace should be enabled");
+            Assert.Equal("builtin", tool.ToolType);
+        }
+
+        /// <summary>
+        /// Gap23_2b test 6: single_find_and_replace required parameters validation
+        /// </summary>
+        [Fact]
+        public void GetSingleFindAndReplaceTool_RequiredParametersValidation()
+        {
+            var tool = BuiltInToolsRegistry.GetSingleFindAndReplaceTool();
+            var filepathParam = tool.Parameters.First(p => p.Name == "filepath");
+            var patternParam = tool.Parameters.First(p => p.Name == "pattern");
+            var replacementParam = tool.Parameters.First(p => p.Name == "replacement");
+
+            Assert.True(filepathParam.IsRequired, "filepath should be required");
+            Assert.True(patternParam.IsRequired, "pattern should be required");
+            Assert.True(replacementParam.IsRequired, "replacement should be required");
+        }
     }
 }

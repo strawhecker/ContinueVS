@@ -161,6 +161,19 @@ namespace ContinueVS.Services.Implementations
                 "run_subprocess" => await RunSubprocessInternalAsync(
                     GetArgString(args, "command"),
                     GetArgString(args, "cwd", ".")),
+                "read_file_range" => await ReadFileRangeInternalAsync(
+                    GetArgString(args, "filepath"),
+                    GetArgInt(args, "startLine", 1),
+                    GetArgInt(args, "endLine", 999999)),
+                "grep_search" => await GrepSearchInternalAsync(
+                    GetArgString(args, "directory"),
+                    GetArgString(args, "pattern"),
+                    GetArgString(args, "filePattern", ".*")),
+                "single_find_and_replace" => await SingleFindAndReplaceInternalAsync(
+                    GetArgString(args, "filepath"),
+                    GetArgString(args, "pattern"),
+                    GetArgString(args, "replacement"),
+                    GetArgString(args, "flags", "")),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -400,6 +413,162 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 return CreateErrorResult("run_subprocess", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for read_file_range (gap23_2b).
+        /// Reads a specific line range from a file without loading the entire file.
+        /// </summary>
+        private async Task<ToolResult> ReadFileRangeInternalAsync(string filepath, int startLine, int endLine)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filepath))
+                    return CreateErrorResult("read_file_range", "filepath cannot be null or empty");
+
+                if (startLine < 1)
+                    return CreateErrorResult("read_file_range", "startLine must be >= 1");
+
+                if (endLine < startLine)
+                    return CreateErrorResult("read_file_range", "endLine must be >= startLine");
+
+                var contents = await _ideService.ReadFileAsync(filepath);
+                var lines = contents.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+                // Adjust for 1-based indexing
+                int actualStart = Math.Max(0, startLine - 1);
+                int actualEnd = Math.Min(lines.Length - 1, endLine - 1);
+
+                if (actualStart >= lines.Length)
+                    return CreateErrorResult("read_file_range", $"startLine ({startLine}) exceeds file line count ({lines.Length})");
+
+                var rangeLines = lines.Skip(actualStart).Take(actualEnd - actualStart + 1);
+                var result = string.Join("\n", rangeLines);
+
+                return new ToolResult
+                {
+                    ToolName = "read_file_range",
+                    Output = result,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "filepath", filepath },
+                        { "startLine", startLine.ToString() },
+                        { "endLine", endLine.ToString() },
+                        { "linesReturned", rangeLines.Count().ToString() }
+                    },
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("read_file_range", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for grep_search (gap23_2b).
+        /// Searches for files matching a regex pattern.
+        /// </summary>
+        private async Task<ToolResult> GrepSearchInternalAsync(string directory, string pattern, string filePattern)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(pattern))
+                    return CreateErrorResult("grep_search", "pattern cannot be null or empty");
+
+                var workspaceFiles = _ideService.GetWorkspaceFiles(filePattern ?? "*.*");
+                var matches = new List<string>();
+                var regex = new System.Text.RegularExpressions.Regex(pattern);
+
+                foreach (var filePath in workspaceFiles.Take(100))
+                {
+                    try
+                    {
+                        var content = await _ideService.ReadFileAsync(filePath);
+                        var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+                        for (int i = 0; i < lines.Length && matches.Count < 50; i++)
+                        {
+                            if (regex.IsMatch(lines[i]))
+                            {
+                                matches.Add($"{filePath}:{i + 1}: {lines[i]}");
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Skip files that can't be read
+                    }
+                }
+
+                var output = matches.Count == 0 ? "No matches found" : string.Join("\n", matches);
+                return new ToolResult
+                {
+                    ToolName = "grep_search",
+                    Output = output,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "pattern", pattern },
+                        { "matchCount", matches.Count.ToString() }
+                    },
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("grep_search", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for single_find_and_replace (gap23_2b).
+        /// Performs regex find-and-replace in a single file.
+        /// </summary>
+        private async Task<ToolResult> SingleFindAndReplaceInternalAsync(string filepath, string pattern, string replacement, string flags)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filepath))
+                    return CreateErrorResult("single_find_and_replace", "filepath cannot be null or empty");
+
+                if (string.IsNullOrEmpty(pattern))
+                    return CreateErrorResult("single_find_and_replace", "pattern cannot be null or empty");
+
+                var contents = await _ideService.ReadFileAsync(filepath);
+                var options = System.Text.RegularExpressions.RegexOptions.None;
+
+                if (!string.IsNullOrEmpty(flags))
+                {
+                    if (flags.Contains('i'))
+                        options |= System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+                    if (flags.Contains('m'))
+                        options |= System.Text.RegularExpressions.RegexOptions.Multiline;
+                }
+
+                var regex = new System.Text.RegularExpressions.Regex(pattern, options);
+                var newContents = regex.Replace(contents, replacement ?? "");
+                int replacementCount = regex.Matches(contents).Count;
+
+                // Write back to file
+                await _ideService.WriteFileAsync(filepath, newContents);
+
+                return new ToolResult
+                {
+                    ToolName = "single_find_and_replace",
+                    Output = $"Successfully replaced {replacementCount} occurrence(s) in {filepath}",
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "filepath", filepath },
+                        { "pattern", pattern },
+                        { "replacementCount", replacementCount.ToString() }
+                    },
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("single_find_and_replace", ex.Message);
             }
         }
 
