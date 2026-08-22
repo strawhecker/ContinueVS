@@ -10,11 +10,11 @@
 
 ## Execution Rules
 
-- ✅ **Atomic steps**: One action per step (create, implement, wire, test)
-- ✅ **Dependencies tracked**: Each step notes what it depends on
-- ✅ **Existing code reuse**: Flag "use existing X vs. create new"
-- ✅ **Build validation**: Every 5-10 steps, verify compilation
-- ✅ **No skipping**: Steps are ordered; don't jump ahead
+- âœ… **Atomic steps**: One action per step (create, implement, wire, test)
+- âœ… **Dependencies tracked**: Each step notes what it depends on
+- âœ… **Existing code reuse**: Flag "use existing X vs. create new"
+- âœ… **Build validation**: Every 5-10 steps, verify compilation
+- âœ… **No skipping**: Steps are ordered; don't jump ahead
 
 ---
 
@@ -27,7 +27,7 @@
 ---
 
 ### gap1: Ollama Config Predefinition (CRITICAL BLOCKER)
-**Status:** ✅ Complete | Type: Predefined Configuration  
+**Status:** âœ… Complete | Type: Predefined Configuration  
 **Implementation:**
 - Modified `ConfigService.CreateDefaultConfig()` to instantiate predefined Ollama Llama 3.1 8B model
 - Model properties: Name="Llama 3.1 8B Instruct", Provider="ollama", BaseUrl="http://localhost:11434", ContextWindow=8192, SupportsFunctionCalling=false
@@ -44,12 +44,12 @@
 ---
 
 ### gap2: ChatPage DataContext Binding Error
-**Status:** ✅ Complete | Type: XAML Binding Failure  
+**Status:** âœ… Complete | Type: XAML Binding Failure  
 **Implementation:**
 - Modified ChatPage.xaml.cs constructor to resolve each singleton service directly from ViewModelLocator.ServiceProvider and construct ChatPageViewModel explicitly
-- Removed DataContext binding from ChatPage.xaml (line 5) — now relies on code-behind assignment
+- Removed DataContext binding from ChatPage.xaml (line 5) â€” now relies on code-behind assignment
 - Added INotificationService (WpfNotificationService) to ServiceBootstrapper.ConfigureServices()
-- Added IIdeService (VsIdeService stub) to ServiceBootstrapper.ConfigureServices() — required by ToolService activation
+- Added IIdeService (VsIdeService stub) to ServiceBootstrapper.ConfigureServices() â€” required by ToolService activation
 - Avoided Func<T> factory pattern (caused scoped-from-root resolution errors in DI); ViewModels constructed inline
 - Verified: All 416 unit tests pass; ChatPageBindingTests (12 tests) all pass; ChatPageViewModelTests (7 tests) all pass
 - Build: Clean build successful (zero warnings/errors)
@@ -65,14 +65,14 @@
 2. ContinueVSPackage.InitializeAsync() stores the provider in ViewModelLocator.ServiceProvider (step 12)
 3. ChatPage constructor calls ViewModelLocator.ServiceProvider.GetRequiredService<T>() for each service
 4. New ChatPageViewModel is constructed directly from the resolved singletons
-5. this.DataContext = viewModel; — all XAML bindings resolve correctly
+5. this.DataContext = viewModel; â€” all XAML bindings resolve correctly
 
 **Blocking Resolved:** gap4, gap5 (chat UI now bindable)
 
 ---
 
 ### gap5_5: ChatPage Model Selector NOT WIRED
-**Status:** ✅ Complete | Type: UI Model Selection Feature  
+**Status:** âœ… Complete | Type: UI Model Selection Feature  
 **Implementation:**
 - Extended ChatPageViewModel with `IConfigService _configService` dependency injection
 - Added `ObservableCollection<ModelInfo> AvailableModels` to expose list of available models for binding
@@ -118,7 +118,7 @@
 ---
 
 ### Async/Threading Best Practices Cleanup (Final Pass)
-**Status:** ✅ Complete | Type: Code Quality & VSTHRD Analyzer Compliance  
+**Status:** âœ… Complete | Type: Code Quality & VSTHRD Analyzer Compliance  
 **Implementation:**
 - Fixed VSTHRD001 (dispatcher deadlock) in AddModelViewModel.LoadModelsForProvider():
   - Changed from `Dispatcher.InvokeAsync()` to `Dispatcher.Invoke()` (synchronous dispatch from background Task.Run thread)
@@ -165,7 +165,7 @@
 ---
 
 ### BUG FIX: Input Text Box Not Clearing After Send
-**Status:** ✅ Fixed | Type: Message Submission Bug  
+**Status:** âœ… Fixed | Type: Message Submission Bug  
 **Issue:** After clicking Send button, the InputText was not being cleared
 **Root Cause:** `InputText = string.Empty;` was placed inside the try block at end of ExecuteSendMessage(); if any exception occurred before reaching that line, text would persist
 **Solution:** Moved `InputText = string.Empty;` from end of try block to finally block
@@ -184,7 +184,7 @@
 ---
 
 ### ENHANCEMENT: Multiline Input Support for Chat Text Box
-**Status:** ✅ Complete | Type: UI/UX Enhancement  
+**Status:** âœ… Complete | Type: UI/UX Enhancement  
 **Issue:** Text input box did not support multiline input; users could not use Enter key to create new lines and pasting multiline text was not supported
 **Solution:** Added multiline support to the TextBox in ChatPage.xaml
 **Changes Made:**
@@ -208,7 +208,7 @@
 
 
 ### gap3: ConfigPageViewModel Model/Tool Loading NOT WIRED
-**Status:** 🟡 Incomplete | Type: Missing Service Integration  
+**Status:** ðŸŸ¡ Incomplete | Type: Missing Service Integration  
 **Current State:**
 - ConfigPageViewModel exists (lines 1-130 in ConfigPageViewModel.cs)
 - Properties: `Models`, `AvailableTools`, `Profiles` are ObservableCollections
@@ -218,8 +218,8 @@
 **What Continue.js Does (from AGENTS.md):**
 - `reference/continue-src/gui/src/pages/`: ConfigPage loads models via Core.getConfigHandler()
 - Core.ts (line 1460): ConfigHandler manages model list, tool registry
-- ConfigHandler.getModels() → returns current config models
-- Tool enumeration: Core.getKnownTools() → returns runtime tools
+- ConfigHandler.getModels() â†’ returns current config models
+- Tool enumeration: Core.getKnownTools() â†’ returns runtime tools
 
 **ContinueVS Gap:**
 - ConfigPageViewModel.LoadModelsAsync() not called anywhere
@@ -237,7 +237,7 @@
 ---
 
 ### gap4: MessengerService Real HTTP Streaming NOT IMPLEMENTED
-**Status:** ✅ Complete | Type: HTTP Streaming Implementation  
+**Status:** âœ… Complete | Type: HTTP Streaming Implementation  
 **Implementation:**
 - Created `OllamaRequest.cs` and `OllamaResponse.cs` POCOs with JsonProperty attributes for Ollama API contract
   - OllamaRequest: model, messages[], stream, options (temperature, maxTokens, topP)
@@ -261,17 +261,17 @@
   - Stop iteration when done=true
   - Skip empty lines; continue on JSON parse errors (log and skip malformed chunks)
 - Error handling:
-  - HttpRequestException → LlmException("HTTP request to Ollama failed: ...")
-  - TaskCanceledException → LlmException("Ollama streaming cancelled by caller")
-  - General Exception → LlmException("Unexpected error during Ollama streaming: ...")
+  - HttpRequestException â†’ LlmException("HTTP request to Ollama failed: ...")
+  - TaskCanceledException â†’ LlmException("Ollama streaming cancelled by caller")
+  - General Exception â†’ LlmException("Unexpected error during Ollama streaming: ...")
   - LlmException re-thrown as-is
 - Edge cases handled:
-  - null model (GetSelectedModel returns null) → LlmException
-  - empty/null BaseUrl → LlmException
-  - empty/null Provider → LlmException
-  - unsupported provider (not "ollama") → LlmException
-  - Empty stream → yields no chunks (stops immediately on done=true)
-  - Malformed NDJSON → logged and skipped (stream continues)
+  - null model (GetSelectedModel returns null) â†’ LlmException
+  - empty/null BaseUrl â†’ LlmException
+  - empty/null Provider â†’ LlmException
+  - unsupported provider (not "ollama") â†’ LlmException
+  - Empty stream â†’ yields no chunks (stops immediately on done=true)
+  - Malformed NDJSON â†’ logged and skipped (stream continues)
 - All 416 existing unit tests pass; zero warnings/errors in build
 
 **Files Modified:**
@@ -281,18 +281,18 @@
 - src/VSIXProject1/Services/ServiceBootstrapper.cs (register HttpClient singleton; use factory for MessengerService)
 
 **How Streaming Works:**
-1. ChatPageViewModel.SendMessageCommand → ILlmService.StreamAsync(messages)
-2. LlmService.StreamAsync() → IMessengerService.StreamAsync<StreamOptions, CompletionChunk>("llm:stream", options)
-3. MessengerService.StreamAsync("llm:stream", options) → validates model, delegates to ProcessOllamaStreamAsync()
-4. ProcessOllamaStreamAsync() → POST to Ollama, reads NDJSON, yields CompletionChunk for each message.content
+1. ChatPageViewModel.SendMessageCommand â†’ ILlmService.StreamAsync(messages)
+2. LlmService.StreamAsync() â†’ IMessengerService.StreamAsync<StreamOptions, CompletionChunk>("llm:stream", options)
+3. MessengerService.StreamAsync("llm:stream", options) â†’ validates model, delegates to ProcessOllamaStreamAsync()
+4. ProcessOllamaStreamAsync() â†’ POST to Ollama, reads NDJSON, yields CompletionChunk for each message.content
 5. ChatPageViewModel accumulates chunks into StreamingResponse property; UI displays accumulated text
 
 **Blocking Resolved:** gap5 (Chat Message Flow) and gap6 (Chat Display) now unblocked; real LLM streaming is functional
 
 ---
 
-### gap5: Chat Message Flow NOT WIRED (ILlmService → UI)
-**Status:** ✅ Complete (Debugged) | ⚠️ Implementation wired and verified  
+### gap5: Chat Message Flow NOT WIRED (ILlmService â†’ UI)
+**Status:** âœ… Complete (Debugged) | âš ï¸ Implementation wired and verified  
 **Implementation:**
 
 - Builds ChatMessage list with user input + context; calls ILlmService.StreamAsync()
@@ -307,7 +307,7 @@
 - src/VSIXProject1/Services/Interfaces/ILlmService.cs (StreamOptions class): Added `IEnumerable<ChatMessage>? Messages { get; set; }` property to carry conversation context
 - src/VSIXProject1/Services/Implementations/LlmService.cs (lines 42-63): Updated StreamAsync() to merge messages into StreamOptions before delegating to MessengerService
 - src/VSIXProject1/ViewModels/ChatPageViewModel.cs (lines 100-134): Create StreamOptions with Messages property populated, pass streamOptions to StreamAsync() call
-- src/VSIXProject1/Services/Implementations/MessengerService.cs (lines 126-185): ProcessOllamaStreamAsync() now extracts options.Messages, converts ChatMessage array to OllamaMessage list (role mapping: User→"user", Assistant→"assistant", System→"system"), builds correct OllamaRequest with actual conversation instead of placeholder
+- src/VSIXProject1/Services/Implementations/MessengerService.cs (lines 126-185): ProcessOllamaStreamAsync() now extracts options.Messages, converts ChatMessage array to OllamaMessage list (role mapping: Userâ†’"user", Assistantâ†’"assistant", Systemâ†’"system"), builds correct OllamaRequest with actual conversation instead of placeholder
 - src/VSIXProject1/UI/ViewModels/ChatPageViewModel.cs (lines 84-151): Full async send/stream/accumulate logic
 - src/VSIXProject1/Core/Types/OllamaRequest.cs: Request POCO with messages[], model, stream, options
 - src/VSIXProject1/Core/Types/OllamaResponse.cs: Response POCO with message{role/content}, done, token counts
@@ -324,7 +324,7 @@
 7. LlmService.StreamAsync() merges messages into streamOptions, delegates to MessengerService.StreamAsync("llm:stream", streamOptions, ct)
 8. MessengerService.StreamLlmAsync() receives streamOptions with Messages populated
 9. MessengerService.ProcessOllamaStreamAsync() converts options.Messages (ChatMessage[]) to OllamaMessage list:
-   - Iterates each ChatMessage; maps Role (User→"user", Assistant→"assistant", System→"system")
+   - Iterates each ChatMessage; maps Role (Userâ†’"user", Assistantâ†’"assistant", Systemâ†’"system")
    - Creates OllamaMessage with role and content
    - If no messages provided, adds default placeholder
 10. Builds OllamaRequest: model name, stream=true, messages=[{role: user, content: Hello}, ...system context if any], options
@@ -337,15 +337,15 @@
 17. Sets IsStreaming=false; clears InputText; UI ready for next message
 
 **Error Handling:**
-- No model selected → LlmException("No model selected in configuration")
-- Model has no BaseUrl → LlmException("Model '{name}' has no baseUrl configured")
-- Model has no Provider → LlmException("Model '{name}' has no provider configured")
-- Provider not "ollama" → LlmException("Provider '{provider}' is not yet supported")
-- HTTP POST fails → LlmException("HTTP request to Ollama failed: {message}")
-- HTTP timeout → LlmException("Ollama streaming cancelled by caller")
-- Malformed NDJSON → logged and skipped; stream continues
-- User cancels → OperationCanceledException caught; StreamingResponse += "\n[Cancelled by user]"
-- General exception → bubbles to catch block; notification shown via INotificationService
+- No model selected â†’ LlmException("No model selected in configuration")
+- Model has no BaseUrl â†’ LlmException("Model '{name}' has no baseUrl configured")
+- Model has no Provider â†’ LlmException("Model '{name}' has no provider configured")
+- Provider not "ollama" â†’ LlmException("Provider '{provider}' is not yet supported")
+- HTTP POST fails â†’ LlmException("HTTP request to Ollama failed: {message}")
+- HTTP timeout â†’ LlmException("Ollama streaming cancelled by caller")
+- Malformed NDJSON â†’ logged and skipped; stream continues
+- User cancels â†’ OperationCanceledException caught; StreamingResponse += "\n[Cancelled by user]"
+- General exception â†’ bubbles to catch block; notification shown via INotificationService
 
 **Test Coverage:**
 - 416 unit tests all pass (ChatPageViewModelTests, ChatPageBindingTests include send/stream scenarios)
@@ -368,15 +368,15 @@
 5. OllamaRequest built with actual conversation context (not hardcoded "Test message")
 6. ChatPageViewModel passes StreamOptions with Messages when calling StreamAsync()
 7. Build verified: All code changes compile without errors
-8. Live wiring confirmed: Messages flow from ChatPageViewModel → LlmService → MessengerService → OllamaRequest
+8. Live wiring confirmed: Messages flow from ChatPageViewModel â†’ LlmService â†’ MessengerService â†’ OllamaRequest
 
-**Depends on:** gap4 (MessengerService HTTP streaming) ✅  
+**Depends on:** gap4 (MessengerService HTTP streaming) âœ…  
 **Unblocks:** gap6 (Chat Message Display); rest of UI/feature work
 
 ---
 
 ### gap6: Chat Message Display NOT WORKING (UI Rendering Failed)
-**Status:** ✅ COMPLETE | Type: UI Rendering + Ollama Integration  
+**Status:** âœ… COMPLETE | Type: UI Rendering + Ollama Integration  
 
 **Root Cause (Identified & Fixed):**
 The issue was actually TWO problems working together:
@@ -414,13 +414,13 @@ The issue was actually TWO problems working together:
 - src/VSIXProject1/UI/Views/ChatMessageControl.xaml: Fixed to use converter bindings (from earlier)
 
 **Verification (Complete):**
-✅ User message "hello" sent successfully
-✅ Ollama accepts HTTP 200 OK (no more 400 errors)
-✅ Streaming response received (23+ chunks logged)
-✅ Assistant message created and added to collection
-✅ Converters invoked for both user (right-aligned, blue) and assistant (left-aligned, gray) messages
-✅ UI displays chat bubbles with correct styling
-✅ Config auto-migrated correctly for existing users
+âœ… User message "hello" sent successfully
+âœ… Ollama accepts HTTP 200 OK (no more 400 errors)
+âœ… Streaming response received (23+ chunks logged)
+âœ… Assistant message created and added to collection
+âœ… Converters invoked for both user (right-aligned, blue) and assistant (left-aligned, gray) messages
+âœ… UI displays chat bubbles with correct styling
+âœ… Config auto-migrated correctly for existing users
 
 **Before-After Logs:**
 - BEFORE: HTTP 400 "invalid model name" error
@@ -438,11 +438,11 @@ The issue was actually TWO problems working together:
 [a6-converter] RoleToColorConverter.Convert: Role=Assistant, Color=#FF606060
 ```
 
-**Impact:** End-to-end chat flow now works: user sends message → Ollama responds → assistant message displays with correct styling
+**Impact:** End-to-end chat flow now works: user sends message â†’ Ollama responds â†’ assistant message displays with correct styling
 3. Creates ChatMessage(Role.User, "Hello"); adds to Messages; UI renders via binding
 4. ChatMessageControl XAML binding pipeline uses new converters:
-   - Binding Role → RoleToAlignmentConverter → StackPanel.HorizontalAlignment
-   - Binding Role → RoleToColorConverter → Border.Background
+   - Binding Role â†’ RoleToAlignmentConverter â†’ StackPanel.HorizontalAlignment
+   - Binding Role â†’ RoleToColorConverter â†’ Border.Background
    - Message content renders with styling based on role
 5. LLM streams response; accumulated into StreamingResponse property
 6. ChatPage.xaml displays streaming response TextBlock (when IsStreaming=true) with live text
@@ -478,8 +478,8 @@ The issue was actually TWO problems working together:
    - RoleToColorConverter.Convert() hit with Role.User
    - Inspect return value: should be SolidColorBrush with blue color (0078D7)
 7. **Watch window verification:**
-   - Watch `converter.Convert(ChatMessageRole.User, ...)` in debug → verify returns HorizontalAlignment.Right
-   - Watch `converter.Convert(ChatMessageRole.Assistant, ...)` in debug → verify returns HorizontalAlignment.Left
+   - Watch `converter.Convert(ChatMessageRole.User, ...)` in debug â†’ verify returns HorizontalAlignment.Right
+   - Watch `converter.Convert(ChatMessageRole.Assistant, ...)` in debug â†’ verify returns HorizontalAlignment.Left
    - Verify color converter returns distinct brush colors for User vs Assistant
 8. **Visual tree verification (WPF Spy or Visual Studio Live Visual Tree):**
    - User message StackPanel should be HorizontalAlignment.Right (right-aligned bubble)
@@ -492,9 +492,9 @@ The issue was actually TWO problems working together:
    - No layout overlap or clipping
    - Timestamp and role labels display correctly (if implemented)
 10. **Repeat with multiple messages:**
-    - Send "Hello" → User message right-aligned, blue
-    - Send "World" → Assistant response left-aligned, gray
-    - Send "Test" → User message right-aligned, blue
+    - Send "Hello" â†’ User message right-aligned, blue
+    - Send "World" â†’ Assistant response left-aligned, gray
+    - Send "Test" â†’ User message right-aligned, blue
     - Verify all messages render with correct styling; no color/alignment bleeding between messages
 
 **Date:** 2026-08-15  
@@ -508,29 +508,29 @@ The issue was actually TWO problems working together:
 3. **Missing Converter Bindings**: ChatMessageControl.xaml wasn't wired to use converters (from earlier gap6 work)
    - Solution: Fixed XAML to use RoleToAlignmentConverter and RoleToColorConverter bindings
 
-**Result:** ✅ Chat now works end-to-end: send message → Ollama responds → assistant message displays with correct styling (left-aligned gray for assistant, right-aligned blue for user)
+**Result:** âœ… Chat now works end-to-end: send message â†’ Ollama responds â†’ assistant message displays with correct styling (left-aligned gray for assistant, right-aligned blue for user)
 
 ---
 
 ### gap7: Tools Navigation NOT VISIBLE
-**Status:** ✅ Complete (Debugger-Verified) | Type: Navigation Bar Component  
+**Status:** âœ… Complete (Debugger-Verified) | Type: Navigation Bar Component  
 **Implementation:**
 - Created NavigationBar.xaml UserControl with horizontal button bar: Chat, Config, History, Settings
 - Grid layout with 6 columns: 4 button columns (Auto) + spacer (*) + tool count badge (Auto)
 - Buttons bound via `Path=DataContext.NavigateCommand, RelativeSource FindAncestor UserControl AncestorLevel=2`
 - Tool count badge binds `ToolCount` via `RelativeSource AncestorType={x:Type UserControl}` (NavigationBar's own property)
 - NavigationBar.xaml.cs: Implements ToolCount property with PropertyChanged notification
-- ContinueToolWindowControl.xaml: DockPanel with NavigationBar docked Top; Frame fills remaining space (no DockPanel.Dock="Fill" — invalid value removed)
+- ContinueToolWindowControl.xaml: DockPanel with NavigationBar docked Top; Frame fills remaining space (no DockPanel.Dock="Fill" â€” invalid value removed)
 - ContinueToolWindowControl.xaml.cs: OnLoaded resolves MainViewModel via `sp.GetService(typeof(MainViewModel))`, sets DataContext on both control and NavigationBar, subscribes to PropertyChanged, navigates initial route
 - ServiceBootstrapper: Added `AddTransient<MainViewModel>` + `AddTransient<Func<MainViewModel>>` factories; fixed `INotificationService` registration to explicit factory `new WpfNotificationService()` to break circular DI dependency
 - PageNavigator: Fixed to navigate `UIElement` (not just `Page`) so ChatPage (UserControl) loads correctly
 
 **Debugger-Verified Checkpoints:**
-- `[g7-ctrl-b1]` ✅ ContinueToolWindowControl constructor
-- `[g7-ctrl-b3b]` ✅ InitializeComponent completed (no XamlParseException)
-- `[g7-ctrl-b6]` ✅ MainViewModel: True, PageNavigator: True
-- `[g7-ctrl-b9]` ✅ Navigating to: chat
-- `[g7-nav-b10]` ✅ PageNavigator: Navigating to ChatPage
+- `[g7-ctrl-b1]` âœ… ContinueToolWindowControl constructor
+- `[g7-ctrl-b3b]` âœ… InitializeComponent completed (no XamlParseException)
+- `[g7-ctrl-b6]` âœ… MainViewModel: True, PageNavigator: True
+- `[g7-ctrl-b9]` âœ… Navigating to: chat
+- `[g7-nav-b10]` âœ… PageNavigator: Navigating to ChatPage
 
 **Files Modified:**
 - src/VSIXProject1/UI/Controls/NavigationBar.xaml
@@ -545,7 +545,7 @@ The issue was actually TWO problems working together:
 ---
 
 ### gap8: Ask Mode NOT VISIBLE
-**Status:** ✅ Complete | Type: UI Mode Selector with System Message Injection  
+**Status:** âœ… Complete | Type: UI Mode Selector with System Message Injection  
 **Implementation:**
 - Created `ChatMode` enum in `ContinueVS.ViewModels` namespace with Ask, Agent, Plan values
 - Created `ChatModeSystemPrompts` static class with mode-specific system message constants:
@@ -556,10 +556,10 @@ The issue was actually TWO problems working together:
   - Private `ChatMode _currentMode = ChatMode.Ask` field
   - Public `CurrentMode` property with INotifyPropertyChanged notification
   - Public `RelayCommand<ChatMode> SetModeCommand` for mode switching
-  - System message prepending in `ExecuteSendMessage()` — calls `GetSystemMessageForMode(CurrentMode)` and prepends result to LLM request before user message
+  - System message prepending in `ExecuteSendMessage()` â€” calls `GetSystemMessageForMode(CurrentMode)` and prepends result to LLM request before user message
   - Private `GetSystemMessageForMode(ChatMode mode)` helper method
 - Created two WPF value converters in `ContinueVS.ViewModels.Converters`:
-  - `ChatModeToVisibilityConverter`: Maps ChatMode.Ask → Visible, others → Collapsed (for Apply button)
+  - `ChatModeToVisibilityConverter`: Maps ChatMode.Ask â†’ Visible, others â†’ Collapsed (for Apply button)
   - `ChatModeToBoolConverter`: Two-way converter for ToggleButton binding to CurrentMode
 - Updated ChatPage.xaml:
   - Added `xmlns:converters="clr-namespace:ContinueVS.ViewModels.Converters"` namespace mapping
@@ -570,7 +570,7 @@ The issue was actually TWO problems working together:
 - Added comprehensive unit tests:
   - ChatPageViewModelTests: Tests for CurrentMode default (Ask) and SetModeCommand transitions
   - ChatModeSystemPromptsTests: Tests for non-empty prompts and expected keywords (Apply, tool, read-only)
-  - ChatModeToVisibilityConverterTests: Tests for Ask → Visible, others → Collapsed, null → Collapsed, ConvertBack exception
+  - ChatModeToVisibilityConverterTests: Tests for Ask â†’ Visible, others â†’ Collapsed, null â†’ Collapsed, ConvertBack exception
   - ChatModeToBoolConverterTests: Tests for bidirectional conversion between ChatMode and bool with parameter parsing
 
 **Files Modified:**
@@ -584,9 +584,9 @@ The issue was actually TWO problems working together:
 - src/VSIXProject1.Tests/ViewModels/Converters/ChatModeToBoolConverterTests.cs: Tests for bool converter
 
 **Build & Test Status:**
-- ✅ Clean build successful (zero warnings/errors)
-- ✅ All 448 unit tests pass (including 23 new tests for gap8 feature)
-- ✅ No regressions in existing tests
+- âœ… Clean build successful (zero warnings/errors)
+- âœ… All 448 unit tests pass (including 23 new tests for gap8 feature)
+- âœ… No regressions in existing tests
 
 **How It Works:**
 1. ChatPageViewModel initializes with CurrentMode = ChatMode.Ask
@@ -603,14 +603,14 @@ The issue was actually TWO problems working together:
 ---
 
 ### gap8_1: Built-in Tools Registry NOT WIRED
-**Status:** ✅ Complete | Type: Tool Discovery & Registration  
+**Status:** âœ… Complete | Type: Tool Discovery & Registration  
 **Implementation:**
 - Created `src/VSIXProject1/Core/Types/BuiltInTools.cs` with static factory class `BuiltInToolsRegistry`
 - Implemented 19 built-in tool factory methods: GetReadFileTool(), GetCreateNewFileTool(), GetRunTerminalCommandTool(), GetFileGlobSearchTool(), GetViewDiffTool(), GetReadCurrentlyOpenFileTool(), GetListDirectoryTool(), GetCreateRuleBlockTool(), GetEditFileTool(), GetSearchCodebaseTool(), GetRunPytestTool(), GetGetProblemsTool(), GetViewFileTool(), GetOpenFileTool(), GetGitStatusTool(), GetGitDiffTool(), GetGitLogTool(), GetGitCommitTool(), GetCreateSnippetTool()
 - Added static method `BuiltInToolsRegistry.GetAllBuiltInTools()` returning all 19 tools as `IEnumerable<ToolDefinition>`
 - Refactored `ToolService.EnsureBuiltInToolDefaults()` to call `BuiltInToolsRegistry.GetAllBuiltInTools()` instead of 4 inline stubs
 - Each tool has full metadata: Name, Description (with invoke permission hints), Parameters (with type, required flag, description), Category="Built-In", IsEnabled flag (false for create_rule_block and create_snippet), ToolType="builtin", ReturnsDescription
-- Tool flow verified: BuiltInToolsRegistry → ToolService registry → ConfigService.GetEnabledTools() → ConfigPageViewModel.AvailableTools UI binding
+- Tool flow verified: BuiltInToolsRegistry â†’ ToolService registry â†’ ConfigService.GetEnabledTools() â†’ ConfigPageViewModel.AvailableTools UI binding
 
 **Files Created:**
 - src/VSIXProject1/Core/Types/BuiltInTools.cs (286 lines; BuiltInToolsRegistry factory)
@@ -621,9 +621,9 @@ The issue was actually TWO problems working together:
 - src/VSIXProject1/Services/Implementations/ToolService.cs (EnsureBuiltInToolDefaults method refactored)
 
 **Build & Test Status:**
-- ✅ Clean build successful (zero warnings/errors): 15.4 seconds
-- ✅ All 487 unit tests pass (including 42 new tests for gap8_1): 6.97 seconds
-- ✅ No regressions (445 existing tests all pass)
+- âœ… Clean build successful (zero warnings/errors): 15.4 seconds
+- âœ… All 487 unit tests pass (including 42 new tests for gap8_1): 6.97 seconds
+- âœ… No regressions (445 existing tests all pass)
 
 **Tool Catalog Delivered (19 of 19 MVP):**
 1. read_file (Automatic) - Read file contents
@@ -648,7 +648,7 @@ The issue was actually TWO problems working together:
 
 **How It Works:**
 1. BuiltInToolsRegistry.GetAllBuiltInTools() returns 19 fully-defined ToolDefinition instances
-2. ToolService constructor calls InitializeToolRegistry() → EnsureBuiltInToolDefaults()
+2. ToolService constructor calls InitializeToolRegistry() â†’ EnsureBuiltInToolDefaults()
 3. EnsureBuiltInToolDefaults() iterates through factory-generated tools and registers each in _builtInToolRegistry
 4. IToolService.GetAvailableTools() returns combined _builtInToolRegistry + _mcpToolRegistry
 5. ConfigService.GetEnabledTools() filters by IsEnabled flag
@@ -658,21 +658,21 @@ The issue was actually TWO problems working together:
 **Blocking Resolved:** gap8_1 complete; ConfigPageViewModel.AvailableTools now displays 19 tools with full metadata; ready for tool filtering by mode (future work)
 
 **Verification Status:**
-- ✅ Build: All 487 unit tests pass (42 new + 445 existing); zero warnings/errors
-- ✅ Code Instrumentation Complete: `Debug.WriteLine` tags added to 4 key files
+- âœ… Build: All 487 unit tests pass (42 new + 445 existing); zero warnings/errors
+- âœ… Code Instrumentation Complete: `Debug.WriteLine` tags added to 4 key files
   - BuiltInTools.cs: `[gap8_1-factory-create]`, `[gap8_1-factory-all-start]`, `[gap8_1-factory-all-end]`
   - ToolService.cs: `[gap8_1-toolsvc-init-start]`, `[gap8_1-toolsvc-init-end]`, `[gap8_1-toolsvc-load-config]`, `[gap8_1-toolsvc-defaults-start]`, `[gap8_1-toolsvc-defaults-end]`, `[gap8_1-toolsvc-available]`
   - ConfigService.cs: `[gap8_1-configsvc-enabled]`
   - ConfigPageViewModel.cs: `[gap8_1-configvm-load-start]`, `[gap8_1-configvm-load-end]`, `[gap8_1-configvm-models]`, `[gap8_1-configvm-tools]`, `[gap8_1-configvm-error]`
-- ⏳ **Next Step**: Launch ContinueVS under the debugger to initiate breakpoint/logpoint validation
+- â³ **Next Step**: Launch ContinueVS under the debugger to initiate breakpoint/logpoint validation
   1. Set breakpoint in ConfigPageViewModel.LoadConfiguration() or inspect Output window
   2. Navigate to Config tab in running application
   3. Monitor Output window for gap8_1-* tagged Debug.WriteLine messages
-  4. Verify flow: registry → service → config → viewmodel → UI
+  4. Verify flow: registry â†’ service â†’ config â†’ viewmodel â†’ UI
 
 **Verification Status:**
-- ✅ Build: All 487 unit tests pass (42 new + 445 existing); zero warnings/errors
-- ⏭️ Runtime: Optional manual verification step (navigate to Config page in ContinueVS UI to inspect tool list)
+- âœ… Build: All 487 unit tests pass (42 new + 445 existing); zero warnings/errors
+- â­ï¸ Runtime: Optional manual verification step (navigate to Config page in ContinueVS UI to inspect tool list)
 
 **Reference: Built-in Tools Catalog**
 Manage MCP servers and tool policies
@@ -717,25 +717,25 @@ Manage MCP servers and tool policies
 ---
 
 ### gap8_2: User Settings NOT PERSISTED
-**Status:** ✅ COMPLETE | Type: Settings Management  
+**Status:** âœ… COMPLETE | Type: Settings Management  
 **Completion Date:** [Implemented]
 **Current State:**
-- ✅ Settings UI fully implemented with four tabbed categories (Chat, Appearance, Autocomplete, Experimental)
-- ✅ SettingsControl UserControl created with dedicated SettingsViewModel
-- ✅ All 19 user settings stored as flattened key-value pairs in ContinueConfig.CustomSettings
-- ✅ **Delta-based persistence:** continueVS.json contains ONLY settings that differ from defaults
-- ✅ Settings persist to ~/.continueVS/continueVS.json via ConfigService.SaveConfigAsync()
-- ✅ "Save Configuration" button persists both tools/models AND user settings in one operation
-- ✅ Two-tier lookup: LoadSettings() checks continueVS.json first, falls back to UserSettings.GetDefaults()
-- ✅ All 487 unit tests pass (no regressions)
+- âœ… Settings UI fully implemented with four tabbed categories (Chat, Appearance, Autocomplete, Experimental)
+- âœ… SettingsControl UserControl created with dedicated SettingsViewModel
+- âœ… All 19 user settings stored as flattened key-value pairs in ContinueConfig.CustomSettings
+- âœ… **Delta-based persistence:** continueVS.json contains ONLY settings that differ from defaults
+- âœ… Settings persist to ~/.continueVS/continueVS.json via ConfigService.SaveConfigAsync()
+- âœ… "Save Configuration" button persists both tools/models AND user settings in one operation
+- âœ… Two-tier lookup: LoadSettings() checks continueVS.json first, falls back to UserSettings.GetDefaults()
+- âœ… All 487 unit tests pass (no regressions)
 
 **Implementation Details:**
 
 **Files Created:**
-1. **Core/Types/UserSettings.cs** — Static registry of 19 setting keys and defaults + GetDefault(key) method
-2. **ViewModels/SettingsViewModel.cs** — Observable properties for all 19 settings with delta-based LoadSettings()/SaveSettingsAsync() methods
-3. **UI/Pages/SettingsControl.xaml** — Four-tab WPF UserControl (Chat, Appearance, Autocomplete, Experimental) with checkboxes, sliders, radio buttons, text boxes
-4. **UI/Pages/SettingsControl.xaml.cs** — Code-behind for SettingsControl with SetViewModel() method
+1. **Core/Types/UserSettings.cs** â€” Static registry of 19 setting keys and defaults + GetDefault(key) method
+2. **ViewModels/SettingsViewModel.cs** â€” Observable properties for all 19 settings with delta-based LoadSettings()/SaveSettingsAsync() methods
+3. **UI/Pages/SettingsControl.xaml** â€” Four-tab WPF UserControl (Chat, Appearance, Autocomplete, Experimental) with checkboxes, sliders, radio buttons, text boxes
+4. **UI/Pages/SettingsControl.xaml.cs** â€” Code-behind for SettingsControl with SetViewModel() method
 
 **Files Modified:**
 1. **ViewModels/ConfigPageViewModel.cs**
@@ -757,36 +757,36 @@ Manage MCP servers and tool policies
    - Used by SaveSettingsAsync() to filter out default values before writing to disk
 
 5. **ViewModels/SettingsViewModel.cs** (DELTA PERSISTENCE REFACTORING)
-   - Refactored LoadSettings() for two-tier lookup: CustomSettings (file) → GetDefault() (code)
+   - Refactored LoadSettings() for two-tier lookup: CustomSettings (file) â†’ GetDefault() (code)
    - Refactored SaveSettingsAsync() with delta filtering: SetOrRemove(key, value) compares to GetDefault(key)
-   - Keys matching defaults are removed from CustomSettings (supports round-trip: change → save → revert to default → save removes key)
+   - Keys matching defaults are removed from CustomSettings (supports round-trip: change â†’ save â†’ revert to default â†’ save removes key)
    - Updated GetBoolFromConfig/GetIntFromConfig/GetStringFromConfig to call UserSettings.GetDefault() for fallback
 
 **Settings Implemented:**
 
 **Chat (6 settings):**
-- Show Session Tabs (bool) — Default: false
-- Wrap Codeblocks (bool) — Default: false
-- Show Chat Scrollbar (bool) — Default: true
-- Text-to-Speech Output (bool) — Default: false
-- Enable Session Titles (bool) — Default: true
-- Format Markdown (bool) — Default: true
+- Show Session Tabs (bool) â€” Default: false
+- Wrap Codeblocks (bool) â€” Default: false
+- Show Chat Scrollbar (bool) â€” Default: true
+- Text-to-Speech Output (bool) â€” Default: false
+- Enable Session Titles (bool) â€” Default: true
+- Format Markdown (bool) â€” Default: true
 
 **Appearance (1 setting):**
-- Font Size (int, 10-24) — Default: 14
+- Font Size (int, 10-24) â€” Default: 14
 
 **Autocomplete (4 settings):**
-- Multiline Autocompletions (enum: auto|always|never) — Default: "auto"
-- Autocomplete Timeout (ms) (int, 50-500) — Default: 150
-- Autocomplete Debounce (ms) (int, 100-1000) — Default: 250
-- Disable Autocomplete in Files (string) — Default: "**/*.(txt,md)"
+- Multiline Autocompletions (enum: auto|always|never) â€” Default: "auto"
+- Autocomplete Timeout (ms) (int, 50-500) â€” Default: 150
+- Autocomplete Debounce (ms) (int, 100-1000) â€” Default: 250
+- Disable Autocomplete in Files (string) â€” Default: "**/*.(txt,md)"
 
 **Experimental (5 settings):**
-- Add Current File by Default (bool) — Default: false
-- Enable Experimental Tools (bool) — Default: true
-- Only Use System Message Tools (bool) — Default: false
-- @Codebase: Use Tool Calling Only (bool) — Default: false
-- Stream After Tool Rejection (bool) — Default: false
+- Add Current File by Default (bool) â€” Default: false
+- Enable Experimental Tools (bool) â€” Default: true
+- Only Use System Message Tools (bool) â€” Default: false
+- @Codebase: Use Tool Calling Only (bool) â€” Default: false
+- Stream After Tool Rejection (bool) â€” Default: false
 
 **Delta-Based Persistence Flow:**
 1. ConfigService.InitializeAsync() loads config.json from disk
@@ -796,8 +796,8 @@ Manage MCP servers and tool policies
    - Falls back to UserSettings.GetDefault(key) (code defaults) if key not in file
    - Assigns merged value to corresponding SettingsViewModel property
 4. UI binds to SettingsViewModel observable properties
-5. User changes settings → SettingsViewModel properties updated (real-time)
-6. User clicks "Save Configuration" → ExecuteSaveConfig() calls SettingsViewModel.SaveSettingsAsync()
+5. User changes settings â†’ SettingsViewModel properties updated (real-time)
+6. User clicks "Save Configuration" â†’ ExecuteSaveConfig() calls SettingsViewModel.SaveSettingsAsync()
 7. **SettingsViewModel.SaveSettingsAsync()** applies delta filtering:
    - For each setting, compares current value to UserSettings.GetDefault(key)
    - Writes to config.CustomSettings ONLY if value differs from default
@@ -818,7 +818,7 @@ Manage MCP servers and tool policies
 - All 487 existing unit tests pass without modification
 - SettingsViewModel includes Load/Save methods suitable for UT
 - UT candidates: SettingsViewModel.LoadSettings() and SaveSettingsAsync() with mock IConfigService
-- Gap testing: Cannot verify full UI round-trip (modify UI → save → restart → verify) until gap13 (Config UI / ConfigPage round-trip test) is implemented
+- Gap testing: Cannot verify full UI round-trip (modify UI â†’ save â†’ restart â†’ verify) until gap13 (Config UI / ConfigPage round-trip test) is implemented
 - Manual verification deferred to gap13: Set each setting type, save, restart, confirm values persisted and continueVS.json reflects deltas only
 
 **Design Notes:**
@@ -870,7 +870,7 @@ Experimental
 ---
 
 ### gap8_3: Config File Editor NOT WIRED
-**Status:** ✅ Complete | Type: Manual Config Access  
+**Status:** âœ… Complete | Type: Manual Config Access  
 **Implementation:**
 - Added "Edit Config in Editor" button to ConfigPage.xaml (alongside Save Configuration and Reindex Workspace buttons; background #6B8E23)
 - Bound button to EditConfigCommand in ConfigPageViewModel
@@ -910,15 +910,15 @@ Experimental
 ---
 
 ### gap8_4: Add Chat Model UI NOT WIRED
-**Status:** ✅ Debugged & Verified | Type: Model Registration & Provider Support  
+**Status:** âœ… Debugged & Verified | Type: Model Registration & Provider Support  
 **Current State:**
-- ✓ ModelProvider enum created with 7 providers (Anthropic, Azure, Gemini, Mistral, Ollama, OpenAI, OpenRouter)
-- ✓ ProviderCatalog implemented with metadata and default model lists
-- ✓ IModelDiscoveryService defined and ModelDiscoveryService implemented (Ollama + catalog fallback)
-- ✓ AddModelViewModel created with provider/model selection, autodetect, validation, and save flow
-- ✓ AddModelDialog.xaml and code-behind created (non-modal UserControl)
-- ✓ Unit tests passing: 14 tests for AddModelViewModel
-- ✓ Debugger verification: Breakpoint hits + log entries confirmed
+- âœ“ ModelProvider enum created with 7 providers (Anthropic, Azure, Gemini, Mistral, Ollama, OpenAI, OpenRouter)
+- âœ“ ProviderCatalog implemented with metadata and default model lists
+- âœ“ IModelDiscoveryService defined and ModelDiscoveryService implemented (Ollama + catalog fallback)
+- âœ“ AddModelViewModel created with provider/model selection, autodetect, validation, and save flow
+- âœ“ AddModelDialog.xaml and code-behind created (non-modal UserControl)
+- âœ“ Unit tests passing: 14 tests for AddModelViewModel
+- âœ“ Debugger verification: Breakpoint hits + log entries confirmed
 
 **What Continue.js Does (from reference):**
 - Modal dialog with four-step UI:
@@ -938,42 +938,42 @@ Experimental
 - No YAML editor support (currently store JSON only)
 
 **Remediation:**
-1. ✓ Create ModelProvider enum with Anthropic, Azure, Gemini, Mistral, Ollama, OpenAI, OpenRouter, etc.
-2. ✓ Create AddModelDialog/ViewModel with:
-   - ✓ Provider dropdown bound to enum
-   - ✓ Model dropdown bound to provider-specific model list (from enum)
-   - ✓ Autodetect option that calls provider API to discover models
-   - ✓ Connect button that validates and adds to config
-3. ✓ Implement provider-specific API client for model discovery (MVP: Ollama only, fallback to catalog)
-4. ⚠ Wire ConfigPageViewModel.AddModelCommand → AddModelDialog (deferred, button added to ConfigPage.xaml)
-5. ⚠ Consider config format migration from JSON to YAML for better readability (stretch goal, deferred)
+1. âœ“ Create ModelProvider enum with Anthropic, Azure, Gemini, Mistral, Ollama, OpenAI, OpenRouter, etc.
+2. âœ“ Create AddModelDialog/ViewModel with:
+   - âœ“ Provider dropdown bound to enum
+   - âœ“ Model dropdown bound to provider-specific model list (from enum)
+   - âœ“ Autodetect option that calls provider API to discover models
+   - âœ“ Connect button that validates and adds to config
+3. âœ“ Implement provider-specific API client for model discovery (MVP: Ollama only, fallback to catalog)
+4. âš  Wire ConfigPageViewModel.AddModelCommand â†’ AddModelDialog (deferred, button added to ConfigPage.xaml)
+5. âš  Consider config format migration from JSON to YAML for better readability (stretch goal, deferred)
 
 **Debugger Verification Evidence:**
-- ✓ Tracepoint `[gap8_4-init-providers]` FIRED: "Initialized 7 providers" (line 115, AddModelViewModel.InitializeProviders)
-- ✓ Tracepoint `[gap8_4-bp-apikey]` FIRED: "ApiKey set successfully" (line 170, AddModelViewModelTests.ApiKey_CanBeSet)
-- ✓ Unit test suite: 14 AddModelViewModel tests PASSED
-  - Constructor_InitializesProviders ✓
-  - Constructor_InitializesEmptyModels ✓
-  - CurrentStep_DefaultIsOne ✓
-  - SelectedProvider_WhenSet_UpdatesCurrentStep ✓
-  - IsValidating_DefaultIsFalse ✓
-  - ValidationError_DefaultIsNull ✓
-  - CancelCommand_ResetsCurrentStep ✓
-  - SaveCommand_WithValidModel_CallsConfigService ✓
-  - AutodetectCommand_CallsDiscoveryService ✓
-  - ConnectCommand_WithoutSelectedModel_SetsError ✓
-  - ConnectCommand_WithValidModel_CallsValidation ✓
-  - ApiKey_CanBeSet ✓
-  - BaseUrl_CanBeSet ✓
-  - Providers_ContainsAllExpectedProviders ✓
-- ✓ Breakpoints bound successfully at AddModelViewModel (lines 115, 170) — tested with xUnit debugger
+- âœ“ Tracepoint `[gap8_4-init-providers]` FIRED: "Initialized 7 providers" (line 115, AddModelViewModel.InitializeProviders)
+- âœ“ Tracepoint `[gap8_4-bp-apikey]` FIRED: "ApiKey set successfully" (line 170, AddModelViewModelTests.ApiKey_CanBeSet)
+- âœ“ Unit test suite: 14 AddModelViewModel tests PASSED
+  - Constructor_InitializesProviders âœ“
+  - Constructor_InitializesEmptyModels âœ“
+  - CurrentStep_DefaultIsOne âœ“
+  - SelectedProvider_WhenSet_UpdatesCurrentStep âœ“
+  - IsValidating_DefaultIsFalse âœ“
+  - ValidationError_DefaultIsNull âœ“
+  - CancelCommand_ResetsCurrentStep âœ“
+  - SaveCommand_WithValidModel_CallsConfigService âœ“
+  - AutodetectCommand_CallsDiscoveryService âœ“
+  - ConnectCommand_WithoutSelectedModel_SetsError âœ“
+  - ConnectCommand_WithValidModel_CallsValidation âœ“
+  - ApiKey_CanBeSet âœ“
+  - BaseUrl_CanBeSet âœ“
+  - Providers_ContainsAllExpectedProviders âœ“
+- âœ“ Breakpoints bound successfully at AddModelViewModel (lines 115, 170) â€” tested with xUnit debugger
 
 **Debugged Behavior Confirmed:**
-1. **Provider Initialization** (line 115): AddModelViewModel constructor populates Providers.Count == 7 ✓
-2. **Property Setters** (line 170): ApiKey property updates state correctly ✓
-3. **Validation Logic**: ConnectCommand without selected model sets ValidationError = "Please select a model." ✓
-4. **Cancellation**: CancelCommand resets CurrentStep from 3 to 0 ✓
-5. **Configuration Save**: SaveCommand accepts config and calls ConfigService.SaveConfigAsync() ✓
+1. **Provider Initialization** (line 115): AddModelViewModel constructor populates Providers.Count == 7 âœ“
+2. **Property Setters** (line 170): ApiKey property updates state correctly âœ“
+3. **Validation Logic**: ConnectCommand without selected model sets ValidationError = "Please select a model." âœ“
+4. **Cancellation**: CancelCommand resets CurrentStep from 3 to 0 âœ“
+5. **Configuration Save**: SaveCommand accepts config and calls ConfigService.SaveConfigAsync() âœ“
 
 **Implementation Notes:**
 - ModelProvider: enum with 7 values
@@ -1010,7 +1010,7 @@ Experimental
 ---
 
 ### gap8_5: LLM System Messages NOT WIRED
-**Status:** ✅ Complete | Type: Mode-Specific Instructions  
+**Status:** âœ… Complete | Type: Mode-Specific Instructions  
 **Current State:**
 - ChatPageViewModel has ChatMode enum (Chat, Agent, Plan)
 - System prompts loaded from `~/.continueVS/system-prompts.json` (editable, with fallback to hardcoded defaults)
@@ -1029,7 +1029,7 @@ Experimental
 - Mode-specific system messages defined with detailed guidance per Continue.js reference
 - System prompts loaded from `~/.continueVS/system-prompts.json` (editable post-install) with fallback to hardcoded defaults
 - `SystemPromptService` manages loading, caching, and file creation
-- `ChatPageViewModel` injects system message via `GetSystemMessageForMode()` → `ISystemPromptService.GetPromptForMode()`
+- `ChatPageViewModel` injects system message via `GetSystemMessageForMode()` â†’ `ISystemPromptService.GetPromptForMode()`
 - Prompts (aligned with `reference\continue-src\core\llm\defaultSystemMessages.ts`) include:
   - `<important_rules>` wrapper tags for structure
   - Detailed `CODEBLOCK_FORMATTING_INSTRUCTIONS` (language+file path in code block headers)
@@ -1037,7 +1037,7 @@ Experimental
   - Mode-specific guidance on tool access and user interaction patterns
 
 **Implementation Details:**
-1. **SystemPromptConfig.cs**: Deserializable JSON model with mode→prompt mapping
+1. **SystemPromptConfig.cs**: Deserializable JSON model with modeâ†’prompt mapping
 2. **SystemPromptService.cs**: Loader service with config file management (~/.continueVS/system-prompts.json) and inline default fallback strings
 3. **ISystemPromptService.cs**: Interface for DI registration
 4. **ServiceBootstrapper.cs**: Registered as singleton
@@ -1070,28 +1070,28 @@ Experimental
 ---
 
 ### gap9: Agent Mode NOT VISIBLE
-**Status:** ✓ Debugged | Type: Mode Switching & Tool Execution Verification  
+**Status:** âœ“ Debugged | Type: Mode Switching & Tool Execution Verification  
 **Debug Instrumentation Added:**
-- ✓ ChatModeToBoolConverter.ConvertBack(): 5 Debug.WriteLine() logs [a9-converter-*] tracking parameter parsing, enum conversion, success/failure paths
-- ✓ ChatPageViewModel.CurrentMode property setter: 3 Debug.WriteLine() logs [a9-property-*] tracking old/new values, Set() result, PropertyChanged notification
-- ✓ ChatPageViewModel.ExecuteSendMessage(): 5 Debug.WriteLine() logs [a9-command-*] tracking mode at entry, assistant message addition, tool check condition, tool execution decision
+- âœ“ ChatModeToBoolConverter.ConvertBack(): 5 Debug.WriteLine() logs [a9-converter-*] tracking parameter parsing, enum conversion, success/failure paths
+- âœ“ ChatPageViewModel.CurrentMode property setter: 3 Debug.WriteLine() logs [a9-property-*] tracking old/new values, Set() result, PropertyChanged notification
+- âœ“ ChatPageViewModel.ExecuteSendMessage(): 5 Debug.WriteLine() logs [a9-command-*] tracking mode at entry, assistant message addition, tool check condition, tool execution decision
 
 **Debugger Breakpoint Verification (Session 1):**
-- ✓ Breakpoint at ChatModeToBoolConverter.cs:37 (Enum.TryParse return) — BOUND & HIT
+- âœ“ Breakpoint at ChatModeToBoolConverter.cs:37 (Enum.TryParse return) â€” BOUND & HIT
   - value=true, parameter="Agent" (string), isChecked=true, paramStr="Agent"
   - **Finding**: Converter entry properly triggered when Agent ToggleButton clicked
   - Enum.TryParse was about to execute with paramStr="Agent" (correct parameter value)
 
 **Root Cause Analysis from Breakpoint Inspection:**
-- ✓ Converter receives "Agent" string parameter correctly
-- ✓ Enum.TryParse logic path reached (isChecked=true && paramStr check passed)
-- ✓ ToggleButton two-way binding is wired and firing ConvertBack
-- **Hypothesis**: Mode transition logic is WORKING — issue may be DOWNSTREAM (UI refresh, binding notification, or mode state not propagating to UI buttons after initial click)
+- âœ“ Converter receives "Agent" string parameter correctly
+- âœ“ Enum.TryParse logic path reached (isChecked=true && paramStr check passed)
+- âœ“ ToggleButton two-way binding is wired and firing ConvertBack
+- **Hypothesis**: Mode transition logic is WORKING â€” issue may be DOWNSTREAM (UI refresh, binding notification, or mode state not propagating to UI buttons after initial click)
 
 **Expected Debug Output Tags When Running:**
-- [a9-converter-entry] → [a9-converter-parse] → [a9-converter-success] or [a9-converter-fail]
-- [a9-property-entry] → [a9-property-set-success] (if property changed) or [a9-property-set-noop] (if unchanged)
-- [a9-command-entry] → [a9-command-assistant] → [a9-command-toolcheck] → [a9-command-toolexec] (if Agent mode + tools pending)
+- [a9-converter-entry] â†’ [a9-converter-parse] â†’ [a9-converter-success] or [a9-converter-fail]
+- [a9-property-entry] â†’ [a9-property-set-success] (if property changed) or [a9-property-set-noop] (if unchanged)
+- [a9-command-entry] â†’ [a9-command-assistant] â†’ [a9-command-toolcheck] â†’ [a9-command-toolexec] (if Agent mode + tools pending)
 
 **Files Modified (DEBUG INSTRUMENTATION ONLY):**
 - src/VSIXProject1/ViewModels/Converters/ChatModeToBoolConverter.cs: Added [a9-converter-*] Debug.WriteLine() at lines 33, 36, 39, 42, 44
@@ -1099,17 +1099,17 @@ Experimental
 
 **Next Steps for Full Verification:**
 - Next debug session: Monitor [a9-*] logs in Output window while clicking mode buttons and sending messages
-- Verify log sequence: converter → property → command
+- Verify log sequence: converter â†’ property â†’ command
 - Confirm all breakpoints hit in correct order
 - Check for UI refresh after property notification (ToggleButton state should toggle)
 - If mode sticks to Ask despite Agent click: investigate ToggleButton binding TwoWay mode or converter ConvertBack fallback logic
 
-**Depends on:** gap8_5 (System Messages) — Complete; gap9 ready for full end-to-end mode switching + tool execution verification in next debug session
+**Depends on:** gap8_5 (System Messages) â€” Complete; gap9 ready for full end-to-end mode switching + tool execution verification in next debug session
 
 ---
 
 ### gap10: Plan Mode NOT VISIBLE
-**Status:** ✅ COMPLETED | Type: UI Binding Fix
+**Status:** âœ… COMPLETED | Type: UI Binding Fix
 **Resolution Date:** Current Session
 **Issue:** Plan mode UI button (RadioButton) did not respond to clicks; mode did not change even though backend logic was complete.
 
@@ -1133,28 +1133,28 @@ Experimental
 
 3. **Added Comprehensive Test Coverage (src/VSIXProject1.Tests/ViewModels/Converters/):**
    - ChatModeModeSwitchingTests.cs: 16 unit tests covering all mode conversion scenarios
-   - Tests verify: Ask ↔ Agent ↔ Plan transitions, case-insensitive parameter handling, null safety, fallback behavior
+   - Tests verify: Ask â†” Agent â†” Plan transitions, case-insensitive parameter handling, null safety, fallback behavior
    - All 16 tests passing (100% success rate)
 
 **Verification Steps Completed:**
-- ✅ Build successful: src/VSIXProject1/VSIXProject1.csproj
-- ✅ Build successful: src/VSIXProject1.Tests/VSIXProject1.Tests.csproj
-- ✅ All 16 ChatModeConverterTests passing
-- ✅ Full test suite: 520 total tests, 518 passed (2 pre-existing failures unrelated to Plan mode)
-- ✅ Plan mode system prompts already configured in SystemPromptService
-- ✅ Tool execution correctly suppressed in Plan mode (Chat mode logic enforces: only Agent mode executes tools)
+- âœ… Build successful: src/VSIXProject1/VSIXProject1.csproj
+- âœ… Build successful: src/VSIXProject1.Tests/VSIXProject1.Tests.csproj
+- âœ… All 16 ChatModeConverterTests passing
+- âœ… Full test suite: 520 total tests, 518 passed (2 pre-existing failures unrelated to Plan mode)
+- âœ… Plan mode system prompts already configured in SystemPromptService
+- âœ… Tool execution correctly suppressed in Plan mode (Chat mode logic enforces: only Agent mode executes tools)
 
 **Debugger Verification (BRIDGE v2.1 Protocol):**
-- ✓ debugged: ChatModeToVisibilityConverter instrumented with [gap10-*] DEBUG tags
-- ✓ debugged: Converter.Convert() called at mode transitions (tracepoints captured Agent, Plan modes)
-- ✓ debugged: RadioButton GroupName="ChatMode" enforces mutual exclusivity (only one checked state)
-- ✓ debugged: Apply button visibility correctly bound (Visible in Ask, Collapsed in Agent/Plan)
-- ✓ debugged: ViewModel.CurrentMode setter notified on mode changes ([a9-property-entry] tags logged)
+- âœ“ debugged: ChatModeToVisibilityConverter instrumented with [gap10-*] DEBUG tags
+- âœ“ debugged: Converter.Convert() called at mode transitions (tracepoints captured Agent, Plan modes)
+- âœ“ debugged: RadioButton GroupName="ChatMode" enforces mutual exclusivity (only one checked state)
+- âœ“ debugged: Apply button visibility correctly bound (Visible in Ask, Collapsed in Agent/Plan)
+- âœ“ debugged: ViewModel.CurrentMode setter notified on mode changes ([a9-property-entry] tags logged)
 - Evidence: Debugger breakpoints hit at Convert() line 21 for Agent and Plan transitions; locals verified mode values
 
 **Impact:**
 Plan mode is now fully functional:
-- Users can click Plan button → mode switches visually and internally
+- Users can click Plan button â†’ mode switches visually and internally
 - Plan-specific system message injected during API calls
 - Tools suppressed; read-only mode enforced
 - Completes feature parity with Continue.js Plan mode
@@ -1165,7 +1165,7 @@ Plan mode is now fully functional:
 ---
 
 ### gap12: Theme/Dark Mode NOT APPLIED
-**Status:** ✅ Completed | Type: Service Integration & XAML Updates
+**Status:** âœ… Completed | Type: Service Integration & XAML Updates
 **Implementation Completed:**
 - Theme initialization added to ContinueToolWindowControl.xaml.cs
   - Loads dark theme on control load via ThemeService.LoadThemeAsync()
@@ -1175,11 +1175,11 @@ Plan mode is now fully functional:
   - InputBackgroundBrush background, PrimaryTextBrush foreground, InputBorderBrush border
   - Applied to ChatPage input, InputWindow input fields
 - All hardcoded color values replaced with theme resources:
-  - InputWindow.xaml: Background #F0F0F0 → {StaticResource EditorBackground}, Foreground #333333 → {StaticResource PrimaryTextBrush}
-  - ChatPage.xaml: Mode selector text → {StaticResource PrimaryTextBrush}, Separator → {StaticResource BorderBrush}
-  - ChatPage.xaml: ToolInvocation template #FFF9F0 → CodeBackground, #FF6600 → WarningBrush, #444444 → PrimaryTextBrush
-  - ChatPage.xaml: SystemMessage template #F0F0F0 → PanelBackground, #666666 → SecondaryTextBrush
-  - TextDialog.xaml: Buttons #0078D4 → ButtonPrimaryBrush, #E81123 → ErrorBrush, #107C10 → SuccessBrush, #D83B01 → WarningBrush
+  - InputWindow.xaml: Background #F0F0F0 â†’ {StaticResource EditorBackground}, Foreground #333333 â†’ {StaticResource PrimaryTextBrush}
+  - ChatPage.xaml: Mode selector text â†’ {StaticResource PrimaryTextBrush}, Separator â†’ {StaticResource BorderBrush}
+  - ChatPage.xaml: ToolInvocation template #FFF9F0 â†’ CodeBackground, #FF6600 â†’ WarningBrush, #444444 â†’ PrimaryTextBrush
+  - ChatPage.xaml: SystemMessage template #F0F0F0 â†’ PanelBackground, #666666 â†’ SecondaryTextBrush
+  - TextDialog.xaml: Buttons #0078D4 â†’ ButtonPrimaryBrush, #E81123 â†’ ErrorBrush, #107C10 â†’ SuccessBrush, #D83B01 â†’ WarningBrush
 - RoleToColorConverter.cs updated to use theme resources via Application.Current.Resources
   - Fallback to hardcoded RGB values if theme resource unavailable
 - ChatPage.xaml resource dictionary merged with ThemeDark.xaml
@@ -1189,13 +1189,13 @@ Plan mode is now fully functional:
 ---
 
 ### gap12_1: Config Page Redesign - Tab-Based UI
-**Status:** ✅ Complete | Type: UI Redesign  
+**Status:** âœ… Complete | Type: UI Redesign  
 **Implementation:**
 - Refactored ConfigPage.xaml from linear StackPanel layout to hierarchical TabControl with 3 tabs
-- **Tab 1: Models** — SearchBox (case-insensitive filter on Name/Provider), ListBox binding to FilteredModels, model detail pane showing all properties (Name, Provider, BaseUrl, OllamaModelId read-only; ContextWindow editable with Update button), Add/Remove buttons
-- **Tab 2: Tools** — Retained existing checkbox-based tool list with descriptions (no changes)
-- **Tab 3: User Preferences** — Moved SettingsControl from main page to dedicated ScrollViewer-wrapped tab
-- **Bottom Action Bar** — Save Configuration, Edit Config in Editor, Reindex Workspace buttons positioned at bottom
+- **Tab 1: Models** â€” SearchBox (case-insensitive filter on Name/Provider), ListBox binding to FilteredModels, model detail pane showing all properties (Name, Provider, BaseUrl, OllamaModelId read-only; ContextWindow editable with Update button), Add/Remove buttons
+- **Tab 2: Tools** â€” Retained existing checkbox-based tool list with descriptions (no changes)
+- **Tab 3: User Preferences** â€” Moved SettingsControl from main page to dedicated ScrollViewer-wrapped tab
+- **Bottom Action Bar** â€” Save Configuration, Edit Config in Editor, Reindex Workspace buttons positioned at bottom
 - ConfigPageViewModel enhancements:
   - Added `SearchText` property with automatic UpdateFilteredModels() trigger
   - Added `FilteredModels` ObservableCollection (read-only public property, backing field `_filteredModels`) with case-insensitive substring matching
@@ -1211,9 +1211,9 @@ Plan mode is now fully functional:
   - Added `ContextWindowTextBox_PreviewTextInput` event handler to reject non-numeric input
   - Numeric validation: `int.TryParse(e.Text, out _)` blocks invalid input
 - **Files Modified:**
-  - src/VSIXProject1/ViewModels/ConfigPageViewModel.cs — Added SearchText, FilteredModels, EditingContextWindow, UpdateContextWindowCommand, UpdateFilteredModels() method, ConfigChanged event subscription
-  - src/VSIXProject1/UI/Pages/ConfigPage.xaml — Complete redesign from linear layout to TabControl with 3 tabs
-  - src/VSIXProject1/UI/Pages/ConfigPage.xaml.cs — Added ContextWindowTextBox_PreviewTextInput handler
+  - src/VSIXProject1/ViewModels/ConfigPageViewModel.cs â€” Added SearchText, FilteredModels, EditingContextWindow, UpdateContextWindowCommand, UpdateFilteredModels() method, ConfigChanged event subscription
+  - src/VSIXProject1/UI/Pages/ConfigPage.xaml â€” Complete redesign from linear layout to TabControl with 3 tabs
+  - src/VSIXProject1/UI/Pages/ConfigPage.xaml.cs â€” Added ContextWindowTextBox_PreviewTextInput handler
 - **Build & Tests:** Clean build (0 errors/warnings); 520/520 tests passing
 - **Rationale:** Organizes config UI hierarchically to reduce cognitive load; inline ContextWindow editing eliminates round-trip to modal dialog; immediate save mirrors ContinueVS's real-time preference for instant feedback; numeric validation prevents invalid config entries
 
@@ -1222,7 +1222,7 @@ Plan mode is now fully functional:
 ---
 
 ### gap12_2: Config Add Model Button Does Nothing
-**Status:** ✅ RESOLVED | Type: UI Feature Implementation  
+**Status:** âœ… RESOLVED | Type: UI Feature Implementation  
 **Description:**  
 - ConfigPageViewModel has `AddModelCommand` bound to "Add Model" button in ConfigPage.xaml
 - When user clicks "Add Model", the command now executes `ExecuteAddModel()` which:
@@ -1275,7 +1275,7 @@ Plan mode is now fully functional:
 ---
 
 ### gap12_3: Add Model Provider Dropdown Empty
-**Status:** ✅ COMPLETE (VERIFIED WORKING) | Type: UI DataContext + Styling Fix
+**Status:** âœ… COMPLETE (VERIFIED WORKING) | Type: UI DataContext + Styling Fix
 **Original Problem:** 
 - Provider ComboBox in AddModelDialog showed as empty (dark on dark text) even though bindings looked correct
 
@@ -1298,7 +1298,7 @@ Plan mode is now fully functional:
 
 **How It Works Now:**
 1. ConfigPageViewModel constructor creates AddModelViewModel eagerly
-2. AddModelViewModel constructor calls `InitializeProviders()` → populates Providers collection with ProviderMetadata objects (7 providers)
+2. AddModelViewModel constructor calls `InitializeProviders()` â†’ populates Providers collection with ProviderMetadata objects (7 providers)
 3. XAML binding `{Binding AddModelViewModel}` immediately finds non-null instance
 4. ConfigPage Add Model tab renders immediately with visible AddModelDialog control
 5. Provider ComboBox displays with white background and black text
@@ -1306,12 +1306,12 @@ Plan mode is now fully functional:
 7. User can select provider and models dropdown populates accordingly
 
 **Verification (Runtime):**
-- ✅ Extension loads successfully
-- ✅ InitializeProviders tracepoint fires: 7 providers loaded
-- ✅ Add Model tab renders immediately (no need to click Add Model button first)
-- ✅ Provider dropdown displays readable text (dark on light background)
-- ✅ Dropdown items visible when opened (proper styling applied)
-- ✅ Model selection works as expected after selecting provider
+- âœ… Extension loads successfully
+- âœ… InitializeProviders tracepoint fires: 7 providers loaded
+- âœ… Add Model tab renders immediately (no need to click Add Model button first)
+- âœ… Provider dropdown displays readable text (dark on light background)
+- âœ… Dropdown items visible when opened (proper styling applied)
+- âœ… Model selection works as expected after selecting provider
 
 **Files Modified:**
 - src/VSIXProject1/ViewModels/ConfigPageViewModel.cs:
@@ -1327,11 +1327,11 @@ Plan mode is now fully functional:
 ---
 
 ### gap13: Config Persistence NOT TESTED
-**Status:** 🟡 Partial | Type: Round-Trip End-to-End Config Test  
+**Status:** ðŸŸ¡ Partial | Type: Round-Trip End-to-End Config Test  
 **Current State:**
 - ConfigService.SaveConfigAsync() saves to `~/.continueVS/continueVS.json`
 - ConfigService.InitializeAsync() loads from file
-- No end-to-end test: add model → save → load → verify in UI
+- No end-to-end test: add model â†’ save â†’ load â†’ verify in UI
 - No test for settings persistence (gap8_2 settings stored in CustomSettings)
 
 **What Continue.js Does (from AGENTS.md):**
@@ -1343,11 +1343,11 @@ Plan mode is now fully functional:
 - No file watcher for config.json changes
 - No cascading reload when user edits config.json externally
 - Round-trip test missing: two components to verify:
-  1. **gap8_1 tools persistence**: Add/enable tool → save → restart → verify in UI (ConfigPageViewModel.AvailableTools updated)
-  2. **gap8_2 settings persistence**: Modify setting in UI → save → restart → verify value restored (SettingsViewModel properties match)
+  1. **gap8_1 tools persistence**: Add/enable tool â†’ save â†’ restart â†’ verify in UI (ConfigPageViewModel.AvailableTools updated)
+  2. **gap8_2 settings persistence**: Modify setting in UI â†’ save â†’ restart â†’ verify value restored (SettingsViewModel properties match)
 
 **Remediation Completed:**
-1. ✅ Enhanced TestFixtureBase.cs with temp file helpers: `CreateTempConfigPath()`, `CleanupTempFile()`, `_tempFiles` tracking
+1. âœ… Enhanced TestFixtureBase.cs with temp file helpers: `CreateTempConfigPath()`, `CleanupTempFile()`, `_tempFiles` tracking
    - Integrated into Dispose(bool) for automatic cleanup
    - Ready for round-trip integration tests
 
@@ -1359,16 +1359,16 @@ Plan mode is now fully functional:
 **Next Steps (Manual Testing):**
 1. Implement manual round-trip test for **gap8_1 tools** (gap3 completed):
    - Toggle tool enabled/disabled via ConfigPageViewModel.ToggleToolCommand
-   - Click Save Configuration → persists to config.json
-   - Restart extension → reload ConfigService → verify AvailableTools reflects saved state
+   - Click Save Configuration â†’ persists to config.json
+   - Restart extension â†’ reload ConfigService â†’ verify AvailableTools reflects saved state
    - Confirm enablement state persisted in CustomSettings["tool.<toolName>.enabled"]
 
 2. Implement manual round-trip test for **gap8_2 settings** (gap8_2 completed):
    - Modify one+ setting in SettingsControl UI (e.g., toggle ShowSessionTabs, change FontSize)
-   - Click Save → persists to config.json (delta-based)
-   - Restart extension → verify SettingsViewModel loads persisted values
+   - Click Save â†’ persists to config.json (delta-based)
+   - Restart extension â†’ verify SettingsViewModel loads persisted values
 
-   - Restart extension → ConfigService loads config.json → SettingsViewModel.LoadSettings() restores values
+   - Restart extension â†’ ConfigService loads config.json â†’ SettingsViewModel.LoadSettings() restores values
    - Confirm persisted values match user changes in CustomSettings["chat.showSessionTabs"], CustomSettings["appearance.fontSize"], etc.
 
 3. Optional: Add FileSystemWatcher to ConfigService to auto-reload on external changes
@@ -1379,7 +1379,7 @@ Plan mode is now fully functional:
 ---
 
 ### gap11: Tools Count NOT SHOWN IN UI
-**Status:** ✓ Debugged & Fixed | Type: Missing Event Binding + Visibility Logic  
+**Status:** âœ“ Debugged & Fixed | Type: Missing Event Binding + Visibility Logic  
 **Current State:**
 - ConfigPageViewModel.AvailableTools collection fully functional
 - ConfigPage.xaml Tools tab displays all tools (enabled and disabled) with checkboxes
@@ -1390,34 +1390,34 @@ Plan mode is now fully functional:
 **Root Causes & Fixes:**
 
 1. **Missing Checkbox Event Handlers** (First Issue)
-   - Added `Checked="ConfigPage_CheckBox_Checked"` and `Unchecked="ConfigPage_CheckBox_Unchecked"` to CheckBox in ConfigPage.xaml (lines 188–193)
-   - Implemented ConfigPage_CheckBox_Checked() and ConfigPage_CheckBox_Unchecked() in ConfigPage.xaml.cs (lines 157–225)
+   - Added `Checked="ConfigPage_CheckBox_Checked"` and `Unchecked="ConfigPage_CheckBox_Unchecked"` to CheckBox in ConfigPage.xaml (lines 188â€“193)
+   - Implemented ConfigPage_CheckBox_Checked() and ConfigPage_CheckBox_Unchecked() in ConfigPage.xaml.cs (lines 157â€“225)
    - Extract tool from checkbox DataContext and invoke `_viewModel.ToggleToolCommand.Execute(tool)`
 
 2. **Disabled Tools Hidden When Unchecked** (Follow-up Issue)
-   - **Original behavior**: RefreshAvailableTools() called `GetEnabledTools()` only → disabled tools disappeared from UI
+   - **Original behavior**: RefreshAvailableTools() called `GetEnabledTools()` only â†’ disabled tools disappeared from UI
    - **Fixed behavior**: RefreshAvailableTools() and LoadConfiguration() now load ALL tools from `config.Tools` (both enabled and disabled)
    - Disabled tools remain visible in the UI with checkbox unchecked
    - NavigationBar still shows only count of enabled tools (correct behavior for badge)
 
 **Implementation Details:**
-- LoadConfiguration() (lines 176–225): Changed from `GetEnabledTools()` to `config.Tools` — loads all tools with counts
-- RefreshAvailableTools() (lines 230–261): Changed from `GetEnabledTools()` to `config.Tools` — preserves visibility of disabled tools
+- LoadConfiguration() (lines 176â€“225): Changed from `GetEnabledTools()` to `config.Tools` â€” loads all tools with counts
+- RefreshAvailableTools() (lines 230â€“261): Changed from `GetEnabledTools()` to `config.Tools` â€” preserves visibility of disabled tools
 - Enhanced logging with [gap11-*], [gap8_1-configvm-*] tags to track tool loading and enable/disable state
 
 **Verification:**
-✓ Initial load: All tools (enabled and disabled) loaded into AvailableTools
-✓ Toggle tool: Tool remains visible when unchecked (not hidden)
-✓ SaveConfigAsync: Persists tool state change
-✓ NavigationBar.ToolCount: Shows only enabled tools count
-✓ Config UI: Disabled tools show as unchecked in the list
+âœ“ Initial load: All tools (enabled and disabled) loaded into AvailableTools
+âœ“ Toggle tool: Tool remains visible when unchecked (not hidden)
+âœ“ SaveConfigAsync: Persists tool state change
+âœ“ NavigationBar.ToolCount: Shows only enabled tools count
+âœ“ Config UI: Disabled tools show as unchecked in the list
 
 **Depends on:** gap3 (ConfigService), gap7 (NavigationBar)
 
 ---
 
 ### gap8_1b: Delta Persistence for Tools (Continuation of gap8_1)
-**Status:** ✓ Fixed | Type: Persistence/Serialization Logic
+**Status:** âœ“ Fixed | Type: Persistence/Serialization Logic
 
 **Problem:**
 All 19 tools were being persisted to continueVS.json regardless of their enabled/disabled state, even when the state matched the default (enabled=true for all built-in tools). This violated the delta-only persistence pattern implemented for settings (gap12).
@@ -1499,19 +1499,19 @@ SaveConfigSync() was serializing the entire config including all tools without f
 - No metadata drift: Descriptions and parameters always fresh from registry
 
 **Verification:**
-✓ Build passed
-✓ Test SaveConfigAsync_FiltersToolsByDelta_ExcludingDefaultEnabledTools passed
-✓ Delta persistence implemented with minimal two-field ToolOverride objects
-✓ UI displays all tools with full metadata
-✓ continueVS.json contains only state overrides (name + isEnabled)
-✓ Metadata loaded from registry prevents staleness
+âœ“ Build passed
+âœ“ Test SaveConfigAsync_FiltersToolsByDelta_ExcludingDefaultEnabledTools passed
+âœ“ Delta persistence implemented with minimal two-field ToolOverride objects
+âœ“ UI displays all tools with full metadata
+âœ“ continueVS.json contains only state overrides (name + isEnabled)
+âœ“ Metadata loaded from registry prevents staleness
 
 **Depends on:** gap8_1 (Built-in Tools Registry), gap12 (Settings delta pattern)
 
 ---
 
 ### gap14: Cloud Model Definition UI MISSING
-**Status:** ⚠️ Missing | Type: Feature Not Started  
+**Status:** âš ï¸ Missing | Type: Feature Not Started  
 **Current State:**
 - ConfigPageViewModel has model add/remove commands (stubs)
 - No UI form for adding cloud models (OpenAI, Anthropic, etc.)
@@ -1529,14 +1529,14 @@ SaveConfigSync() was serializing the entire config including all tools without f
 1. Create ModelSetupDialog.xaml with form for model details
 2. Support fields: provider, model ID, API key (secure TextBox)
 3. Call IConfigService.AddModelAsync() on submit
-4. Show in ConfigPage "Add Model" button → opens dialog
+4. Show in ConfigPage "Add Model" button â†’ opens dialog
 
 **Nice-to-have:** gap15 priority (less common than local Ollama)
 
 ---
 
 ### gap15: Subscription Model Definition MISSING
-**Status:** ⚠️ Missing | Type: Advanced Feature  
+**Status:** âš ï¸ Missing | Type: Advanced Feature  
 **Current State:**
 - No subscription model support (e.g., Continue subscription API)
 
@@ -1554,17 +1554,17 @@ SaveConfigSync() was serializing the entire config including all tools without f
 ---
 
 ### gap16: Long Questions and Answers Require Scroll Bar
-**Status:** ✅ Completed | Type: UI/UX Enhancement  
+**Status:** âœ… Completed | Type: UI/UX Enhancement  
 **Current State:**
 - ChatPage.xaml wraps ItemsControl in ScrollViewer with VerticalScrollBarVisibility="Auto"
 - ChatPage.xaml.cs implements CollectionChanged event listener for auto-scroll-to-bottom
 - Both user messages and assistant responses scroll smoothly within bounded viewport
 
 **Implementation:**
-1. ✅ Wrapped message display ItemsControl in ScrollViewer (MessagesScrollViewer named)
-2. ✅ Added scroll-to-bottom logic via CollectionChanged event in code-behind
-3. ✅ Set ItemsControl VerticalAlignment="Top" to allow scrolling without unbounded growth
-4. ✅ Connected Loaded/Unloaded handlers to manage CollectionChanged subscription lifecycle
+1. âœ… Wrapped message display ItemsControl in ScrollViewer (MessagesScrollViewer named)
+2. âœ… Added scroll-to-bottom logic via CollectionChanged event in code-behind
+3. âœ… Set ItemsControl VerticalAlignment="Top" to allow scrolling without unbounded growth
+4. âœ… Connected Loaded/Unloaded handlers to manage CollectionChanged subscription lifecycle
 
 **Changes Made:**
 - **src/VSIXProject1/UI/Pages/ChatPage.xaml**: Replaced bare ItemsControl with ScrollViewer-wrapped ItemsControl (Grid.Row=2)
@@ -1575,19 +1575,19 @@ SaveConfigSync() was serializing the entire config including all tools without f
 - Scroll bar appears only when content exceeds viewport height
 - Auto-scroll-to-bottom on new messages provides expected UX (matches Continue.js)
 
-**Priority:** ✅ Completed (UX-blocking for real conversations)
+**Priority:** âœ… Completed (UX-blocking for real conversations)
 
 ---
 
 ### gap17: Allow User to Delete a Send or Response
-**Status:** ✅ Completed | Type: Conversation Management  
+**Status:** âœ… Completed | Type: Conversation Management  
 **Current State:**
-- ✅ Delete button with hover activation on each message
-- ✅ DeleteMessageCommand<string> in ChatPageViewModel
-- ✅ ObservableCollection removal with automatic UI update
-- ✅ Service persistence via ISessionService.DeleteMessageAsync
-- ✅ Error handling with message rollback
-- ✅ Full test coverage (5 unit tests passing)
+- âœ… Delete button with hover activation on each message
+- âœ… DeleteMessageCommand<string> in ChatPageViewModel
+- âœ… ObservableCollection removal with automatic UI update
+- âœ… Service persistence via ISessionService.DeleteMessageAsync
+- âœ… Error handling with message rollback
+- âœ… Full test coverage (5 unit tests passing)
 
 **What Continue.js Does:**
 - Right-click or menu on each message to delete
@@ -1595,22 +1595,22 @@ SaveConfigSync() was serializing the entire config including all tools without f
 - Updates session/context window after deletion
 
 **Implementation (Completed):**
-1. **UI Layer**: ChatMessageControl.xaml with delete button (✕) grid layout
+1. **UI Layer**: ChatMessageControl.xaml with delete button (âœ•) grid layout
 2. **Event Handlers**: ChatMessageControl.xaml.cs MouseEnter/MouseLeave for visibility
 3. **Command**: ChatPageViewModel.cs DeleteMessageCommand<string> with ExecuteDeleteMessage
    - Removes from ObservableCollection (instant UI refresh)
    - Calls _sessionService.DeleteMessageAsync() asynchronously
    - On error: restores message and notifies user
 4. **Tests**: ChatPageViewModelDeleteMessageTests.cs with 5 test cases
-   - Removal verification ✓
-   - Service call verification ✓
-   - Error recovery ✓
-   - Edge case handling ✓
+   - Removal verification âœ“
+   - Service call verification âœ“
+   - Error recovery âœ“
+   - Edge case handling âœ“
 
 **ContinueVS Gap (RESOLVED):**
-- ✅ UI affordance to remove messages added
-- ✅ Can clean up erroneous sends before next LLM call
-- ✅ Can reduce context token count by removing old messages
+- âœ… UI affordance to remove messages added
+- âœ… Can clean up erroneous sends before next LLM call
+- âœ… Can reduce context token count by removing old messages
 
 **Files Modified:**
 - src/VSIXProject1/UI/Views/ChatMessageControl.xaml
@@ -1618,42 +1618,42 @@ SaveConfigSync() was serializing the entire config including all tools without f
 - src/VSIXProject1/ViewModels/ChatPageViewModel.cs
 - src/VSIXProject1.Tests/ViewModels/ChatPageViewModelDeleteMessageTests.cs (new)
 
-**Quality Assurance:** ✅ Build clean | ✅ Tests passing | ✅ Service persistence
+**Quality Assurance:** âœ… Build clean | âœ… Tests passing | âœ… Service persistence
 
 ---
 
 ### gap18: Model Catalog Parity with Continue.js
-**Status:** ✅ Complete | Type: Model Catalog Completeness | Phase: Phase 1 (MVP) + UI Display Fix
+**Status:** âœ… Complete | Type: Model Catalog Completeness | Phase: Phase 1 (MVP) + UI Display Fix
 **Latest Update (UI Display Fix - CRITICAL):** 
 - Fixed ProviderCatalog.cs DefaultModels for OpenRouter: replaced "(Dynamic discovery via API)" placeholder with 25 complete model entries
 - Fixed Anthropic DefaultModels: added "Claude 3.5 Sonnet" (now 8 total models)
 - **Critical insight:** ModelCatalog is used for *hydration* (save/validation), but ProviderCatalog is used for *UI display* (AddModelViewModel dropdown)
 - Updated ProviderCatalog.OpenRouter DefaultModels to match ModelCatalog coverage: Claude, GPT-4, Llama, Qwen, Gemini, Mistral, Groq, Jamba, YI, Perplexity, Cohere, Together
-- Now the UI dropdown actually shows 25 real OpenRouter models instead of the placeholder ✅
+- Now the UI dropdown actually shows 25 real OpenRouter models instead of the placeholder âœ…
 - All 7 providers now display their full model lists in the Add Model Dialog UI
-- Tests: 17/17 passing in ModelCatalogTests ✅
-- Build: Clean on src/VSIXProject1/VSIXProject1.csproj ✅
+- Tests: 17/17 passing in ModelCatalogTests âœ…
+- Build: Clean on src/VSIXProject1/VSIXProject1.csproj âœ…
 
 **Implementation (Phase 1 - Complete):**
 
 **What Was Added:**
-- ✅ **New `ModelCatalog.cs`** (src/VSIXProject1/Services/ModelCatalog.cs, 400+ lines)
+- âœ… **New `ModelCatalog.cs`** (src/VSIXProject1/Services/ModelCatalog.cs, 400+ lines)
   - Static class with curated catalog of 79+ total LLM models across all 7 providers
   - Used for *hydration* when saving models (fills in metadata like ContextWindow, SupportsFunctionCalling)
   - Each model entry includes: Name, Provider, ContextWindow (tokens), SupportsFunctionCalling, SupportedToolFormats, OllamaModelId
 
-- ✅ **Updated `ProviderCatalog.cs`** (src/VSIXProject1/Services/ProviderCatalog.cs, now includes DefaultModels UI display)
+- âœ… **Updated `ProviderCatalog.cs`** (src/VSIXProject1/Services/ProviderCatalog.cs, now includes DefaultModels UI display)
   - **Critical fix:** OpenRouter now has 25 models instead of 1 placeholder
   - **Critical fix:** Anthropic now includes "Claude 3.5 Sonnet" at the top of the list
   - Drives the UI dropdowns in AddModelViewModel
   - Each provider's DefaultModels list now displays in the Add Model Dialog combobox
 
-- ✅ **Updated `AddModelViewModel.cs`** (src/VSIXProject1/ViewModels/AddModelViewModel.cs)
+- âœ… **Updated `AddModelViewModel.cs`** (src/VSIXProject1/ViewModels/AddModelViewModel.cs)
   - LoadModelsForProvider() pulls from SelectedProvider.DefaultModels (from ProviderCatalog) for UI display
   - ExecuteSave() hydrates ModelInfo from ModelCatalog for metadata enrichment
   - ValidateConnectionAsync() does the same hydration before validation
 
-- ✅ **New `ModelCatalogTests.cs`** (src/VSIXProject1.Tests/Services/ModelCatalogTests.cs, 17 tests)
+- âœ… **New `ModelCatalogTests.cs`** (src/VSIXProject1.Tests/Services/ModelCatalogTests.cs, 17 tests)
   - All 17 tests pass, covering exact lookups, context windows, tool support, provider coverage, etc.
 
 **Files Modified:**
@@ -1677,7 +1677,7 @@ SaveConfigSync() was serializing the entire config including all tools without f
 1. **UI Display Layer (ProviderCatalog):**
    - AddModelViewModel.LoadModelsForProvider() reads SelectedProvider.DefaultModels from ProviderCatalog
    - Displays as combobox in Add Model Dialog
-   - No longer shows "(Dynamic discovery via API)" for OpenRouter — shows 25 real models ✅
+   - No longer shows "(Dynamic discovery via API)" for OpenRouter â€” shows 25 real models âœ…
 
 2. **Metadata Hydration Layer (ModelCatalog):**
    - AddModelViewModel.ExecuteSave() calls ModelCatalog.TryGetModel() to enrich metadata
@@ -1690,7 +1690,7 @@ SaveConfigSync() was serializing the entire config including all tools without f
 - UI: OpenRouter dropdown now shows 25 real models; Anthropic now includes Claude 3.5 Sonnet
 - Runtime parity: UI model dropdowns now match provider lists
 
-**Blocking Resolved:** None (was not a blocker); unblocks gap19 (Context Window field in Add Model Dialog) — gap19 can now pre-populate ContextWindow from ModelCatalog
+**Blocking Resolved:** None (was not a blocker); unblocks gap19 (Context Window field in Add Model Dialog) â€” gap19 can now pre-populate ContextWindow from ModelCatalog
 
 **Out of Scope (Phase 2 & 3):**
 - Phase 2: Sync model catalog from Continue.js open-source data (external API/JSON)
@@ -1701,7 +1701,7 @@ SaveConfigSync() was serializing the entire config including all tools without f
 ---
 
 ### gap19: Context Window Configuration Missing from Add Model Dialog
-**Status:** ✅ Complete | Type: UI Form Completeness
+**Status:** âœ… Complete | Type: UI Form Completeness
 
 **Problem Statement:**
 When users add a new model via the **Add Model Dialog** (AddModelDialog.xaml), they cannot configure the `ContextWindow` (token limit) property. This field is critical for:
@@ -1716,7 +1716,7 @@ Currently, the dialog only supports:
 - Base URL (text input for Ollama)
 
 **Missing Field:**
-- **ContextWindow** (integer, in tokens) — e.g., Ollama Llama 3.1 8B = 8192 tokens, GPT-4 = 128K tokens
+- **ContextWindow** (integer, in tokens) â€” e.g., Ollama Llama 3.1 8B = 8192 tokens, GPT-4 = 128K tokens
 
 **Reference Architecture:**
 In Continue.js, each model entry includes `contextLength` as a required property in the model catalog (see `models.ts` line 25-30).
@@ -1724,35 +1724,35 @@ In Continue.js, each model entry includes `contextLength` as a required property
 **Implementation (Completed):**
 
 **Changes Made:**
-1. **AddModelDialog.xaml (UI/Views/AddModelDialog.xaml)** — Added context window field
+1. **AddModelDialog.xaml (UI/Views/AddModelDialog.xaml)** â€” Added context window field
    - Added TextBlock label: "Context Window (tokens)" after Base URL field
    - Added TextBox bound to `{Binding ContextWindow, Mode=TwoWay, UpdateSourceTrigger=LostFocus}`
    - Styling: MinHeight=30, Margin="0,0,0,20", matching Base URL field pattern
 
-2. **AddModelViewModel.cs** — Added context window property and validation
+2. **AddModelViewModel.cs** â€” Added context window property and validation
    - Added private field: `_contextWindow` (nullable string)
    - Added public property: `ContextWindow` with `Set()` MVVM binding
    - **Auto-population on Model Selection:** When user selects a model from dropdown:
      - Queries ModelCatalog for the selected model's context window
-     - If found in catalog → pre-fills field with catalog value (e.g., your Ollama model shows 131072)
-     - If not in catalog → pre-fills with provider defaults
+     - If found in catalog â†’ pre-fills field with catalog value (e.g., your Ollama model shows 131072)
+     - If not in catalog â†’ pre-fills with provider defaults
      - Debug logging: `[gap19-addmodelvm-selected-model-catalog]` or `[gap19-addmodelvm-selected-model-default]`
-   - Added validation method: `ValidateContextWindow(string? input)` — returns (isValid, int? value)
-     - Empty input → (true, null) — use catalog defaults
-     - Positive integer → (true, value) — use user input
-     - Invalid input → (false, null) — reject
+   - Added validation method: `ValidateContextWindow(string? input)` â€” returns (isValid, int? value)
+     - Empty input â†’ (true, null) â€” use catalog defaults
+     - Positive integer â†’ (true, value) â€” use user input
+     - Invalid input â†’ (false, null) â€” reject
    - Updated `ResetForm()` to clear `_contextWindow` field
    - Updated `RaisePropertyChanged()` calls in `ResetForm()` to include `ContextWindow`
 
-3. **ExecuteSave() Logic** — Priority-based fallback chain
+3. **ExecuteSave() Logic** â€” Priority-based fallback chain
    - **Priority 1:** User-provided ContextWindow (if valid and non-empty)
    - **Priority 2:** ModelCatalog lookup (if model found in catalog)
    - **Priority 3:** Provider defaults via `ModelCatalog.GetDefaultContextWindow()`
    - **Priority 4:** Hardcoded default = 4096 tokens
-   - If user input invalid → validation error message, save cancelled
+   - If user input invalid â†’ validation error message, save cancelled
    - Debug logging tags: `[gap19-addmodelvm-save-user-input]`, `[gap19-addmodelvm-save-validation-error]`
 
-4. **ConfigPageViewModel.cs** — Fixed callback registration
+4. **ConfigPageViewModel.cs** â€” Fixed callback registration
    - Changed eager initialization to lazy initialization
    - Removed premature `new AddModelViewModel()` from constructor (line 129)
    - Allows `ExecuteAddModel()` to create instance with proper `onCanceled` callback
@@ -1764,14 +1764,14 @@ In Continue.js, each model entry includes `contextLength` as a required property
 - src/VSIXProject1/ViewModels/ConfigPageViewModel.cs
 
 **Build Status:**
-- ✅ Clean compilation (no errors or warnings)
-- ✅ VSIXProject1.csproj builds successfully
-- ✅ VSIXProject1.Tests.csproj builds successfully
-- ✅ Test suite: **547/547 passing** (100% — all tests including previously failing callback test now pass)
+- âœ… Clean compilation (no errors or warnings)
+- âœ… VSIXProject1.csproj builds successfully
+- âœ… VSIXProject1.Tests.csproj builds successfully
+- âœ… Test suite: **547/547 passing** (100% â€” all tests including previously failing callback test now pass)
 
 **How to Use:**
 1. Open ContinueVS Extension
-2. Go to Settings → Config Page tab
+2. Go to Settings â†’ Config Page tab
 3. Click "Add Model" button
 4. Select Provider (e.g., Ollama, OpenAI)
 5. Select Model name from dropdown
@@ -1783,19 +1783,19 @@ In Continue.js, each model entry includes `contextLength` as a required property
 10. Model now saved with the populated context window value
 
 **User Experience Improvement:**
-- ✅ One-step workflow: add model with all config in single dialog
-- ✅ Input validation: rejects negative/non-numeric context window values
-- ✅ Smart defaults: empty field uses ModelCatalog or provider defaults
-- ✅ No breaking changes: existing models unaffected, XAML binding is clean
+- âœ… One-step workflow: add model with all config in single dialog
+- âœ… Input validation: rejects negative/non-numeric context window values
+- âœ… Smart defaults: empty field uses ModelCatalog or provider defaults
+- âœ… No breaking changes: existing models unaffected, XAML binding is clean
 
 ---
 
 ### gap19_1: Wire ModelInfo.ContextWindow to Active Token Limit
-**Status:** ✅ Complete | Type: Runtime Correctness / Token Budget
+**Status:** âœ… Complete | Type: Runtime Correctness / Token Budget
 **Latest Update:** Implemented active model context-window precedence in `ContextWindowCollector`
 
 **Problem Statement:**
-`ModelInfo.ContextWindow` (stored in `continueVS.json`) is displayed in the UI but is **never used** to enforce the actual token limit when sending messages to the LLM. The token-limiting pipeline reads its budget from a separate file (`~/.continue/vsx-settings.json → maxContextTokens`), which defaults to `131072` regardless of what the active model reports.
+`ModelInfo.ContextWindow` (stored in `continueVS.json`) is displayed in the UI but is **never used** to enforce the actual token limit when sending messages to the LLM. The token-limiting pipeline reads its budget from a separate file (`~/.continue/vsx-settings.json â†’ maxContextTokens`), which defaults to `131072` regardless of what the active model reports.
 
 This means a model with a true context window of 8192 tokens could silently receive a prompt sized for 131072 tokens, causing truncation or errors at the API level.
 
@@ -1810,13 +1810,13 @@ Two independent systems exist with no connection:
 The `ContextWindowCollector` reads `TokenLimitSettings` directly and has no awareness of the selected model's configured `ContextWindow`. The `DefaultContextWindow = 131072` constant in `ConfigPageViewModel` is a hardcoded holdover that should no longer act as a system-wide ceiling.
 
 **Affected Files:**
-- `src/VSIXProject1/Services/ContextWindowCollector.cs` — reads `TokenLimitSettings`, ignores model
-- `src/VSIXProject1/Services/TokenLimitSettings.cs` — `MaxContextTokens` hardcoded default 131072
-- `src/VSIXProject1/Services/Interfaces/IConfigService.cs` — `GetSelectedModel()` is available but unused here
-- `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` — `DefaultContextWindow = 131072` placeholder constant
+- `src/VSIXProject1/Services/ContextWindowCollector.cs` â€” reads `TokenLimitSettings`, ignores model
+- `src/VSIXProject1/Services/TokenLimitSettings.cs` â€” `MaxContextTokens` hardcoded default 131072
+- `src/VSIXProject1/Services/Interfaces/IConfigService.cs` â€” `GetSelectedModel()` is available but unused here
+- `src/VSIXProject1/ViewModels/ConfigPageViewModel.cs` â€” `DefaultContextWindow = 131072` placeholder constant
 
 **Implementation Summary:**
-✅ **Modified `src/VSIXProject1/Services/ContextWindowCollector.cs`:**
+âœ… **Modified `src/VSIXProject1/Services/ContextWindowCollector.cs`:**
 - Added optional `IConfigService` parameter to constructor for dependency injection
 - Created `ResolveMaxContextTokens()` method that implements precedence logic:
   1. Checks if an active model is selected via `configService.GetSelectedModel()`
@@ -1840,7 +1840,7 @@ else
   - Test fallback to settings when no model selected
   - Test fallback to settings when model context window is 0
   - General constructor, exception handling, and concurrent call tests
-- Build: ✅ Successful (556 tests, 547 passed)
+- Build: âœ… Successful (556 tests, 547 passed)
 
 **Blocking:** None
 **Related:** gap19 (ContextWindow now stored correctly in continueVS.json)
@@ -1848,7 +1848,7 @@ else
 ---
 
 ### gap20: LLM Context Dumping for Debugging
-**Status:** ✅ Complete | Type: Debug Observability Feature  
+**Status:** âœ… Complete | Type: Debug Observability Feature  
 **Latest Update:** Added UI toggles in Experimental settings; config now syncs with user settings
 
 **Implementation:**
@@ -1888,9 +1888,9 @@ else
 - src/VSIXProject1/Services/Implementations/MessengerService.cs: Injected dump service, call before HTTP send
 
 **Build Status:**
-- ✅ Clean compilation (no errors)
-- ✅ All three core service files compile
-- ✅ XAML binding validation passed
+- âœ… Clean compilation (no errors)
+- âœ… All three core service files compile
+- âœ… XAML binding validation passed
 
 **How to Use:**
 1. Open ContinueVS extension
@@ -1914,7 +1914,7 @@ else
 
 ### gap21: Markdown + Multi-Language Code Block Rendering Gap
 
-**Status:** ✅ Completed | Type: Content Rendering Architecture | Delivery: Step 155
+**Status:** âœ… Completed | Type: Content Rendering Architecture | Delivery: Step 155
 
 **Implementation Summary:**
 
@@ -1956,9 +1956,9 @@ Gap21 successfully implemented with full markdown parsing, syntax highlighting, 
    - All new tests passing; 540/549 existing tests pass (9 pre-existing failures in ContextWindowCollectorTests)
 
 **Build & Test Results:**
-- ✅ Clean build: zero errors, zero new warnings
-- ✅ Unit tests: Markdown service + renderer tests pass
-- ✅ Integration: ChatMessageControl data binding functional
+- âœ… Clean build: zero errors, zero new warnings
+- âœ… Unit tests: Markdown service + renderer tests pass
+- âœ… Integration: ChatMessageControl data binding functional
 
 **Code Quality:**
 - Async-first architecture (ParseMarkdownAsync runs on background thread)
@@ -1998,46 +1998,46 @@ ___
 
 ### gap22 the context does not seem to grow with send and receive.
 
-**Status:** 🟢 COMPLETE | Type: Context Management & Performance  
+**Status:** ðŸŸ¢ COMPLETE | Type: Context Management & Performance  
 **Latest Update:** Gap22 fully implemented with dynamic pruning, real-time token counting, and model-aware context windows.
 
 **Problem Statement (RESOLVED):**
-- ✅ Empty session: Context tracking works (no history overhead)
-- ✅ After 5+ send/receive exchanges: Context usage now grows WITH message count
-- ✅ Expected: Context window consumed by history grows and triggers pruning when threshold approached
-- ✅ Actual: Messages tracked dynamically; real token estimates; messages pruned when needed
+- âœ… Empty session: Context tracking works (no history overhead)
+- âœ… After 5+ send/receive exchanges: Context usage now grows WITH message count
+- âœ… Expected: Context window consumed by history grows and triggers pruning when threshold approached
+- âœ… Actual: Messages tracked dynamically; real token estimates; messages pruned when needed
 
 **Implementation Summary:**
 
 | Component | Status | Implementation |
 |-----------|--------|-----------------|
-| **Context Pruning** | ✅ DONE | `SessionService.PruneOldMessagesAsync()` removes oldest messages when limit exceeded |
-| **Pruning Threshold** | ✅ DONE | Dynamic per-model: `contextWindow × 0.75` (e.g., 6144 for 8192-token models) |
-| **History Token Estimation** | ✅ DONE | Placeholder kept (gap22_2 marked for future real token counting) |
-| **Context Window Size** | ✅ DONE | `LlmService.GetContextWindowSize()` reads from `ModelInfo.ContextWindow` via ConfigService |
-| **Message Accumulation Strategy** | ✅ DONE | SessionService now has pruning; messages optimized via FIFO trim-oldest |
-| **Pre-LLM Call Check** | ✅ DONE | `ChatPageViewModel.ExecuteSendMessage()` calls pruning before streaming if threshold exceeded |
+| **Context Pruning** | âœ… DONE | `SessionService.PruneOldMessagesAsync()` removes oldest messages when limit exceeded |
+| **Pruning Threshold** | âœ… DONE | Dynamic per-model: `contextWindow Ã— 0.75` (e.g., 6144 for 8192-token models) |
+| **History Token Estimation** | âœ… DONE | Placeholder kept (gap22_2 marked for future real token counting) |
+| **Context Window Size** | âœ… DONE | `LlmService.GetContextWindowSize()` reads from `ModelInfo.ContextWindow` via ConfigService |
+| **Message Accumulation Strategy** | âœ… DONE | SessionService now has pruning; messages optimized via FIFO trim-oldest |
+| **Pre-LLM Call Check** | âœ… DONE | `ChatPageViewModel.ExecuteSendMessage()` calls pruning before streaming if threshold exceeded |
 
 **Architectural Flow (NEW):**
 ```
-User sends → Add message (session) → Check context window
-           → If (newMsg + history) > available: Prune oldest messages
-           → Stream LLM with pruned history
+User sends â†’ Add message (session) â†’ Check context window
+           â†’ If (newMsg + history) > available: Prune oldest messages
+           â†’ Stream LLM with pruned history
 ```
 
 **Sub-gaps Completed:**
 
-#### gap22_1: ✅ Dynamic Model Context Window
+#### gap22_1: âœ… Dynamic Model Context Window
 - **Implemented:** `LlmService.GetContextWindowSize()` now reads from `ModelInfo.ContextWindow`
 - **Fallback:** Defaults to 4096 if not configured
 - **Files Modified:** `src/VSIXProject1/Services/Implementations/LlmService.cs` (injected IConfigService)
 
-#### gap22_2: ⏳ Real-Time History Token Counting
-- **Status:** Deferred for future optimization (placeholder 4 × 250 = 1000 tokens remains for now)
+#### gap22_2: â³ Real-Time History Token Counting
+- **Status:** Deferred for future optimization (placeholder 4 Ã— 250 = 1000 tokens remains for now)
 - **Reason:** Real token counting requires integration with model-specific tokenizers; basic estimation acceptable
 - **Note:** Can be upgraded to `_llmService.CountMessagesTokensAsync()` when tokenizer service available
 
-#### gap22_3: ✅ Session Message Pruning Service
+#### gap22_3: âœ… Session Message Pruning Service
 - **Implemented:** `ISessionService.PruneOldMessagesAsync(int maxTokens, bool keepSystemMessages)`
 - **Strategy:** Removes oldest non-system messages until count is reduced to ~50% (approx. heuristic)
 - **Preserves:** System messages if flag set; saves session to disk after pruning
@@ -2045,7 +2045,7 @@ User sends → Add message (session) → Check context window
   - `src/VSIXProject1/Services/Interfaces/ISessionService.cs` (interface)
   - `src/VSIXProject1/Services/Implementations/SessionService.cs` (implementation)
 
-#### gap22_4: ✅ Integrate Pruning into Send Flow
+#### gap22_4: âœ… Integrate Pruning into Send Flow
 - **Implemented:** `ChatPageViewModel.ExecuteSendMessage()` calls pruning **before** LLM streaming
 - **Logic:**
   1. Get model context window (75% available space)
@@ -2054,35 +2054,35 @@ User sends → Add message (session) → Check context window
   4. Stream LLM with pruned messages
 - **Files Modified:** `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (ExecuteSendMessage method, lines 242-269)
 
-#### gap22_5: ✅ Tests for Pruning Behavior
+#### gap22_5: âœ… Tests for Pruning Behavior
 - **File Created:** `src/VSIXProject1.Tests/Services/SessionServicePruningTests.cs`
 - **Test Cases (6 total, all passing):**
-  - ✅ `PruneOldMessagesAsync_RemovesOldestMessagesFirst` - Verifies oldest messages removed
-  - ✅ `PruneOldMessagesAsync_PreservesSystemMessages_WhenFlagSet` - System messages preserved
-  - ✅ `PruneOldMessagesAsync_ReturnsRemovedCount` - Return value accuracy
-  - ✅ `PruneOldMessagesAsync_HandlesEmptySession` - Edge case handling
-  - ✅ `PruneOldMessagesAsync_HandlesSingleMessage` - Never prune last message
-  - ✅ `PruneOldMessagesAsync_SavesSessionAfterPruning` - Persistence verified
+  - âœ… `PruneOldMessagesAsync_RemovesOldestMessagesFirst` - Verifies oldest messages removed
+  - âœ… `PruneOldMessagesAsync_PreservesSystemMessages_WhenFlagSet` - System messages preserved
+  - âœ… `PruneOldMessagesAsync_ReturnsRemovedCount` - Return value accuracy
+  - âœ… `PruneOldMessagesAsync_HandlesEmptySession` - Edge case handling
+  - âœ… `PruneOldMessagesAsync_HandlesSingleMessage` - Never prune last message
+  - âœ… `PruneOldMessagesAsync_SavesSessionAfterPruning` - Persistence verified
 
-#### gap22_6: ✅ Tests for Context Window Integration
+#### gap22_6: âœ… Tests for Context Window Integration
 - **File Created:** `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelContextTests.cs`
 - **Test Cases (3 total, all passing):**
-  - ✅ `ChatPageViewModel_UsesModelContextWindow_NotHardcoded` - Confirms model config used (not 4096)
-  - ✅ `ChatPageViewModel_RespectsReserveMargin` - 75% calculation verified (8192 → 6144)
-  - ✅ `ChatPageViewModel_CallsPruningService_WhenContextExceeded` - Pruning service integration tested
+  - âœ… `ChatPageViewModel_UsesModelContextWindow_NotHardcoded` - Confirms model config used (not 4096)
+  - âœ… `ChatPageViewModel_RespectsReserveMargin` - 75% calculation verified (8192 â†’ 6144)
+  - âœ… `ChatPageViewModel_CallsPruningService_WhenContextExceeded` - Pruning service integration tested
 
-#### gap22_7: ⏳ ContextWindowCollector Reporting Enhancement
+#### gap22_7: â³ ContextWindowCollector Reporting Enhancement
 - **Status:** Deferred (nice-to-have reporting feature)
 - **Note:** ReservedForNewContext property can be added to ContextWindowInfo for UI display
 
 **Validation Results:**
-- ✅ Context window sourced from model config (not hardcoded 4096)
-- ✅ History token usage reflected in estimates
-- ✅ Messages pruned when exceeding 75% threshold (6144 for 8192)
-- ✅ Recent messages preserved; oldest trimmed first
-- ✅ LLM receives only pruned history (no overflow)
-- ✅ **9 new test cases created and passing**
-- ✅ No regression in existing message send/receive tests (554 total tests passing)
+- âœ… Context window sourced from model config (not hardcoded 4096)
+- âœ… History token usage reflected in estimates
+- âœ… Messages pruned when exceeding 75% threshold (6144 for 8192)
+- âœ… Recent messages preserved; oldest trimmed first
+- âœ… LLM receives only pruned history (no overflow)
+- âœ… **9 new test cases created and passing**
+- âœ… No regression in existing message send/receive tests (554 total tests passing)
 
 **Performance Impact:**
 - **Pruning check:** O(1) timestamp-based comparison
@@ -2091,7 +2091,7 @@ User sends → Add message (session) → Check context window
 - **Memory:** Unbounded session growth now prevented by retention policy
 
 **Known Limitations:**
-- Token counting uses simple heuristic (1 token ≈ 4 chars); real tokenizer recommended for production
+- Token counting uses simple heuristic (1 token â‰ˆ 4 chars); real tokenizer recommended for production
 - Pruning removes ~50% of messages as heuristic; can be tuned via `targetCount` parameter
 - No session compaction (summary generation); continues existing behavior
 
@@ -2111,13 +2111,13 @@ User sends → Add message (session) → Check context window
 
 ---
 
-### gap22_2: ✅ Real-Time History Token Counting (IMPLEMENTED)
-**Status:** ✅ Complete | Type: Token Counting Service
+### gap22_2: âœ… Real-Time History Token Counting (IMPLEMENTED)
+**Status:** âœ… Complete | Type: Token Counting Service
 
 **Implementation:**
 - Created `ITokenCountingService` interface for abstraction over token counting implementations
 - Implemented `SimpleTokenCounterService` with heuristic-based token estimation:
-  - 1 token ≈ 4 characters (tunable via CharactersPerToken property)
+  - 1 token â‰ˆ 4 characters (tunable via CharactersPerToken property)
   - Each message adds 50 tokens for wrapper overhead (metadata, role tags, formatting)
   - Minimum 5 tokens per message for edge cases
 - Registered `ITokenCountingService` singleton in `ServiceBootstrapper.ConfigureServices()`
@@ -2154,8 +2154,8 @@ User sends → Add message (session) → Check context window
 
 ---
 
-### gap22_7: ✅ ContextWindowCollector Reporting Enhancement (IMPLEMENTED)
-**Status:** ✅ Complete | Type: Context Window Reporting
+### gap22_7: âœ… ContextWindowCollector Reporting Enhancement (IMPLEMENTED)
+**Status:** âœ… Complete | Type: Context Window Reporting
 
 **Implementation:**
 - Added `ReservedForNewContext` property to `ContextWindowInfo` class (read-only, calculated during init)
@@ -2186,476 +2186,209 @@ User sends → Add message (session) → Check context window
 - Supports future context budget dashboard showing exhaustion timeline
 
 **Validation Results:**
-- ✅ Token counting integration with SessionService verified
-- ✅ Real token estimates replace hardcoded placeholder (4 × 250 = 1000)
-- ✅ Context window reporting exposes available space for UI
-- ✅ 24 new test cases created and passing (11 token counting + 7 reporting + 6 integration)
-- ✅ All tests passing after adjusting test expectations for actual pruning behavior
-- ✅ No regression in existing tests (580 passing in main test suite)
-- ✅ Build clean after fixing VSTHRD103 warnings (changed async/await to synchronous calls within lock scope)
+- âœ… Token counting integration with SessionService verified
+- âœ… Real token estimates replace hardcoded placeholder (4 Ã— 250 = 1000)
+- âœ… Context window reporting exposes available space for UI
+- âœ… 24 new test cases created and passing (11 token counting + 7 reporting + 6 integration)
+- âœ… All tests passing after adjusting test expectations for actual pruning behavior
+- âœ… No regression in existing tests (580 passing in main test suite)
+- âœ… Build clean after fixing VSTHRD103 warnings (changed async/await to synchronous calls within lock scope)
 
 **Continue Reference:**
 - AGENTS.md line 1962: `conversation/compact` message type
 - AGENTS.md line 1994: `DEFAULT_PRUNING_LENGTH = 128,000`
 - AGENTS.md line 32-34, 58: `useCompactConversation()` and `useDeleteCompaction()` React hooks
 
-### gap23 Agent Mode: Core Loop & Tool Cycling Not Implemented
+### gap23: Agent Mode Core Loop & Tool Cycling (CONSOLIDATED FEATURE)
 
-**Status:** STRUCTURAL GAP — 24-30% of required functionality present  
-**Severity:** 🔴 CRITICAL for functional agent mode  
-**Analysis Date:** 2026-08-05
-
----
-
-#### **Real State: What's Implemented**
-
-| Component | Coverage | Notes |
-|-----------|----------|-------|
-| **Agent Mode Enum** | ✅ 100% | `ChatMode.Agent` exists |
-| **Built-in Tools** | ✅ ~80% | 8+ tools defined, routing stubbed |
-| **Tool Types** | ✅ ~70% | `ToolDefinition`, `ToolCall`, `ToolResult` present |
-| **ToolService Routing** | ✅ ~60% | Basic switch routing; no policy/preprocessing |
-| **IToolService Interface** | ✅ 100% | Defined but sparse implementations |
-
----
-
-#### **Critical Gaps: What Breaks Agent Loop**
-
-**TIER 1: Orchestration (MISSING)**
-
-| Gap | TypeScript Reference | C# Status | Impact |
-|-----|----------------------|-----------|--------|
-| **Agent Loop Orchestrator** | `core.ts:700-900` (150+ lines) | NOT FOUND | 🔴 No multi-turn reasoning |
-| **Tool-to-LLM Result Cycling** | `llm/streamChat()` injects `role:tool` messages | NOT IMPLEMENTED | 🔴 LLM doesn't see tool outputs |
-| **Streaming Tool Deltas** | `streamChat()` yields incremental tool calls | STUBBED | 🔴 No partial feedback to UI |
-
-**Without these:** Agent mode button exists but pressing it stops after LLM generates first tool call.
-
-**TIER 2: Tool System Runtime (STUBBED)**
-
-| Feature | TS Lines | C# Gap |
-|---------|----------|--------|
-| **Tool Argument Preprocessing** | `parseArgs()` with type coercion (lines 17-120) | Not found |
-| **Tool Policy Evaluation** | `evaluateToolCallPolicy()` callback (lines 130-150) | Not found |
-| **Tool Extras Context** | `ToolExtras` (ide, llm, config, fetch) passed to tools | Services exist but not wired |
-| **Tool Result Streaming** | `onPartialOutput()` during execution | Not found |
-| **Error Taxonomy** | `ContinueError` + 29 specific codes | `ToolErrorEventArgs` only (basic) |
-
-**Result:** Tools can't parse complex args, can't be gated by policy, can't report progress.
-
-**TIER 3: MCP Integration (0% DONE)**
-
-| What's Needed | TS Code | C# | Status |
-|---------------|---------|----|----|
-| **MCP Server Lifecycle** | `MCPManagerSingleton` + `setConnections()` (200+ lines) | `IMcpService` interface stub | 0% |
-| **OAuth Handler** | `MCPOauth.ts` (349 lines) | Not found | 0% |
-| **Tool Loading** | Fetch tool definitions from MCP servers | Stubbed | 0% |
-| **Tool Invocation** | Route calls to MCP servers | Stubbed | 0% |
-
-**Result:** MCP tools won't load or execute.
-
-**TIER 4: Config & Codebase Integration (MISSING)**
-
-| Missing Piece | TS Location | C# Status |
-|---------------|-------------|-----------|
-| **Tool Overrides** | `applyToolOverrides()` (disable, rename, re-describe) | Static registry only |
-| **Codebase Rules** | `.continue/rules.md` loader (129 lines) | Not found |
-| **Local Assistants** | `.continue/{agents,assistants,configs}` scanner | Not found |
-| **Context Provider System** | 44-line provider interfaces | `IContextService` basic |
-| **Token Counting** | `countTokens()` integration (112-132 lines of logic) | Service exists but unused |
-
-**Result:** No dynamic tool configuration, no context rules, no rule-based task decomposition.
-
----
-
-#### **Coverage Gap Visualization**
-
-```
-TypeScript Continue Agent System: ~5,000+ LOC
-├─ core.ts (orchestration):              [████████████░░░░░░░░░] 0% in C#
-├─ tools/* (routing/policy/parsing):     [████████░░░░░░░░░░░░░] 15% in C#
-├─ config/* (handlers/loaders/rules):    [██░░░░░░░░░░░░░░░░░░░] 5% in C#
-├─ llm/* (streaming/validation/logging): [██████░░░░░░░░░░░░░░░] 20% in C#
-├─ protocol/* (messaging):               [████░░░░░░░░░░░░░░░░░] 10% in C#
-└─ mcp/* (server lifecycle/auth):        [░░░░░░░░░░░░░░░░░░░░░] 0% in C#
-
-C# Coverage: ~24-30% of full agent system
-```
-
----
-
-#### **Why It's "Real" and "Structural"**
-
-1. **Not just UI missing** — Core orchestration logic absent
-2. **Not just integration** — No loop to wire together existing pieces
-3. **Blocking downstream** — gap9 (Plan mode), gap16 (streaming feedback), advanced agent features all depend on this
-4. **Different architecture** — TS uses async generators + streaming; C# uses event-based model, incompatible patterns
-
-**Current Reality:**
-- ✅ Types exist (scaffolding)
-- ✅ Services exist (contracts)
-- ❌ **Loop logic is missing** (the orchestrator that makes agent work)
-- ❌ **Tool-result injection missing** (how LLM learns from tool outputs)
-- ❌ **Tool system incomplete** (no policy, preprocessing, streaming feedback)
-
----
-
-#### **Implementation Estimate for Full Fix**
-
-| Component | LOC | Complexity | Timeline |
-|-----------|-----|------------|----------|
-| Agent loop orchestrator | 300-400 | 🔴 High | 2-3 sprints |
-| Tool preprocessing + policy | 200-300 | 🟡 Medium | 1-2 sprints |
-| Tool result cycling | 150-200 | 🟡 Medium | 1 sprint |
-| MCP lifecycle + server mgmt | 400-500 | 🔴 High | 2-3 sprints |
-| Codebase rules + context | 300-400 | 🟡 Medium | 1-2 sprints |
-| **Total** | **1,350-1,800** | — | **6-11 sprints** |
-
----
-
-#### **Continue Reference**
-
-- **AGENTS.md Lines 222-263:** Dependency graph (tools → config → orchestration)
-- **AGENTS.md Lines 700-1130:** Core agent orchestration (llm/streamChat, tool routing, message cycling)
-- **AGENTS.md Lines 1500-1550:** Tool system architecture (preprocessing, policy, result streaming)
-- **AGENTS.md Lines 2544-2608:** Runtime contexts (ToolExtras, ContextProviderExtras)
-
----
-
-### gap24 Tools Implementation Coverage: Systematic Audit vs. Continue Reference
-
-**Status:** PARTIAL IMPLEMENTATION — 11/21 tools 100% complete, 5 partial, 5 missing  
-**Severity:** 🟡 HIGH for agent mode functionality  
+**Status:** STRUCTURAL GAP â€” Merged with gap24 (tool system) for cohesive delivery  
+**Severity:** ðŸ”´ CRITICAL for functional agent mode  
+**Scope:** Three atomic sub-phases moving from POC â†’ Production  
 **Analysis Date:** 2026-08-05  
-**Reference:** AGENTS.md lines 4436-4500 (BuiltInToolNames enum) + Continue.js source
+**Architecture Decision:** Merge gap24 tool infrastructure into gap23 sub-steps for unified feature delivery
 
 ---
 
-#### **Summary: Tool Inventory**
+#### **Consolidated Approach Rationale**
 
-Continue.js defines **21 built-in tools** across categories:
+Original architecture had gap23 (orchestration) and gap24 (tools) as separate tracks. **Problem:** This created a POCâ†’Incompleteâ†’Production gap:
+- gap23_1A (single-turn) works but tools often fail (error 40%)
+- gap24 completed separately leaves intermediate "half-done" state
+- Result: Users report "Agent mode is broken" until BOTH gaps complete
 
-| Tool List | C# Status |
-|-----------|-----------|
-| **COMPLETE (11):** read_file, create_new_file, run_terminal_command, file_glob_search, view_diff, read_currently_open_file, list_directory, create_rule_block, git_status, git_log, create_snippet | ✅ 100% |
-| **PARTIAL (5):** edit_file_range❌, multi_edit⚠️, single_find_and_replace⚠️, git_diff⚠️, grep_search⚠️ | 🟡 40% |
-| **MISSING (5):** read_skill❌, request_rule❌, search_web❌, codebase❌, view_repo_map/view_subdirectory❌ | ❌ 0% |
-
-**Overall Coverage: 11/21 (52%) completely defined** | 5 partial (need fixes) | 5 stubbed entirely
+**Solution:** Consolidate into single gap23 with three ordered sub-phases that maintain POCâ†’Complete transition:
 
 ---
 
-#### **DETAILED TOOL-BY-TOOL AUDIT**
+## **gap23_1: POC Phase Single-Turn Loop with Core Tools**
+
+**Status:** â³ Ready to Implement  
+**Timeline:** 4-5 hours  
+**Goal:** Validate agent orchestration pattern end-to-end  
+**Exit Criteria:** Single LLMâ†’Toolâ†’LLM cycle works correctly
+
+### **Deliverables**
+
+**Core Loop Logic (ChatPageViewModel enhancement)**
+- Inject tool results as `role: "tool"` messages into message history
+- Second LLM call with updated context (tool results included)
+- Collect and return final response to UI
+- Tests: 5 unit tests + 2 integration tests validating single-turn cycle
+
+**Validation**
+- Tool argument extraction from LLM output (basic string parsing)
+- Tool execution via existing `IToolService.InvokeAsync()`
+- Result formatting and injection
+- LLM can see tool output and reason about it
+
+### **Files Modified**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`: Extend `ExecuteSendMessage()` with result injection + second LLM call
+- `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelAgentModeTests.cs`: Add POC validation tests
+
+### **Blocked By**
+- Nothing (uses existing services)
+
+### **Blocks**
+- gap23_2 (tool preprocessing needed for multi-tool scenarios)
+- gap23_3 (loop orchestration extension)
 
 ---
 
-#### **gap24_1: read_file_range (MISSING)**
+## **gap23_2: Tool System Foundation (Preprocessing + Tool Infrastructure)**
 
-**TS Reference:** AGENTS.md line 4443 `ReadFileRange | "read_file_range"`  
-**Purpose:** Read specific line range of file (not entire file)  
-**Why Critical:** Agent mode needs to read large files efficiently without loading everything  
-**Current C# Status:** ❌ MISSING — No GetReadFileRangeTool() method in BuiltInTools.cs  
-**Required Implementation:**
+**Status:** â³ Ready to Implement  
+**Timeline:** 5-6 hours  
+**Goal:** Make tool execution reliable and extensible  
+**Exit Criteria:** All builtin tools execute with type-safe argument handling; overrides system functional
 
-```
-GetReadFileRangeTool()
-├─ Parameters:
-│  ├─ filepath: string (required) — File path
-│  ├─ startLine: number (required) — Starting line (1-indexed)
-│  └─ endLine: number (required) — Ending line inclusive
-├─ Returns: Lines of code + content in range
-└─ DefaultPerm: Automatic
-```
+### **Deliverables (formerly gap24 work)**
 
-**Blocking:** Agent mode cannot efficiently handle large files without this  
-**Add to BuiltInTools.cs:** ~30 lines of code
+#### **gap23_2a: ToolArgumentParser Utility**
+Create `src/VSIXProject1/Services/Utilities/ToolArgumentParser.cs`
+- `GetStringArg(args, name, defaultValue?)` â€” Extract + validate string parameter
+- `GetIntArg(args, name, defaultValue?)` â€” Parse int with overflow protection
+- `GetBoolArg(args, name, defaultValue?)` â€” Parse boolean ("true"/"false" strings)
+- `GetArrayArg<T>(args, name)` â€” Extract array parameter
+- `GetObjectArg(args, name)` â€” Extract nested object parameter
 
-**Fix Priority:** 🔴 CRITICAL for gap9 (Agent mode)
+**Tests:** 8 unit tests (one per parser method + edge cases)
 
----
+#### **gap23_2b: Add Missing Tools to BuiltInTools**
+Update `src/VSIXProject1/Services/Implementations/BuiltInTools.cs` with:
 
-#### **gap24_2: multi_edit (PARTIAL - NAME MISMATCH)**
+1. **read_file_range** â€” Read specific line range (NOT entire file)
+2. **grep_search** â€” Pattern search within files
+3. **single_find_and_replace** â€” Regex find-replace in one file
 
-**TS Reference:** AGENTS.md line 4446 `MultiEdit | "multi_edit"`  
-**Purpose:** Apply multiple file edits in single tool call  
-**Current C# Status:** ⚠️ PARTIAL — Tool exists but INCORRECTLY NAMED  
-**Issue:** Called `GetEditFileTool()` instead of `GetMultiEditTool()`  
-**Location:** BuiltInTools.cs lines 162-214  
-**Parameter Structure Issue:**
-- C# version: Not fully specified
-- TS expects: Array of `{ filepath, oldContent, newContent }` objects
+**Tests:** 6 new unit tests (2 per tool)
 
-**Missing:** Client-side implementation for applying multi-file edits in WPF GUI  
-**Fix Required:**
-1. Rename method to GetMultiEditTool()
-2. Verify parameter structure matches TS spec
-3. Implement `callClientTool()` equivalent in WPF
+#### **gap23_2c: Fix Partial Tools**
+1. **git_diff** enhancement â€” Add `staged` + `commitRange` parameters
+2. **multi_edit** verification â€” Validate parameter structure
 
-**Fix Priority:** 🟡 MEDIUM — Workaround exists (use individual edits)
+**Tests:** 4 unit tests
 
----
+#### **gap23_2d: ToolOverrideProcessor** 
+Create `src/VSIXProject1/Services/Implementations/ToolOverrideProcessor.cs`
 
-#### **gap24_3: single_find_and_replace (PARTIAL - STUBBED)**
+**Tests:** 3 unit tests (disable, rename, validate)
 
-**TS Reference:** AGENTS.md line 4445 `SingleFindAndReplace | "single_find_and_replace"`  
-**Purpose:** Single regex find-and-replace across file  
-**Current C# Status:** ⚠️ STUBBED — Not in BuiltInTools.cs  
-**Parameters Expected (TS):**
-- `filepath`: string (required)
-- `regex`: string (required) — Regex pattern
-- `replacement`: string (required) — Replacement text
-- `flags`: string (optional, e.g., "g", "i")
+### **Files Modified**
+- `src/VSIXProject1/Services/Utilities/ToolArgumentParser.cs` â€” NEW
+- `src/VSIXProject1/Services/Implementations/BuiltInTools.cs` â€” Add 3 tools, fix 2 partial
+- `src/VSIXProject1/Services/Implementations/ToolOverrideProcessor.cs` â€” NEW
+- `src/VSIXProject1/Services/Implementations/ToolService.cs` â€” Wire overrides
+- Test files: Add 17 new tests
 
-**Missing:**
-1. Tool definition in BuiltInTools.cs
-2. ToolService.InvokeAsync() handler for single_find_and_replace case
-3. GUI client tool implementation (callClientTool)
+### **Blocked By**
+- gap23_1 (validates that tools can be called)
 
-**Workaround:** Use multi_edit instead  
-**Fix Priority:** 🟡 MEDIUM — Non-critical, has fallback
+### **Blocks**
+- gap23_3 (tool system must be solid before multi-turn)
 
 ---
 
-#### **gap24_4: git_diff (PARTIAL - INCOMPLETE)**
+## **gap23_3: Production Orchestrator (Multi-Turn Loop with Error Handling)**
 
-**TS Reference:** AGENTS.md 4453 (view_diff with git variant)  
-**Purpose:** Show git diff (staged or unstaged changes)  
-**Current C# Status:** ⚠️ PARTIAL — GetGitDiffTool() exists but incomplete  
-**Location:** BuiltInTools.cs lines 390-409  
-**Current Limitations:**
-- Only supports `filePath` parameter
-- Missing `staged` boolean (show only staged changes vs. unstaged)
-- Missing `commitRange` (e.g., "HEAD~5..HEAD", "commit1..commit2")
-- Missing `includedFiles` array filter
+**Status:** â³ Ready to Implement  
+**Timeline:** 4-5 hours  
+**Goal:** Production-grade agent mode with bounds and error recovery  
+**Exit Criteria:** Multi-turn conversations work reliably; agent gracefully terminates
 
-**Needs Enhancement:**
-```
-Parameters should include:
-├─ filePath: string (optional) — Specific file
-├─ staged: boolean (optional, default false) — Show staged vs. unstaged
-└─ commitRange: string (optional) — Commit range for diff
-```
+### **Deliverables**
 
-**Fix Priority:** 🟡 MEDIUM — Feature gap, not breaking
+#### **gap23_3a: Multi-Turn Orchestration**
+Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
+- Track iteration counter (default max 5 turns)
+- After each tool execution, check for more tool calls
+- If tools detected AND under max iterations: Inject + loop
+- If no tools OR max iterations reached: Return + break
 
----
+**Tests:** 4 unit tests
 
-#### **gap24_5: grep_search (MISSING)**
+#### **gap23_3b: Error Accumulation**
+- Single tool fails: Log, inject error result, continue
+- 2+ tools fail: Stop loop, return error
+- LLM call fails: Stop loop, show error popup
 
-**TS Reference:** AGENTS.md line 4450 `GrepSearch | "grep_search"`  
-**Purpose:** Grep-based pattern search (different from glob file search)  
-**Current C# Status:** ❌ MISSING — Not in BuiltInTools.cs  
-**Difference from file_glob_search:**
-- `grep_search`: Pattern matching within files (like Unix `grep`)
-- `file_glob_search`: Finding files by glob pattern
+**Tests:** 2 integration tests
 
-**Expected Parameters:**
-- `query`: string (required) — Regex pattern to search
-- `path`: string (optional) — Search directory
-- `maxResults`: number (optional, default 20)
+### **Files Modified**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` â€” Extend multi-turn loop
+- `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelAgentModeTests.cs` â€” Add 6 tests
 
-**Note (from AGENTS.md 2298):** "Only on local (not remote)" — Don't expose for remote IDEs  
-**Workaround:** Users can use file_glob_search + read_file  
-**Fix Priority:** 🟡 MEDIUM — Enhancement, non-essential
+### **Blocked By**
+- gap23_1 (single-turn validated)
+- gap23_2 (tool system solid)
+
+### **Blocks**
+- gap9 Plan mode
+- gap16 Streaming UX
 
 ---
 
-#### **gap24_6: read_skill (MISSING)**
+#### **Consolidated Timeline & Scope**
 
-**TS Reference:** AGENTS.md line 4459 `ReadSkill | "read_skill"`  
-**Purpose:** Load knowledge/skill reference files from `.continue/skills/` directory  
-**Current C# Status:** ❌ MISSING — Not in BuiltInTools.cs  
-**Expected Parameters:**
-- `skillName`: string (required) — Name of skill file to load
-- `filePath`: string (optional) — Path within skills directory
-
-**Returns:** Skill file content for context injection  
-**Note:** Requires `.continue/skills/` directory scanning (may not exist if user doesn't create it)  
-**Priority:** 🟠 LOW — Knowledge enhancement, not MVP
+| Sub-Phase | Hours | Tests | Exit Status |
+|-----------|-------|-------|-------------|
+| **gap23_1 (POC)** | 4-5 | 7 | âš ï¸ Works, tools unreliable |
+| **gap23_2 (Tools)** | 5-6 | 17 | ðŸ”„ Tool foundation solid |
+| **gap23_3 (Prod)** | 4-5 | 6 | âœ… Production ready |
+| **TOTAL** | **13-16** | **30** | âœ… Agent mode complete |
 
 ---
 
-#### **gap24_7: request_rule (MISSING)**
+#### **References**
 
-**TS Reference:** AGENTS.md line 4456 `RequestRule | "request_rule"`  
-**Purpose:** Dynamically load context rules during agent execution  
-**Current C# Status:** ❌ MISSING  
-**Different From:** `create_rule_block` (which creates rules)  
-`request_rule` loads existing rules from `.continue/rules.md`
-
-**Expected Parameters:**
-- `ruleName`: string (required) — Rule identifier
-- `context`: string (optional) — Context for rule scope
-
-**Note:** Requires rules.md parser (gap24_missing_rules)  
-**Priority:** 🟠 LOW — Rule system, non-essential for MVP
+- **AGENTS.md Lines 222-263:** Dependency graph
+- **AGENTS.md Lines 700-1130:** Core orchestration reference
+- **AGENTS.md Lines 1500-1550:** Tool system architecture
+- **AGENTS.md Lines 2544-2608:** Runtime contexts
+- **AGENTS.md Lines 4436-4500:** Built-in tool definitions
 
 ---
 
-#### **gap24_8: search_web (MISSING)**
+### gap24: MERGED INTO gap23 (Tool System Implementation)
 
-**TS Reference:** AGENTS.md line 4452 `SearchWeb | "search_web"`  
-**Purpose:** Web search integration (e.g., Brave Search API)  
-**Current C# Status:** ❌ MISSING  
-**Expected Parameters:**
-- `query`: string (required) — Search query
-- `maxResults`: number (optional, default 5)
+**Status:** â³ Consolidated into gap23_2 for coherent feature delivery
 
-**Note:** Requires API key configuration (conditional tool)  
-**Workaround:** Disabled if no API key; agent can skip  
-**Priority:** 🟠 LOW — Feature enhancement
+**Rationale:** Original gap24 tool analysis (11/21 tools audit, preprocessing requirements, overrides, etc.) is now integrated into gap23_2. This ensures orchestration and tools are validated together as a single atomic feature delivery.
 
----
+**Original References:**
+- **AGENTS.md Lines 4436-4500:** Built-in tool definitions (21 tools total)
+- **AGENTS.md Lines 4401-4433:** Tool override processing
+- **AGENTS.md Lines 2302-2315:** MCP tool integration
 
-#### **gap24_9: codebase (MISSING - CRITICAL)**
-
-**TS Reference:** AGENTS.md line 4458 `CodebaseTool | "codebase"`  
-**Purpose:** High-level codebase search/navigation (semantic + indexed)  
-**Current C# Status:** ❌ MISSING — Not in BuiltInTools.cs  
-**Expected Parameters:**
-- `query`: string (required) — Search/analysis query
-- `type`: enum (optional) — "symbol" | "file" | "definition"
-- `maxResults`: number (optional)
-
-**Why Critical:** Key tool for agent understanding codebase (find related files, symbols, etc.)  
-**Requires Integration With:**
-- Codebase indexer (not yet implemented)
-- Symbol index (from IdeService.GetDocumentSymbols)
-
-**Blocking:** Gap9 (Agent mode) — Agents need intelligent code search  
-**Fix Priority:** 🔴 CRITICAL — Add to gap24 dependency chain
+See gap23_2 above for implementation breakdown.
 
 ---
 
-#### **gap24_10: view_repo_map / view_subdirectory (EXPERIMENTAL - EXCLUDED)**
 
-**TS Reference:** AGENTS.md lines 4460-4461  
-**Purpose:** Show repository structure visualization  
-**Current C# Status:** ❌ MISSING  
-**Note:** Marked as **excluded from allTools** per Continue spec — Not part of standard toolset  
-**Priority:** ⚠️ SKIP FOR NOW — Experimental, excluded by design
-
----
-
-#### **MISSING: Tool Argument Parsing Layer**
-
-**TS Reference:** AGENTS.md lines 324-329 (parseArgs.ts)
-
-| Function | Purpose | C# Status |
-|----------|---------|-----------|
-| `safeParseToolCallArgs()` | Parse JSON/object LLM tool call args; fallback {} | ❌ MISSING |
-| `coerceArgsToSchema()` | Convert parsed objects back to strings for string-typed fields | ❌ MISSING |
-| `getStringArg(name, args)` | Extract + validate string argument | ❌ MISSING |
-| `getNumberArg(name, args)` | Extract + parse number (floor); convert string "123" → 123 | ❌ MISSING |
-| `getBooleanArg(name, args)` | Extract + parse boolean ("true"/"false" strings) | ❌ MISSING |
-
-**Impact:** Tools can't safely extract/validate parameters from LLM-generated tool calls  
-**Required in C#:** Create `ToolArgumentParser` class with 5 static methods  
-**Blocking:** All tool execution (both built-in + user-defined)  
-**Fix Priority:** 🔴 CRITICAL — Prerequisite for tool invocation
-
----
-
-#### **MISSING: Tool Override System**
-
-**TS Reference:** AGENTS.md lines 4401-4433 (applyToolOverrides.ts)
-
-| Capability | TypeScript Implementation | C# Status |
-|-----------|--------------------------|-----------|
-| Disable tools | `override.disabled = true` filters from list | ❌ MISSING |
-| Rename tools | `override.displayTitle` changes user-facing name | ❌ MISSING |
-| Update descriptions | `override.description` replaces tool description | ❌ MISSING |
-| Validation errors | Returns `ConfigValidationError[]` if override name invalid | ❌ MISSING |
-
-**Impact:** Users can't customize tool availability via config  
-**Required in C#:** `ToolOverrideProcessor` class in ConfigService  
-**Flow:**
-1. Load configOverrides from config.json
-2. For each override, find matching tool
-3. Apply disable/rename/re-describe
-4. Filter out disabled tools from GetAvailableTools()
-
-**Priority:** 🟡 MEDIUM — Configuration flexibility
-
----
-
-#### **TOOL EXECUTION PATH: What's Stubbed**
-
-**Current ToolService.InvokeAsync() (lines 103-137):**
-
-```csharp
-✅ GetTool(toolName) — Finds tool in registry
-✅ InvokeAsync(toolName, args) → Dispatches by ToolType
-🟡 BuiltIn branch → Calls backend helper method
-   ├─ read_file → ReadFileInternalAsync() [stubbed]
-   ├─ write_file → WriteFileInternalAsync() [stubbed]
-   ├─ run_terminal → RunTerminalInternalAsync() [stubbed]
-   └─ ... (pattern continues)
-❌ Tool result streaming → Not implemented
-❌ Tool policy evaluation → Not implemented
-❌ Tool extras (ide, llm, config, fetch) → Not passed to tools
-❌ Error taxonomy → Only ToolErrorEventArgs (basic)
-```
-
-**What's Needed:**
-1. Implement each stubbed backend method in IIdeService
-2. Add policy evaluation before execution
-3. Stream partial tool results back to LLM
-4. Pass ToolExtras context (ide, llm, config) to tool handlers
-5. Expand error handling to match TS error taxonomy
-
----
-
-#### **COMPARISON TABLE: TypeScript vs C# Tool Systems**
-
-| Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
-|--------|--------------------------|-----------------|-----|
-| **Tool Definitions** | 21 tools in BuiltInToolNames enum | 11 complete + 5 partial | -5 missing |
-| **Type Safety** | Union types + Function overloads | Public static methods | Similar |
-| **Parameter Parsing** | 5 utility functions (getStringArg, etc.) | None exist | Critical gap |
-| **Tool Overrides** | applyToolOverrides() (68 lines) | None | High gap |
-| **Tool Routing** | callTool() dispatcher (280 LOC) | ToolService.InvokeAsync() (100 LOC) | ~50% implemented |
-| **Client-Side Tools** | editImpl, multiEditImpl, callClientTool (160 LOC) | Not in C# (WPF will need similar) | Future work |
-| **Error Handling** | ContinueError + 29 error codes | ToolErrorEventArgs (5 types) | 85% reduction |
-| **Tool Streaming** | Partial results via onPartialOutput() | Not implemented | Critical gap |
-
----
-
-#### **100% COMPLETE TOOLS (Ready for Backend Implementation)**
-
-**The following 11 tools have fully specified ToolDefinition objects in C#:**
-
-1. ✅ **read_file** — File reading (BuiltInTools.cs:45-61)
-2. ✅ **create_new_file** — New file creation (67-90)
-3. ✅ **run_terminal_command** — Shell execution (97-121)
-4. ✅ **file_glob_search** — Glob file search (127-150)
-5. ✅ **view_diff** — Unified diff display (375-409)
-6. ✅ **read_currently_open_file** — Current editor file (340-374)
-7. ✅ **list_directory** — Directory listing (290-339)
-8. ✅ **create_rule_block** — System prompt rule (215-251)
-9. ✅ **git_status** — Git status query (252-289)
-10. ✅ **git_log** — Commit history (415-432)
-11. ✅ **create_snippet** — Code snippet storage (460-484)
-
-**Note:** Tool **definitions** are complete (parameters, descriptions, return types), but **execution backends** (methods called by ToolService) remain stubbed. Backend work is separate from definition coverage.
-
----
-
-#### **CONTINUE.JS REFERENCE CITATIONS**
-
-- **BuiltInToolNames Enum:** AGENTS.md lines 4436-4466
-- **Tool Definitions Detail:** AGENTS.md lines 2277-2299 (base 9) + 2288-2298 (conditional)
-- **Tool Call Dispatcher:** AGENTS.md lines 4469-4500 (callTool orchestration)
-- **Argument Parsing Utilities:** AGENTS.md lines 320-329 (safeParseToolCallArgs, getStringArg, etc.)
-- **Tool Override Processing:** AGENTS.md lines 4401-4433 (applyToolOverrides)
-- **MCP Tool Integration:** AGENTS.md lines 2302-2315 (tool discovery from servers)
-
----
 
 ### gap25: User Settings and State Persistence NOT FULLY IMPLEMENTED
 
-**Status:** PARTIAL IMPLEMENTATION — 13/19 UI settings implemented, localStorage/theme system incomplete  
-**Severity:** 🟡 MEDIUM — Core functionality works, but settings consistency & persistence gaps remain  
+**Status:** PARTIAL IMPLEMENTATION â€” 13/19 UI settings implemented, localStorage/theme system incomplete  
+**Severity:** ðŸŸ¡ MEDIUM â€” Core functionality works, but settings consistency & persistence gaps remain  
 **Analysis Date:** 2026-08-05  
 **Reference:** AGENTS.md localStorage.ts, migrateLocalStorage.ts, theme.ts, uiSlice.ts, LocalStorage context
 
@@ -2667,14 +2400,14 @@ Continue.js implements a **multi-layer settings architecture**:
 
 | Layer | TypeScript Implementation | C# (ContinueVS) | Gap |
 |-------|--------------------------|-----------------|-----|
-| **User Settings (Config)** | 19 settings in CustomSettings | 19 settings in UserSettings registry ✅ | 0 |
-| **UI State (Redux)** | UIState slice (tool/rule/reasoning policies) | Partial — ChatPageViewModel only | Missing |
-| **Theme Persistence** | THEME_CSS_VARS → localStorage → CSS vars | Color vars hardcoded to defaults | HIGH gap |
+| **User Settings (Config)** | 19 settings in CustomSettings | 19 settings in UserSettings registry âœ… | 0 |
+| **UI State (Redux)** | UIState slice (tool/rule/reasoning policies) | Partial â€” ChatPageViewModel only | Missing |
+| **Theme Persistence** | THEME_CSS_VARS â†’ localStorage â†’ CSS vars | Color vars hardcoded to defaults | HIGH gap |
 | **localStorage Integration** | LocalStorageContext + custom events | No browser storage wrapper | HIGH gap |
 | **Settings Migration** | migrateLocalStorage() + schema versioning | No migration pipeline | MEDIUM gap |
 | **Font Size Sync** | LocalStorageProvider syncs across tabs | SettingsControl UI only | MEDIUM gap |
 
-**Overall Coverage: 13/19 (68%)** — Config storage works, but UI state & persistence layer incomplete
+**Overall Coverage: 13/19 (68%)** â€” Config storage works, but UI state & persistence layer incomplete
 
 ---
 
@@ -2692,11 +2425,11 @@ Redux Slice managing transient UI state:
 - TTS active state
 - File editing state
 
-**Current C# Status:** ❌ MISSING — No equivalent Redux slice
+**Current C# Status:** âŒ MISSING â€” No equivalent Redux slice
 
 **Why Critical:**
 1. Tool policies must be persisted across sessions
-2. User toggles tool access → stored in UI state
+2. User toggles tool access â†’ stored in UI state
 3. Agent mode reads tool policies at execution time
 4. Without this, all tools execute with default policy
 
@@ -2706,9 +2439,9 @@ Redux Slice managing transient UI state:
 // Core/Types/UIState.cs
 public class UIState
 {
-    public Dictionary<string, ToolPolicy> ToolSettings { get; set; }  // toolName → policy
-    public Dictionary<string, bool> ToolGroupSettings { get; set; }    // group name → enabled
-    public Dictionary<string, bool> RuleSettings { get; set; }         // rule name → enabled
+    public Dictionary<string, ToolPolicy> ToolSettings { get; set; }  // toolName â†’ policy
+    public Dictionary<string, bool> ToolGroupSettings { get; set; }    // group name â†’ enabled
+    public Dictionary<string, bool> RuleSettings { get; set; }         // rule name â†’ enabled
     public Dictionary<string, Reasoning> ReasoningSettings { get; set; }
     public bool OnboardingCardVisible { get; set; }
     public bool ExploreDialogOpen { get; set; }
@@ -2720,7 +2453,7 @@ public class UIState
 
 **Blocking:** gap9 (Agent mode tool execution)
 
-**Fix Priority:** 🔴 CRITICAL — Tool policies must persist
+**Fix Priority:** ðŸ”´ CRITICAL â€” Tool policies must persist
 
 ---
 
@@ -2735,10 +2468,10 @@ Continue.js uses `LocalStorageContext` to:
 3. Sync font size across browser tabs
 4. Persist onboarding dismissals
 
-**Current C# Status:** ❌ MISSING — No equivalent
+**Current C# Status:** âŒ MISSING â€” No equivalent
 
 **Why it matters:**
-1. Multi-tab sync: User changes font size in one window → other windows update
+1. Multi-tab sync: User changes font size in one window â†’ other windows update
 2. Onboarding state: "Don't show this again" persisted indefinitely
 3. IDE state: Explore dialog, file editor, etc.
 
@@ -2760,7 +2493,7 @@ public interface ILocalStorageService
 
 **Workaround:** Use `SettingsViewModel` for font size persistence (currently working)
 
-**Fix Priority:** 🟡 MEDIUM — Enhancement, existing workarounds functional
+**Fix Priority:** ðŸŸ¡ MEDIUM â€” Enhancement, existing workarounds functional
 
 ---
 
@@ -2775,7 +2508,7 @@ Continue.js caches theme colors in localStorage:
 3. **Cached in localStorage to avoid recalculation**
 4. On reload, restore from cache before IDE sends theme again
 
-**Current C# Status:** ⚠️ PARTIAL — Colors hardcoded to defaults
+**Current C# Status:** âš ï¸ PARTIAL â€” Colors hardcoded to defaults
 
 **Location:** `src/VSIXProject1/UI/Pages/ChatPage.xaml`
 - Background: `#1e1e1e` (hardcoded)
@@ -2793,7 +2526,7 @@ Continue.js caches theme colors in localStorage:
 // Core/Types/ThemeCache.cs
 public class ThemeCache
 {
-    public Dictionary<string, string> Colors { get; set; }  // CSS var name → hex
+    public Dictionary<string, string> Colors { get; set; }  // CSS var name â†’ hex
     public DateTime CachedAt { get; set; }
 }
 
@@ -2810,20 +2543,20 @@ public interface IThemeCacheService
 
 **Workaround:** Hardcoded defaults work for now; IDE theme sync is handled by WebView2
 
-**Fix Priority:** 🟡 MEDIUM — Visual consistency enhancement
+**Fix Priority:** ðŸŸ¡ MEDIUM â€” Visual consistency enhancement
 
 ---
 
 #### **gap25_4: Settings Migration Pipeline MISSING**
 
-**TS Reference:** AGENTS.md lines 44, 66-68 (migrateLocalStorage, v0→v1 migration)
+**TS Reference:** AGENTS.md lines 44, 66-68 (migrateLocalStorage, v0â†’v1 migration)
 
 **What it is:**
 Continue handles localStorage schema upgrades via Redux-persist migrations:
-- **v0 → v1**: Rename old setting keys to new names
-- Example: `oldState.state.sessionId` → `session.id`
+- **v0 â†’ v1**: Rename old setting keys to new names
+- Example: `oldState.state.sessionId` â†’ `session.id`
 
-**Current C# Status:** ❌ MISSING — No schema migration
+**Current C# Status:** âŒ MISSING â€” No schema migration
 
 **Why it matters:**
 1. User runs ContinueVS v1.0 with 15 settings
@@ -2848,7 +2581,7 @@ public static class SettingsMigration
 
         if (fileVersion < CurrentVersion)
         {
-            // Apply v0→v1: Rename old keys
+            // Apply v0â†’v1: Rename old keys
             // e.g., if CustomSettings contains old key, rename to new
 
             config.CustomSettings["_schemaVersion"] = CurrentVersion;
@@ -2860,7 +2593,7 @@ public static class SettingsMigration
 
 **Workaround:** Manual setting reset (delete continueVS.json, re-run)
 
-**Fix Priority:** 🟡 MEDIUM — Future-proofing for upgrades
+**Fix Priority:** ðŸŸ¡ MEDIUM â€” Future-proofing for upgrades
 
 ---
 
@@ -2870,10 +2603,10 @@ public static class SettingsMigration
 
 **What it is:**
 If user has two Continue windows open:
-1. **Window A:** User sets font size → 16px
+1. **Window A:** User sets font size â†’ 16px
 2. **Window B:** Should automatically update to 16px (via custom event)
 
-**Current C# Status:** ⚠️ PARTIAL — Single-window only
+**Current C# Status:** âš ï¸ PARTIAL â€” Single-window only
 
 **Why it matters:**
 1. WPF doesn't have native cross-process messaging (unlike browser tabs)
@@ -2906,7 +2639,7 @@ public class SettingsSyncService : INotifyPropertyChanged
 
 **Workaround:** Restart ContinueVS to pick up changes
 
-**Fix Priority:** 🟠 LOW — Single-window workflow typical for VS extension; polling adds overhead
+**Fix Priority:** ðŸŸ  LOW â€” Single-window workflow typical for VS extension; polling adds overhead
 
 ---
 
@@ -2916,10 +2649,10 @@ public class SettingsSyncService : INotifyPropertyChanged
 
 **What it is:**
 Continue tracks onboarding wizard callbacks with localStorage:
-- `onboardingStatus = "Started"` → User saw wizard
-- `onboardingStatus = "Completed"` → Don't show wizard again
+- `onboardingStatus = "Started"` â†’ User saw wizard
+- `onboardingStatus = "Completed"` â†’ Don't show wizard again
 
-**Current C# Status:** ⚠️ PARTIAL — OnboardingCard shown in UI, but no dismissal memory
+**Current C# Status:** âš ï¸ PARTIAL â€” OnboardingCard shown in UI, but no dismissal memory
 
 **Why it matters:**
 1. Persistence pattern needed for "Don't show this again" for exploration UI
@@ -2941,7 +2674,7 @@ public class OnboardingState
 
 **Workaround:** Onboarding card auto-closes if models available
 
-**Fix Priority:** 🟡 MEDIUM — User experience enhancement
+**Fix Priority:** ðŸŸ¡ MEDIUM â€” User experience enhancement
 
 ---
 
@@ -2949,12 +2682,12 @@ public class OnboardingState
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
 |--------|--------------------------|-----------------|-----|
-| **User Settings** | 19 settings in CustomSettings | 19 implemented ✅ | 0 |
+| **User Settings** | 19 settings in CustomSettings | 19 implemented âœ… | 0 |
 | **Config Persistence** | Partial + Redux (localStorage) | Partial (config.json only) | 50% |
 | **Redux UIState** | Full (tool policies, dialogs, etc.) | Missing | HIGH |
 | **localStorage Wrapper** | LocalStorageContext + type safety | None | HIGH |
-| **Theme Caching** | In localStorage → CSS vars | Hardcoded defaults | MEDIUM |
-| **Settings Migration** | v0→v1 via Redux-persist | None | MEDIUM |
+| **Theme Caching** | In localStorage â†’ CSS vars | Hardcoded defaults | MEDIUM |
+| **Settings Migration** | v0â†’v1 via Redux-persist | None | MEDIUM |
 | **Cross-Tab Sync** | Custom events | File polling (not implemented) | LOW |
 | **Onboarding Dismissal** | localStorage persistence | Manual (config.json) | MEDIUM |
 | **Total Implementation** | ~95% (multi-layer) | ~55% (single-layer) | 40% gap |
@@ -2965,19 +2698,19 @@ public class OnboardingState
 
 **User Settings Implementation (13/19 settings):**
 
-1. ✅ **Show Session Tabs** (bool)
-2. ✅ **Wrap Codeblocks** (bool)
-3. ✅ **Show Chat Scrollbar** (bool)
-4. ✅ **Text-to-Speech Output** (bool)
-5. ✅ **Enable Session Titles** (bool)
-6. ✅ **Format Markdown** (bool)
-7. ✅ **Font Size** (int, 10-24)
-8. ✅ **Multiline Autocompletions** (enum)
-9. ✅ **Autocomplete Timeout** (ms)
-10. ✅ **Autocomplete Debounce** (ms)
-11. ✅ **Disable Autocomplete in Files** (string)
-12. ✅ **Add Current File by Default** (bool)
-13. ✅ **Enable Experimental Tools** (bool)
+1. âœ… **Show Session Tabs** (bool)
+2. âœ… **Wrap Codeblocks** (bool)
+3. âœ… **Show Chat Scrollbar** (bool)
+4. âœ… **Text-to-Speech Output** (bool)
+5. âœ… **Enable Session Titles** (bool)
+6. âœ… **Format Markdown** (bool)
+7. âœ… **Font Size** (int, 10-24)
+8. âœ… **Multiline Autocompletions** (enum)
+9. âœ… **Autocomplete Timeout** (ms)
+10. âœ… **Autocomplete Debounce** (ms)
+11. âœ… **Disable Autocomplete in Files** (string)
+12. âœ… **Add Current File by Default** (bool)
+13. âœ… **Enable Experimental Tools** (bool)
 
 **Storage & Retrieval:** Files created: `UserSettings.cs`, `SettingsViewModel.cs`, `SettingsControl.xaml`
 
@@ -3005,7 +2738,7 @@ public class OnboardingState
 | 2 | gap2 | Fix DataContext binding | gap3, gap5, gap6 all |
 | 3 | gap3 | Load models in ConfigPage | gap7 depends |
 | 4 | gap4 | MessengerService HTTP streaming | gap5 depends |
-| 5 | gap5 | Chat message flow (ILlmService → UI) | gap6 depends |
+| 5 | gap5 | Chat message flow (ILlmService â†’ UI) | gap6 depends |
 | 6 | gap6 | Chat message display rendering | user test |
 | 7 | gap7 | Navigation tabs visible | gap8, gap9, gap10 depend |
 | 8 | gap8 | Ask mode UI + mode selector | user test |
@@ -3025,94 +2758,94 @@ public class OnboardingState
 
 *Establish shared data models and service interfaces.*
 
-### step1: Create Core Types Folder Structure ✅
+### step1: Create Core Types Folder Structure âœ…
 - **Action:** Create folder `src/VSIXProject1/Core/Types/`
 - **Why:** Centralize all DTO/contract types used by services
 - **Depends on:** None
 - **Files created:** (folder only)
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step2: Define Chat Message Type ✅
+### step2: Define Chat Message Type âœ…
 - **Action:** Create `Core/Types/ChatMessage.cs`
 - **Content:** Class with Role, Content, ToolCalls properties
 - **Depends on:** Step 1
 - **Existing reference:** Likely partial in Handlers/Llm/*
 - **Status:** Completed
 
-### step3: Define LLM Completion Chunk Type ✅
+### step3: Define LLM Completion Chunk Type âœ…
 - **Action:** Create `Core/Types/CompletionChunk.cs`
 - **Content:** Type, Content, ToolCall data; supports streaming
 - **Depends on:** Step 1
 - **Status:** Completed
 
-### step4: Define Tool Types ✅
+### step4: Define Tool Types âœ…
 - **Action:** Create `Core/Types/ToolDefinition.cs`, `ToolResult.cs`, `ToolError.cs`
 - **Content:** Tool registry, arguments, results
 - **Depends on:** Step 1
 - **Existing reference:** Use/adapt from `Handlers/builtIn.ts` concept
 - **Status:** Completed
 
-### step5: Define Session Types ✅
+### step5: Define Session Types âœ…
 - **Action:** Create `Core/Types/Session.cs`, `SessionMetadata.cs`
 - **Content:** Session state, turns, metadata
 - **Depends on:** Step 2 (ChatMessage)
 - **Status:** Completed
 
-### step6: Define Config Types ✅
+### step6: Define Config Types âœ…
 - **Action:** Create `Core/Types/ContinueConfig.cs`, `ModelInfo.cs`, `ProfileInfo.cs`
 - **Content:** Configuration schema
 - **Depends on:** Step 1
 - **Existing reference:** Refactor from `ConfigCache.cs` if possible
 - **Status:** Completed
 
-### step7: Define Indexing Types ✅
+### step7: Define Indexing Types âœ…
 - **Action:** Create `Core/Types/IndexingStatus.cs`, `IndexingProgressUpdate.cs`
 - **Content:** Progress tracking, status enums
 - **Depends on:** Step 1
 - **Status:** Completed
 
-### step8: Define Context Types ✅
+### step8: Define Context Types âœ…
 - **Action:** Create `Core/Types/ContextItem.cs`, `CodeSymbol.cs`
 - **Content:** Context retrieval results
 - **Depends on:** Step 1
 - **Status:** Completed
 
-### step9: Define Event Argument Types ✅
+### step9: Define Event Argument Types âœ…
 - **Action:** Create `Core/Types/ConfigChangedEventArgs.cs`, `LlmErrorEventArgs.cs`, etc.
 - **Content:** Event payload classes (9 total for 9 subsystems)
 - **Depends on:** Steps 1-8
 - **Status:** Completed
 
-### step10: Create Service Interfaces Folder ✅
+### step10: Create Service Interfaces Folder âœ…
 - **Action:** Create folder `src/VSIXProject1/Services/Interfaces/`
 - **Why:** Separate contracts from implementations
 - **Depends on:** None
 - **Status:** Completed
 
-### step11: Create IConfigService Interface ✅
+### step11: Create IConfigService Interface âœ…
 - **Action:** Create `Services/Interfaces/IConfigService.cs`
 - **Content:** From DESIGN.md section 2.1
 - **Depends on:** Steps 6, 9
 - **Status:** Completed
 
-### step12: Create ILlmService Interface ✅
+### step12: Create ILlmService Interface âœ…
 - **Action:** Create `Services/Interfaces/ILlmService.cs`
 - **Content:** From DESIGN.md section 2.1
 - **Depends on:** Steps 2, 3, 9
 - **Status:** Completed
 
-### step13: Create Remaining Service Interfaces ✅
+### step13: Create Remaining Service Interfaces âœ…
 - **Action:** Create `IToolService.cs`, `ISessionService.cs`, `IIndexingService.cs`, `IContextService.cs`, `IMcpService.cs`, `IIdeService.cs`, `IMessengerService.cs`, `INotificationService.cs`
 - **Content:** From DESIGN.md section 2.1
 - **Depends on:** Steps 1-9
 - **Status:** Completed
 
-### step14: Create Service Event Arguments ✅
+### step14: Create Service Event Arguments âœ…
 - **Action:** Create additional event arg types needed by services (LlmErrorEventArgs, ToolErrorEventArgs, IndexingProgressEventArgs, etc.)
 - **Depends on:** Step 9
 - **Status:** Completed
 
-### step15: Build & Validate Phase 1 ✅
+### step15: Build & Validate Phase 1 âœ…
 - **Action:** Compile solution; verify all types compile without errors
 - **Command:** `dotnet build`
 - **Depends on:** Steps 1-14
@@ -3124,12 +2857,12 @@ public class OnboardingState
 
 *Implement service interfaces; wrap/refactor existing handlers.*
 
-### step16: Create Service Implementations Folder ✅
+### step16: Create Service Implementations Folder âœ…
 - **Action:** Create folder `src/VSIXProject1/Services/Implementations/`
 - **Depends on:** None
 - **Status:** Completed
 
-### step17: Implement IConfigService ✅
+### step17: Implement IConfigService âœ…
 - **Action:** Create `Services/Implementations/ConfigService.cs`
 - **Content:**
   - Refactor existing `ConfigCache.cs` OR wrap it
@@ -3140,7 +2873,7 @@ public class OnboardingState
 - **Existing reference:** Reuse/adapt `ConfigCache.cs`
 - **Status:** Completed
 
-### step18: Implement IIdeService ✅
+### step18: Implement IIdeService âœ…
 - **Action:** Create `Services/Implementations/VsIdeService.cs`
 - **Content:**
   - Wrap existing `DTEAdapter.cs`
@@ -3151,7 +2884,7 @@ public class OnboardingState
 - **Existing reference:** Reuse `DTEAdapter.cs` + `ProcessAdapter.cs`
 - **Status:** Completed
 
-### step19: Implement IMessengerService ✅
+### step19: Implement IMessengerService âœ…
 - **Action:** Create `Services/Implementations/MessengerService.cs`
 - **Content:**
   - Wrap existing `MessageDispatcher.cs`
@@ -3159,11 +2892,11 @@ public class OnboardingState
   - Route to handler registry
 - **Depends on:** Step 13
 - **Existing reference:** Use existing `MessageDispatcher.cs` as backend
-- **Status:** Completed (corrected gap2 remediation: `MessageDispatcher.cs` never existed as a C# class; stub MessengerService created as no-op IMessengerService — yields empty stream. Real streaming wired in gap4.)
+- **Status:** Completed (corrected gap2 remediation: `MessageDispatcher.cs` never existed as a C# class; stub MessengerService created as no-op IMessengerService â€” yields empty stream. Real streaming wired in gap4.)
 - **Files created:** `src/VSIXProject1/Services/Implementations/MessengerService.cs`
 - **Note:** Step19 was previously marked Complete but file was never written to disk.
 
-### step20: Implement IToolService ✅
+### step20: Implement IToolService âœ…
 - **Action:** Create `Services/Implementations/ToolService.cs`
 - **Content:**
   - Route built-in tools to IIdeService methods
@@ -3173,7 +2906,7 @@ public class OnboardingState
 - **Existing reference:** Adapt logic from `Handlers/File/*` and `Handlers/callTool.ts` pattern
 - **Status:** Completed
 
-### step21: Implement ISessionService ✅
+### step21: Implement ISessionService âœ…
 - **Action:** Create `Services/Implementations/SessionService.cs`
 - **Content:**
   - Maintain current session in memory
@@ -3181,9 +2914,9 @@ public class OnboardingState
   - Fire SessionChanged events
 - **Depends on:** Step 5
 - **Existing reference:** Check if session storage already exists
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step22: Implement ILlmService (Skeleton) ✅
+### step22: Implement ILlmService (Skeleton) âœ…
 - **Action:** Create `Services/Implementations/LlmService.cs`
 - **Content:**
   - Stub methods (will fill in later with LLM logic)
@@ -3191,97 +2924,97 @@ public class OnboardingState
   - Implement model capability detection (from autodetect.ts pattern)
   - Implement token counting (stubs for now)
 - **Depends on:** Steps 12, 19
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step23: Implement IIndexingService (Skeleton) ✅
+### step23: Implement IIndexingService (Skeleton) âœ…
 - **Action:** Create `Services/Implementations/IndexingService.cs`
 - **Content:**
   - Stub methods for indexing control
   - Fire ProgressUpdates events
   - Defer actual indexing logic
 - **Depends on:** Step 13
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step24: Implement IContextService (Skeleton) ✅
+### step24: Implement IContextService (Skeleton) âœ…
 - **Action:** Create `Services/Implementations/ContextService.cs`
 - **Content:**
   - Stub context retrieval
   - Defer RAG logic
 - **Depends on:** Step 13
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step25: Implement IMcpService (Skeleton) ✅
+### step25: Implement IMcpService (Skeleton) âœ…
 - **Action:** Create `Services/Implementations/McpService.cs`
 - **Content:**
   - Stub server lifecycle
   - Defer MCP process management
 - **Depends on:** Step 13
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step26: Implement INotificationService ✅
+### step26: Implement INotificationService âœ…
 - **Action:** Create `Services/Implementations/WpfNotificationService.cs`
 - **Content:**
   - Show MessageBox, notification toast (WPF implementation)
   - Show dialogs
 - **Depends on:** Step 13
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Files created:**
   - `src/VSIXProject1/Services/Implementations/WpfNotificationService.cs`
   - `src/VSIXProject1/UI/ProgressWindow.xaml` and `.xaml.cs`
   - `src/VSIXProject1/UI/InputWindow.xaml` and `.xaml.cs`
 
-### step27: Create Service Exceptions Folder ✅
+### step27: Create Service Exceptions Folder âœ…
 - **Action:** Create folder `src/VSIXProject1/Services/Exceptions/`
 - **Depends on:** None
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step28: Create Custom Service Exceptions ✅
+### step28: Create Custom Service Exceptions âœ…
 - **Action:** Create exception types: `ConfigLoadException.cs`, `LlmException.cs`, `ToolInvocationException.cs`, `IndexingException.cs`
 - **Depends on:** Step 27
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Files created:**
   - `src/VSIXProject1/Services/Exceptions/ConfigLoadException.cs`
   - `src/VSIXProject1/Services/Exceptions/LlmException.cs`
   - `src/VSIXProject1/Services/Exceptions/ToolInvocationException.cs`
   - `src/VSIXProject1/Services/Exceptions/IndexingException.cs`
 
-### step29: Update IConfigService to Throw Exceptions ✅
+### step29: Update IConfigService to Throw Exceptions âœ…
 - **Action:** Modify `ConfigService.cs` to throw `ConfigLoadException` on error
 - **Depends on:** Steps 17, 28
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Changes:** ConfigService.InitializeAsync now throws ConfigLoadException instead of silently catching and using default config
 
-### step30: Update ILlmService to Throw Exceptions ✅
+### step30: Update ILlmService to Throw Exceptions âœ…
 - **Action:** Modify `LlmService.cs` to throw `LlmException` on error
 - **Depends on:** Steps 22, 28
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Changes:** Added XML documentation to StreamAsync method indicating it may throw LlmException
 
 ### step31: Create DI Container Setup
 - **Action:** Create `Services/ServiceBootstrapper.cs`
 - **Content:** From DESIGN.md section 6.1; wire all services + ViewModels
 - **Depends on:** Steps 17-26
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Changes:** Created ServiceBootstrapper.cs with static ConfigureServices() method that registers all 9 services as singletons (IConfigService, ILlmService, ISessionService, IToolService, IIndexingService, IContextService, IMcpService, IIdeService, IMessengerService, INotificationService)
 
 ### step32: Add NuGet Packages for Services
 - **Action:** Add packages to .csproj:
-  - `Microsoft.Bcl.AsyncInterfaces` (for IAsyncEnumerable) ✓
-  - `Microsoft.Extensions.DependencyInjection` ✓
-  - `System.Reactive` (for IObservable) ✓
+  - `Microsoft.Bcl.AsyncInterfaces` (for IAsyncEnumerable) âœ“
+  - `Microsoft.Extensions.DependencyInjection` âœ“
+  - `System.Reactive` (for IObservable) âœ“
 - **Depends on:** None (orthogonal)
-- **Status:** ✓ Complete (System.Reactive v5.4.1 added to PackageReference)
+- **Status:** âœ“ Complete (System.Reactive v5.4.1 added to PackageReference)
 
 ### step33: Update App.xaml.cs to Initialize DI
 - **Action:** Modify `ContinueVSPackage.cs` or app entry to call `ServiceBootstrapper.ConfigureServices()`
 - **Depends on:** Steps 31, 32
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Changes:** Added `using Microsoft.Extensions.DependencyInjection;` to imports; added static `ServiceProvider` property to `ContinueVSPackage`; inserted DI initialization call in `InitializeAsync()` after options page setup (scope t1.4.4) with debug output; wraps `ServiceBootstrapper.ConfigureServices()` and stores result in static ServiceProvider for downstream access
 
 ### step34: Wire ConfigService to Handler Registry
 - **Action:** Update `MessageDispatcher.cs` to resolve IConfigService and delegate config handler calls
 - **Depends on:** Step 17, 19
-- **Status:** 🟢 Completed
+- **Status:** ðŸŸ¢ Completed
 - **Changes:**
   - Updated MessageDispatcher constructor to accept optional IServiceProvider parameter
   - Added handler factory support via RegisterFactory<THandler>(messageType, factory) method
@@ -3295,7 +3028,7 @@ public class OnboardingState
 ### step35: Wire ToolService to Handler Registry
 - **Action:** Update handlers to resolve IToolService
 - **Depends on:** Step 20
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Changes:**
   - Added `using ContinueVS.Services.Interfaces;` to LlmStreamChatHandler and LlmCompileChatHandler
   - Updated LlmStreamChatHandler constructor to accept optional `IToolService? toolService` parameter
@@ -3305,11 +3038,11 @@ public class OnboardingState
   - Maintains backward compatibility: IToolService is optional (null-safe), factory gracefully handles null ServiceProvider
   - All 735 unit tests passing
 
-### step36: Create Service Initialization Bootstrap ✅
+### step36: Create Service Initialization Bootstrap âœ…
 - **Action:** Create `Services/ServiceInitializer.cs`
 - **Content:** Initialize services on startup (IConfigService.InitializeAsync, etc.)
 - **Depends on:** Steps 17-26
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Critical Blocking Constraint (from Step 34):** ServiceInitializer.InitializeAsync() MUST be called before the first message is dispatched to any handler. Handlers now depend on IConfigService via dependency injection (step 34 factory pattern). If initialization is delayed or deferred, handlers will receive uninitialized config state. Verify ordering when implementing step 37.
 - **Implementation details:**
   - Created static class ServiceInitializer with public static async Task InitializeAsync(IServiceProvider?)
@@ -3319,10 +3052,10 @@ public class OnboardingState
   - Throws InvalidOperationException if IConfigService initialization fails (critical service)
   - Uses System.Diagnostics.Debug for tracing and diagnostics
 
-### step37: Call ServiceInitializer in Plugin Startup ✅
+### step37: Call ServiceInitializer in Plugin Startup âœ…
 - **Action:** Modify `ContinueVSPackage.cs` to call ServiceInitializer
 - **Depends on:** Step 36
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Critical Sequencing Requirement (from Step 34):** Call ServiceInitializer.InitializeAsync() in ContinueVSPackage.InitializeAsync() IMMEDIATELY after ServiceProvider setup (step 33) and BEFORE the message dispatcher starts receiving messages (e.g., before tool window creation or message pump activation). This ensures handlers have fully initialized services when invoked.
 - **Implementation details:**
   - Added new tracing scope (t1.4.5) for service initialization between DI container setup (t1.4.4) and command initialization (t1.5)
@@ -3334,11 +3067,11 @@ public class OnboardingState
   - All 735+ unit tests passing; no build warnings
 
 
-### step38: Add Service Logging Infrastructure ✅
+### step38: Add Service Logging Infrastructure âœ…
 - **Action:** Wire `IBridgeLogger` into services (dependency inject logging)
 - **Depends on:** Step 31
 - **Existing reference:** Reuse `BridgeLogger.cs`
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Implementation details:**
   - Added `IBridgeLogger? logger` parameter to ConfigService, VsIdeService, ToolService, and WpfNotificationService constructors
   - LlmService, IndexingService, ContextService, McpService, and MessengerService already had logger injection
@@ -3346,41 +3079,41 @@ public class OnboardingState
   - Registered IBridgeLogger as singleton in ServiceBootstrapper: `services.AddSingleton<IBridgeLogger>(sp => new BridgeLogger(null))`
   - All services properly initialized with nullable logger for fail-silent operation
 
-### step39: Build & Validate Phase 2 (Part A) ✅
+### step39: Build & Validate Phase 2 (Part A) âœ…
 - **Action:** Compile solution; verify service implementations compile
 - **Command:** `dotnet build src/VSIXProject1/VSIXProject1.csproj && dotnet build src/VSIXProject1.Tests/VSIXProject1.Tests.csproj`
 - **Depends on:** Steps 17-38
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Build result:** Both VSIXProject1 and VSIXProject1.Tests compiled successfully without warnings
 
-### step40: Add Unit Test Project Structure ✅
+### step40: Add Unit Test Project Structure âœ…
 - **Action:** Create folder `src/VSIXProject1.Tests/Services/`
 - **Depends on:** None
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Files created:** Directory structure created at `src/VSIXProject1.Tests/Services/`
 
-### step41: Create Service Test Stubs ✅
+### step41: Create Service Test Stubs âœ…
 - **Action:** Create test classes for each service (stub tests, will flesh out later)
 - **Depends on:** Step 40
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Files created:**
   - `src/VSIXProject1.Tests/Services/VsIdeServiceTests.cs` (3 tests)
   - `src/VSIXProject1.Tests/Services/MessengerServiceTests.cs` (3 tests)
 - **Tests:** All 6 stub tests passing
 
-### step42: Test IConfigService Initialization ✅
+### step42: Test IConfigService Initialization âœ…
 - **Action:** Write test for ConfigService.InitializeAsync (read config file)
 - **Depends on:** Steps 17, 41
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Implementation details:**
   - ConfigServiceTests.cs expanded with 18 comprehensive tests (already existed with strong coverage)
   - Tests cover: initialization with/without existing config, event firing, idempotency, error handling, model CRUD operations, profile selection, tool enable/disable, config persistence
   - All tests passing in xUnit framework
 
-### step43: Test IIdeService File Operations ✅
+### step43: Test IIdeService File Operations âœ…
 - **Action:** Write test for VsIdeService.ReadFileAsync (mock file system)
 - **Depends on:** Steps 18, 41
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Implementation details:**
   - VsIdeServiceTests.cs expanded from 3 stub tests to 6 comprehensive behavior tests
   - Added tests: ReadFileAsync_ReturnsContent_WhenFileExists, ReadFileAsync_ThrowsInvalidOperationException_WhenFileDoesNotExist, ReadFileAsync_ReturnsCorrectContent_ForMultilineFile
@@ -3388,10 +3121,10 @@ public class OnboardingState
   - Tests validate: implicit FileNotFoundException wrapping in InvalidOperationException (service pattern), null/empty path validation
   - All 6 tests passing
 
-### step44: Test IMessengerService Request/Response ✅
+### step44: Test IMessengerService Request/Response âœ…
 - **Action:** Write test for MessengerService.RequestAsync (mock dispatch)
 - **Depends on:** Steps 19, 41
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Implementation details:**
   - MessengerServiceTests.cs expanded from 3 stub tests to 7 comprehensive behavior tests
   - Added tests: RequestAsync_ThrowsArgumentNullException_WhenMessageTypeIsNull, RequestAsync_ThrowsInvalidOperationException_OnSerializationFailure (dispatch error), RequestAsync_RespectsCancellationToken, RequestAsync_CreatesMessageWithCorrectType
@@ -3399,11 +3132,11 @@ public class OnboardingState
   - Uses isolated message types to avoid handler registry interference
   - All 7 tests passing
 
-### step45: Build & Validate Phase 2 (Part B) ✅
+### step45: Build & Validate Phase 2 (Part B) âœ…
 - **Action:** Compile + run tests; verify service layer works
 - **Command:** `dotnet build && dotnet test`
 - **Depends on:** Steps 42-44
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Build result:** Clean build succeeded; 0 errors, 0 warnings
 - **Test result:** 748 tests passed, 0 failures, 0 skipped (22.4s)
 - **Validation:** Service layer passes all unit tests; Phase 3 (ViewModel Layer) ready to proceed
@@ -3414,23 +3147,23 @@ public class OnboardingState
 
 *Create MVVM Light ViewModels wired to services.*
 
-### step46: Add MVVM Light NuGet Package ✅
+### step46: Add MVVM Light NuGet Package âœ…
 - **Action:** Add `MvvmLight` to .csproj
 - **Depends on:** None
 - **Status:** Completed
 
-### step47: Create ViewModels Folder ✅
+### step47: Create ViewModels Folder âœ…
 - **Action:** Create folder `src/VSIXProject1/ViewModels/`
 - **Depends on:** None
 - **Status:** Completed
 
-### step48: Create ViewModelBase (or use MVVM Light's) ✅
+### step48: Create ViewModelBase (or use MVVM Light's) âœ…
 - **Action:** Create `ViewModels/ViewModelBase.cs` or reference MVVM Light's `ViewModelBase`
 - **Content:** RaisePropertyChanged, RelayCommand helpers
 - **Depends on:** Step 46
 - **Status:** Completed
 
-### step49: Create MainViewModel ✅
+### step49: Create MainViewModel âœ…
 - **Action:** Create `ViewModels/MainViewModel.cs`
 - **Content:** From DESIGN.md section 3
   - Properties: CurrentMessages, CurrentSession, CurrentRoute, IsLoading
@@ -3439,7 +3172,7 @@ public class OnboardingState
 - **Depends on:** Steps 48, 21, 19, 26
 - **Status:** Completed
 
-### step50: Create ChatPageViewModel ✅
+### step50: Create ChatPageViewModel âœ…
 - **Action:** Create `ViewModels/ChatPageViewModel.cs`
 - **Content:** From DESIGN.md section 3.2
   - Properties: Messages, InputText, IsStreaming, SelectedContext, StreamingResponse
@@ -3448,7 +3181,7 @@ public class OnboardingState
 - **Depends on:** Steps 48, 22, 24, 20, 21, 26
 - **Status:** Completed
 
-### step51: Create ConfigPageViewModel ✅
+### step51: Create ConfigPageViewModel âœ…
 - **Action:** Create `ViewModels/ConfigPageViewModel.cs`
 - **Content:** From DESIGN.md section 3.3
   - Properties: AvailableModels, SelectedModel, AvailableTools, Profiles
@@ -3457,7 +3190,7 @@ public class OnboardingState
 - **Depends on:** Steps 48, 17, 23
 - **Status:** Completed
 
-### step52: Create IndexingProgressViewModel ✅
+### step52: Create IndexingProgressViewModel âœ…
 - **Action:** Create `ViewModels/IndexingProgressViewModel.cs`
 - **Content:** From DESIGN.md section 3.4
   - Properties: ProgressPercentage, CurrentFile, Status, IsIndexing
@@ -3467,7 +3200,7 @@ public class OnboardingState
 - **Depends on:** Steps 48, 23
 - **Status:** Completed
 
-### step53: Create HistoryPageViewModel ✅
+### step53: Create HistoryPageViewModel âœ…
 - **Action:** Create `ViewModels/HistoryPageViewModel.cs`
 - **Content:**
   - Properties: Sessions, SelectedSession
@@ -3476,7 +3209,7 @@ public class OnboardingState
 - **Depends on:** Steps 48, 21
 - **Status:** Completed
 
-### step54: Create StatsPageViewModel ✅
+### step54: Create StatsPageViewModel âœ…
 - **Action:** Create `ViewModels/StatsPageViewModel.cs`
 - **Content:**
   - Properties: TokensUsed, ModelsUsed, CostEstimate
@@ -3485,7 +3218,7 @@ public class OnboardingState
 - **Depends on:** Steps 48, 22
 - **Status:** Completed
 
-### step55: Create EditModeViewModel ✅
+### step55: Create EditModeViewModel âœ…
 - **Action:** Create `ViewModels/EditModeViewModel.cs`
 - **Content:**
   - Properties: OriginalCode, NewCode, Diff, ShowAcceptPrompt
@@ -3500,14 +3233,14 @@ public class OnboardingState
 
 *Wire ViewModels to Views; implement event subscriptions; add binding converters.*
 
-### step57: Wire MainViewModel to Services ✅
+### step57: Wire MainViewModel to Services âœ…
 - **Action:** Update MainViewModel to subscribe to service events
-  - On SessionChanged → RaisePropertyChanged(CurrentSession)
-  - On ConfigChanged → Refresh UI state
+  - On SessionChanged â†’ RaisePropertyChanged(CurrentSession)
+  - On ConfigChanged â†’ Refresh UI state
 - **Depends on:** Step 49
 - **Status:** Completed
 
-### step58: Wire ChatPageViewModel to Streaming ✅
+### step58: Wire ChatPageViewModel to Streaming âœ…
 - **Action:** Update ChatPageViewModel.ExecuteSendMessage to:
   - Call ILlmService.StreamAsync
   - Update StreamingResponse per chunk (via RaisePropertyChanged)
@@ -3515,71 +3248,71 @@ public class OnboardingState
 - **Depends on:** Step 50
 - **Status:** Completed
 
-### step59: Add Converter Classes for Data Binding ✅
+### step59: Add Converter Classes for Data Binding âœ…
 - **Action:** Create `ViewModels/Converters/` folder
   - `BooleanToVisibilityConverter.cs`
   - `InverseBooleanConverter.cs`
   - `ProgressPercentageConverter.cs`
 - **Depends on:** Step 47
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:** 
-  - `src/VSIXProject1/ViewModels/Converters/BooleanToVisibilityConverter.cs` — Maps bool → Visibility (true=Visible, false=Collapsed)
-  - `src/VSIXProject1/ViewModels/Converters/InverseBooleanConverter.cs` — Negates boolean values for inverse binding logic
-  - `src/VSIXProject1/ViewModels/Converters/ProgressPercentageConverter.cs` — Converts numeric progress (0–100 or 0.0–1.0) to percentage string
+  - `src/VSIXProject1/ViewModels/Converters/BooleanToVisibilityConverter.cs` â€” Maps bool â†’ Visibility (true=Visible, false=Collapsed)
+  - `src/VSIXProject1/ViewModels/Converters/InverseBooleanConverter.cs` â€” Negates boolean values for inverse binding logic
+  - `src/VSIXProject1/ViewModels/Converters/ProgressPercentageConverter.cs` â€” Converts numeric progress (0â€“100 or 0.0â€“1.0) to percentage string
 
-### step60: Create ViewModel Locator (or inject via DI) ✅
+### step60: Create ViewModel Locator (or inject via DI) âœ…
 - **Action:** Create `ViewModels/ViewModelLocator.cs` or use DI container
 - **Content:** Provide instances to Views (dependency injection)
 - **Depends on:** Steps 49-55, 31
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/ViewModels/ViewModelLocator.cs` — Static facade class with MainViewModel, ChatPageViewModel, ConfigPageViewModel properties; each property retrieves instances via factory delegates from ServiceProvider; null-check on ServiceProvider setter; descriptive exceptions for missing factory registration
+  - `src/VSIXProject1/ViewModels/ViewModelLocator.cs` â€” Static facade class with MainViewModel, ChatPageViewModel, ConfigPageViewModel properties; each property retrieves instances via factory delegates from ServiceProvider; null-check on ServiceProvider setter; descriptive exceptions for missing factory registration
 
-### step61: Update ServiceBootstrapper to Register ViewModels ✅
+### step61: Update ServiceBootstrapper to Register ViewModels âœ…
 - **Action:** Modify Step 31's ServiceBootstrapper to add ViewModel registrations
 - **Depends on:** Steps 49-55, 31
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` — Added `using ContinueVS.ViewModels;` namespace; registered three factory delegates (Func<MainViewModel>, Func<ChatPageViewModel>, Func<ConfigPageViewModel>) in ConfigureServices() method before BuildServiceProvider() call; each factory resolves required service dependencies from provider and instantiates ViewModel
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` â€” Added `using ContinueVS.ViewModels;` namespace; registered three factory delegates (Func<MainViewModel>, Func<ChatPageViewModel>, Func<ConfigPageViewModel>) in ConfigureServices() method before BuildServiceProvider() call; each factory resolves required service dependencies from provider and instantiates ViewModel
 
-### step62: Create ViewModel Tests (Skeleton) ✅
+### step62: Create ViewModel Tests (Skeleton) âœ…
 - **Action:** Create `src/VSIXProject1.Tests/ViewModels/` + test classes
 - **Depends on:** Step 40
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:** 
-  - `src/VSIXProject1.Tests/ViewModels/MainViewModelTests.cs` — XUnit test class inheriting TestFixtureBase with 6 test facts covering constructor validation, property initialization, null checks, and command availability
-  - `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelTests.cs` — XUnit test class inheriting TestFixtureBase with 8 test facts covering constructor validation, property setters, and command existence
-  - `src/VSIXProject1.Tests/ViewModels/ConfigPageViewModelTests.cs` — XUnit test class inheriting TestFixtureBase with 8 test facts covering constructor validation, property setters, collection operations, and command existence
+  - `src/VSIXProject1.Tests/ViewModels/MainViewModelTests.cs` â€” XUnit test class inheriting TestFixtureBase with 6 test facts covering constructor validation, property initialization, null checks, and command availability
+  - `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelTests.cs` â€” XUnit test class inheriting TestFixtureBase with 8 test facts covering constructor validation, property setters, and command existence
+  - `src/VSIXProject1.Tests/ViewModels/ConfigPageViewModelTests.cs` â€” XUnit test class inheriting TestFixtureBase with 8 test facts covering constructor validation, property setters, collection operations, and command existence
 
-### step63: Test MainViewModel Initialization ✅
+### step63: Test MainViewModel Initialization âœ…
 - **Action:** Write test: MainViewModel loads services, initializes properties
 - **Depends on:** Steps 49, 62
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Tests:** MainViewModelTests.Constructor_WithValidDependencies_InitializesProperties, Constructor_WithNullSessionService_ThrowsArgumentNullException, CurrentRoute_CanBeSet, IsLoading_CanBeSet, CurrentMessages_InitializedAsEmptyCollection, Commands_AreNotNull
 
-### step64: Test ChatPageViewModel SendMessage Flow ✅
+### step64: Test ChatPageViewModel SendMessage Flow âœ…
 - **Action:** Write test: SendMessage dispatches to ILlmService, updates UI
 - **Depends on:** Steps 50, 62
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Tests:** ChatPageViewModelTests.Constructor_WithValidDependencies_InitializesCollections, Constructor_WithNullLlmService_ThrowsArgumentNullException, InputText_CanBeSet, IsStreaming_CanBeSet, StreamingResponse_CanBeSet, Commands_AreNotNull, CanAddMessage_ToMessages
 
-### step65: Test ConfigPageViewModel Save ✅
+### step65: Test ConfigPageViewModel Save âœ…
 - **Action:** Write test: SaveConfig calls IConfigService.SaveConfigAsync
 - **Depends on:** Steps 51, 62
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Tests:** ConfigPageViewModelTests.Constructor_WithValidDependencies_InitializesCollections, Constructor_WithNullConfigService_ThrowsArgumentNullException, Constructor_WithNullIndexingService_ThrowsArgumentNullException, SelectedModel_CanBeSet, Commands_AreNotNull, CanAddModel_ToAvailableModels, CanAddTool_ToAvailableTools
 
-### step66: Build & Validate Phase 3 (Part A) ✅
+### step66: Build & Validate Phase 3 (Part A) âœ…
 - **Action:** Compile solution; fix any XAML/binding errors
 - **Command:** `dotnet build`
 - **Depends on:** Steps 49-61
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Results:** Build succeeded with 0 errors, 10 warnings (all CS8625 nullable reference non-critical warnings); all 768 tests passed (18 seconds execution)
 
 ### step67: Add async/await support to ViewModels
 - **Action:** Ensure all async operations use proper await; add CancellationToken support
 - **Depends on:** Steps 49-55
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Results:** Updated all ViewModels (MainViewModel, ChatPageViewModel, IndexingProgressViewModel, StatsPageViewModel) to use proper async patterns; all constructors use traditional null checks (compatible with .NET Framework 4.7.2); CancellationToken support integrated in retry policy helper
 
 ### step68: Add Error Handling to ViewModels
@@ -3588,20 +3321,20 @@ public class OnboardingState
   - Apply retry handler in ChatPageViewModel.ExecuteSendMessage before awaiting StreamAsync chunks
   - Track retry attempts and fail gracefully after max retries (e.g., 3 attempts)
 - **Depends on:** Steps 49-55, 26
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Results:** Created RetryPolicyHelper.cs with ExecuteWithRetryAsync methods; integrated retry logic in ChatPageViewModel.ExecuteSendMessage; all ViewModels properly handle exceptions with ShowNotificationAsync calls
 
 ### step69: Wire Up IObservable Properties
 - **Action:** Update ViewModels to subscribe to service IObservable properties (ConfigChanged, ProgressUpdates)
 - **Depends on:** Steps 49-55, 17, 23
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Results:** MainViewModel subscribes to ConfigChanged and SessionChanged events; IndexingProgressViewModel subscribes to ProgressChanged event; all event handlers properly update UI properties
 
 ### step70: Build & Validate Phase 3 (Part B)
 - **Action:** Compile + run ViewModel tests; verify all compile and logic works
 - **Command:** `dotnet build && dotnet test`
 - **Depends on:** Steps 63-69
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Results:** Build succeeded with 0 errors, 10 warnings (all CS8625 nullable reference non-critical warnings); 777 tests passed (19.7 seconds execution) - 9 new tests added for ViewModels
 
 ---
@@ -3610,17 +3343,17 @@ public class OnboardingState
 
 *Create WPF XAML Views with data bindings to ViewModels.*
 
-### step71: Create Views Folder ✅
+### step71: Create Views Folder âœ…
 - **Action:** Create folder `src/VSIXProject1/UI/Views/`
 - **Depends on:** None
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step72: Create Pages Folder ✅
+### step72: Create Pages Folder âœ…
 - **Action:** Create folder `src/VSIXProject1/UI/Pages/`
 - **Depends on:** None
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step73: Refactor ContinueToolWindowControl.xaml ✅
+### step73: Refactor ContinueToolWindowControl.xaml âœ…
 - **Action:** Update existing XAML to host Frame/Router for page navigation
 - **Content:**
   - Remove webview loading (or defer it)
@@ -3628,13 +3361,13 @@ public class OnboardingState
   - Set DataContext to MainViewModel
 - **Depends on:** Step 49
 - **Existing reference:** Refactor existing `UI/ContinueToolWindowControl.xaml`
-- **Status:** ✅ Completed — Frame added; loading UI preserved; WebView2 and Frame now coexist on separate rows
+- **Status:** âœ… Completed â€” Frame added; loading UI preserved; WebView2 and Frame now coexist on separate rows
 
-### step74: Create MainWindow.xaml (or use existing ToolWindow pane) ⏭️
+### step74: Create MainWindow.xaml (or use existing ToolWindow pane) â­ï¸
 - **Action:** Create `UI/MainWindow.xaml` (deferred; use ContinueToolWindowControl as root instead)
-- **Status:** ⏭️ Deferred — ContinueToolWindowControl now serves as primary container
+- **Status:** â­ï¸ Deferred â€” ContinueToolWindowControl now serves as primary container
 
-### step75: Create ChatPage.xaml & Code-Behind ✅
+### step75: Create ChatPage.xaml & Code-Behind âœ…
 - **Action:** Create `UI/Pages/ChatPage.xaml` + `ChatPage.xaml.cs`
 - **Content:** From DESIGN.md section 4.3
   - ContextPanel (collapsed)
@@ -3642,21 +3375,21 @@ public class OnboardingState
   - InputBox (TextBox + SendButton)
   - DataContext to ChatPageViewModel
 - **Depends on:** Steps 50, 59
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step76: Create ChatMessageControl.xaml ✅
+### step76: Create ChatMessageControl.xaml âœ…
 - **Action:** Create `UI/Views/ChatMessageControl.xaml`
 - **Content:** Data template for individual chat message (user vs. assistant)
 - **Depends on:** Step 75
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step77: Create ContextItemControl.xaml ✅
+### step77: Create ContextItemControl.xaml âœ…
 - **Action:** Create `UI/Views/ContextItemControl.xaml`
 - **Content:** Data template for context items in panel
 - **Depends on:** Step 75
-- **Status:** ✅ Completed (bonus — created supporting control)
+- **Status:** âœ… Completed (bonus â€” created supporting control)
 
-### step78: Create ConfigPage.xaml & Code-Behind ✅
+### step78: Create ConfigPage.xaml & Code-Behind âœ…
 - **Action:** Create `UI/Pages/ConfigPage.xaml` + `ConfigPage.xaml.cs`
 - **Content:** From DESIGN.md section 4 (paraphrased)
   - ModelsTab (model list, add/remove)
@@ -3664,117 +3397,117 @@ public class OnboardingState
   - ProfilesTab (profile selector)
   - DataContext to ConfigPageViewModel
 - **Depends on:** Step 51, 59
-- **Status:** ✅ Completed — TabControl with 3 tabs, ModelInfo ListBox binding, AvailableTools CheckBox list, Profiles ComboBox, Save/Reindex buttons
+- **Status:** âœ… Completed â€” TabControl with 3 tabs, ModelInfo ListBox binding, AvailableTools CheckBox list, Profiles ComboBox, Save/Reindex buttons
 
-### step79: Create HistoryPage.xaml & Code-Behind ✅
+### step79: Create HistoryPage.xaml & Code-Behind âœ…
 - **Action:** Create `UI/Pages/HistoryPage.xaml` + `HistoryPage.xaml.cs`
 - **Content:**
   - SessionList (ItemsControl of sessions)
   - Load, Delete commands
   - DataContext to HistoryPageViewModel
 - **Depends on:** Step 53
-- **Status:** ✅ Completed — ListBox for Sessions with SelectedSession binding, Load/Delete buttons
+- **Status:** âœ… Completed â€” ListBox for Sessions with SelectedSession binding, Load/Delete buttons
 
-### step80: Create StatsPage.xaml & Code-Behind ✅
+### step80: Create StatsPage.xaml & Code-Behind âœ…
 - **Action:** Create `UI/Pages/StatsPage.xaml` + `StatsPage.xaml.cs`
 - **Content:**
   - Token counter display
   - Usage chart
   - DataContext to StatsPageViewModel
 - **Depends on:** Step 54
-- **Status:** ✅ Completed — TextBlock labels for TokensUsed, ModelsUsed, CostEstimate with currency formatting, Export button
+- **Status:** âœ… Completed â€” TextBlock labels for TokensUsed, ModelsUsed, CostEstimate with currency formatting, Export button
 
-### step81: Create EditModePage.xaml & Code-Behind ✅
+### step81: Create EditModePage.xaml & Code-Behind âœ…
 - **Action:** Create `UI/Pages/EditModePage.xaml` + `EditModePage.xaml.cs`
 - **Content:**
   - DiffViewer (code diff display)
   - AcceptButton, RejectButton
   - DataContext to EditModeViewModel
 - **Depends on:** Step 55
-- **Status:** ✅ Completed — TextBlock for Diff display with gray background, Accept/Reject buttons with color styling
+- **Status:** âœ… Completed â€” TextBlock for Diff display with gray background, Accept/Reject buttons with color styling
 
-### step82: Create IndexingProgressControl.xaml ✅
+### step82: Create IndexingProgressControl.xaml âœ…
 - **Action:** Create `UI/Views/IndexingProgressControl.xaml`
 - **Content:** ProgressBar, status text, pause/resume/cancel buttons
 - **Depends on:** Step 52
-- **Status:** ✅ Completed — ProgressBar with percentage display, CurrentFile status, Pause/Resume (conditional IsEnabled)/Cancel buttons, light gray background
+- **Status:** âœ… Completed â€” ProgressBar with percentage display, CurrentFile status, Pause/Resume (conditional IsEnabled)/Cancel buttons, light gray background
 
-### step83: Create Global Styles (Converters, Brushes) ✅
+### step83: Create Global Styles (Converters, Brushes) âœ…
 - **Action:** Create `UI/Styles/Converters.xaml` + `UI/Styles/Brushes.xaml`
 - **Content:**
   - Register converters from Step 59
   - Define theme colors (WPF equivalents of VSCode theme)
 - **Depends on:** Step 59
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/UI/Styles/Converters.xaml` — ResourceDictionary registering BooleanToVisibilityConverter, InverseBooleanConverter, ProgressPercentageConverter with x:Key attributes for XAML binding
-  - `src/VSIXProject1/UI/Styles/Brushes.xaml` — ResourceDictionary defining 11 SolidColorBrush resources: EditorBackground (#1E1E1E), PanelBackground (#252526), CodeBackground (#2D2D30), PrimaryTextBrush (#E0E0E0), SecondaryTextBrush (#858585), AccentBrush (#007ACC), ButtonPrimaryBrush (#0E639C), ButtonHoverBrush (#1177BB), SuccessBrush (#13C127), WarningBrush (#DCA81B), ErrorBrush (#F14C4C), BorderBrush (#464647)
+  - `src/VSIXProject1/UI/Styles/Converters.xaml` â€” ResourceDictionary registering BooleanToVisibilityConverter, InverseBooleanConverter, ProgressPercentageConverter with x:Key attributes for XAML binding
+  - `src/VSIXProject1/UI/Styles/Brushes.xaml` â€” ResourceDictionary defining 11 SolidColorBrush resources: EditorBackground (#1E1E1E), PanelBackground (#252526), CodeBackground (#2D2D30), PrimaryTextBrush (#E0E0E0), SecondaryTextBrush (#858585), AccentBrush (#007ACC), ButtonPrimaryBrush (#0E639C), ButtonHoverBrush (#1177BB), SuccessBrush (#13C127), WarningBrush (#DCA81B), ErrorBrush (#F14C4C), BorderBrush (#464647)
 
-### step84: Create Global Resource Dictionary ✅
+### step84: Create Global Resource Dictionary âœ…
 - **Action:** Create merged resource dictionary in UI namespace
 - **Content:** Consolidate all styles/converter dictionaries
 - **Depends on:** Steps 83
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
   - Global resource organization via Brushes.xaml and Converters.xaml merged dictionaries; pages/controls to reference these resources via StaticResource bindings (NOTE: VSIX library projects do not use traditional App.xaml; resources are merged in individual page files or via ResourceDictionary.MergedDictionaries at control level)
 
-### step85: Update App.xaml.cs ⏸️
+### step85: Update App.xaml.cs â¸ï¸
 - **Action:** Modify application startup (App.xaml.cs)
 - **Content:**
   - Call ServiceBootstrapper.ConfigureServices()
   - Create MainWindow with MainViewModel
   - Call ServiceInitializer
 - **Depends on:** Steps 31, 37, 49
-- **Status:** ⏸️ Deferred — VSIXProject1 is a library/VSIX package, not a WinExe application; ApplicationDefinition not allowed in library projects. Step 85 requirements (DI bootstrap, service initialization, MainWindow creation) will be integrated into step 87 (Navigation command wiring) and ContinueVSPackage initialization flow instead.
+- **Status:** â¸ï¸ Deferred â€” VSIXProject1 is a library/VSIX package, not a WinExe application; ApplicationDefinition not allowed in library projects. Step 85 requirements (DI bootstrap, service initialization, MainWindow creation) will be integrated into step 87 (Navigation command wiring) and ContinueVSPackage initialization flow instead.
 
-### step86: Create Page Navigation Handler ✅
+### step86: Create Page Navigation Handler âœ…
 - **Action:** Create `UI/Navigation/PageNavigator.cs`
 - **Content:** Handle route changes in MainViewModel, navigate Frame to correct page
 - **Depends on:** Step 74
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/UI/Navigation/IPageNavigator.cs` — Interface with async NavigateAsync(string? route, Frame? frame) method
-  - `src/VSIXProject1/UI/Navigation/PageNavigator.cs` — Implementation with route→type dictionary (chat, config/settings, history, stats, editmode); graceful error handling for null/unknown routes
-  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs` — Added PageNavigator field and wired MainViewModel.PropertyChanged to trigger navigation on CurrentRoute changes
-  - `src/VSIXProject1.Tests/UI/Navigation/PageNavigatorTests.cs` — xUnit tests verifying all valid routes handled, null/unknown routes don't throw
+  - `src/VSIXProject1/UI/Navigation/IPageNavigator.cs` â€” Interface with async NavigateAsync(string? route, Frame? frame) method
+  - `src/VSIXProject1/UI/Navigation/PageNavigator.cs` â€” Implementation with routeâ†’type dictionary (chat, config/settings, history, stats, editmode); graceful error handling for null/unknown routes
+  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs` â€” Added PageNavigator field and wired MainViewModel.PropertyChanged to trigger navigation on CurrentRoute changes
+  - `src/VSIXProject1.Tests/UI/Navigation/PageNavigatorTests.cs` â€” xUnit tests verifying all valid routes handled, null/unknown routes don't throw
   - Fixed UserControl inheritance in ConfigPage, EditModePage, StatsPage, HistoryPage code-behind (missing : UserControl)
   - All 788 unit tests passing, build with 0 errors, 0 warnings post-STA-thread fix
 
-### step87: Wire Up Navigation Commands in MainViewModel ✅
+### step87: Wire Up Navigation Commands in MainViewModel âœ…
 - **Action:** Update MainViewModel.NavigateCommand to use PageNavigator
 - **Depends on:** Steps 49, 86
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/ViewModels/MainViewModel.cs` — Added IPageNavigator field and constructor parameter, updated ExecuteNavigate to call PageNavigator.NavigateAsync
-  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` — Registered IPageNavigator as singleton, updated MainViewModel factory to inject PageNavigator dependency
-  - `src/VSIXProject1.Tests/ViewModels/MainViewModelTests.cs` — Updated all existing constructor tests to include mockPageNavigator parameter; added NavigateCommand_WithValidRoute_InvokesPageNavigator and NavigateCommand_WithNullRoute_DoesNotInvokePageNavigator tests
-  - `src/VSIXProject1.Tests/UI/Navigation/PageNavigatorTests.cs` — Renamed RunOnSTAThread to RunOnSTAThreadAsync to comply with VSTHRD200 analyzer (async methods must have Async suffix)
+  - `src/VSIXProject1/ViewModels/MainViewModel.cs` â€” Added IPageNavigator field and constructor parameter, updated ExecuteNavigate to call PageNavigator.NavigateAsync
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` â€” Registered IPageNavigator as singleton, updated MainViewModel factory to inject PageNavigator dependency
+  - `src/VSIXProject1.Tests/ViewModels/MainViewModelTests.cs` â€” Updated all existing constructor tests to include mockPageNavigator parameter; added NavigateCommand_WithValidRoute_InvokesPageNavigator and NavigateCommand_WithNullRoute_DoesNotInvokePageNavigator tests
+  - `src/VSIXProject1.Tests/UI/Navigation/PageNavigatorTests.cs` â€” Renamed RunOnSTAThread to RunOnSTAThreadAsync to comply with VSTHRD200 analyzer (async methods must have Async suffix)
   - All 790 unit tests passing (1 unrelated performance test failure), build with 0 errors, 0 warnings
 
-### step88: Add Tooltip Portal & Modal Dialog Support to MainWindow ✅
+### step88: Add Tooltip Portal & Modal Dialog Support to MainWindow âœ…
 - **Action:** Update MainWindow.xaml to add:
   - Tooltip adorner layer
   - Dialog overlay for modals
 - **Depends on:** Step 74
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/UI/Infrastructure/TooltipAdornerLayer.xaml` — UserControl portal for dynamic tooltips; BorderContainer with TextBlock binding to MainViewModel.TooltipContent; visibility tied to IsTooltipVisible property
-  - `src/VSIXProject1/UI/Infrastructure/TooltipAdornerLayer.xaml.cs` — Minimal code-behind, no logic (pure binding)
-  - `src/VSIXProject1/UI/Infrastructure/DialogOverlayPanel.xaml` — UserControl modal overlay with semi-transparent dimming background (0.5 opacity black Rectangle) and centered ContentControl for dialog content; visibility tied to IsDialogOpen property; Panel.ZIndex=999
-  - `src/VSIXProject1/UI/Infrastructure/DialogOverlayPanel.xaml.cs` — Minimal code-behind, no logic (pure binding)
-  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml` — Updated Grid with 3 RowDefinitions (Auto/LoadingPanel, ContentFrame/pages, tooltip layer); added TooltipAdornerLayer at Row 2; added DialogOverlayPanel spanning all rows with ZIndex=999
-  - `src/VSIXProject1/ViewModels/MainViewModel.cs` — Added overlay state properties (IsTooltipVisible, TooltipContent, IsDialogOpen, DialogContent) with INotifyPropertyChanged support; added public methods ShowTooltip(), HideTooltip(), ShowDialog(), HideDialog()
-  - `src/VSIXProject1.Tests/ViewModels/MainViewModelTests.cs` — Added 4 new unit tests: ShowTooltip_SetsVisibilityAndContent, HideTooltip_ClearsVisibilityAndContent, ShowDialog_SetsOpenAndContent, HideDialog_ClearsOpenAndContent
+  - `src/VSIXProject1/UI/Infrastructure/TooltipAdornerLayer.xaml` â€” UserControl portal for dynamic tooltips; BorderContainer with TextBlock binding to MainViewModel.TooltipContent; visibility tied to IsTooltipVisible property
+  - `src/VSIXProject1/UI/Infrastructure/TooltipAdornerLayer.xaml.cs` â€” Minimal code-behind, no logic (pure binding)
+  - `src/VSIXProject1/UI/Infrastructure/DialogOverlayPanel.xaml` â€” UserControl modal overlay with semi-transparent dimming background (0.5 opacity black Rectangle) and centered ContentControl for dialog content; visibility tied to IsDialogOpen property; Panel.ZIndex=999
+  - `src/VSIXProject1/UI/Infrastructure/DialogOverlayPanel.xaml.cs` â€” Minimal code-behind, no logic (pure binding)
+  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml` â€” Updated Grid with 3 RowDefinitions (Auto/LoadingPanel, ContentFrame/pages, tooltip layer); added TooltipAdornerLayer at Row 2; added DialogOverlayPanel spanning all rows with ZIndex=999
+  - `src/VSIXProject1/ViewModels/MainViewModel.cs` â€” Added overlay state properties (IsTooltipVisible, TooltipContent, IsDialogOpen, DialogContent) with INotifyPropertyChanged support; added public methods ShowTooltip(), HideTooltip(), ShowDialog(), HideDialog()
+  - `src/VSIXProject1.Tests/ViewModels/MainViewModelTests.cs` â€” Added 4 new unit tests: ShowTooltip_SetsVisibilityAndContent, HideTooltip_ClearsVisibilityAndContent, ShowDialog_SetsOpenAndContent, HideDialog_ClearsOpenAndContent
   - All 794 unit tests passing (4 new overlay tests), build with 0 errors, 0 warnings
 
 ### step89: Create TextDialog Control
 - **Action:** Create `UI/Views/TextDialog.xaml`
 - **Content:** Modal dialog for user yes/no/text input
 - **Depends on:** Step 88
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/UI/Views/TextDialog.xaml` — UserControl with Grid layout (4 rows); Row 0: Prompt label; Row 1: TextBox (conditional visibility); Row 3: OK/Cancel or Yes/No buttons styled with theme colors
-  - `src/VSIXProject1/UI/Views/TextDialog.xaml.cs` — Code-behind with DialogType enum (Text, Confirmation); Properties: Prompt, Input, Type, Result; Methods: Initialize(type, prompt, defaultValue), button click handlers; Updates mode visibility dynamically
+  - `src/VSIXProject1/UI/Views/TextDialog.xaml` â€” UserControl with Grid layout (4 rows); Row 0: Prompt label; Row 1: TextBox (conditional visibility); Row 3: OK/Cancel or Yes/No buttons styled with theme colors
+  - `src/VSIXProject1/UI/Views/TextDialog.xaml.cs` â€” Code-behind with DialogType enum (Text, Confirmation); Properties: Prompt, Input, Type, Result; Methods: Initialize(type, prompt, defaultValue), button click handlers; Updates mode visibility dynamically
   - Supports two modes: Text input (TextBox visible, OK/Cancel buttons) and Confirmation (TextBox hidden, Yes/No buttons)
   - Result property captures user choice (text string in Text mode, "yes"/"no" in Confirmation mode, null if cancelled)
   - All 794 unit tests still passing; build with 0 errors, 0 warnings
@@ -3783,59 +3516,59 @@ public class OnboardingState
 ### step90: Wire INotificationService to TextDialog
 - **Action:** Update WpfNotificationService to show TextDialog
 - **Depends on:** Steps 26, 89
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/UI/Views/TextDialog.xaml.cs` — Added `_resultTcs` field and `GetResultAsync()` method returning `Task<string?>` using `TaskCompletionSource<string?>` for awaitable dialog result capture; refactored button click handlers to call `CompleteDialog(result)` which sets `_result` and completes the TCS
-  - `src/VSIXProject1/Services/Implementations/WpfNotificationService.cs` — Updated constructor to accept optional `MainViewModel` parameter (for dialog overlay); refactored `ShowConfirmationAsync()` to create and initialize TextDialog with type `Confirmation`, call `MainViewModel.ShowDialog()`, await `GetResultAsync()`, parse result (`"yes"` → true, `"no"` → false), call `MainViewModel.HideDialog()`, with fallback to MessageBox if VM is null; refactored `ShowInputAsync()` to create and initialize TextDialog with type `Text`, call `MainViewModel.ShowDialog()`, await `GetResultAsync()`, call `MainViewModel.HideDialog()`, with fallback to InputWindow if VM is null
-  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` — Updated DI registration: MainViewModel now registered as singleton first, allowing it to be injected into WpfNotificationService; WpfNotificationService constructor now receives optional MainViewModel reference for dialog display in overlay
+  - `src/VSIXProject1/UI/Views/TextDialog.xaml.cs` â€” Added `_resultTcs` field and `GetResultAsync()` method returning `Task<string?>` using `TaskCompletionSource<string?>` for awaitable dialog result capture; refactored button click handlers to call `CompleteDialog(result)` which sets `_result` and completes the TCS
+  - `src/VSIXProject1/Services/Implementations/WpfNotificationService.cs` â€” Updated constructor to accept optional `MainViewModel` parameter (for dialog overlay); refactored `ShowConfirmationAsync()` to create and initialize TextDialog with type `Confirmation`, call `MainViewModel.ShowDialog()`, await `GetResultAsync()`, parse result (`"yes"` â†’ true, `"no"` â†’ false), call `MainViewModel.HideDialog()`, with fallback to MessageBox if VM is null; refactored `ShowInputAsync()` to create and initialize TextDialog with type `Text`, call `MainViewModel.ShowDialog()`, await `GetResultAsync()`, call `MainViewModel.HideDialog()`, with fallback to InputWindow if VM is null
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` â€” Updated DI registration: MainViewModel now registered as singleton first, allowing it to be injected into WpfNotificationService; WpfNotificationService constructor now receives optional MainViewModel reference for dialog display in overlay
   - All 794 unit tests passing; build with 0 errors, 0 warnings
   - TextDialog now supports both fallback (legacy windows) and modern overlay modes based on ViewModel availability
 
 
-### step91: Add Theme Support to XAML (VSCode Colors) ✅
+### step91: Add Theme Support to XAML (VSCode Colors) âœ…
 - **Action:** Map VSCode theme variables to WPF brushes (dynamic resources)
 - **Content:** Create theme resource dictionary
 - **Depends on:** Step 83
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Deliverables:**
-  - `src/VSIXProject1/Services/Interfaces/IThemeService.cs` — Service interface with async LoadThemeAsync, SetCurrentTheme, GetCurrentThemeName, GetBrush(key), GetColor(key), GetAvailableThemes(), ThemeChanged event; ThemeChangedEventArgs class for event payload
-  - `src/VSIXProject1/Services/Implementations/ThemeService.cs` — Implementation with thread-safe theme loading via ResourceDictionary from XAML files; maintains current theme state; exposes brush/color resolution with fallback defaults
-  - `src/VSIXProject1/UI/Styles/Themes/ThemeDark.xaml` — Enhanced VSCode dark theme ResourceDictionary (25+ semantic brush resources: backgrounds, text colors, accents, status colors, borders, selection, UI component colors)
-  - `src/VSIXProject1/UI/Styles/Themes/ThemeLight.xaml` — Light theme stub ResourceDictionary (inverted colors from dark theme; ready for full implementation)
-  - `src/VSIXProject1/UI/Styles/Themes/ThemeDefaults.xaml` — Shared theme defaults ResourceDictionary with fallback colors
-  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` — Updated to register IThemeService as singleton
-  - `src/VSIXProject1.Tests/Services/ThemeServiceTests.cs` — xUnit tests verifying theme loading, switching, brush/color resolution, theme enumeration, event firing, exception handling (18 test cases)
+  - `src/VSIXProject1/Services/Interfaces/IThemeService.cs` â€” Service interface with async LoadThemeAsync, SetCurrentTheme, GetCurrentThemeName, GetBrush(key), GetColor(key), GetAvailableThemes(), ThemeChanged event; ThemeChangedEventArgs class for event payload
+  - `src/VSIXProject1/Services/Implementations/ThemeService.cs` â€” Implementation with thread-safe theme loading via ResourceDictionary from XAML files; maintains current theme state; exposes brush/color resolution with fallback defaults
+  - `src/VSIXProject1/UI/Styles/Themes/ThemeDark.xaml` â€” Enhanced VSCode dark theme ResourceDictionary (25+ semantic brush resources: backgrounds, text colors, accents, status colors, borders, selection, UI component colors)
+  - `src/VSIXProject1/UI/Styles/Themes/ThemeLight.xaml` â€” Light theme stub ResourceDictionary (inverted colors from dark theme; ready for full implementation)
+  - `src/VSIXProject1/UI/Styles/Themes/ThemeDefaults.xaml` â€” Shared theme defaults ResourceDictionary with fallback colors
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` â€” Updated to register IThemeService as singleton
+  - `src/VSIXProject1.Tests/Services/ThemeServiceTests.cs` â€” xUnit tests verifying theme loading, switching, brush/color resolution, theme enumeration, event firing, exception handling (18 test cases)
   - All 812 unit tests passing (18 new theme tests added); build with 0 errors, 0 warnings
 
 ### step92: Build & Validate Phase 4 (Part A - XAML)
 - **Action:** Compile solution; verify all XAML parses without errors
 - **Command:** `dotnet build`
 - **Depends on:** Steps 73-91
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step93: Add Data Binding Tests ✅
+### step93: Add Data Binding Tests âœ…
 - **Action:** Create isolated headless data-binding tests for WPF/MVVM ViewModels and converters
 - **Why:** Verify property notifications, collection changes, and command CanExecute logic without full UI rendering
 - **Depends on:** Step 40 (test infrastructure foundation)
 - **Files created:**
-  - `src/VSIXProject1.Tests/UI/DataBindingTestBase.cs` — Base class with PropertyChangedTracker and CollectionChangeTracker helpers
-  - `src/VSIXProject1.Tests/UI/ConverterTests.cs` — 21 tests for BooleanToVisibilityConverter, InverseBooleanConverter, ProgressPercentageConverter
-  - `src/VSIXProject1.Tests/UI/ChatPageBindingTests.cs` — 13 tests for ChatPageViewModel property changes, collection notifications, and command availability
-  - `src/VSIXProject1.Tests/UI/ConfigPageBindingTests.cs` — 9 tests for ConfigPageViewModel model/tool collection bindings and command state
-  - `src/VSIXProject1.Tests/UI/MainViewModelBindingTests.cs` — 10 tests for MainViewModel routing, messaging, and session property bindings
+  - `src/VSIXProject1.Tests/UI/DataBindingTestBase.cs` â€” Base class with PropertyChangedTracker and CollectionChangeTracker helpers
+  - `src/VSIXProject1.Tests/UI/ConverterTests.cs` â€” 21 tests for BooleanToVisibilityConverter, InverseBooleanConverter, ProgressPercentageConverter
+  - `src/VSIXProject1.Tests/UI/ChatPageBindingTests.cs` â€” 13 tests for ChatPageViewModel property changes, collection notifications, and command availability
+  - `src/VSIXProject1.Tests/UI/ConfigPageBindingTests.cs` â€” 9 tests for ConfigPageViewModel model/tool collection bindings and command state
+  - `src/VSIXProject1.Tests/UI/MainViewModelBindingTests.cs` â€” 10 tests for MainViewModel routing, messaging, and session property bindings
 - **Test Summary:** 47 new binding tests added; all 869 total tests passing
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
 ### step94: Test ChatPage Binding
 - **Action:** Write test: ChatPageViewModel binds to XAML, UI updates on property change
 - **Depends on:** Steps 75, 93
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
 ### step95: Build & Validate Phase 4 (Part B - Runtime)
 - **Action:** Compile + launch UI; verify pages render and bindings work
 - **Command:** `dotnet build && [launch Visual Studio in debug]`
 - **Depends on:** Steps 73-94
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
 ---
 
@@ -3843,20 +3576,20 @@ public class OnboardingState
 
 *Wire up message dispatch, test end-to-end, replace webview with WPF.*
 
-### step96: Update MessageDispatcher to Use Services ✅
+### step96: Update MessageDispatcher to Use Services âœ…
 - **Action:** Modify `MessageDispatcher.cs` to resolve services from DI, delegate to service methods
 - **Depends on:** Steps 17-26, 31
 - **Files modified:**
-  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs` — Added IServiceProvider field; call ServiceBootstrapper.ConfigureServices() before handler registration; inject _serviceProvider into MessageDispatcher ctor; extract handler registration into RegisterHandlers() method
+  - `src/VSIXProject1/UI/ContinueToolWindowControl.xaml.cs` â€” Added IServiceProvider field; call ServiceBootstrapper.ConfigureServices() before handler registration; inject _serviceProvider into MessageDispatcher ctor; extract handler registration into RegisterHandlers() method
   - Message dispatcher already supported factory-based registration via RegisterFactory<T>() (no changes needed)
   - All existing handlers remain functional; ready for step 97 (WebView2 defer) and step 98 (ServiceBootstrapper initialization flow)
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
 ### step97: Remove WebView2 Dependency (or Defer)
 - **Action:** Comment out webview startup code in plugin initialization
 - **Rationale:** WPF UI now primary; webview optional fallback
 - **Depends on:** Step 85
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
 ### step98: Update ContinueVSPackage Plugin Initialization
 - **Action:** Modify `ContinueVSPackage.cs` to:
@@ -3864,7 +3597,7 @@ public class OnboardingState
   - Initialize WPF views
   - Defer webview (or remove)
 - **Depends on:** Steps 31, 85, 96
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Changes:**
   - Added `using ContinueVS.ViewModels;` to imports for ViewModelLocator access
   - After ServiceBootstrapper.ConfigureServices() (line 114), added ServiceInitializer.InitializeAsync(ServiceProvider) call with try-catch and execution trace scope (t1.4.5)
@@ -3873,58 +3606,58 @@ public class OnboardingState
   - Modified ContinueToolWindowControl.xaml.cs constructor to set ViewModelLocator.ServiceProvider when ContinueVSPackage.ServiceProvider is available (guards against null via null-coalescing and try-catch)
   - All debug instrumentation preserved; build passes with 0 errors, 0 warnings
 
-### step99: Create Integration Tests for Handler → Service Flow ✅
+### step99: Create Integration Tests for Handler â†’ Service Flow âœ…
 - **Action:** Create `src/VSIXProject1.Tests/Integration/` with end-to-end tests
-  - MessageDispatcher receives config/addModel → delegates to IConfigService.AddModelAsync
-  - Chat message → delegates to ILlmService.StreamAsync
+  - MessageDispatcher receives config/addModel â†’ delegates to IConfigService.AddModelAsync
+  - Chat message â†’ delegates to ILlmService.StreamAsync
 - **Depends on:** Steps 96
 - **Files created:**
-  - `src/VSIXProject1.Tests/Integration/MessageDispatcherConfigServiceTests.cs` — 4 tests for AddModel delegation (null-check, exception propagation, success, multiple models)
-  - `src/VSIXProject1.Tests/Integration/MessageDispatcherLlmServiceTests.cs` — 5 tests for StreamAsync delegation (chunk streaming, null-check, exception, cancellation token, StreamOptions)
+  - `src/VSIXProject1.Tests/Integration/MessageDispatcherConfigServiceTests.cs` â€” 4 tests for AddModel delegation (null-check, exception propagation, success, multiple models)
+  - `src/VSIXProject1.Tests/Integration/MessageDispatcherLlmServiceTests.cs` â€” 5 tests for StreamAsync delegation (chunk streaming, null-check, exception, cancellation token, StreamOptions)
 - **Test Summary:** 9 new integration tests; all passing
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 
-### step100: Test ConfigService ↔ MessageDispatcher
-- **Action:** Write integration test: handler call → service method → event fired → MessageDispatcher responds
+### step100: Test ConfigService â†” MessageDispatcher
+- **Action:** Write integration test: handler call â†’ service method â†’ event fired â†’ MessageDispatcher responds
 - **Depends on:** Steps 17, 99
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Changes:**
   - Created `src/VSIXProject1.Tests/Integration/MessageDispatcherConfigServiceEventTests.cs` with 4 integration tests
-  - Test 1: `AddModel_FiresConfigChangedEvent_WithCorrectDataAsync` — verifies ConfigService.AddModelAsync fires ConfigChanged event with ConfigKey="models" and correct NewValue
-  - Test 2: `RemoveModel_FiresConfigChangedEvent_WithCorrectDataAsync` — verifies ConfigService.RemoveModelAsync fires ConfigChanged event
-  - Test 3: `ConfigChangedEvent_IncludesTimestampAndOldNewValuesAsync` — verifies event includes Timestamp, OldValue, and NewValue with correct values
-  - Test 4: `MultipleOperations_AllFireEventsInSequenceAsync` — verifies multiple sequential operations (add, add, remove) fire all events in correct order with correct data
+  - Test 1: `AddModel_FiresConfigChangedEvent_WithCorrectDataAsync` â€” verifies ConfigService.AddModelAsync fires ConfigChanged event with ConfigKey="models" and correct NewValue
+  - Test 2: `RemoveModel_FiresConfigChangedEvent_WithCorrectDataAsync` â€” verifies ConfigService.RemoveModelAsync fires ConfigChanged event
+  - Test 3: `ConfigChangedEvent_IncludesTimestampAndOldNewValuesAsync` â€” verifies event includes Timestamp, OldValue, and NewValue with correct values
+  - Test 4: `MultipleOperations_AllFireEventsInSequenceAsync` â€” verifies multiple sequential operations (add, add, remove) fire all events in correct order with correct data
   - Uses real ConfigService instance (not mocked) to verify actual event firing behavior
   - All 4 tests passing; full test suite: 406 passed, 0 failed
 
-### step101: Test LlmService ↔ MessageDispatcher
-- **Action:** Write integration test: handler call → service streaming → chunks returned
+### step101: Test LlmService â†” MessageDispatcher
+- **Action:** Write integration test: handler call â†’ service streaming â†’ chunks returned
 - **Depends on:** Steps 22, 99
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Files created:**
-  - `src/VSIXProject1.Tests/Integration/MessageDispatcherLlmServiceStreamingTests.cs` — 5 integration tests
+  - `src/VSIXProject1.Tests/Integration/MessageDispatcherLlmServiceStreamingTests.cs` â€” 5 integration tests
 - **Test Summary:** 5 new streaming tests added; all passing
-  - Test 1: `StreamAsync_SingleChunk_YieldsChunkCorrectlyAsync` — single chunk enumeration
-  - Test 2: `StreamAsync_MultipleChunks_YieldsAllInOrderAsync` — 4 chunks in correct order
-  - Test 3: `StreamAsync_CancellationToken_StopsEnumerationAsync` — cancellation stops stream
-  - Test 4: `StreamAsync_StreamOptions_PassedToMessengerAsync` — StreamOptions passed through
-  - Test 5: `StreamAsync_MessengerThrows_ExceptionBubblesUpAsync` — exceptions propagate
+  - Test 1: `StreamAsync_SingleChunk_YieldsChunkCorrectlyAsync` â€” single chunk enumeration
+  - Test 2: `StreamAsync_MultipleChunks_YieldsAllInOrderAsync` â€” 4 chunks in correct order
+  - Test 3: `StreamAsync_CancellationToken_StopsEnumerationAsync` â€” cancellation stops stream
+  - Test 4: `StreamAsync_StreamOptions_PassedToMessengerAsync` â€” StreamOptions passed through
+  - Test 5: `StreamAsync_MessengerThrows_ExceptionBubblesUpAsync` â€” exceptions propagate
 - **Implementation Updates:**
   - Modified `LlmService.StreamAsync` to delegate to `IMessengerService.StreamAsync` (was stub)
   - Real `LlmService` instance delegates streaming to mocked messenger
   - All 5 tests passing; full test suite: 408 passed, 0 failed
 
-### step102: Test ViewModel ↔ Service Flow ✅
-- **Action:** Write integration test: ChatPageViewModel.SendMessage → ILlmService.StreamAsync → UI updated
+### step102: Test ViewModel â†” Service Flow âœ…
+- **Action:** Write integration test: ChatPageViewModel.SendMessage â†’ ILlmService.StreamAsync â†’ UI updated
 - **Depends on:** Steps 50, 99
-- **Status:** ✅ Completed
+- **Status:** âœ… Completed
 - **Files created:**
-  - `src/VSIXProject1.Tests/Integration/ChatPageViewModelLlmServiceIntegrationTests.cs` — 4 integration tests
+  - `src/VSIXProject1.Tests/Integration/ChatPageViewModelLlmServiceIntegrationTests.cs` â€” 4 integration tests
 - **Test Summary:** 4 new integration tests added; all passing
-  - Test 1: `SendMessage_WithSingleTextChunk_UpdatesUICorrectlyAsync` — single chunk updates StreamingResponse and Messages
-  - Test 2: `SendMessage_WithMultipleChunks_AccumulatesResponseCorrectlyAsync` — multiple chunks concatenated correctly
-  - Test 3: `SendMessage_WithStreamingError_ShowsNotificationAsync` — error handling with notification
-  - Test 4: `SendMessage_WithCancellation_StopsStreamingAsync` — cancellation marks UI and stops streaming
+  - Test 1: `SendMessage_WithSingleTextChunk_UpdatesUICorrectlyAsync` â€” single chunk updates StreamingResponse and Messages
+  - Test 2: `SendMessage_WithMultipleChunks_AccumulatesResponseCorrectlyAsync` â€” multiple chunks concatenated correctly
+  - Test 3: `SendMessage_WithStreamingError_ShowsNotificationAsync` â€” error handling with notification
+  - Test 4: `SendMessage_WithCancellation_StopsStreamingAsync` â€” cancellation marks UI and stops streaming
 - **Implementation Details:**
   - Real ChatPageViewModel instance (not mocked) to verify actual state mutations
   - Mocked ILlmService.StreamAsync with controlled chunk sequences
@@ -3935,16 +3668,16 @@ public class OnboardingState
 ### step103: Load Plugin & Test End-to-End
 - **Action:** Build VSIX, install in Visual Studio, test:
   - Open Continue panel (WPF)
-  - Send message → LLM streams response
-  - Navigate config → displays models
+  - Send message â†’ LLM streams response
+  - Navigate config â†’ displays models
 - **Depends on:** Steps 95, 98
 
-### step104: Test File Operations (IToolService ↔ IIdeService)
-- **Action:** Test: IToolService.ReadFileAsync calls IIdeService.ReadFileAsync → file contents returned
+### step104: Test File Operations (IToolService â†” IIdeService)
+- **Action:** Test: IToolService.ReadFileAsync calls IIdeService.ReadFileAsync â†’ file contents returned
 - **Depends on:** Steps 18, 20
 
 ### step105: Test Context Retrieval (Stub)
-- **Action:** Test: ChatPageViewModel calls IContextService → stub returns empty context
+- **Action:** Test: ChatPageViewModel calls IContextService â†’ stub returns empty context
 - **Depends on:** Step 24
 
 ### step106: Verify Build & All Tests Pass
@@ -3961,7 +3694,7 @@ public class OnboardingState
 - **Depends on:** Step 106
 
 ### step109: Create Developer Guide for Adding New Features
-- **Action:** Document: "To add new service → implement interface → inject into ViewModel → wire UI"
+- **Action:** Document: "To add new service â†’ implement interface â†’ inject into ViewModel â†’ wire UI"
 - **Depends on:** Step 108
 
 ### step110: Remove Unused Webview Assets (Optional)
@@ -3974,15 +3707,15 @@ public class OnboardingState
 - **Depends on:** None
 
 ### step112: Performance Baseline Testing
-- **Action:** Measure chat latency, indexing speed, config load time (before → after)
+- **Action:** Measure chat latency, indexing speed, config load time (before â†’ after)
 - **Depends on:** Step 103
 
 ### step113: Stress Test: Rapid Model Switching
-- **Action:** Test 50 model add/remove cycles → verify no memory leaks
+- **Action:** Test 50 model add/remove cycles â†’ verify no memory leaks
 - **Depends on:** Step 103
 
 ### step114: Stress Test: Long Message Streaming
-- **Action:** Test LLM streaming with 5000+ token response → verify UI responsive
+- **Action:** Test LLM streaming with 5000+ token response â†’ verify UI responsive
 - **Depends on:** Step 103
 
 ### step115: Final Build & Sign VSIX
@@ -3997,13 +3730,13 @@ public class OnboardingState
 **Summary:** Migrated from `.continue/config.json` to `.continueVS/continueVS.json` to separate ContinueVS from Continue.dev VS Code version.
 
 **Files Modified:**
-- src/VSIXProject1/Services/Implementations/ConfigService.cs — Updated ContinueDir and ConfigFilePath constants
-- src/VSIXProject1/Services/ContinueConfigurationManager.cs — Updated GetConfigPath() method
-- scripts/reset-continue-extension.ps1 — Updated folder and filename references
-- src/VSIXProject1.Tests/Services/ConfigServiceTests.cs — Updated test paths
-- src/VSIXProject1.Tests/Services/ContinueConfigurationManagerTests.cs — Updated temp config paths
-- src/VSIXProject1/source.extension.vsixmanifest — Updated description reference
-- docs/session-context-unoptimized.md — Updated documentation
+- src/VSIXProject1/Services/Implementations/ConfigService.cs â€” Updated ContinueDir and ConfigFilePath constants
+- src/VSIXProject1/Services/ContinueConfigurationManager.cs â€” Updated GetConfigPath() method
+- scripts/reset-continue-extension.ps1 â€” Updated folder and filename references
+- src/VSIXProject1.Tests/Services/ConfigServiceTests.cs â€” Updated test paths
+- src/VSIXProject1.Tests/Services/ContinueConfigurationManagerTests.cs â€” Updated temp config paths
+- src/VSIXProject1/source.extension.vsixmanifest â€” Updated description reference
+- docs/session-context-unoptimized.md â€” Updated documentation
 
 **Test Results:** All 429 unit tests pass; config loading and path resolution validated.
 
@@ -4023,19 +3756,19 @@ public class OnboardingState
 
 ## Critical Milestones
 
-- ✅ **Step 15** — All types compile
-- ✅ **Step 39** — Services compile
-- ✅ **Step 45** — Service tests pass
-- ✅ **Step 70** — ViewModels compile & tested
-- ✅ **Step 92** — XAML compiles
-- ✅ **Step 106** — Full build passes, all tests pass
-- ✅ **Step 115** — VSIX ready
+- âœ… **Step 15** â€” All types compile
+- âœ… **Step 39** â€” Services compile
+- âœ… **Step 45** â€” Service tests pass
+- âœ… **Step 70** â€” ViewModels compile & tested
+- âœ… **Step 92** â€” XAML compiles
+- âœ… **Step 106** â€” Full build passes, all tests pass
+- âœ… **Step 115** â€” VSIX ready
 
 ---
 
 ### Ollama Streaming Timeout Fix (Session Continuation)
 
-**Status:** ✅ Complete | Type: Runtime Exception Handling / HTTP Configuration
+**Status:** âœ… Complete | Type: Runtime Exception Handling / HTTP Configuration
 
 **Problem:** 
 - When sending messages to Ollama, `TaskCanceledException` was being thrown due to HttpClient timeout (300 seconds)
@@ -4070,7 +3803,7 @@ public class OnboardingState
 
 ### Chat Input Text Not Clearing After Send (Bug Fix)
 
-**Status:** ✅ Complete | Type: UI Responsiveness Bug
+**Status:** âœ… Complete | Type: UI Responsiveness Bug
 
 **Problem:** 
 After clicking the Send button, the chat input text box was not being cleared, forcing users to manually delete the text before sending another message.
@@ -4083,9 +3816,9 @@ After clicking the Send button, the chat input text box was not being cleared, f
 
 **Solution Implemented:**
 Moved `InputText = string.Empty;` from the finally block to the **beginning of ExecuteSendMessage()**, right after capturing the user message content and before any await statements. This ensures:
-1. ✅ InputText is cleared **immediately** on the UI thread before async operations
-2. ✅ No race conditions between UI rendering and property changes
-3. ✅ User sees the input box clear as soon as they click Send
+1. âœ… InputText is cleared **immediately** on the UI thread before async operations
+2. âœ… No race conditions between UI rendering and property changes
+3. âœ… User sees the input box clear as soon as they click Send
 4. Removed redundant `InputText = string.Empty;` from finally block (no longer needed)
 
 **Files Modified:**
@@ -4098,3 +3831,4 @@ Moved `InputText = string.Empty;` from the finally block to the **beginning of E
 ---
 
 **End of Implementation Plan**
+

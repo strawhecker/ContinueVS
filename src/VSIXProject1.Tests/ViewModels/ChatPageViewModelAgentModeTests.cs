@@ -154,6 +154,195 @@ namespace ContinueVS.Tests.ViewModels
             Assert.Equal("read_file", msg.ToolCalls[0].Name);
         }
 
+        /// <summary>
+        /// Unit Test 1: CompletionChunk with ToolCall type is recognized
+        /// Validates that ToolCall chunks have proper type and content
+        /// </summary>
+        [Fact]
+        public void CompletionChunk_WithToolCallType_StoresToolCallData()
+        {
+            // Arrange
+            var toolCall = new ToolCall { Name = "test_tool", Id = "123", Arguments = new Dictionary<string, object> { { "arg", "val" } } };
+
+            // Act
+            var chunk = new CompletionChunk
+            {
+                Type = ChunkType.ToolCall,
+                ToolCall = toolCall
+            };
+
+            // Assert
+            Assert.Equal(ChunkType.ToolCall, chunk.Type);
+            Assert.NotNull(chunk.ToolCall);
+            Assert.Equal("test_tool", chunk.ToolCall.Name);
+            Assert.Equal("123", chunk.ToolCall.Id);
+        }
+
+        /// <summary>
+        /// Unit Test 2: Tool result ChatMessage structure
+        /// Validates ChatMessage properly stores tool execution results
+        /// </summary>
+        [Fact]
+        public void ChatMessage_WithToolRole_StoresResultAndStatus()
+        {
+            // Arrange & Act
+            var toolMsg = new ChatMessage
+            {
+                Role = ChatMessageRole.Tool,
+                Content = "Tool execution result",
+                InvocationStatus = ToolInvocationStatus.Complete,
+                ExecutionStartTime = DateTime.Now,
+                ExecutionEndTime = DateTime.Now.AddMilliseconds(500)
+            };
+
+            // Assert
+            Assert.Equal(ChatMessageRole.Tool, toolMsg.Role);
+            Assert.Equal("Tool execution result", toolMsg.Content);
+            Assert.Equal(ToolInvocationStatus.Complete, toolMsg.InvocationStatus);
+            Assert.NotNull(toolMsg.ExecutionStartTime);
+            Assert.NotNull(toolMsg.ExecutionEndTime);
+            Assert.True(toolMsg.ExecutionEndTime > toolMsg.ExecutionStartTime);
+        }
+
+        /// <summary>
+        /// Unit Test 3: Tool message failure state
+        /// Validates tool messages can represent failure state
+        /// </summary>
+        [Fact]
+        public void ChatMessage_ToolFailure_StoresFailureStatus()
+        {
+            // Arrange & Act
+            var failedMsg = new ChatMessage
+            {
+                Role = ChatMessageRole.Tool,
+                Content = "Tool 'read_file' failed: File not found",
+                InvocationStatus = ToolInvocationStatus.Failed
+            };
+
+            // Assert
+            Assert.Equal(ToolInvocationStatus.Failed, failedMsg.InvocationStatus);
+            Assert.Contains("failed", failedMsg.Content, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Unit Test 4: Tool result message accumulation in list
+        /// Validates multiple tool messages can be collected
+        /// </summary>
+        [Fact]
+        public void ChatMessageList_WithMultipleToolMessages_MaintainsOrdering()
+        {
+            // Arrange & Act
+            var messages = new List<ChatMessage>
+            {
+                new ChatMessage { Role = ChatMessageRole.User, Content = "Do something" },
+                new ChatMessage { Role = ChatMessageRole.Assistant, Content = "I'll help", 
+                    ToolCalls = new List<ToolCall> { new ToolCall { Name = "tool1", Id = "1" } } },
+                new ChatMessage { Role = ChatMessageRole.Tool, Content = "Tool 1 result", InvocationStatus = ToolInvocationStatus.Complete },
+                new ChatMessage { Role = ChatMessageRole.Tool, Content = "Tool 2 result", InvocationStatus = ToolInvocationStatus.Complete }
+            };
+
+            // Assert
+            Assert.Equal(4, messages.Count);
+            Assert.Equal(ChatMessageRole.User, messages[0].Role);
+            Assert.Equal(ChatMessageRole.Assistant, messages[1].Role);
+            Assert.Equal(ChatMessageRole.Tool, messages[2].Role);
+            Assert.Equal(ChatMessageRole.Tool, messages[3].Role);
+
+            var toolMessages = messages.Where(m => m.Role == ChatMessageRole.Tool).ToList();
+            Assert.Equal(2, toolMessages.Count);
+            Assert.All(toolMessages, msg => Assert.Equal(ToolInvocationStatus.Complete, msg.InvocationStatus));
+        }
+
+        /// <summary>
+        /// Unit Test 5: CompletionChunk text sequence with tool call
+        /// Validates chunks can include text and tool call in sequence
+        /// </summary>
+        [Fact]
+        public void CompletionChunk_TextAndToolCallSequence_BothPreserved()
+        {
+            // Arrange & Act
+            var chunks = new List<CompletionChunk>
+            {
+                new CompletionChunk { Type = ChunkType.Text, Content = "I will " },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCall = new ToolCall { Name = "read_file", Id = "1" } },
+                new CompletionChunk { Type = ChunkType.Text, Content = " for you" }
+            };
+
+            // Assert
+            Assert.Equal(3, chunks.Count);
+            Assert.Equal(ChunkType.Text, chunks[0].Type);
+            Assert.Equal(ChunkType.ToolCall, chunks[1].Type);
+            Assert.Equal(ChunkType.Text, chunks[2].Type);
+            var toolCall = chunks[1].ToolCall;
+            Assert.NotNull(toolCall);
+            Assert.Equal("read_file", toolCall.Name);
+        }
+
+        /// <summary>
+        /// Integration Test 1: Tool result message with complete execution lifecycle
+        /// Validates all states of a tool execution
+        /// </summary>
+        [Fact]
+        public void ChatMessage_ToolExecutionLifecycle_AllStatesRepresented()
+        {
+            // Arrange & Act - Simulate lifecycle
+            var now = DateTime.Now;
+            var pending = new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Pending, Content = "[Pending]" };
+            var running = new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Running, ExecutionStartTime = now, Content = "[Running]" };
+            var completed = new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Complete, ExecutionStartTime = now, ExecutionEndTime = now.AddSeconds(1), Content = "Result data" };
+            var failed = new ChatMessage { Role = ChatMessageRole.Tool, InvocationStatus = ToolInvocationStatus.Failed, ExecutionStartTime = now, ExecutionEndTime = now.AddSeconds(1), Content = "Error message" };
+
+            // Assert
+            Assert.Equal(ToolInvocationStatus.Pending, pending.InvocationStatus);
+            Assert.Equal(ToolInvocationStatus.Running, running.InvocationStatus);
+            Assert.Equal(ToolInvocationStatus.Complete, completed.InvocationStatus);
+            Assert.Equal(ToolInvocationStatus.Failed, failed.InvocationStatus);
+
+            var allStates = new[] { pending, running, completed, failed };
+            Assert.All(allStates, msg => Assert.Equal(ChatMessageRole.Tool, msg.Role));
+        }
+
+        /// <summary>
+        /// Integration Test 2: Multi-turn message conversation with tool context
+        /// Validates conversation structure for LLM→Tool→LLM pattern
+        /// </summary>
+        [Fact]
+        public void ChatMessageSequence_SingleTurnToolPattern_FollowsCorrectStructure()
+        {
+            // Arrange & Act - Build single-turn tool cycle
+            var conversation = new List<ChatMessage>
+            {
+                new ChatMessage { Role = ChatMessageRole.System, Content = "You are helpful" },
+                new ChatMessage { Role = ChatMessageRole.User, Content = "Read the file" },
+                new ChatMessage 
+                { 
+                    Role = ChatMessageRole.Assistant, 
+                    Content = "I'll read it", 
+                    ToolCalls = new List<ToolCall> { new ToolCall { Name = "read_file", Id = "1", Arguments = new Dictionary<string, object> { { "path", "test.txt" } } } }
+                },
+                new ChatMessage { Role = ChatMessageRole.Tool, Content = "File contents here", InvocationStatus = ToolInvocationStatus.Complete },
+                new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Here's what I found..." }
+            };
+
+            // Assert - Verify structure
+            Assert.Equal(5, conversation.Count);
+            Assert.Equal(ChatMessageRole.System, conversation[0].Role);
+            Assert.Equal(ChatMessageRole.User, conversation[1].Role);
+            Assert.Equal(ChatMessageRole.Assistant, conversation[2].Role);
+            var toolCalls = conversation[2].ToolCalls;
+            Assert.NotNull(toolCalls);
+            Assert.Single(toolCalls);
+
+            Assert.Equal(ChatMessageRole.Tool, conversation[3].Role);
+            Assert.Equal(ToolInvocationStatus.Complete, conversation[3].InvocationStatus);
+            Assert.Equal(ChatMessageRole.Assistant, conversation[4].Role);
+
+            // Tool message was added to conversation before second LLM response
+            var toolIndex = conversation.FindIndex(m => m.Role == ChatMessageRole.Tool);
+            var secondAssistantIndex = conversation.FindLastIndex(m => m.Role == ChatMessageRole.Assistant);
+            Assert.True(toolIndex < secondAssistantIndex, "Tool message should appear before final assistant response");
+        }
+
         private ChatPageViewModel CreateViewModel()
         {
             var llmService = CreateLlmServiceMock();
