@@ -69,6 +69,7 @@ namespace ContinueVS.Services
                 var configService = sp.GetRequiredService<IConfigService>();
                 return new UIStateService(configService);
             });
+            services.AddSingleton<ILocalStorageService>(new LocalStorageService());
 
             // Register ViewModels as transient (create new instance each time via factory)
             services.AddTransient<MainViewModel>(sp =>
