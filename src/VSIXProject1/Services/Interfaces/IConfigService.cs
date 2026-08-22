@@ -102,5 +102,20 @@ namespace ContinueVS.Services.Interfaces
         /// Event raised when configuration is changed.
         /// </summary>
         event EventHandler<ConfigChangedEventArgs>? ConfigChanged;
+
+        /// <summary>
+        /// Gets the current UI state (tool policies, rule settings, etc.) persisted in configuration.
+        /// Returns an empty UIState if no UI state has been saved yet.
+        /// </summary>
+        /// <returns>The current UIState object.</returns>
+        Task<UIState> GetUIStateAsync();
+
+        /// <summary>
+        /// Saves the UI state (tool policies, rule settings, etc.) to configuration.
+        /// Persists to ContinueConfig.CustomSettings["ui.state"] and saves configuration to disk.
+        /// </summary>
+        /// <param name="state">The UIState to persist.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task SaveUIStateAsync(UIState state);
     }
 }

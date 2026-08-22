@@ -64,6 +64,11 @@ namespace ContinueVS.Services
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();
             services.AddSingleton<INotificationService>(sp => new WpfNotificationService());
+            services.AddSingleton<IUIStateService>(sp =>
+            {
+                var configService = sp.GetRequiredService<IConfigService>();
+                return new UIStateService(configService);
+            });
 
             // Register ViewModels as transient (create new instance each time via factory)
             services.AddTransient<MainViewModel>(sp =>

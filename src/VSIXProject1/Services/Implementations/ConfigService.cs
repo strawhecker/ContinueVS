@@ -610,5 +610,82 @@ namespace ContinueVS.Services.Implementations
                 throw new InvalidOperationException("ConfigService has not been initialized. Call InitializeAsync() first.");
             }
         }
+
+        /// <summary>
+        /// Gets the current UI state (tool policies, rule settings, etc.) from configuration.
+        /// Returns an empty UIState if no UI state has been saved yet.
+        /// </summary>
+        public async Task<CoreTypes.UIState> GetUIStateAsync()
+        {
+            return await Task.Run(() =>
+            {
+                lock (_lock)
+                {
+                    ThrowIfNotInitialized();
+
+                    const string uiStateKey = "ui.state";
+                    if (_currentConfig.CustomSettings.TryGetValue(uiStateKey, out var uiStateObj))
+                    {
+                        try
+                        {
+                            // Handle both JSON string and already-deserialized object
+                            if (uiStateObj is string jsonString)
+                            {
+                                var uiState = JsonConvert.DeserializeObject<CoreTypes.UIState>(jsonString);
+                                if (uiState != null)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetUIStateAsync] Loaded UIState from JSON string");
+                                    return uiState;
+                                }
+                            }
+                            else if (uiStateObj is CoreTypes.UIState uiState)
+                            {
+                                System.Diagnostics.Debug.WriteLine("[ConfigService.GetUIStateAsync] UIState already deserialized");
+                                return uiState;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[ConfigService.GetUIStateAsync] Error deserializing UIState: {ex.Message}");
+                        }
+                    }
+
+                    // Return empty UIState if key missing or deserialization failed
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetUIStateAsync] Returning empty UIState");
+                    return new CoreTypes.UIState();
+                }
+            });
+        }
+
+        /// <summary>
+        /// Saves the UI state (tool policies, rule settings, etc.) to configuration and disk.
+        /// Serializes UIState to JSON string and stores in CustomSettings["ui.state"],
+        /// then calls SaveConfigAsync() to persist to disk.
+        /// </summary>
+        public async Task SaveUIStateAsync(CoreTypes.UIState state)
+        {
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+
+            await Task.Run(() =>
+            {
+                lock (_lock)
+                {
+                    ThrowIfNotInitialized();
+
+                    const string uiStateKey = "ui.state";
+                    var jsonString = JsonConvert.SerializeObject(state, Formatting.Indented);
+                    _currentConfig.CustomSettings[uiStateKey] = jsonString;
+                    _currentConfig.LastModified = DateTime.UtcNow;
+
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.SaveUIStateAsync] Saved UIState to CustomSettings[\"{uiStateKey}\"]");
+                }
+            });
+
+            // Persist to disk
+            await SaveConfigAsync();
+        }
     }
 }
