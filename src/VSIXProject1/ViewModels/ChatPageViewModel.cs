@@ -353,6 +353,21 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
+        /// Resets tool call limit state when a new user action (send) begins (gap23_4_4).
+        /// The tool limit is per-action: each send resets the counter.
+        /// If an ask/agent/plan exhausts tools, it stops. User can send again with fresh budget.
+        /// </summary>
+        private void ResetToolCallLimitForAction()
+        {
+            _limitReachedFlag = false;
+            ShowWarningBanner = false;
+            ShowErrorBanner = false;
+            DismissWarningBanner(); // Stop any active dismissal timer
+            SendMessageCommand.RaiseCanExecuteChanged();
+            System.Diagnostics.Debug.WriteLine("[gap23_4_4-reset] Tool call limit reset for new user action. Fresh budget allocated.");
+        }
+
+        /// <summary>
         /// Calculates the percentage of tool calls used in the current session (gap23_4_4).
         /// Returns null-safe value; defaults to 0 if session or settings not available.
         /// </summary>
@@ -447,6 +462,10 @@ namespace ContinueVS.ViewModels
                 _streamingCts = new CancellationTokenSource();
                 _pendingToolCalls.Clear();
                 _toolCallIterationCount = 0;
+
+                // Reset tool limit state for this action (gap23_4_4)
+                // Each user-initiated send action gets its own tool call budget
+                ResetToolCallLimitForAction();
 
                 var userMessage = new ChatMessage
                 {

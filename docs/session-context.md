@@ -2432,49 +2432,75 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 ---
 
 ##### gap23_4_3: Limit Check Before Tool Execution
-- **Status:** ✅ COMPLETE
-- **Completed:** Files modified and 728 tests passing
+- **Status:** ✅ COMPLETE (CLARIFIED: Per-Action Reset)
+- **Completed:** Files modified and 728+ tests passing
+- **Clarified Understanding:**
+  - **Tool Limit Scope:** Per-action (not per-session)
+    * Each user click of Send begins a new action with fresh tool budget
+    * Example: Max 100 tools/action; if ask exhausts 100, next send gets 100 fresh tools
+  - **Reset Timing:** Resets in `ExecuteSendMessage()` when user clicks Send
+  - **Limit Behavior:** If tool calls reach max during an action, execution stops → user sees message → user can ask again
+  - **No Session Reload:** Stopping due to limit does NOT require new session; same session continues
 - **Implementation:**
-  - ToolService.InvokeAsync() now checks `session.ToolCallsExecuted >= config.MaxToolCallsPerSession` before execution
+  - ToolService.InvokeAsync() checks `session.ToolCallsExecuted >= config.MaxToolCallsPerSession` before execution
   - Throws `InvalidOperationException` with message: "Max tool calls (N) reached. Start a new session to continue."
+  - ChatPageViewModel.ExecuteSendMessage() calls ResetToolCallLimitForAction() at start
+  - ResetToolCallLimitForAction() resets `_limitReachedFlag`, clears banners, and re-enables send button
+  - CheckToolCallLimit() called after streaming to show 80%/100% banners
   - Debug output: `[gap23_4_3-limit]` tag
-  - ContinueConfig.cs: Added `MaxToolCallsPerSession` property (default: 100)
-  - ChatPageViewModel.cs: Added limit exception catching in tool execution loop
-  - ChatPageViewModel.cs: Added `_limitReachedFlag` to disable send button when limit is hit
-  - ChatPageViewModel.cs: Reset flag on new session creation (via SessionChanged event)
-  - INotificationService.cs: Added `ShowError()` method for displaying limit error
-  - WpfNotificationService.cs: Implemented `ShowError()` to call `ShowNotificationAsync()` with Error type
-  - SessionChangedEventArgs.cs: Added `IsNewSession` property (computed from ChangeType == Created)
 - **Files Modified:**
   - `src/VSIXProject1/Services/Implementations/ToolService.cs` ✅
-  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` ✅
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` ✅ (added ResetToolCallLimitForAction)
   - `src/VSIXProject1/Core/Types/ContinueConfig.cs` ✅
   - `src/VSIXProject1/Services/Interfaces/INotificationService.cs` ✅
   - `src/VSIXProject1/Services/Implementations/WpfNotificationService.cs` ✅
   - `src/VSIXProject1/Services/Events/SessionChangedEventArgs.cs` ✅
-- **Test Results:** 728/728 passing
+  - `src/VSIXProject1/Core/Types/Session.cs` ✅ (clarified ToolCallsExecuted comment)
+- **Test Results:** 728/728+ passing
 
 
 ##### gap23_4_4: User Notification & Warnings
-**Status:** ✓ COMPLETE | Type: User Experience
-**Implementation Date:** [Completed 2026-08-22]
+**Status:** ✅ COMPLETE (CLARIFIED: Per-Action Reset) | Type: User Experience
+**Implementation Date:** [Completed 2026-08-22, Clarified 2026-08-23]
+
+**Clarified Understanding: Tool Limit is Per-Action**
+- Each Send click allocates fresh tool budget (resets counter to 0 within action)
+- If action exhausts limit (reaches MaxToolCallsPerSession), execution stops and send is disabled
+- User sees error banner "Tool call limit reached (100/100)"
+- User clicks Send again → `ResetToolCallLimitForAction()` runs, counter resets, banners clear, send re-enabled
+- Next action runs with fresh tool budget
+- No session reload required; same session continues across multiple actions
+
+**Reset Mechanism:**
+- `ResetToolCallLimitForAction()` called at start of `ExecuteSendMessage()` when user clicks Send
+- Clears `_limitReachedFlag`, warning/error banner flags
+- Stops and nullifies any active auto-dismiss timer
+- Calls `SendMessageCommand.RaiseCanExecuteChanged()` to re-enable send button
+
+**Banner Lifecycle Per Action:**
+- At 80%: Yellow warning banner appears (auto-dismiss after 5s or click ✕)
+- At 100%: Red error banner appears (persistent, disables send button)
+- Next Send action: All banner state cleared, fresh budget begins
+
 **Completion Summary:**
-- ✓ Added banner visibility properties to ChatPageViewModel (_showWarningBanner, _showErrorBanner with MVVM binding)
-- ✓ Added auto-dismiss timer for 5-second warning banner dismissal (DispatcherTimer)
-- ✓ Added threshold calculation helper method GetToolCallPercentage() with null-safety
-- ✓ Implemented CheckToolCallLimit() method with 80%/100% logic
-- ✓ Integrated limit check into SendMessageAsync() after streaming completes
-- ✓ Modified CanSendMessage() to respect ShowErrorBanner flag
-- ✓ Added yellow warning banner TextBlock to ChatPage.xaml with Visibility binding (Row 0)
-- ✓ Added red error banner TextBlock to ChatPage.xaml with Visibility binding (Row 1)
-- ✓ Added dismiss buttons (✕) to both banners with Click event handlers
-- ✓ Updated ChatPage.xaml.cs code-behind with DismissWarningBanner_Click and DismissErrorBanner_Click handlers
-- ✓ Added public DismissWarningBannerCommand() method to ChatPageViewModel
-- ✓ Added BooleanToVisibilityConverter to ChatPage.xaml resources
-- ✓ Updated Grid row definitions to accommodate both banners (6 rows: banners + context + mode + messages + input)
-- ✓ Created UserNotificationTests.cs with 5 xUnit tests (ShowWarningBanner_At80Percent, ShowErrorBanner_At100Percent, DismissWarningOnClick, NoNotification_Below80Percent, SendButtonEnabled_Below100Percent)
-- ✓ All 5 new tests passing; 725 total tests passing
-- ✓ Integrated gap23_4_1 (MaxToolCallsPerSession setting) and gap23_4_2 (ToolCallsExecuted counter) for complete limit logic
+- ✅ Added `ResetToolCallLimitForAction()` method to ChatPageViewModel
+- ✅ Called `ResetToolCallLimitForAction()` at start of `ExecuteSendMessage()`
+- ✅ Added banner visibility properties to ChatPageViewModel (_showWarningBanner, _showErrorBanner with MVVM binding)
+- ✅ Added auto-dismiss timer for 5-second warning banner dismissal (DispatcherTimer)
+- ✅ Added threshold calculation helper method `GetToolCallPercentage()` with null-safety
+- ✅ Implemented `CheckToolCallLimit()` method with 80%/100% logic
+- ✅ Integrated limit check into `ExecuteSendMessage()` after streaming completes
+- ✅ Modified `CanSendMessage()` to respect ShowErrorBanner flag
+- ✅ Added yellow warning banner TextBlock to ChatPage.xaml with Visibility binding (Row 0)
+- ✅ Added red error banner TextBlock to ChatPage.xaml with Visibility binding (Row 1)
+- ✅ Added dismiss buttons (✕) to both banners with Click event handlers
+- ✅ Updated ChatPage.xaml.cs code-behind with DismissWarningBanner_Click and DismissErrorBanner_Click handlers
+- ✅ Added public `DismissWarningBannerCommand()` method to ChatPageViewModel
+- ✅ Added BooleanToVisibilityConverter to ChatPage.xaml resources
+- ✅ Updated Grid row definitions to accommodate both banners (6 rows: banners + context + mode + messages + input)
+- ✅ Created UserNotificationTests.cs with 5 xUnit tests
+- ✅ All 5 tests passing; 726+ total tests passing
+- ✅ Updated Session.ToolCallsExecuted comment to clarify per-action semantics
 
 **Implementation Details:**
 

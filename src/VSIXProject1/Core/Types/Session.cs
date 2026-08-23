@@ -46,7 +46,10 @@ namespace ContinueVS.Core.Types
         public bool IsActive { get; set; }
 
         /// <summary>
-        /// Cumulative count of tool calls executed in this session.
+        /// Cumulative count of tool calls executed in current user action (gap23_4_4).
+        /// Resets to 0 when user clicks Send. Incremented during ask/agent/plan execution.
+        /// If action exhausts budget (reaches MaxToolCallsPerSession), action stops.
+        /// Next user send action gets fresh budget.
         /// </summary>
         [JsonProperty("toolCallsExecuted")]
         public int ToolCallsExecuted { get; set; }
