@@ -2669,7 +2669,7 @@ public class OnboardingState
 
 ---
 
-### gap27 missing debug option --- add to chat/agent/plan NOT IMPLEMENTED
+### gap29 missing debug option --- add to chat/agent/plan NOT IMPLEMENTED
 
 ---
 
@@ -3826,6 +3826,7 @@ Moved `InputText = string.Empty;` from the finally block to the **beginning of E
 ---
 
 **End of Implementation Plan**
+
 
 
 
