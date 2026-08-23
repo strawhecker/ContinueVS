@@ -7,9 +7,9 @@
              d:DesignHeight="500" d:DesignWidth="750">
     <Grid Background="#FFFFFF">
         <TabControl>
-            <!-- Chat Settings Tab -->
-            <TabItem Header="Chat" Padding="10">
-                <StackPanel Margin="15" VerticalAlignment="Top">
+           <!-- Chat Settings Tab -->
+           <TabItem Header="Chat" Padding="10">
+               <StackPanel Margin="15" VerticalAlignment="Top">
                     <TextBlock Text="Chat Preferences" FontSize="14" FontWeight="Bold" Margin="0,0,0,15"/>
 
                     <CheckBox IsChecked="{Binding ShowSessionTabs, Mode=TwoWay}" Margin="0,0,0,10">
@@ -74,6 +74,15 @@
                             <Slider Value="{Binding FontSize, Mode=TwoWay}" Minimum="10" Maximum="24" DockPanel.Dock="Left"/>
                         </DockPanel>
                         <TextBlock Text="Base font size for UI elements (10-24 pt)." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Max Tool Calls Per Session" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <DockPanel>
+                            <TextBlock Text="{Binding MaxToolCallsPerSession}" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center" Width="40" TextAlignment="Right"/>
+                            <Slider Value="{Binding MaxToolCallsPerSession, Mode=TwoWay}" Minimum="1" Maximum="1000" DockPanel.Dock="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="Maximum tool function calls allowed per agent session (1-1000)." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </TabItem>

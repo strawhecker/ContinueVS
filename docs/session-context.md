@@ -2353,6 +2353,227 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 
 ---
 
+#### gap23_4: Max Tool Calls Limit Configuration & Enforcement
+
+**Status:** NOT IMPLEMENTED | Type: User Setting + Safety Limit  
+**Goal:** Prevent infinite tool-calling loops by enforcing a maximum iteration count  
+**Why:** Agent mode can get stuck in cycles; without max limit, it wastes tokens and user time  
+**Default:** 100 tool calls per session  
+
+##### gap23_4_1: Define MaxToolCalls User Setting
+**Status:** ✓ COMPLETE | Type: User Settings
+**Implementation Date:** [Completed 2026-08-22]
+**Completion Summary:**
+- ✓ Added `Agent_MaxToolCallsPerSession` setting key constant to UserSettings.cs
+- ✓ Added default value (100) to GetDefaults() dictionary in UserSettings.cs
+- ✓ Added `MaxToolCallsPerSession` int property to SettingsViewModel with validation setter (coerces to range 1-1000)
+- ✓ Added load logic in SettingsViewModel.LoadSettings() with GetIntFromConfig() helper
+- ✓ Added save logic in SettingsViewModel.SaveSettingsAsync() with delta-based persistence (SetOrRemove)
+- ✓ Added Slider control to SettingsControl.xaml Appearance tab (min=1, max=1000, TwoWay binding)
+- ✓ Created MaxToolCallsSettingTests.cs with 7 parametrized unit tests (xUnit) covering: default value, custom save, range coercion
+- ✓ All 723 tests pass (including 7 new MaxToolCalls parametrized tests)
+- ✓ Build clean: no errors, no warnings
+
+**Implementation Details:**
+
+**Files Created:**
+- `VSIXProject1.Tests/ViewModels/MaxToolCallsSettingTests.cs` — 7 parametrized xUnit tests (LoadDefaultValue, SaveCustomValue, ValidateRange×5)
+
+**Files Modified:**
+1. **Core/Types/UserSettings.cs**
+   - Added constant: `public const string Agent_MaxToolCallsPerSession = "agent.maxToolCallsPerSession"`
+   - Added to GetDefaults(): `{ Agent_MaxToolCallsPerSession, 100 }`
+
+2. **ViewModels/SettingsViewModel.cs**
+   - Added field: `private int _maxToolCallsPerSession`
+   - Added property: `MaxToolCallsPerSession` with validation setter (coerces [1, 1000])
+   - Added constructor initialization: `_maxToolCallsPerSession = GetInt(UserSettings.Agent_MaxToolCallsPerSession, defaults)`
+   - Added to LoadSettings(): `MaxToolCallsPerSession = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerSession, config.CustomSettings)`
+   - Added to SaveSettingsAsync(): `SetOrRemove(UserSettings.Agent_MaxToolCallsPerSession, MaxToolCallsPerSession)`
+
+3. **UI/Pages/SettingsControl.xaml**
+   - Added TextBlock header "Max Tool Calls Per Session" to Appearance tab
+   - Added DockPanel with Slider (1-1000) and value TextBlock display
+   - Added description: "Maximum tool function calls allowed per agent session (1-1000)."
+
+**Tests:**
+- **Test 1:** `LoadDefaultValue_ReturnsDefault100WhenSettingNotInConfig` — Verifies default 100 when setting absent from config
+- **Test 2:** `SaveCustomValue_PersistsToConfig` — Verifies custom value 50 persists to CustomSettings
+- **Test 3-7:** `ValidateRange_CoercesOutOfRangeValues[Theory]` — Parametrized tests for coercion: (-5→1), (0→1), (2000→1000), (1500→1000), (500→500), (1→1), (1000→1000)
+
+**Tech Decisions:**
+- Used existing Slider control (not NumericUpDown) to avoid external toolkit dependency
+- Implemented coercion in property setter (not validation error) for user-friendly behavior
+- Delta-based persistence: value 100 (default) won't store in continueVS.json; custom values will
+
+**Next Steps:** gap23_4_2 (Tool Call Counter in Session State)
+
+##### gap23_4_2: Tool Call Counter in Session State
+- **Action:** Track cumulative tool calls in the current session
+- **Implementation:**
+  - Add to Session.cs: `public int ToolCallsExecuted { get; set; }`
+  - Increment counter in IWorkflowService.ExecuteToolAsync() before invoking tool
+  - Reset counter when user starts new session (ChatPageViewModel.NewSessionAsync())
+  - Expose counter via ISessionService.GetCurrentSession().ToolCallsExecuted
+- **Why:** Workflow needs to check before each tool execution
+- **Dependencies:** gap23_2 (tool execution), gap5 (session state)
+- **Files to create/modify:**
+  - `src/VSIXProject1/Core/Types/Session.cs` → Add ToolCallsExecuted property
+  - `src/VSIXProject1/Services/Implementations/WorkflowService.cs` → Increment counter
+- **Test:** `ToolCallCounterTests (3 tests: increment on each tool, reset on new session, read current count)`
+
+##### gap23_4_3: Limit Check Before Tool Execution
+- **Action:** In IWorkflowService, check limit before executing tool
+- **Implementation:**
+  - Before invoking tool in ExecuteToolAsync():
+    ```csharp
+    if (session.ToolCallsExecuted >= userSettings.MaxToolCallsPerSession)
+    {
+      logger.LogWarning("Max tool calls ({max}) reached", userSettings.MaxToolCallsPerSession);
+      throw new InvalidOperationException($"Max tool calls ({userSettings.MaxToolCallsPerSession}) reached. Start new session to continue.");
+    }
+    ```
+  - Catch exception in ChatPageViewModel.SendMessageAsync()
+  - Display error message to user: "Max tool calls (100) reached. Start a new chat session to continue."
+  - Disable send button until user explicitly starts new session
+- **Why:** Prevents tools running after limit
+- **Dependencies:** gap23_4_2, gap23_2, gap23_4_1
+- **Files to modify:**
+  - `src/VSIXProject1/Services/Implementations/WorkflowService.cs` → Add limit check
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → Handle exception, disable send
+- **Test:** `LimitEnforcementTests (4 tests: allow tool under limit, block tool at limit, block tool over limit, enable send after new session)`
+
+##### gap23_4_4: User Notification & Warnings
+- **Action:** Alert user as they approach the limit
+- **Implementation:**
+  - At 80% of limit (80 of 100): Show yellow warning banner
+    * Message: "⚠️ Approaching tool call limit (80/100 used). Consider starting a new session soon."
+    * Do not block tool execution
+    * Auto-dismiss after 5 seconds or when user clicks X
+  - At 100% of limit: Show red error banner
+    * Message: "❌ Tool call limit reached (100/100). Start a new session to continue."
+    * Block send button
+    * Persist until user acknowledges
+  - Log warning to analytics
+- **Why:** Gives user chance to save work before hitting hard limit
+- **Dependencies:** gap23_4_2, INotificationService
+- **Files to modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → Add warning logic in SendMessageAsync()
+  - `src/VSIXProject1/UI/Pages/ChatPage.xaml` → Add warning TextBlock (yellow 80%), error TextBlock (red 100%)
+- **Test:** `UserNotificationTests (3 tests: show warning at 80%, show error at 100%, dismiss warning on click)`
+
+##### gap23_4_5: Tool Call Limit Display in UI
+- **Action:** Show current progress (e.g., "42 / 100 tool calls") in chat header
+- **Implementation:**
+  - Add TextBlock to ChatPage.xaml in header bar
+  - Bind to ChatPageViewModel.ToolCallsExecuted and .MaxToolCallsPerSession
+  - Format: `<TextBlock Text="{Binding ToolCallCounterDisplay}" Foreground="Gray" FontSize="11" />`
+  - ToolCallCounterDisplay binding: `$"{ToolCallsExecuted} / {MaxToolCallsPerSession} tool calls"`
+  - Color logic:
+    * Gray (< 80%): Normal
+    * Orange (80-99%): Warning color
+    * Red (100%): Error color
+  - Tooltip: "Shows how many tools have been called in this session"
+- **Why:** Transparency; user can see progress at a glance
+- **Dependencies:** gap23_4_2, gap23_4_1
+- **Files to modify:**
+  - `src/VSIXProject1/UI/Pages/ChatPage.xaml` → Add TextBlock
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → Add ToolCallCounterDisplay property
+- **Test:** `UIDisplayTests (3 tests: show counter at 0, update counter on tool call, change color at 80% threshold)`
+
+##### gap23_4_6: Session Reset Option
+- **Action:** Provide easy way to start fresh session after hitting limit
+- **Implementation:**
+  - Add "Start New Session" button in error message (when limit reached)
+  - Button action: ChatPageViewModel.NewSessionAsync()
+  - Also add to main toolbar: "📄 New Session" button next to "New Chat" (if it exists)
+  - Confirmation dialog (optional): "Clear current session and start fresh?"
+  - On new session: Reset ToolCallsExecuted to 0, clear messages, show empty chat
+  - Save old session to history (don't lose work)
+- **Why:** Prevents user frustration; makes recovery obvious
+- **Dependencies:** gap23_4_3, gap21 (session management)
+- **Files to modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → NewSessionAsync()
+  - `src/VSIXProject1/UI/Pages/ChatPage.xaml` → Add "New Session" button
+- **Test:** `SessionResetTests (2 tests: new session clears counter, old session saved to history)`
+
+##### gap23_4_7: Tool Call Limit Configuration in Settings UI
+- **Action:** UI to allow users to change MaxToolCallsPerSession setting
+- **Implementation:**
+  - In SettingsControl.xaml (Settings tab):
+    ```xaml
+    <Label Content="Tool Call Limit:" />
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text="Max tool calls per session:" VerticalAlignment="Center" Margin="0,0,10,0" />
+      <Slider Minimum="1" Maximum="1000" Value="{Binding MaxToolCallsPerSession, Mode=TwoWay}" 
+              Width="200" TickFrequency="50" TickPlacement="BottomRight" />
+      <TextBlock Text="{Binding MaxToolCallsPerSession}" Margin="10,0,0,0" MinWidth="40" />
+      <TextBlock Text="calls/session" VerticalAlignment="Center" Margin="5,0,0,0" />
+    </StackPanel>
+    ```
+  - Or use NumericUpDown for precise input
+  - Add help text: "Higher limits allow longer sessions but risk infinite loops. Recommended: 50-200."
+  - Save to config.json when changed
+  - On save: Log to analytics
+- **Why:** Per-user customization
+- **Dependencies:** gap23_4_1, IConfigService
+- **Files to modify:**
+  - `src/VSIXProject1/UI/Controls/SettingsControl.xaml` → Add slider/spinner
+  - `src/VSIXProject1/ViewModels/SettingsViewModel.cs` → Bind and persist
+- **Test:** `SettingsUITests (3 tests: display current value, change value via slider, persist to config)`
+
+##### gap23_4_8: Analytics & Monitoring
+- **Action:** Track tool call limits in analytics
+- **Implementation:**
+  - Log event when limit reached: `analytics.LogEvent("ToolCallLimitReached", { maxCalls: 100, sessionId: "...", timeElapsed: 5.2 })`
+  - Log event when new session started: `analytics.LogEvent("SessionReset", { reasonToolLimit: true, callsExecuted: 100 })`
+  - Periodic metric (every session): `{ avgToolCallsPerSession, maxToolCallsSetting, hitLimitPercentage }`
+  - Use metrics to identify if default 100 is too low (if >50% hit limit)
+- **Why:** Product insights; informs if default needs adjustment
+- **Dependencies:** gap30_1 (Analytics framework)
+- **Files to modify:**
+  - `src/VSIXProject1/Services/Implementations/AnalyticsService.cs` → Add logging calls
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → Emit events
+- **Test:** `AnalyticsTests (2 tests: log limit reached, log session reset)`
+
+##### gap23_4_9: Persistence of Tool Call Count
+- **Action:** Optionally save tool call count to session file
+- **Implementation:**
+  - When session is saved (ISessionService.SaveSessionAsync()):
+    * Include ToolCallsExecuted in Session.json
+    * Example: `{ "messages": [...], "toolCallsExecuted": 42, "timestamp": "..." }`
+  - On session load (ISessionService.LoadSessionAsync()):
+    * Restore ToolCallsExecuted count from file
+  - Allow export of session metrics: "Session used 42/100 tool calls" in summary
+- **Why:** Users can review how many tools were used in past sessions
+- **Dependencies:** gap23_4_2, ISessionService
+- **Files to modify:**
+  - `src/VSIXProject1/Core/Types/Session.cs` → Already added ToolCallsExecuted
+  - `src/VSIXProject1/Services/Implementations/SessionService.cs` → Persist/restore count
+- **Test:** `PersistenceTests (2 tests: save count to file, restore count on load)`
+
+##### gap23_4_10: Documentation & Help
+- **Action:** Explain tool call limits touser
+- **Implementation:**
+  - Add help doc: `/docs/tool-call-limits.md`
+    * Explain what tool calls are (each tool invocation counts as 1)
+    * Explain why limits exist (prevent infinite loops, save tokens/time)
+    * Show example: "User asks AI to debug. AI calls 5 tools. Count = 5."
+    * Recommend settings:
+      - Conservative: 25-50 (quick tasks)
+      - Balanced: 50-150 (typical debugging, file operations)
+      - Aggressive: 150+ (complex multi-step operations, at your own risk)
+  - Add tooltips in UI pointing to doc
+  - In-app help: Hover over counter shows "Tool call limit prevents runaway sessions. Adjust in Settings."
+- **Why:** Educates users; reduces confusion
+- **Dependencies:** gap23_4_5, gap30_5 (doc generation)
+- **Files to create:**
+  - `/docs/tool-call-limits.md` → New documentation
+  - Update tooltips in ChatPage.xaml
+- **Test:** `DocTests (1 test: help documentation exists and is readable)`
+
+---
+
 #### **Consolidated Timeline & Scope**
 
 | Sub-Phase | Hours | Tests | Exit Status |

@@ -35,6 +35,9 @@ namespace ContinueVS.Core.Types
         public const string Experimental_DumpContextBeforeSend = "experimental.dumpContextBeforeSend";
         public const string Experimental_DumpResponseAfterReceive = "experimental.dumpResponseAfterReceive";
 
+        // Agent/Tool Settings
+        public const string Agent_MaxToolCallsPerSession = "agent.maxToolCallsPerSession";
+
         /// <summary>
         /// Returns a dictionary of all default settings values.
         /// </summary>
@@ -66,7 +69,10 @@ namespace ContinueVS.Core.Types
                 { Experimental_CodebaseUseToolCallingOnly, false },
                 { Experimental_StreamAfterToolRejection, false },
                 { Experimental_DumpContextBeforeSend, false },
-                { Experimental_DumpResponseAfterReceive, false }
+                { Experimental_DumpResponseAfterReceive, false },
+
+                // Agent/Tool defaults
+                { Agent_MaxToolCallsPerSession, 100 }
             };
         }
 

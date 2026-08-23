@@ -42,7 +42,9 @@ namespace ContinueVS.ViewModels
         private bool _dumpContextBeforeSend;
         private bool _dumpResponseAfterReceive;
 
-        // Chat Properties
+        // Agent/Tool settings
+        private int _maxToolCallsPerSession;
+
         public bool ShowSessionTabs
         {
             get => _showSessionTabs;
@@ -172,6 +174,18 @@ namespace ContinueVS.ViewModels
             set => Set(ref _dumpResponseAfterReceive, value);
         }
 
+        // Agent/Tool Properties
+        public int MaxToolCallsPerSession
+        {
+            get => _maxToolCallsPerSession;
+            set
+            {
+                // Coerce value to valid range [1, 1000]
+                int coercedValue = value < 1 ? 1 : (value > 1000 ? 1000 : value);
+                Set(ref _maxToolCallsPerSession, coercedValue);
+            }
+        }
+
         public SettingsViewModel(IConfigService configService)
         {
             if (configService == null) throw new ArgumentNullException(nameof(configService));
@@ -216,6 +230,8 @@ namespace ContinueVS.ViewModels
             _streamAfterToolRejection = GetBool(UserSettings.Experimental_StreamAfterToolRejection, defaults);
             _dumpContextBeforeSend = GetBool(UserSettings.Experimental_DumpContextBeforeSend, defaults);
             _dumpResponseAfterReceive = GetBool(UserSettings.Experimental_DumpResponseAfterReceive, defaults);
+
+            _maxToolCallsPerSession = GetInt(UserSettings.Agent_MaxToolCallsPerSession, defaults);
 
             Debug.WriteLine("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR COMPLETE");
         }
@@ -262,6 +278,9 @@ namespace ContinueVS.ViewModels
                 StreamAfterToolRejection = GetBoolFromConfig(UserSettings.Experimental_StreamAfterToolRejection, config.CustomSettings);
                 DumpContextBeforeSend = GetBoolFromConfig(UserSettings.Experimental_DumpContextBeforeSend, config.CustomSettings);
                 DumpResponseAfterReceive = GetBoolFromConfig(UserSettings.Experimental_DumpResponseAfterReceive, config.CustomSettings);
+
+                // Load Agent/Tool settings
+                MaxToolCallsPerSession = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerSession, config.CustomSettings);
 
                 Debug.WriteLine("[SettingsViewModel.LoadSettings] Settings loaded successfully");
             }
@@ -331,6 +350,9 @@ namespace ContinueVS.ViewModels
                 SetOrRemove(UserSettings.Experimental_DumpContextBeforeSend, DumpContextBeforeSend);
                 SetOrRemove(UserSettings.Experimental_DumpResponseAfterReceive, DumpResponseAfterReceive);
 
+                // Save Agent/Tool settings
+                SetOrRemove(UserSettings.Agent_MaxToolCallsPerSession, MaxToolCallsPerSession);
+
                 // Persist to disk
                 await _configService.SaveConfigAsync();
                 Debug.WriteLine("[SettingsViewModel.SaveSettingsAsync] Settings saved successfully (delta-based)");
@@ -340,6 +362,7 @@ namespace ContinueVS.ViewModels
                 Debug.WriteLine($"[SettingsViewModel.SaveSettingsAsync] Error: {ex.Message}");
             }
         }
+
 
         // Helper methods for type conversion
         private bool GetBool(string key, System.Collections.Generic.Dictionary<string, object> defaults)
