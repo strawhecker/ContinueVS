@@ -113,6 +113,23 @@
             <TextBlock Text="{Binding ToolCallCounterDisplay}" VerticalAlignment="Center" Margin="5,0,0,5" FontSize="11" Foreground="{Binding ToolCallCounterDisplay, Converter={StaticResource ToolCallCounterColorConverter}}" ToolTip="Shows cumulative tool calls in current session (resets per-action)"/>
         </StackPanel>
 
+        <!-- Onboarding Card - gap25_6 -->
+        <Border Grid.Row="4" Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="5" Padding="15" VerticalAlignment="Top" Visibility="{Binding OnboardingCardVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel>
+                <TextBlock Text="🎯 Getting Started" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,10"/>
+                <TextBlock Text="Welcome to Continue VS! Here's how to get started:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"/>
+
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="• Select a mode (Ask, Agent, or Plan) above" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="• Choose a model from the dropdown" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="• Enter your prompt or question below" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="• Click Send to start the conversation" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
+                </StackPanel>
+
+                <TextBlock Text="💡 Tip: Switch to Agent mode to let Continue autonomously analyze and edit your code." Foreground="{DynamicResource SecondaryTextBrush}" FontStyle="Italic"/>
+            </StackPanel>
+        </Border>
+
         <!-- Messages (Chat List) with ScrollViewer -->
         <ScrollViewer Grid.Row="4" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding Messages}" VerticalAlignment="Stretch"

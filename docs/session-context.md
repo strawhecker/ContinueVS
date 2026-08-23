@@ -2909,7 +2909,7 @@ If user has two Continue windows open:
 
 #### **gap25_6: Onboarding Dismissal State - Simplified Chat-Based Pattern**
 
-**Status:** PLANNED | Approach: Bind OnboardingCardVisible to Messages.Count
+**Status:** ✅ COMPLETE | Approach: Bind OnboardingCardVisible to Messages.Count
 
 **Original Design (Rejected):**
 - Complex persistence layer with OnboardingState class
@@ -2938,6 +2938,18 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - Self-managing pattern (no manual dismissal tracking)
 
 **Priority:** LOW | Non-blocking UX enhancement; Phase 2 target
+
+**Files Modified:**
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs: Added OnboardingCardVisible property, Messages.CollectionChanged event handler
+- src/VSIXProject1/UI/Pages/ChatPage.xaml: Added onboarding card Border (Grid.Row 4) with welcome/getting-started content
+- src/VSIXProject1.Tests/ViewModels/ChatPageViewModelOnboardingTests.cs: Added 3 tests validating visibility behavior
+
+**Tests (All Passing):**
+- OnboardingCardVisible_InitiallyTrue: Verifies card is visible when chat is empty
+- OnboardingCardVisible_BecomesFalseWhenMessageAdded: Verifies card hides when first message is added
+- OnboardingCardVisible_BecomesTrueWhenMessagesCleared: Verifies card re-appears when chat is cleared
+
+**Build Status:** ✅ Successful (dotnet build; 0 warnings, 0 errors; all 3 tests passing)
 
 ---
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -117,6 +118,12 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private string _toolCallCounterDisplay = "0 / 0 tool calls";
 
+        /// <summary>
+        /// Flag to control onboarding card visibility (gap25_6).
+        /// Bound to Messages collection count: visible when empty (count == 0), hidden when populated.
+        /// </summary>
+        private bool _onboardingCardVisible = true;
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
@@ -210,6 +217,16 @@ namespace ContinueVS.ViewModels
             private set => Set(ref _toolCallCounterDisplay, value);
         }
 
+        /// <summary>
+        /// Gets or sets whether the onboarding card is visible (gap25_6).
+        /// Card is visible when chat is empty (Messages.Count == 0); auto-hides on first message.
+        /// </summary>
+        public bool OnboardingCardVisible
+        {
+            get => _onboardingCardVisible;
+            set => Set(ref _onboardingCardVisible, value);
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -255,6 +272,9 @@ namespace ContinueVS.ViewModels
             AvailableModels = new ObservableCollection<ModelInfo>();
             _inputText = string.Empty;
             _streamingResponse = string.Empty;
+
+            // gap25_6: Subscribe to messages collection changes to sync onboarding card visibility
+            Messages.CollectionChanged += OnMessages_CollectionChanged;
 
             SendMessageCommand = new RelayCommand(ExecuteSendMessage, CanSendMessage);
             CancelCommand = new RelayCommand(ExecuteCancel, () => IsStreaming);
@@ -350,6 +370,16 @@ namespace ContinueVS.ViewModels
         private void ConfigService_ConfigChanged(object? sender, EventArgs e)
         {
             _ = LoadModelsAsync();
+        }
+
+        /// <summary>
+        /// Handles Messages collection changes to sync onboarding card visibility (gap25_6).
+        /// Card is visible only when chat is empty (Messages.Count == 0).
+        /// </summary>
+        private void OnMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            OnboardingCardVisible = Messages.Count == 0;
+            System.Diagnostics.Debug.WriteLine($"[gap25_6-sync] Onboarding card visibility updated: {OnboardingCardVisible} (Messages.Count={Messages.Count})");
         }
 
         /// <summary>
