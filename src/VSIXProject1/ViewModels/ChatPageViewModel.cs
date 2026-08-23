@@ -71,6 +71,7 @@ namespace ContinueVS.ViewModels
             private readonly IConfigService _configService;
             private readonly ISystemPromptService _systemPromptService;
             private readonly IUIStateService _uiStateService;
+            private IModeService? _modeService;
             private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -162,6 +163,7 @@ namespace ContinueVS.ViewModels
         /// <summary>
         /// Gets or sets the currently selected mode option (gap27_1).
         /// Changing this property propagates the new ChatMode to CurrentMode.
+        /// When set, delegates to IModeService.SetModeAsync() to fire mode-change events (gap27_3).
         /// </summary>
         public ModeOption? SelectedMode
         {
@@ -171,6 +173,11 @@ namespace ContinueVS.ViewModels
                 if (Set(ref _selectedMode, value) && value != null)
                 {
                     CurrentMode = value.Value;
+                    if (_modeService != null)
+                    {
+                        // Mode enums are compatible; cast to int for service call
+                        _ = _modeService.SetModeAsync((int)value.Value);
+                    }
                 }
             }
         }
@@ -298,7 +305,8 @@ namespace ContinueVS.ViewModels
             INotificationService notificationService,
             IConfigService configService,
             ISystemPromptService systemPromptService,
-            IUIStateService uiStateService)
+            IUIStateService uiStateService,
+            IModeService? modeService = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -317,6 +325,7 @@ namespace ContinueVS.ViewModels
             _configService = configService;
             _systemPromptService = systemPromptService;
             _uiStateService = uiStateService;
+            _modeService = modeService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();

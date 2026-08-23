@@ -59,6 +59,7 @@ namespace ContinueVS.Services
             services.AddSingleton<ITokenCountingService, SimpleTokenCounterService>();
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();
+            services.AddSingleton<IModeService, ModeService>();
             services.AddSingleton<IToolService>(sp =>
             {
                 var ideService = sp.GetRequiredService<IIdeService>();

@@ -92,5 +92,12 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="keepSystemMessages">If true, system messages are always preserved.</param>
         /// <returns>Tuple of (count of removed messages, list of removed messages).</returns>
         Task<(int RemovedCount, List<ChatMessage> Pruned)> PruneOldMessagesAsync(int maxTokens, bool keepSystemMessages = true);
+
+        /// <summary>
+        /// Sets the current chat mode and fires SessionChanged event for mode-change propagation (gap27_3).
+        /// </summary>
+        /// <param name="newMode">The chat mode to set as an integer (0=Ask, 1=Agent, 2=Plan).</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task SetCurrentModeAsync(int newMode);
     }
 }

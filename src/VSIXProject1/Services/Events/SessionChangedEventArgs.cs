@@ -50,6 +50,11 @@ namespace ContinueVS.Services.Events
         public bool IsNewSession => ChangeType == SessionChangeType.Created;
 
         /// <summary>
+        /// Current mode if this change is a mode change (gap27_3).
+        /// </summary>
+        public int? CurrentMode { get; set; }
+
+        /// <summary>
         /// Timestamp when the change occurred.
         /// </summary>
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;

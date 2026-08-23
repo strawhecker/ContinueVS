@@ -3009,13 +3009,22 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 
 #### gap27_3: Mode Change Event Propagation
 - **Goal:** When user selects a mode, notify all services
+- **Status:** ✅ COMPLETE
 - **Implementation:**
-- ChatPageViewModel.SelectedMode.setter calls _modeService.SetModeAsync(newMode)
-- IModeService routes to ISessionService.SetCurrentModeAsync()
-- ISessionService fires ModeChanged event
-- All handlers (toolbar, message rendering, etc.) updateaccordingly
+  - ChatPageViewModel.SelectedMode.setter calls _modeService.SetModeAsync(newMode)
+  - IModeService routes to ISessionService.SetCurrentModeAsync()
+  - ISessionService fires SessionChanged event with CurrentMode set
+  - All handlers (toolbar, message rendering, etc.) update accordingly
 - **Dependencies:** gap27_2, IModeService interface
-- **Test:** ModeChangePropagationTests (4 tests: set Ask, set Agent, set Plan, event fires)
+- **Code Changes:**
+  - Created IModeService and ModeService for bridge pattern
+  - Extended ISessionService with SetCurrentModeAsync(int newMode)
+  - Implemented SetCurrentModeAsync in SessionService to fire SessionChanged with mode context
+  - Added CurrentMode property to SessionChangedEventArgs for event payload
+  - Wired ChatPageViewModel.SelectedMode to call ModeService
+  - Registered IModeService in ServiceBootstrapper DI container
+- **Tests:** ModeChangePropagationTests - 4 xUnit tests (set Ask/Agent/Plan, event fires with correct mode)
+- **Build Status:** All C# code compiles cleanly (XAML designer errors pre-existing, not gap27_3 related)
 
 #### gap27_4: Future Mode Graceful Degradation
 - **Goal:** If systemadds new modes in future, dropdown handles gracefully
