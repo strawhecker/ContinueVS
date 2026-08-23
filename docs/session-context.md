@@ -2665,11 +2665,439 @@ public class OnboardingState
 
 ---
 
-### gap26 option to include current file exists but is NOT IMPLEMENTED
+### gap27: Phase 1 – Mode Selector UI Refactor (Radio Buttons → Dropdown) + Continuation Policy Selector
+
+**Status:** NOT IMPLEMENTED | Type: UI Feature Layer  
+**Phase:** 1 (Foundation - Mode Selection & Policy Control)  
+**Priority:** HIGH (Blocking user testing of chat modes)  
+
+#### gap27_1: Mode Dropdown Data Binding
+- **Goal:** Replace three radio buttons (Ask, Agent, Plan) with a single ComboBox dropdown
+- **Why:** Reduces toolbar clutter; aligns with Continue.js UI pattern
+- **Implementation:**
+  - Add `ObservableCollection<ModeOption>` to ChatPageViewModel
+  - Define ModeOption class with Name, Value, Description, Icon properties
+  - Populate collection in ViewModel constructor: {"Ask", Ask}, {"Agent", Agent}, {"Plan", Plan}
+  - Add `SelectedMode` property (two-way binding target)
+  - Subscribe to SelectedMode changes; propagate to service layer
+- **Dependencies:** gap2 (ChatPage binding fixed), ChatPageViewModel
+- **Test:** ModeDropdownBindingTests (5 tests: load options, select option, change event fires, persistence)
+
+#### gap27_2: XAML Dropdown Control Replacement
+- **Goal:** Replace 3 radio buttons with 1 ComboBox in ChatPage.xaml
+- **Implementation:**
+  - Remove StackPanel with three RadioButton controls (Ask/Agent/Plan buttons)
+  - Add ComboBox with ItemsSource="{Binding ModeOptions}", SelectedItem="{Binding SelectedMode, Mode=TwoWay}", DisplayMemberPath="Name"
+  - Add TextBlock label "Mode:" before ComboBox
+  - Apply consistent styling (padding, font, colors)
+  - Add visual separator (Border) after mode dropdown
+- **XAML Example:**
+<TextBlock Text="Mode:" VerticalAlignment="Center" Margin="5,0,5,0" /> <ComboBox ItemsSource="{Binding ModeOptions}" SelectedItem="{Binding SelectedMode, Mode=TwoWay}" DisplayMemberPath="Name" Width="120" Height="28" /> <Border Width="1" Height="20" Background="#E0E0E0" Margin="10,0,10,0" />
+- **Dependencies:** gap27_1
+- **Test:** XamlRenderingTests (3 tests: dropdown visible, options render, selection updates UI)
+
+#### gap27_3: Mode Change Event Propagation
+- **Goal:** When user selects a mode, notify all services
+- **Implementation:**
+- ChatPageViewModel.SelectedMode.setter calls _modeService.SetModeAsync(newMode)
+- IModeService routes to ISessionService.SetCurrentModeAsync()
+- ISessionService fires ModeChanged event
+- All handlers (toolbar, message rendering, etc.) updateaccordingly
+- **Dependencies:** gap27_2, IModeService interface
+- **Test:** ModeChangePropagationTests (4 tests: set Ask, set Agent, set Plan, event fires)
+
+#### gap27_4: Future Mode Graceful Degradation
+- **Goal:** If systemadds new modes in future, dropdown handles gracefully
+- **Implementation:**
+- ModeOption uses enum + switch for known modes, with fallback for unknown
+- Dropdown shows unknown modes as disabled or grayed out
+- SelectedMode coerces to Ask if mode is unsupported
+- Log warning if unsupported mode is selected
+- **Dependencies:** gap27_1
+- **Test:** FutureModeSupportTests (2 tests: unknown mode shows, coerces to default)
+
+#### gap27_5: Mode Persistence & Restoration
+- **Goal:** Remember user's last selected mode across restarts
+- **Implementation:**
+- When mode changes, save to config.json under "defaultMode" field
+- On startup, read value and setSelectedMode in ChatPageViewModel
+- If config missing or invalid, default to Ask
+- **Dependencies:** gap27_3, IConfigService.SaveAsync()
+- **Test:** ModePersistenceTests (3 tests: save mode, load mode, restore onstartup)
+
+#### gap27_6: Mode Description & Help Text
+- **Goal:** Show user-friendly descriptions for each mode in UI
+- **Implementation:**
+- ModeOption includes Description property ("Ask for code help", "Run tools autonomously", "Plan beforeexecuting")
+- Add ToolTip or TextBlock below dropdown showing description of selected mode
+- Update description in real-time when selection changes
+- Add "?" icon with help text on hover
+- **Dependencies:** gap27_2
+- **Test:** ModeDescriptionTests (3 tests: Ask description, Agent description, Plan description)
+
+#### gap27_7: Mode Icons & Visual Indicators
+- **Goal:** Add visual icons to each mode option
+- **Implementation:**
+- ModeOption includes Icon property (BitmapImage or SVG path)
+-Use Material Design icons or custom SVGs for each mode
+- Display icon in ComboBox item template: Icon + Name side-by-side
+- Highlight icon style based on selection state
+- **Dependencies:** gap27_1
+- **Test:** ModeIconTests (3 tests: Ask icon renders, Agent icon renders, Plan icon renders)
+
+#### gap27_8: Keyboard Shortcut Mode Switching (Optional)
+- **Goal:** Allow users to cycle modes via keyboard shortcut
+- **Implementation:**
+- Register global keyboard hook in ChatPage.xaml.cs
+- Ctrl+Shift+M cycles through modes: Ask → Agent → Plan → Ask
+- Display toast notification showing new mode when switched
+- Make shortcut configurable in settings
+- **Dependencies:** gap27_3, INotificationService
+- **Test:** KeyboardShortcutTests (2 tests: Ctrl+Shift+M cycles modes, unknown shortcut ignored)
+
+#### gap27_9: A/B Testing Mode Recommendations (Optional)
+-**Goal:** Suggest best mode based on conversation context
+- **Implementation:**
+- When user asks a question, analyze text to recommend best mode
+- If text contains "run", "execute", "build"→ suggest Agent
+- If text contains "plan", "design", "architecture" → suggest Plan
+- If text is simple question → suggest Ask
+- Show as popup or inline suggestion (not forcing selection)
+- Log recommendations for future ML modeltraining
+- **Dependencies:** gap27_1, IAnalyticsService (future)
+- **Test:** ModeRecommendationTests (3 tests: execute keyword suggests Agent, plan keyword suggests Plan, etc.)
+
+#### gap27_10: Mode-Specific Toolbar Customization (Optional)
+- **Goal:** Show/hide toolbar buttons based on selected mode
+- **Implementation:**
+- Ask mode: Show input box, send button, model selector
+- Agent mode: Show Stop button, approval toggle, tool list
+- Plan mode: Show approve/executesplit button, view plan button
+- Smoothly animate toolbar transitions
+- **Dependencies:** gap27_3
+- **Test:** ModeToolbarTests (3 tests: Ask toolbar shows input, Agent toolbar shows stop, Plan toolbar shows approve)
 
 ---
 
-### gap29 missing debug option --- add to chat/agent/plan NOT IMPLEMENTED
+### gap27_2: Workflow Continuation Policy Selector (Auto, Interactive, Bypass)
+
+#### gap27_11: Continuation Policy Type System
+- **Goal:** Define the three continuation policy states
+- **Why:** Agent/Plan modes need to know whether to auto-continue or wait for user approval
+- **Implementation:**
+- Create enum ContinuationPolicy { Auto, Interactive, Bypass }
+- Define PolicyOption class with Name, Value, Description, Icon (similar to ModeOption)
+- ContinuationPolicy Auto = continue to next tool withoutpause
+- ContinuationPolicy Interactive = show UI prompt before each tool
+- ContinuationPolicy Bypass = skip confirmation dialogs (risky)
+- **Dependencies:** gap27_1 (structure pattern)
+- **Test:** PolicyTypeTests (3 tests: Auto enum value, Interactive enum value, Bypass enum value)
+
+#### gap27_12: Continuation Policy ViewModel Support
+- **Goal:** Add policy selection to ChatPageViewModel
+- **Implementation:**
+- Add `ObservableCollection<PolicyOption> ContinuationPolicies` to ViewModel
+- Add `ContinuationPolicy SelectedPolicy` property (two-way binding)
+- Populate: {"Automatically continue", Auto}, {"Ask before each action", Interactive}, {"Bypass confirmations", Bypass}
+- SelectedPolicy.setter calls _workflowService.SetContinuationPolicyAsync(newPolicy)
+- Subscribe to policy changes; update service layer
+- **Dependencies:** gap27_11, gap27_1
+- **Test:** PolicyViewModelTests (4 tests: load policies, select Interactive, change event fires, persistence)
+
+#### gap27_13: XAML Dropdown Control for Policies
+- **Goal:** Add dropdown for continuation policies next to mode selector
+- **Implementation:**
+- Add second ComboBox after mode dropdown
+- ItemsSource="{Binding ContinuationPolicies}", SelectedItem="{Binding SelectedPolicy, Mode=TwoWay}"
+- Label "Policy:" with same styling as "Mode:"
+- Add visual separator between mode and policy dropdowns
+- Apply conditional visibility: Onlyshow policy dropdown in Agent/Plan modes
+- **XAML Example:**
+<TextBlock Text="Policy:" VerticalAlignment="Center" Margin="5,0,5,0" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BoolToVis}}" /> <ComboBox ItemsSource="{Binding ContinuationPolicies}" SelectedItem="{Binding SelectedPolicy, Mode=TwoWay}" DisplayMemberPath="Name" Width="160" Height="28" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BoolToVis}}" />
+- **Dependencies:** gap27_12, gap27_2 (reuse ComboBox styling)
+- **Test:** PolicyXamlTests (3 tests: dropdown visible in Agent/Plan, hidden in Ask, options render)
+
+#### gap27_14: Workflow Policy Behavior Integration
+- **Goal:** Wire policy selection to agent/tool execution
+- **Implementation:**
+- IWorkflowService.ExecuteToolAsync(tool, policy) checks policy before executing
+- Auto: Execute immediately, continue to next tool
+- Interactive: Show confirmation dialog, wait for user approval
+- Bypass: Executewithout dialogs, suppress warnings
+- Log policy decision in metrics
+- **Dependencies:** gap27_12, IWorkflowService interface
+- **Test:** PolicyBehaviorTests (3 tests: Auto execution continues, Interactive waits for approval,Bypass skips dialogs)
+
+#### gap27_15: Policy Warning & Confirmation Dialogs
+- **Goal:** Show warnings and confirmations for policy changes
+- **Implementation:**
+- When user selects Bypass, show yellow warning: "Continuing without approval may causeunintended actions"
+- When user selects Interactive, confirm: "ContinueVS will ask before each tool execution"
+- Add checkbox "Don't show this again" to warnings
+- Store dismissal in UserSettings (future gap25_X work)
+- **Dependencies:** gap27_12, INotificationService
+- **Test:** PolicyDialogTests (2 tests: Bypass shows warning, Interactive shows confirmation)
+
+#### gap27_16: Policy Persistence & Restoration
+- **Goal:** Remember user's policy preference across restarts
+- **Implementation:**
+- When policy changes, save to config.json under "defaultContinuationPolicy" field
+- On startup, read value and set SelectedPolicy in ChatPageViewModel
+- If config missing or invalid, default to Interactive (safe choice)
+- Validate policy value against enum before setting
+- **Dependencies:** gap27_14, IConfigService.SaveAsync()
+- **Test:** PolicyPersistenceTests (3 tests: save policy, load policy, restore on startup)
+
+#### gap27_17: Policy Behavior Summary & Help
+- **Goal:**Show user-friendly descriptions and behavior examples
+- **Implementation:**
+- Add ToolTip to each policy option showing behavior summary
+- Auto: "Executes every step without pausing. Fast but risky."
+- Interactive: "Shows confirmation before each action.Recommended."
+- Bypass: "Skips all confirmations. Use with caution."
+- Add "Learn More" link opening help documentation
+- Show estimated time savings for Auto vs Interactive
+- **Dependencies:** gap27_13
+- **Test:** PolicyHelpTests (3 tests: Auto tooltip, Interactive tooltip, Bypass tooltip)
+
+#### gap27_18: Policy Analytics & Recommendation
+- **Goal:** Track policy usage and suggest best choice
+- **Implementation:**
+- Log every policy execution decisionin analytics
+- Track which policy leads to fewer errors/corrections
+- On startup, show badge "You commonly use: Interactive" if pattern detected
+- Recommend policy based on current task type (e.g., "File operations suggest Interactive")
+- Allow users to dismiss recommendations
+- **Dependencies:** gap27_14, IAnalyticsService (future)
+- **Test:** PolicyAnalyticsTests (2 tests: usage logged, recommendation shown)
+
+---
+
+### gap29: AI-AssistedDebugging Features Framework
+
+**Status:** NOT IMPLEMENTED | Type: AI Debug Integration  
+**Phase:** 3 (Advanced Features - Debugging & Error Analysis)  
+**Priority:** MEDIUM-HIGH (Enables user todebug complex issues)  
+
+#### gap29_1: Stack Trace Parsing & Analysis
+- **Goal:** Automatically extract meaningful context from error stack traces
+- **Why:** Enable AI to understand error origin without manual navigation
+- **Implementation:**
+- When userpastes stack trace in chat, parse it using regex/Roslyn
+- Extract: file path, line number, method name, exception type, message
+- Create ContextItem for each frame (file will be auto-opened)
+- Link frames to actual code symbols via IIdeService
+- Normalize paths (relative to project root)
+- Handle both .NET Framework and .NET Core stack formats
+- **Reference:** Sentry-for-AI SKILL.md: `get_event_stacktrace` pattern
+- **Dependencies:** gap29 discovery, IIdeService, IContextService
+- **Test:** StackTraceParsingTests (5tests: parse single frame, multiple frames, .NET Framework format, .NET Core format, invalid trace)
+
+#### gap29_2: Test Failure Root Cause Iteration
+- **Goal:** Guide AI through test failure analysis loop
+- **Why:** Testsoften fail for indirect reasons; AI needs to explore
+- **Implementation:**
+- User shares failing test output
+- AI suggests: "Run test with verbose logging", "Check setup/teardown", "Inspect test data"
+- IdeService.RunTestAsync(testPath, options) with debugging options
+- Capture enhanced output (breakpoint hits, variable states)
+- Return results; let AI continue investigation
+- Track iterationsteps (5 max) to prevent loops
+- **Reference:** Sentry-for-AI SKILL.md: iterative debugging flow
+- **Dependencies:** gap29_1, IIdeService (test runner), IToolService
+- **Test:** TestFailureIterationTests (3 tests: singleiteration, multi-step analysis, stop after 5 iterations)
+
+#### gap29_3: Runtime Event Inspection
+- **Goal:** Let AI examine real-time debug events (breakpoints, variable changes)
+- **Implementation:**
+-Attach to running process via DTE.Debugger
+- Break at user-selected breakpoint when AI requests
+- Return current state: local variables, callstack, watches
+- Resume execution when AI finishes inspection
+- Support stepping: step over, into, out
+- Timeout if execution suspended >30 seconds
+- **Reference:** Continue.js debug mode concept (Cline integration)
+- **Dependencies:** gap29_1, VsIdeService (DTE debugger)
+- **Test:** RuntimeInspectionTests (3 tests: inspect variables, step over, timeout handling)
+
+#### gap29_4: Breadcrumb TrailRecording
+- **Goal:** Build timeline of application state changes before crash
+- **Why:** Often the crash cause is 5 events before the error; breadcrumbs help AI trace back
+- **Implementation:**
+- Hook INotificationService to record all notifications as breadcrumbs
+- In future phases: Hook logging framework to capture debug output
+- Store breadcrumbs with timestamp, level (info/warn/error), message
+- On error, display last 20 breadcrumbs in UI
+- Allow AI to query: "Show me all warnings before this error"
+- Respect privacy: mask sensitive data (API keys, passwords)
+- **Reference:** Sentry-for-AI SKILL.md: `get_issue_breadcrumbs` pattern
+- **Dependencies:** gap29_1, INotificationService
+- **Test:** BreadcrumbTests (4tests: record event, mask sensitive data, query breadcrumbs, respect limits)
+
+#### gap29_5: Error Fingerprinting & Deduplication
+- **Goal:** Identify if error is known/recurring
+- **Implementation:**
+- Generatefingerprint from stack trace (exception type + top 3 frames)
+- Check against cached errors from this session
+- If duplicate: show "This error occurred 3 times before" + previousresolutions AI found
+- If new: log fingerprint for future cross-session analysis
+- Support manual grouping: user can mark 2 errors as "same issue"
+- **Reference:** Sentry error fingerprinting
+- **Dependencies:** gap29_1, persistent error log
+- **Test:** FingerprintingTests (3 tests: match duplicate, new error, manual grouping)
+
+#### gap29_6: Distributed Tracing Support
+- **Goal:** Track execution flow across async/await boundaries
+- **Implementation:**
+- In future phases: Integrate with System.Diagnostics.DiagnosticSource
+- For now: Stub method that accepts distributed trace ID
+- Parse OpenTelemetry or W3C Trace Contextheaders
+- Display trace timeline in AI context UI
+- Show parent/child event relationships
+- **Reference:** Continue.js trace exploration (future)
+- **Dependencies:** gap29_1, gap29_4 (extends breadcrumbs)
+- **Test:** TracingTests (2 tests: parse trace ID, display trace timeline)
+
+#### gap29_7: Error Sink & Repository
+- **Goal:** Store all errors in a persistent, queryable repository
+- **Implementation:**
+- Create ~/.continue/errors/ folder to store error logs
+- Each error:JSON with timestamp, stack trace, fingerprint, user notes
+- When AI needs historical context: "Have we seen this before?"
+- Query API: GetErrorsByTimeRange(), GetErrorsByType(), GetErrorsByFingerprint()
+- Cleanup: Auto-delete errors older than 30 days
+- Support export: User can export error log as CSV/JSON for bug reports
+- **Dependencies:** gap29_1, gap29_5, IConfigService
+- **Test:** ErrorRepositoryTests (4tests: store error, query by type, cleanup old, export)
+
+#### gap29_8: Hybrid Debug Mode (Interactive + Autonomous)
+- **Goal:** Switch between user-driven debugging and AI-driven debugging
+- **Implementation:**
+- User can markin UI: "Switch to Debug Mode"
+- In debug mode: All input treated as debug commands, not chat messages
+- AI debugger can autonomously run tests, inspect variables, explore
+- User can regain control at any point
+- If AI seems stuck (5+ failed attempts same error): auto-switch back to interactive
+- Show clear visual indicator: "🔧 Debug Mode Active"
+- **Dependencies:** gap29_3, gap27(mode selector must support Debug)
+- **Test:** DebugModeTests (3 tests: switch to debug, auto-regain control, visual indicator)
+
+#### gap29_9: Sentry MCP Integration
+- **Goal:** Connect toSentry.io for cloud-based error tracking
+- **Implementation:**
+- User configures Sentry API key in settings
+- When error detected locally: Send to Sentry (if configured)
+- Query Sentry for similar historical issues
+- Pullissue resolution history and apply to current error
+- Show Sentry context in AI chat: "This error was fixed in PR #1234"
+- Respect privacy: Only send if user explicitly enables
+- **Reference:** Sentry-for-AI SKILL.md full integration, MCPService pattern
+- **Dependencies:** gap29_7, IMcpService, IConfigService
+- **Test:** SentryIntegrationTests (3 tests: send to Sentry, query issues, pull context)
+
+#### gap29_10: TraceRoot Visualization
+- **Goal:** Visual debugging UI for trace flow exploration
+- **Implementation:**
+- In future phases: Create visual panel showing:
+  - Timeline of events (vertical axis = time, horizontal = concurrency)
+  - Call stack treefor each event
+  - Filter by time range, status, exception type
+  - Click event to jump to code
+- For now: Stub UI panel that displays as text dump
+- Prepare datastructures for future visualization
+- **Reference:** Cline debug visualization, TraceRoot reference
+- **Dependencies:** gap29_6, future UI panel
+- **Test:** TraceVisualizationTests (2 tests: stub panel renders, data structures populate)
+
+---
+
+### gap30: Phase 4 – Polish, Analytics & Performance Optimization
+
+**Status:** NOT IMPLEMENTED | Type: Quality & Observability  
+**Phase:** 4 (Final Polish - Analytics, Performance, User Feedback)  
+**Priority:** MEDIUM (Improves reliability & user experience after core features work)  
+
+#### gap30_1: Analytics Framework Integration
+- **Goal:** Track user actions for product insights
+- **Implementation:**
+- Create IAnalyticsService interface
+- ImplementTelemetryService using Application Insights or Segment
+- Log events: mode_changed, policy_changed, tool_executed, error_occurred, session_created
+- Track metrics: avg_conversation_length, tools_per_session, mode_popularity
+- Anonymize user data; respect privacy settings
+- **Dependencies:** All previous gaps (provides instrumentation points)
+- **Test:** AnalyticsTests (3 tests: log event, track metric, anonymize data)
+
+#### gap30_2:Performance Monitoring
+- **Goal:** Identify bottlenecks and slow operations
+- **Implementation:**
+- Wrap ILlmService methods with stopwatch timing
+- Log durations: StreamAsync, GetCapabilitiesAsync, TokenCountAsync
+- Alert if operation exceeds threshold (e.g., 5 sec timeout)
+- Display performance stats in debug UI (future)
+- Aggregate metrics across sessions for trend analysis
+- **Dependencies:** gap4 (MessengerService stream), gap22 (context window)
+- **Test:** PerformanceMonitoringTests (3 tests: time operation, alert on timeout, aggregate metrics)
+
+#### gap30_3: User Feedback Collection
+- **Goal:** Allow users to rate responses and suggest improvements
+- **Implementation:**
+- Addthumbs up/down buttons below each AI response
+- Optional: Text feedback "What could be better?"
+- Store feedback with response ID and session metadata
+- Aggregate feedback to identifycommon UX issues
+- Don't be intrusive: Show feedback UI only on ~5% of responses
+- Respect "Do Not Track" preference in settings
+- **Dependencies:** All chat gaps,IAnalyticsService
+- **Test:** FeedbackTests (3 tests: log positive feedback, log negative with comment, respect do-not-track)
+
+#### gap30_4: Error Recovery & Resilience
+- **Goal:** Gracefully handle failures and provide recovery steps
+- **Implementation:**
+- Catch all exception types: IOException, HttpRequestException, TimeoutException
+- For each: Provide user-friendly message + recovery action
+- Example: "Model offline → Retry with Ollama?"
+- Implement exponential backoff for failed requests
+- Show "Retrying..." state with cancel option
+- Log all recovery attempts for analytics
+- **Dependencies:** gap4 (MessengerService), gap25 (error repository)
+- **Test:** ResiliencyTests (4 tests: handle timeout, retry succeeds, user cancels, log attempt)
+
+#### gap30_5: Documentation Auto-Generation
+- **Goal:** Create user docs from code attributes
+- **Implementation:**
+- Decorate all public servicemethods with [Documentation] attributes
+- Extract: method name, parameters, return type, description
+- Generate Markdown docs automatically
+- Create tool reference docs from ToolDefinition registry
+- Update docs on build,commit to `/docs` directory
+- Generate troubleshooting guide from error repository (gap29_7)
+- **Dependencies:** All gaps (provides content), build system
+- **Test:** DocGenerationTests (2 tests: extractdocs, generate markdown)
+
+#### gap30_6: Localization Setup (Framework)
+- **Goal:** Prepare for multi-language support
+- **Implementation:**
+- Extract all hardcoded strings to resource files (`.resx`)
+- Create ResourceManager for fallback to English
+- Set up structure for: de-DE, fr-FR, es-ES, zh-CN, ja-JP
+- Don't implement all languages yet; just framework
+- Use `CultureInfo.CurrentUICulture` toselect language
+- **Dependencies:** gap27 (mode names), gap29 (error messages), gap30_3 (feedback text)
+- **Test:** LocalizationTests (2 tests: load English resources, fallback to default)
+
+#### gap30_7: Settings Migration& Upgrade Path
+- **Goal:** Handle config.json schema changes across versions
+- **Implementation:**
+- Track schema version in config.json
+- Write migration functions: v1→v2, v2→v3, etc.
+- On startup, detect schema version and auto-migrate
+- Example: "v1 had 'models'; v2 has 'profiles/models'"
+- Backup old config before migration (user can rollback)
+- Log migration results
+- **Reference:** Redux-persist migration pattern (AGENTS.md)
+- **Dependencies:** IConfigService, gap25 (settings comprehensive)
+- **Test:** MigrationTests (3 tests: migrate v1→v2, backup old config, handle unknown version)
 
 ---
 
