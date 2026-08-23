@@ -193,5 +193,17 @@ namespace ContinueVS.Services.Implementations
                 Timestamp = DateTime.UtcNow
             });
         }
+
+        /// <summary>
+        /// Shows an error notification to the user (gap23_4_3).
+        /// </summary>
+        /// <param name="message">The error message to display.</param>
+        public void ShowError(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                throw new ArgumentNullException(nameof(message), "Error message cannot be null or empty.");
+
+            _ = ShowNotificationAsync("Error", message, NotificationType.Error);
+        }
     }
 }

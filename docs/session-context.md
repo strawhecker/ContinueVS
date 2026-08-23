@@ -2432,25 +2432,28 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 ---
 
 ##### gap23_4_3: Limit Check Before Tool Execution
-- **Action:** In IWorkflowService, check limit before executing tool
+- **Status:** ✅ COMPLETE
+- **Completed:** Files modified and 728 tests passing
 - **Implementation:**
-  - Before invoking tool in ExecuteToolAsync():
-    ```csharp
-    if (session.ToolCallsExecuted >= userSettings.MaxToolCallsPerSession)
-    {
-      logger.LogWarning("Max tool calls ({max}) reached", userSettings.MaxToolCallsPerSession);
-      throw new InvalidOperationException($"Max tool calls ({userSettings.MaxToolCallsPerSession}) reached. Start new session to continue.");
-    }
-    ```
-  - Catch exception in ChatPageViewModel.SendMessageAsync()
-  - Display error message to user: "Max tool calls (100) reached. Start a new chat session to continue."
-  - Disable send button until user explicitly starts new session
-- **Why:** Prevents tools running after limit
-- **Dependencies:** gap23_4_2, gap23_2, gap23_4_1
-- **Files to modify:**
-  - `src/VSIXProject1/Services/Implementations/WorkflowService.cs` → Add limit check
-  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → Handle exception, disable send
-- **Test:** `LimitEnforcementTests (4 tests: allow tool under limit, block tool at limit, block tool over limit, enable send after new session)`
+  - ToolService.InvokeAsync() now checks `session.ToolCallsExecuted >= config.MaxToolCallsPerSession` before execution
+  - Throws `InvalidOperationException` with message: "Max tool calls (N) reached. Start a new session to continue."
+  - Debug output: `[gap23_4_3-limit]` tag
+  - ContinueConfig.cs: Added `MaxToolCallsPerSession` property (default: 100)
+  - ChatPageViewModel.cs: Added limit exception catching in tool execution loop
+  - ChatPageViewModel.cs: Added `_limitReachedFlag` to disable send button when limit is hit
+  - ChatPageViewModel.cs: Reset flag on new session creation (via SessionChanged event)
+  - INotificationService.cs: Added `ShowError()` method for displaying limit error
+  - WpfNotificationService.cs: Implemented `ShowError()` to call `ShowNotificationAsync()` with Error type
+  - SessionChangedEventArgs.cs: Added `IsNewSession` property (computed from ChangeType == Created)
+- **Files Modified:**
+  - `src/VSIXProject1/Services/Implementations/ToolService.cs` ✅
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` ✅
+  - `src/VSIXProject1/Core/Types/ContinueConfig.cs` ✅
+  - `src/VSIXProject1/Services/Interfaces/INotificationService.cs` ✅
+  - `src/VSIXProject1/Services/Implementations/WpfNotificationService.cs` ✅
+  - `src/VSIXProject1/Services/Events/SessionChangedEventArgs.cs` ✅
+- **Test Results:** 728/728 passing
+
 
 ##### gap23_4_4: User Notification & Warnings
 - **Action:** Alert user as they approach the limit

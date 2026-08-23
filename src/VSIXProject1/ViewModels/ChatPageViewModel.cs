@@ -87,6 +87,12 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private int _toolFailureCount = 0;
 
+        /// <summary>
+        /// Flag to track if tool call limit has been reached (gap23_4_3).
+        /// Set when InvalidOperationException thrown, resets on new session.
+        /// </summary>
+        private bool _limitReachedFlag = false;
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
@@ -206,6 +212,17 @@ namespace ContinueVS.ViewModels
 
             _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
+
+            // gap23_4_3: Reset limit flag when session changes
+            _sessionService.SessionChanged += (s, e) =>
+            {
+                if (e.IsNewSession)
+                {
+                    _limitReachedFlag = false;
+                    SendMessageCommand.RaiseCanExecuteChanged();
+                    System.Diagnostics.Debug.WriteLine("[gap23_4_3-reset] Limit flag cleared on new session");
+                }
+            };
         }
 
         /// <summary>
@@ -240,6 +257,9 @@ namespace ContinueVS.ViewModels
                 // Fall back to empty UIState (all tools default to AskFirst)
                 _cachedUIState = new UIState();
             }
+
+            // Reset limit flag on initialization
+            _limitReachedFlag = false;
         }
 
         private async Task LoadModelsAsync()
@@ -572,6 +592,16 @@ namespace ContinueVS.ViewModels
                     System.Diagnostics.Debug.WriteLine($"[gap9-exec] Tool '{toolCall.Name}' executed successfully. Result: {result.Output}");
 
                 }
+                catch (InvalidOperationException ex)
+                {
+                    // gap23_4_3: Tool call limit reached (gap23_4_3)
+                    System.Diagnostics.Debug.WriteLine($"[gap23_4_3-limit-caught] {ex.Message}");
+                    _limitReachedFlag = true;
+                    await SwitchToMainThreadAsync();
+                    _notificationService?.ShowError(ex.Message);
+                    SendMessageCommand.RaiseCanExecuteChanged();
+                    throw; // Stop tool execution loop when limit is hit
+                }
                 catch (Exception ex)
                 {
                     toolMessage.Content = $"Tool '{toolCall.Name}' failed: {ex.Message}";
@@ -587,7 +617,8 @@ namespace ContinueVS.ViewModels
 
         private bool CanSendMessage()
         {
-            return !IsStreaming && !string.IsNullOrWhiteSpace(InputText);
+            // gap23_4_3: Disable send while limit is active
+            return !IsStreaming && !string.IsNullOrWhiteSpace(InputText) && !_limitReachedFlag;
         }
 
         private void ExecuteCancel()

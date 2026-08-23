@@ -81,6 +81,14 @@ namespace ContinueVS.Core.Types
         public DebugSettings Debug { get; set; } = new DebugSettings();
 
         /// <summary>
+        /// Maximum tool calls allowed per session (gap23_4_3).
+        /// When ToolCallsExecuted reaches this limit, no further tool executions are allowed.
+        /// Default: 100 calls per session.
+        /// </summary>
+        [JsonProperty("maxToolCallsPerSession")]
+        public int MaxToolCallsPerSession { get; set; } = 100;
+
+        /// <summary>
         /// Timestamp when the configuration was last modified.
         /// </summary>
         [JsonIgnore]

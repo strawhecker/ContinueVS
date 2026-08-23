@@ -45,6 +45,12 @@ namespace ContinueVS.Services.Interfaces
         Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "");
 
         /// <summary>
+        /// Shows an error notification to the user (gap23_4_3).
+        /// </summary>
+        /// <param name="message">The error message to display.</param>
+        void ShowError(string message);
+
+        /// <summary>
         /// Event raised when a notification is shown.
         /// </summary>
         event EventHandler<NotificationEventArgs>? NotificationShown;

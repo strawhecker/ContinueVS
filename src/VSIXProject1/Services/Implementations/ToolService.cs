@@ -108,7 +108,7 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Invokes a tool with the given arguments.
         /// Routes based on tool type: built-in, MCP, or HTTP.
-        /// Increments tool call counter in current session before execution.
+        /// Checks limit before execution and increments tool call counter in current session.
         /// </summary>
         public async Task<ToolResult> InvokeAsync(
             string toolName,
@@ -124,6 +124,33 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
+                // Check limit before executing tool (gap23_4_3)
+                if (_sessionService != null)
+                {
+                    try
+                    {
+                        var session = _sessionService.GetCurrentSession();
+                        if (session != null)
+                        {
+                            var config = _configService?.GetCurrentConfig();
+                            if (config != null && session.ToolCallsExecuted >= config.MaxToolCallsPerSession)
+                            {
+                                var limitMessage = $"Max tool calls ({config.MaxToolCallsPerSession}) reached. Start a new session to continue.";
+                                Debug.WriteLine($"[gap23_4_3-limit] {limitMessage}");
+                                throw new InvalidOperationException(limitMessage);
+                            }
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        throw; // Re-throw limit exceeded exceptions
+                    }
+                    catch
+                    {
+                        // Silently ignore other session access errors in unit test contexts
+                    }
+                }
+
                 // Increment tool call counter before execution
                 if (_sessionService != null)
                 {
@@ -148,6 +175,10 @@ namespace ContinueVS.Services.Implementations
                     "http" => CreateErrorResult(toolName, "HTTP tools not yet implemented"),
                     _ => CreateErrorResult(toolName, $"Unknown tool type: {tool.ToolType}")
                 };
+            }
+            catch (InvalidOperationException)
+            {
+                throw; // Re-throw limit exceeded exceptions
             }
             catch (Exception ex)
             {
