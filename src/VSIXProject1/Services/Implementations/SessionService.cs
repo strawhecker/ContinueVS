@@ -122,6 +122,7 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Loads a session by ID and sets it as the current session.
+        /// Restores mode from Session.Mode if present (gap27_5).
         /// </summary>
         public async Task LoadSessionAsync(string sessionId)
         {
@@ -142,6 +143,7 @@ namespace ContinueVS.Services.Implementations
                 SessionId = session.Id,
                 ChangeType = SessionChangeType.Updated,
                 Session = session,
+                CurrentMode = session.Mode,  // Restore mode from persisted Session.Mode (gap27_5)
                 Timestamp = DateTime.UtcNow
             });
         }
@@ -455,10 +457,12 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Sets the current chat mode and fires SessionChanged event for mode-change propagation (gap27_3).
+        /// Also updates Session.Mode for persistence (gap27_5).
         /// </summary>
         public async Task SetCurrentModeAsync(int newMode)
         {
             var session = GetCurrentSession();
+            session.Mode = newMode;  // Persist mode to current session (gap27_5)
             await SaveCurrentSessionAsync();
 
             SessionChanged?.Invoke(this, new SessionChangedEventArgs
@@ -472,3 +476,4 @@ namespace ContinueVS.Services.Implementations
         }
     }
 }
+

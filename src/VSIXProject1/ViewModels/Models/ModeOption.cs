@@ -20,14 +20,21 @@ namespace ContinueVS.ViewModels.Models
         public string Icon { get; }
 
         /// <summary>
+        /// Gets whether this mode is supported/known (gap27_4).
+        /// Unknown/future modes will be marked as unsupported.
+        /// </summary>
+        public bool IsSupported { get; }
+
+        /// <summary>
         /// Initializes a new instance of ModeOption.
         /// </summary>
-        public ModeOption(string name, ChatMode value, string description, string icon)
+        public ModeOption(string name, ChatMode value, string description, string icon, bool isSupported = true)
         {
             Name = name;
             Value = value;
             Description = description;
             Icon = icon;
+            IsSupported = isSupported;
         }
 
         /// <inheritdoc/>

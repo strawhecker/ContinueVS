@@ -164,6 +164,7 @@ namespace ContinueVS.ViewModels
         /// Gets or sets the currently selected mode option (gap27_1).
         /// Changing this property propagates the new ChatMode to CurrentMode.
         /// When set, delegates to IModeService.SetModeAsync() to fire mode-change events (gap27_3).
+        /// Also saves mode to config as default (gap27_5).
         /// </summary>
         public ModeOption? SelectedMode
         {
@@ -178,6 +179,8 @@ namespace ContinueVS.ViewModels
                         // Mode enums are compatible; cast to int for service call
                         _ = _modeService.SetModeAsync((int)value.Value);
                     }
+                    // gap27_5: Save selected mode to config as default
+                    _ = _configService.SaveDefaultModeAsync((int)value.Value);
                 }
             }
         }
@@ -362,6 +365,14 @@ namespace ContinueVS.ViewModels
                 }
                 // gap23_4_5: Refresh counter display on any session change
                 RefreshToolCallCounter();
+
+                // gap27_5: Restore mode from session when loading (CurrentMode set in event)
+                if (e.CurrentMode.HasValue)
+                {
+                    var restoredMode = Services.Utilities.ModeValidator.CoerceToValidMode(e.CurrentMode.Value);
+                    System.Diagnostics.Debug.WriteLine($"[gap27_5-restore] Session loaded with mode {e.CurrentMode.Value}, coerced to {restoredMode}");
+                    CurrentMode = (ChatMode)restoredMode;
+                }
             };
         }
 
@@ -403,6 +414,28 @@ namespace ContinueVS.ViewModels
 
             // gap23_4_5: Initialize and display tool call counter
             RefreshToolCallCounter();
+
+            // gap27_5: Load default mode from config on startup
+            try
+            {
+                var defaultMode = await _configService.GetDefaultModeAsync();
+                var coercedMode = Services.Utilities.ModeValidator.CoerceToValidMode(defaultMode);
+                System.Diagnostics.Debug.WriteLine($"[gap27_5-init] Loaded default mode from config: {defaultMode}, coerced to {coercedMode}");
+
+                // Update CurrentMode and sync SelectedMode
+                CurrentMode = (ChatMode)coercedMode;
+                var modeOption = AvailableModes.FirstOrDefault(m => (int)m.Value == coercedMode);
+                if (modeOption != null && !ReferenceEquals(_selectedMode, modeOption))
+                {
+                    _selectedMode = modeOption;
+                    RaisePropertyChanged(nameof(SelectedMode));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap27_5-init-error] Failed to load default mode: {ex.Message}");
+                // Default to Ask (already the default in _currentMode)
+            }
         }
 
         private async Task LoadModelsAsync()

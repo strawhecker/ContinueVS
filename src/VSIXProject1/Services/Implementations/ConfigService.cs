@@ -690,5 +690,61 @@ namespace ContinueVS.Services.Implementations
             // Persist to disk
             await SaveConfigAsync();
         }
+
+        /// <summary>
+        /// Saves the default chat mode to configuration (gap27_5).
+        /// Mode is persisted to config.json under "defaultMode" field.
+        /// </summary>
+        /// <param name="mode">The mode integer (0=Ask, 1=Agent, 2=Plan).</param>
+        public async Task SaveDefaultModeAsync(int mode)
+        {
+            await Task.Run(() =>
+            {
+                lock (_lock)
+                {
+                    ThrowIfNotInitialized();
+
+                    const string defaultModeKey = "defaultMode";
+                    _currentConfig.CustomSettings[defaultModeKey] = mode.ToString();
+                    _currentConfig.LastModified = DateTime.UtcNow;
+
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.SaveDefaultModeAsync] Saved default mode {mode} to CustomSettings[\"{defaultModeKey}\"]");
+                }
+            });
+
+            // Persist to disk
+            await SaveConfigAsync();
+        }
+
+        /// <summary>
+        /// Gets the default chat mode from configuration (gap27_5).
+        /// If missing or invalid, returns Ask (0).
+        /// </summary>
+        /// <returns>The mode integer (0=Ask, 1=Agent, 2=Plan), or Ask if not configured.</returns>
+        public async Task<int> GetDefaultModeAsync()
+        {
+            return await Task.Run(() =>
+            {
+                lock (_lock)
+                {
+                    ThrowIfNotInitialized();
+
+                    const string defaultModeKey = "defaultMode";
+                    if (_currentConfig.CustomSettings.ContainsKey(defaultModeKey))
+                    {
+                        var modeValue = _currentConfig.CustomSettings[defaultModeKey]?.ToString();
+                        if (!string.IsNullOrEmpty(modeValue) && int.TryParse(modeValue, out var mode))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[ConfigService.GetDefaultModeAsync] Retrieved default mode: {mode}");
+                            return mode;
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetDefaultModeAsync] No default mode configured, returning Ask (0)");
+                    return 0; // Default to Ask
+                }
+            });
+        }
     }
 }
+

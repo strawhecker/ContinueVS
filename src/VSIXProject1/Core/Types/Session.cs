@@ -53,5 +53,13 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("toolCallsExecuted")]
         public int ToolCallsExecuted { get; set; }
+
+        /// <summary>
+        /// Stores the chat mode used in this session (gap27_5).
+        /// 0 = Ask, 1 = Agent, 2 = Plan.
+        /// Persisted to session JSON for history restoration.
+        /// </summary>
+        [JsonProperty("mode")]
+        public int Mode { get; set; } = 0;
     }
 }

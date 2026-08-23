@@ -117,5 +117,20 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="state">The UIState to persist.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task SaveUIStateAsync(UIState state);
+
+        /// <summary>
+        /// Saves the default chat mode to configuration (gap27_5).
+        /// Mode is persisted to config.json under "defaultMode" field.
+        /// </summary>
+        /// <param name="mode">The mode integer (0=Ask, 1=Agent, 2=Plan).</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task SaveDefaultModeAsync(int mode);
+
+        /// <summary>
+        /// Gets the default chat mode from configuration (gap27_5).
+        /// If missing or invalid, returns Ask (0).
+        /// </summary>
+        /// <returns>The mode integer (0=Ask, 1=Agent, 2=Plan), or Ask if not configured.</returns>
+        Task<int> GetDefaultModeAsync();
     }
 }

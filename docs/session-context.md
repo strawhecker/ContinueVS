@@ -3027,23 +3027,57 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Build Status:** All C# code compiles cleanly (XAML designer errors pre-existing, not gap27_3 related)
 
 #### gap27_4: Future Mode Graceful Degradation
-- **Goal:** If systemadds new modes in future, dropdown handles gracefully
+- **Goal:** If system adds new modes in future, dropdown handles gracefully
+- **Status:** ✅ COMPLETE
 - **Implementation:**
-- ModeOption uses enum + switch for known modes, with fallback for unknown
-- Dropdown shows unknown modes as disabled or grayed out
-- SelectedMode coerces to Ask if mode is unsupported
-- Log warning if unsupported mode is selected
+  - Created ModeValidator utility for centralized mode validation and coercion
+  - ModeValidator.IsValidMode() detects known (0–2) vs unknown/future modes
+  - ModeValidator.CoerceToValidMode() coerces unknown modes to Ask (0)
+  - ModeOption.IsSupported property flags unsupported modes
+  - Graceful fallback: unknown modes default to Ask without crashes
 - **Dependencies:** gap27_1
-- **Test:** FutureModeSupportTests (2 tests: unknown mode shows, coerces to default)
+- **Code Changes:**
+  - Created src/VSIXProject1/Utilities/ModeValidator.cs with validation logic
+  - Updated ModeOption.cs to include IsSupported property
+- **Tests:** FutureModeSupportTests - 6 xUnit tests (unknown mode detection, coercion, negative values)
+- **Build Status:** All C# code compiles cleanly
 
 #### gap27_5: Mode Persistence & Restoration
-- **Goal:** Remember user's last selected mode across restarts
+- **Goal:** Remember user's selected mode at two levels:
+  1. **Per-Session:** Store mode used in each conversation session file for history restoration
+  2. **Global:** Store last selected mode in config.json as application default
+- **Status:** ✅ COMPLETE
 - **Implementation:**
-- When mode changes, save to config.json under "defaultMode" field
-- On startup, read value and setSelectedMode in ChatPageViewModel
-- If config missing or invalid, default to Ask
-- **Dependencies:** gap27_3, IConfigService.SaveAsync()
-- **Test:** ModePersistenceTests (3 tests: save mode, load mode, restore onstartup)
+  - Added [JsonProperty("mode")] field to Session model to store mode (0=Ask, 1=Agent, 2=Plan) in session JSON files
+  - SessionService.SetCurrentModeAsync() updates Session.Mode before persisting to disk
+  - SessionService.LoadSessionAsync() restores mode from Session.Mode and fires event with mode in CurrentMode field
+  - ConfigService.SaveDefaultModeAsync() persists mode to config.json under "defaultMode" field
+  - ConfigService.GetDefaultModeAsync() retrieves default mode from config, returns Ask (0) if missing/invalid
+  - ChatPageViewModel.InitializeAsync() loads default mode on startup and restores SelectedMode
+  - ChatPageViewModel session load handler restores mode when session changes
+  - SelectedMode setter saves mode to config via SaveDefaultModeAsync()
+- **Dependencies:** gap27_3 (Mode Change Event Propagation), IConfigService, Session serialization
+- **Code Changes:**
+  - Session.cs: Added public int Mode { get; set; } = 0 with JsonProperty
+  - IConfigService.cs: Added SaveDefaultModeAsync(int mode) and GetDefaultModeAsync()
+  - ConfigService.cs: Implemented default mode get/save with config persistence
+  - SessionService.cs: Updated SetCurrentModeAsync to persist mode; updated LoadSessionAsync to restore
+  - ChatPageViewModel.cs: Added mode restoration on startup and session load; added mode save on selection
+  - ModeOption.cs: Added IsSupported property
+- **Tests:** ModePersistenceTests - 8 xUnit tests (session save/load, config save/load, combined operations)
+- **Build Status:** All C# code compiles cleanly
+- **Code Changes:**
+  - Session.cs: Add `public int Mode { get; set; } = 0;` property with JsonProperty
+  - SessionService.SetCurrentModeAsync(): Update session.Mode before saving
+  - SessionService.LoadSessionAsync(): Fire mode-change event with session.Mode when loading
+  - ChatPageViewModel: Load defaultMode from config on initialization, restore if valid
+  - ServiceBootstrapper or ConfigService: Persist mode to config.json when SetCurrentModeAsync is called
+- **Test:** ModePersistenceTests (5 tests: 
+  - session stores mode, 
+  - session restores mode on load, 
+  - global default mode saves to config, 
+  - global default mode restores on startup, 
+  - mode auto-updates session and config in same operation)
 
 #### gap27_6: Mode Description & Help Text
 - **Goal:** Show user-friendly descriptions for each mode in UI
@@ -3059,7 +3093,7 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Goal:** Add visual icons to each mode option
 - **Implementation:**
 - ModeOption includes Icon property (BitmapImage or SVG path)
--Use Material Design icons or custom SVGs for each mode
+- Use Material Design icons or custom SVGs for each mode
 - Display icon in ComboBox item template: Icon + Name side-by-side
 - Highlight icon style based on selection state
 - **Dependencies:** gap27_1

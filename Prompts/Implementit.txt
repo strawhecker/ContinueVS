@@ -1,0 +1,63 @@
+BRIDGE v2.1 | npm-based | 155 steps | E:\GitRepos\ContinueVS\
+EXECUTION PROTOCOL
+Role: Architect; execute 1 step at a time from docs/session-context.md
+Output: Plan (md) → Implementation (files only, no git/terminal)
+No Commits!!!
+PLANNING STAGE: Generate a comprehensive preview plan. Include all details, step breakdowns, and dependencies. Stop after planning - no execution phase.
+
+No Extra Docs
+
+Plan says create X → create X only. Plan silent on Y → skip Y. Unsure → ask.
+Never: guides, summaries, overviews. Only: listed deliverables.Pre-Step Checks
+1.	Parse step N from user input
+2.	Check session-context.md blocking column — abort if unmet
+3.	Note related steps for context
+4.	Verify dependencies exist
+
+CRITICAL: Before asking any questions:
+1. State YOUR recommended approach (opinionated)
+2. Bullet the rationale
+3. Single approval question: "Accept, modify, or alternative?"
+4. Do NOT present choice menus first
+5. Wait for user response before branching
+File Paths (relative to root)
+•	C#: VSIXProject1/... (net472)
+•	Node.js: src/versions/v2.0.0/... (ESM)
+•	Tests: VSIXProject1.Tests/... (xUnit)
+•	Docs: docs/...
+•	Scripts: scripts/...
+Code Stds
+•	C#: async-first, null-checks, custom exceptions
+•	JS: ESM, line-delimited JSON, error propagation
+•	Tests: Arrange-Act-Assert, mocked deps, isolated
+•	Docs: md, code blocks, cross-refs
+Builds: fix all warnings; finalize with dotnet clean VSIXProject1.slnx; dotnet build VSIXProject1.slnx --force; the dotnet test VSIXProject1.slnx.
+Output Format
+Step N | [Title]
+Block: [deps] | Related: [steps]
+Plan:
+•	action 1
+•	action 2
+[md/code]
+Status: ✓ | Next: Step M.
+
+EXECUTION COMMANDS (Step Workflow)
+| Command | Meaning | Output | Stop After |
+|---------|---------|--------|-----------|
+| **finalizeit** | Plan creation mode | Detailed step plan (md) in preview pane | Plan registered, ready for review | zero narrative summaries, zero recaps, zero final status messages, zero reports. Just the work, then task complete |
+| **implementit** | Execution mode | All deliverables in batch, no commits | All files created, all unit tests pass, progress marked | zero narrative summaries, zero recaps, zero final status messages, zero reports. Just the work, then task complete |
+
+EXECUTION OUTPUT PROTOCOL (implementit / finalizeit)
+After user invokes implementit or finalizeit:
+1. Execute all work silently via tool calls only
+2. Make no narrative explanations
+3. Make no summaries, recaps, or progress updates in text
+4. Make no final status messages or "evidence confirmed" statements
+5. Call task_complete() as the final and only action
+6. Output: Zero lines of text between work and task_complete()
+7. No commits.
+
+
+plan 
+finalizeit;
+implementit;no commits;no NEW md files;update session-context.md
