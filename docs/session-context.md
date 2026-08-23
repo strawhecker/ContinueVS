@@ -2597,7 +2597,15 @@ public static class SettingsMigration
 }
 ```
 
-**Workaround:** Manual setting reset (delete continueVS.json, re-run)
+**Workaround:** None needed — implementation complete
+
+**Implementation Summary:**
+- **Created:** `src/VSIXProject1/Core/Types/SettingsMigration.cs` (static utility for schema versioning)
+- **Created:** `src/VSIXProject1.Tests/Core/SettingsMigrationTests.cs` (9 unit tests, all passing)
+- **Modified:** `src/VSIXProject1/Services/Implementations/ConfigService.cs` (integration in InitializeAsync)
+- **Test Results:** 9/9 SettingsMigrationTests pass; 20/20 ConfigServiceTests pass; full build successful
+- **How It Works:** ConfigService calls SettingsMigration.MigrateCustomSettings() after deserializing config.json
+- **Design:** Static utility (no DI), extensible (v0→v1, v1→v2, etc.), defensive (null-safe)
 
 **Fix Priority:** ðŸŸ¡ MEDIUM â€” Future-proofing for upgrades
 

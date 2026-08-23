@@ -82,6 +82,9 @@ namespace ContinueVS.Services.Implementations
                             ?? (await CreateDefaultConfigAsync());
                         System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Loaded from file. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
 
+                        // Apply schema migrations for CustomSettings (v0→v1, etc.)
+                        CoreTypes.SettingsMigration.MigrateCustomSettings(_currentConfig);
+
                         // Migrate/upgrade: populate OllamaModelId for any missing entries
                         bool needsSave = false;
                         foreach (var model in _currentConfig.Models)
