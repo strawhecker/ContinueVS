@@ -2960,22 +2960,30 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 **Priority:** HIGH (Blocking user testing of chat modes)  
 
 #### gap27_1: Mode Dropdown Data Binding
-- **Goal:** Replace three radio buttons (Ask, Agent, Plan) with a single ComboBox dropdown
-- **Why:** Reduces toolbar clutter; aligns with Continue.js UI pattern
-- **Implementation:**
-  - Add `ObservableCollection<ModeOption>` to ChatPageViewModel
-  - Define ModeOption class with Name, Value, Description, Icon properties
-  - Populate collection in ViewModel constructor: {"Ask", Ask}, {"Agent", Agent}, {"Plan", Plan}
-  - Add `SelectedMode` property (two-way binding target)
-  - Subscribe to SelectedMode changes; propagate to service layer
-- **Dependencies:** gap2 (ChatPage binding fixed), ChatPageViewModel
-- **Test:** ModeDropdownBindingTests (5 tests: load options, select option, change event fires, persistence)
+**Status:** ✅ Complete | Type: UI Mode Selector Refactor
+**Implementation:**
+- Created `ModeOption` class in `src/VSIXProject1/ViewModels/Models/ModeOption.cs` with Name, Value (ChatMode), Description, Icon properties and ToString() override
+- Extended ChatPageViewModel:
+  - Added `ObservableCollection<ModeOption> AvailableModes` property (lazy-initialized; 3 options: Ask, Agent, Plan)
+  - Added `ModeOption? SelectedMode` property with two-way binding; setter propagates to `CurrentMode`
+  - Updated `CurrentMode` setter to sync `SelectedMode` back when changed externally (bidirectional sync via SetModeCommand)
+  - Constructor initializes `_selectedMode` to match initial `_currentMode` (Ask)
+- Updated `ChatPage.xaml` Grid.Row="3": removed 3 RadioButtons (Ask/Agent/Plan); replaced with single ComboBox bound to `AvailableModes`/`SelectedMode` using `ThemedComboBoxStyle`
+- Added `ModeDropdownBindingTests.cs` (6 tests): load 3 options, contains Ask/Agent/Plan, default Ask selection, SelectedMode→CurrentMode sync, CurrentMode→SelectedMode sync, PropertyChanged fires
+- Build: 0 warnings, 0 errors; 6/6 new tests pass
+
+**Files Modified:**
+- src/VSIXProject1/ViewModels/Models/ModeOption.cs: New file
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs: AvailableModes collection, SelectedMode property, bidirectional sync
+- src/VSIXProject1/UI/Pages/ChatPage.xaml: RadioButtons replaced with ComboBox
+- src/VSIXProject1.Tests/UI/ModeDropdownBindingTests.cs: New file (6 tests)
 
 #### gap27_2: XAML Dropdown Control Replacement
 - **Goal:** Replace 3 radio buttons with 1 ComboBox in ChatPage.xaml
 - **Implementation:**
   - Remove StackPanel with three RadioButton controls (Ask/Agent/Plan buttons)
   - Add ComboBox with ItemsSource="{Binding ModeOptions}", SelectedItem="{Binding SelectedMode, Mode=TwoWay}", DisplayMemberPath="Name"
+
   - Add TextBlock label "Mode:" before ComboBox
   - Apply consistent styling (padding, font, colors)
   - Add visual separator (Border) after mode dropdown

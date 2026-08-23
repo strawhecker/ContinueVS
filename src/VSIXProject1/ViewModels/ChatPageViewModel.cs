@@ -13,6 +13,7 @@ using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Utilities;
+using ContinueVS.ViewModels.Models;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 
@@ -124,9 +125,55 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private bool _onboardingCardVisible = true;
 
+        /// <summary>
+        /// Backing collection for available chat mode options (gap27_1).
+        /// </summary>
+        private ObservableCollection<ModeOption>? _availableModes;
+
+        /// <summary>
+        /// Backing field for the currently selected mode option (gap27_1).
+        /// </summary>
+        private ModeOption? _selectedMode;
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
+
+        /// <summary>
+        /// Gets the available chat mode options for the mode dropdown (gap27_1).
+        /// </summary>
+        public ObservableCollection<ModeOption> AvailableModes
+        {
+            get
+            {
+                if (_availableModes == null)
+                {
+                    _availableModes = new ObservableCollection<ModeOption>
+                    {
+                        new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "💬"),
+                        new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "🤖"),
+                        new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "📋")
+                    };
+                }
+                return _availableModes;
+            }
+}
+
+        /// <summary>
+        /// Gets or sets the currently selected mode option (gap27_1).
+        /// Changing this property propagates the new ChatMode to CurrentMode.
+        /// </summary>
+        public ModeOption? SelectedMode
+        {
+            get => _selectedMode;
+            set
+            {
+                if (Set(ref _selectedMode, value) && value != null)
+                {
+                    CurrentMode = value.Value;
+                }
+            }
+        }
 
         public string? InputText
         {
@@ -172,6 +219,10 @@ namespace ContinueVS.ViewModels
                 {
                     System.Diagnostics.Debug.WriteLine($"[a9-property-set-success] Set() returned true, property changed. New _currentMode={_currentMode}, PropertyChanged notification raised");
                     SendMessageCommand.RaiseCanExecuteChanged();
+                    // gap27_1: keep SelectedMode in sync when CurrentMode is set externally (e.g. SetModeCommand)
+                    var matching = AvailableModes.FirstOrDefault(m => m.Value == _currentMode);
+                    if (matching != null && !ReferenceEquals(_selectedMode, matching))
+                        Set(ref _selectedMode, matching, nameof(SelectedMode));
                 }
                 else
                 {
@@ -272,6 +323,9 @@ namespace ContinueVS.ViewModels
             AvailableModels = new ObservableCollection<ModelInfo>();
             _inputText = string.Empty;
             _streamingResponse = string.Empty;
+
+            // gap27_1: Initialize SelectedMode to match the default CurrentMode (Ask)
+            _selectedMode = AvailableModes.FirstOrDefault(m => m.Value == _currentMode);
 
             // gap25_6: Subscribe to messages collection changes to sync onboarding card visibility
             Messages.CollectionChanged += OnMessages_CollectionChanged;
