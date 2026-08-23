@@ -296,9 +296,11 @@ namespace ContinueVS.Tests.Services
             var updatedConfig = CreateMockConfig(18);
             _mockConfigService.Setup(cs => cs.GetCurrentConfig()).Returns(updatedConfig);
 
-            service.GetType()
-                .GetMethod("OnConfigFileChanged", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
-                .Invoke(service, new object[] { service, new FileSystemEventArgs(WatcherChangeTypes.Changed, _testConfigDir, "continueVS.json") });
+            var method = service.GetType()
+                .GetMethod("OnConfigFileChanged", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(method);
+
+            method.Invoke(service, new object[] { service, new FileSystemEventArgs(WatcherChangeTypes.Changed, _testConfigDir, "continueVS.json") });
 
             // Assert
             Assert.True(subscriber1Changed);

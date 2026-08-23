@@ -170,6 +170,8 @@ namespace ContinueVS.Services.Implementations
             if (_disposed)
                 return;
 
+            _disposed = true;
+
             if (disposing)
             {
                 lock (_lock)
@@ -178,8 +180,6 @@ namespace ContinueVS.Services.Implementations
                     _watcher = null;
                 }
             }
-
-            _disposed = true;
         }
 
         /// <summary>

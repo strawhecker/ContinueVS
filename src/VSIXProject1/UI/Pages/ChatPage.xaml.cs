@@ -205,5 +205,27 @@ namespace ContinueVS.UI.Pages
                 }
             }
         }
+
+        /// <summary>
+        /// Event handler for dismissing the warning banner (gap23_4_4).
+        /// </summary>
+        private void DismissWarningBanner_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is ChatPageViewModel vm)
+            {
+                vm.DismissWarningBannerCommand();
+            }
+        }
+
+        /// <summary>
+        /// Event handler for dismissing the error banner (gap23_4_4).
+        /// </summary>
+        private void DismissErrorBanner_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is ChatPageViewModel vm)
+            {
+                vm.ShowErrorBanner = false;
+            }
+        }
     }
 }

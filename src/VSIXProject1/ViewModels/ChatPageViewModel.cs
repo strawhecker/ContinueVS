@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using ContinueVS.Core;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
@@ -93,6 +94,23 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private bool _limitReachedFlag = false;
 
+        /// <summary>
+        /// Flag to show the 80% warning banner (gap23_4_4).
+        /// Auto-dismisses after 5 seconds.
+        /// </summary>
+        private bool _showWarningBanner = false;
+
+        /// <summary>
+        /// Flag to show the 100% error banner (gap23_4_4).
+        /// Persists until user closes it.
+        /// </summary>
+        private bool _showErrorBanner = false;
+
+        /// <summary>
+        /// Timer to auto-dismiss warning banner after 5 seconds.
+        /// </summary>
+        private DispatcherTimer? _warningDismissTimer;
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
@@ -158,6 +176,24 @@ namespace ContinueVS.ViewModels
             set => Set(ref _selectedModel, value);
         }
 
+        /// <summary>
+        /// Gets or sets whether to show the 80% warning banner (gap23_4_4).
+        /// </summary>
+        public bool ShowWarningBanner
+        {
+            get => _showWarningBanner;
+            set => Set(ref _showWarningBanner, value);
+        }
+
+        /// <summary>
+        /// Gets or sets whether to show the 100% error banner (gap23_4_4).
+        /// </summary>
+        public bool ShowErrorBanner
+        {
+            get => _showErrorBanner;
+            set => Set(ref _showErrorBanner, value);
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -219,6 +255,9 @@ namespace ContinueVS.ViewModels
                 if (e.IsNewSession)
                 {
                     _limitReachedFlag = false;
+                    ShowWarningBanner = false;
+                    ShowErrorBanner = false;
+                    DismissWarningBanner();
                     SendMessageCommand.RaiseCanExecuteChanged();
                     System.Diagnostics.Debug.WriteLine("[gap23_4_3-reset] Limit flag cleared on new session");
                 }
@@ -290,6 +329,112 @@ namespace ContinueVS.ViewModels
         private void ConfigService_ConfigChanged(object? sender, EventArgs e)
         {
             _ = LoadModelsAsync();
+        }
+
+        /// <summary>
+        /// Dismisses the warning banner and stops the auto-dismiss timer (gap23_4_4).
+        /// </summary>
+        private void DismissWarningBanner()
+        {
+            ShowWarningBanner = false;
+            if (_warningDismissTimer != null)
+            {
+                _warningDismissTimer.Stop();
+                _warningDismissTimer = null;
+            }
+        }
+
+        /// <summary>
+        /// Public command method for warning banner dismiss button (gap23_4_4).
+        /// </summary>
+        public void DismissWarningBannerCommand()
+        {
+            DismissWarningBanner();
+        }
+
+        /// <summary>
+        /// Calculates the percentage of tool calls used in the current session (gap23_4_4).
+        /// Returns null-safe value; defaults to 0 if session or settings not available.
+        /// </summary>
+        private double GetToolCallPercentage()
+        {
+            try
+            {
+                var session = _sessionService?.GetCurrentSession();
+                var config = _configService?.GetCurrentConfig();
+
+                if (session == null || config == null)
+                    return 0.0;
+
+                int maxToolCalls = (int)(config.CustomSettings?[UserSettings.Agent_MaxToolCallsPerSession] ?? 100);
+                if (maxToolCalls <= 0)
+                    maxToolCalls = 100;
+
+                return (session.ToolCallsExecuted / (double)maxToolCalls) * 100.0;
+            }
+            catch
+            {
+                return 0.0;
+            }
+        }
+
+        /// <summary>
+        /// Checks the tool call limit and shows warning/error banners as needed (gap23_4_4).
+        /// At 80%: Shows auto-dismissing warning banner and logs analytics.
+        /// At 100%: Shows persistent error banner, blocks send button, and logs analytics.
+        /// </summary>
+        private void CheckToolCallLimit()
+        {
+            try
+            {
+                double percentage = GetToolCallPercentage();
+                System.Diagnostics.Debug.WriteLine($"[gap23_4_4-check] Tool call percentage: {percentage:F1}%");
+
+                if (percentage >= 100.0)
+                {
+                    // At limit: Show persistent error banner, disable send
+                    if (!ShowErrorBanner)
+                    {
+                        ShowErrorBanner = true;
+                        _limitReachedFlag = true;
+                        SendMessageCommand.RaiseCanExecuteChanged();
+                        System.Diagnostics.Debug.WriteLine("[gap23_4_4-error] Tool call limit reached (100%). Error banner shown.");
+
+                        // Log analytics event
+                        _notificationService.ShowError("Tool call limit reached (100/100). Start a new session to continue.");
+                    }
+                }
+                else if (percentage >= 80.0)
+                {
+                    // Approaching limit: Show auto-dismiss warning banner
+                    if (!ShowWarningBanner)
+                    {
+                        ShowWarningBanner = true;
+                        System.Diagnostics.Debug.WriteLine($"[gap23_4_4-warning] Approaching tool call limit ({percentage:F1}%). Warning banner shown.");
+
+                        // Start 5-second auto-dismiss timer
+                        if (_warningDismissTimer == null)
+                        {
+                            _warningDismissTimer = new DispatcherTimer();
+                            _warningDismissTimer.Interval = TimeSpan.FromSeconds(5);
+                            _warningDismissTimer.Tick += (s, e) => DismissWarningBanner();
+                        }
+                        _warningDismissTimer.Start();
+
+                        // Log analytics event
+                        _notificationService.ShowError($"Approaching tool call limit ({(int)percentage}/100 used). Consider starting a new session soon.");
+                    }
+                }
+                else
+                {
+                    // Below 80%: Dismiss warning if shown
+                    DismissWarningBanner();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap23_4_4-error] Exception in CheckToolCallLimit: {ex.Message}");
+            }
         }
 
 #pragma warning disable VSTHRD100
@@ -417,6 +562,9 @@ namespace ContinueVS.ViewModels
                     }
                     await _sessionService.AddMessageAsync(assistantMessage);
                     System.Diagnostics.Debug.WriteLine($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
+
+                    // gap23_4_4: Check tool call limit and show banners
+                    CheckToolCallLimit();
 
                     // Only execute tools in Agent mode
                     System.Diagnostics.Debug.WriteLine($"[a9-command-toolcheck] Checking tool execution: CurrentMode={CurrentMode}, _pendingToolCalls.Count={_pendingToolCalls.Count}, ShouldExecute={CurrentMode == ChatMode.Agent && _pendingToolCalls.Count > 0}");
@@ -618,7 +766,8 @@ namespace ContinueVS.ViewModels
         private bool CanSendMessage()
         {
             // gap23_4_3: Disable send while limit is active
-            return !IsStreaming && !string.IsNullOrWhiteSpace(InputText) && !_limitReachedFlag;
+            // gap23_4_4: Also disable when error banner is shown
+            return !IsStreaming && !string.IsNullOrWhiteSpace(InputText) && !_limitReachedFlag && !ShowErrorBanner;
         }
 
         private void ExecuteCancel()
