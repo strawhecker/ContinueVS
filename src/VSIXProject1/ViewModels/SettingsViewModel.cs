@@ -14,6 +14,7 @@ namespace ContinueVS.ViewModels
     public class SettingsViewModel : ViewModelBase
     {
         private readonly IConfigService _configService;
+        private readonly Services.Implementations.SettingsSyncService? _syncService;
 
         // Chat settings
         private bool _showSessionTabs;
@@ -178,6 +179,18 @@ namespace ContinueVS.ViewModels
             Debug.WriteLine("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR CALLED");
 
             _configService = configService;
+
+            // Initialize sync service to monitor config changes
+            try
+            {
+                _syncService = new Services.Implementations.SettingsSyncService(configService);
+                _syncService.PropertyChanged += OnSyncServicePropertyChanged;
+                Debug.WriteLine("[SettingsViewModel-ctor] SettingsSyncService initialized");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SettingsViewModel-ctor] Failed to initialize SettingsSyncService: {ex.Message}");
+            }
 
             // Initialize all settings to defaults
             var defaults = UserSettings.GetDefaults();
@@ -387,6 +400,30 @@ namespace ContinueVS.ViewModels
             var defaultValue = UserSettings.GetDefault(key);
             if (defaultValue is string defaultStr) return defaultStr;
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Handles PropertyChanged events from SettingsSyncService.
+        /// Updates SettingsViewModel properties when sync service detects config file changes.
+        /// </summary>
+        private void OnSyncServicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            try
+            {
+                if (e.PropertyName == nameof(Services.Implementations.SettingsSyncService.FontSize))
+                {
+                    if (_syncService != null && _fontSize != _syncService.FontSize)
+                    {
+                        _fontSize = _syncService.FontSize;
+                        RaisePropertyChanged(nameof(FontSize));
+                        Debug.WriteLine($"[SettingsViewModel] FontSize synced from file to {_fontSize}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SettingsViewModel] Error handling sync service property change: {ex.Message}");
+            }
         }
     }
 }

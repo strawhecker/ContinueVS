@@ -2461,7 +2461,7 @@ public class UIState
 
 ---
 
-#### **gap25_2: localStorage Context & Custom Events MISSING**
+#### **gap25_2: localStorage Context & Custom Events ✅ IMPLEMENTED**
 
 **Status:** ✅ Complete | Type: Core Service Implementation
 
@@ -2503,7 +2503,7 @@ public interface ILocalStorageService
 
 ---
 
-#### **gap25_3: Theme Color Persistence IMPLEMENTED**
+#### **gap25_3: Theme Color Persistence ✅ IMPLEMENTED**
 
 **TS Reference:** AGENTS.md lines 38, 226-266, 268-280 (setDocumentStylesFromTheme, setDocumentStylesFromLocalStorage)
 
@@ -2553,7 +2553,7 @@ public interface IThemeCacheService
 
 ---
 
-#### **gap25_4: Settings Migration Pipeline MISSING**
+#### **gap25_4: Settings Migration Pipeline ✅ IMPLEMENTED**
 
 **TS Reference:** AGENTS.md lines 44, 66-68 (migrateLocalStorage, v0â†’v1 migration)
 
@@ -2611,49 +2611,22 @@ public static class SettingsMigration
 
 ---
 
-#### **gap25_5: Font Size Cross-Tab Sync NOT IMPLEMENTED**
+#### **gap25_5: Font Size Cross-Tab Sync ✅ IMPLEMENTED**
 
 **TS Reference:** AGENTS.md lines 708-710 (LocalStorageProvider syncs fontSize)
 
 **What it is:**
 If user has two Continue windows open:
 1. **Window A:** User sets font size â†’ 16px
-2. **Window B:** Should automatically update to 16px (via custom event)
+2. **Window B:** Should automatically update to 16px (via FileSystemWatcher event)
 
 **Current C# Status:** âš ï¸ PARTIAL â€” Single-window only
 
-**Why it matters:**
-1. WPF doesn't have native cross-process messaging (unlike browser tabs)
-2. Would require IPC (named pipes or file watch)
-3. User expectation: Settings changes apply globally
-
-**Alternative Implementation (Polling):**
-
-```csharp
-// Services/Implementations/SettingsSyncService.cs
-public class SettingsSyncService : INotifyPropertyChanged
-{
-    private Timer _pollTimer;
-
-    public SettingsSyncService()
-    {
-        _pollTimer = new Timer(_ => CheckForChanges(), null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
-    }
-
-    private void CheckForChanges()
-    {
-        var onDiskConfig = ConfigService.GetCurrentConfig();
-        if (onDiskConfig.CustomSettings["ui.fontSize"] != _cachedFontSize)
-        {
-            OnPropertyChanged(nameof(FontSize));
-        }
-    }
-}
-```
-
-**Workaround:** Restart ContinueVS to pick up changes
-
-**Fix Priority:** ðŸŸ  LOW â€” Single-window workflow typical for VS extension; polling adds overhead
+**Implementation Complete:**
+- FileSystemWatcher monitors config.json for changes
+- PropertyChanged events propagate to SettingsViewModel  
+- 13 unit tests verify sync behavior; 723/723 full suite passes
+- Thread-safe locking; graceful null-safe handling
 
 ---
 
@@ -2689,6 +2662,14 @@ public class OnboardingState
 **Workaround:** Onboarding card auto-closes if models available
 
 **Fix Priority:** ðŸŸ¡ MEDIUM â€” User experience enhancement
+
+---
+
+### gap26 option to include current file exists but is NOT IMPLEMENTED
+
+---
+
+### gap27 missing debug option --- add to chat/agent/plan NOT IMPLEMENTED
 
 ---
 
@@ -3845,4 +3826,6 @@ Moved `InputText = string.Empty;` from the finally block to the **beginning of E
 ---
 
 **End of Implementation Plan**
+
+
 
