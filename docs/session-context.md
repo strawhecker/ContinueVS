@@ -2628,97 +2628,6 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 
 **Dependencies Met:** gap23_4_2 (Session.ToolCallsExecuted), gap23_4_1 (config settings)
 
-##### gap23_4_6: Session Reset Option
-- **Action:** Provide easy way to start fresh session after hitting limit
-- **Implementation:**
-  - Add "Start New Session" button in error message (when limit reached)
-  - Button action: ChatPageViewModel.NewSessionAsync()
-  - Also add to main toolbar: "📄 New Session" button next to "New Chat" (if it exists)
-  - Confirmation dialog (optional): "Clear current session and start fresh?"
-  - On new session: Reset ToolCallsExecuted to 0, clear messages, show empty chat
-  - Save old session to history (don't lose work)
-- **Why:** Prevents user frustration; makes recovery obvious
-- **Dependencies:** gap23_4_3, gap21 (session management)
-- **Files to modify:**
-  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → NewSessionAsync()
-  - `src/VSIXProject1/UI/Pages/ChatPage.xaml` → Add "New Session" button
-- **Test:** `SessionResetTests (2 tests: new session clears counter, old session saved to history)`
-
-##### gap23_4_7: Tool Call Limit Configuration in Settings UI
-- **Action:** UI to allow users to change MaxToolCallsPerSession setting
-- **Implementation:**
-  - In SettingsControl.xaml (Settings tab):
-    ```xaml
-    <Label Content="Tool Call Limit:" />
-    <StackPanel Orientation="Horizontal">
-      <TextBlock Text="Max tool calls per session:" VerticalAlignment="Center" Margin="0,0,10,0" />
-      <Slider Minimum="1" Maximum="1000" Value="{Binding MaxToolCallsPerSession, Mode=TwoWay}" 
-              Width="200" TickFrequency="50" TickPlacement="BottomRight" />
-      <TextBlock Text="{Binding MaxToolCallsPerSession}" Margin="10,0,0,0" MinWidth="40" />
-      <TextBlock Text="calls/session" VerticalAlignment="Center" Margin="5,0,0,0" />
-    </StackPanel>
-    ```
-  - Or use NumericUpDown for precise input
-  - Add help text: "Higher limits allow longer sessions but risk infinite loops. Recommended: 50-200."
-  - Save to config.json when changed
-  - On save: Log to analytics
-- **Why:** Per-user customization
-- **Dependencies:** gap23_4_1, IConfigService
-- **Files to modify:**
-  - `src/VSIXProject1/UI/Controls/SettingsControl.xaml` → Add slider/spinner
-  - `src/VSIXProject1/ViewModels/SettingsViewModel.cs` → Bind and persist
-- **Test:** `SettingsUITests (3 tests: display current value, change value via slider, persist to config)`
-
-##### gap23_4_8: Analytics & Monitoring
-- **Action:** Track tool call limits in analytics
-- **Implementation:**
-  - Log event when limit reached: `analytics.LogEvent("ToolCallLimitReached", { maxCalls: 100, sessionId: "...", timeElapsed: 5.2 })`
-  - Log event when new session started: `analytics.LogEvent("SessionReset", { reasonToolLimit: true, callsExecuted: 100 })`
-  - Periodic metric (every session): `{ avgToolCallsPerSession, maxToolCallsSetting, hitLimitPercentage }`
-  - Use metrics to identify if default 100 is too low (if >50% hit limit)
-- **Why:** Product insights; informs if default needs adjustment
-- **Dependencies:** gap30_1 (Analytics framework)
-- **Files to modify:**
-  - `src/VSIXProject1/Services/Implementations/AnalyticsService.cs` → Add logging calls
-  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → Emit events
-- **Test:** `AnalyticsTests (2 tests: log limit reached, log session reset)`
-
-##### gap23_4_9: Persistence of Tool Call Count
-- **Action:** Optionally save tool call count to session file
-- **Implementation:**
-  - When session is saved (ISessionService.SaveSessionAsync()):
-    * Include ToolCallsExecuted in Session.json
-    * Example: `{ "messages": [...], "toolCallsExecuted": 42, "timestamp": "..." }`
-  - On session load (ISessionService.LoadSessionAsync()):
-    * Restore ToolCallsExecuted count from file
-  - Allow export of session metrics: "Session used 42/100 tool calls" in summary
-- **Why:** Users can review how many tools were used in past sessions
-- **Dependencies:** gap23_4_2, ISessionService
-- **Files to modify:**
-  - `src/VSIXProject1/Core/Types/Session.cs` → Already added ToolCallsExecuted
-  - `src/VSIXProject1/Services/Implementations/SessionService.cs` → Persist/restore count
-- **Test:** `PersistenceTests (2 tests: save count to file, restore count on load)`
-
-##### gap23_4_10: Documentation & Help
-- **Action:** Explain tool call limits touser
-- **Implementation:**
-  - Add help doc: `/docs/tool-call-limits.md`
-    * Explain what tool calls are (each tool invocation counts as 1)
-    * Explain why limits exist (prevent infinite loops, save tokens/time)
-    * Show example: "User asks AI to debug. AI calls 5 tools. Count = 5."
-    * Recommend settings:
-      - Conservative: 25-50 (quick tasks)
-      - Balanced: 50-150 (typical debugging, file operations)
-      - Aggressive: 150+ (complex multi-step operations, at your own risk)
-  - Add tooltips in UI pointing to doc
-  - In-app help: Hover over counter shows "Tool call limit prevents runaway sessions. Adjust in Settings."
-- **Why:** Educates users; reduces confusion
-- **Dependencies:** gap23_4_5, gap30_5 (doc generation)
-- **Files to create:**
-  - `/docs/tool-call-limits.md` → New documentation
-  - Update tooltips in ChatPage.xaml
-- **Test:** `DocTests (1 test: help documentation exists and is readable)`
-
 ---
 
 #### **Consolidated Timeline & Scope**
@@ -2759,7 +2668,7 @@ See gap23_2 above for implementation breakdown.
 
 
 
-### gap25: User Settings and State Persistence NOT FULLY IMPLEMENTED
+### gap25: User Settings and State Persistence (PARTIAL - Key Features Complete)
 
 **Status:** PARTIAL IMPLEMENTATION â€” 13/19 UI settings implemented, localStorage/theme system incomplete  
 **Severity:** ðŸŸ¡ MEDIUM â€” Core functionality works, but settings consistency & persistence gaps remain  
@@ -2998,38 +2907,37 @@ If user has two Continue windows open:
 
 ---
 
-#### **gap25_6: Onboarding Dismissal State NOT PERSISTED**
+#### **gap25_6: Onboarding Dismissal State - Simplified Chat-Based Pattern**
 
-**TS Reference:** AGENTS.md lines 24-26 (localStorage tracking onboarding status)
+**Status:** PLANNED | Approach: Bind OnboardingCardVisible to Messages.Count
 
-**What it is:**
-Continue tracks onboarding wizard callbacks with localStorage:
-- `onboardingStatus = "Started"` â†’ User saw wizard
-- `onboardingStatus = "Completed"` â†’ Don't show wizard again
+**Original Design (Rejected):**
+- Complex persistence layer with OnboardingState class
+- Requires config storage and schema migration
+- Too much infrastructure for simple feature
 
-**Current C# Status:** âš ï¸ PARTIAL â€” OnboardingCard shown in UI, but no dismissal memory
+**Simplified Design (Approved):**
+Show OnboardingCard ONLY when chat is empty:
+if (Messages.Count == 0) OnboardingCardVisible = true; else OnboardingCardVisible = false;
 
-**Why it matters:**
-1. Persistence pattern needed for "Don't show this again" for exploration UI
-2. Users should only see onboarding once
-3. Modal dialogs need visibility tracking
+**How it works:**
+1. First launch: Chat is empty → OnboardingCardVisible = true → Show onboarding card
+2. User sends first message: Messages.Count > 0 → OnboardingCardVisible = false → Card hides
+3. Card remains hidden as long as chat has messages (implicit persistence via history)
+4. If user clears chat: Messages.Count = 0 again → Card can re-appear (acceptable re-learning tool)
 
-**Required Implementation:**
+**Implementation in ChatPageViewModel:**
+private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) { OnboardingCardVisible = Messages.Count == 0; }
 
-```csharp
-// Core/Types/OnboardingState.cs
-public class OnboardingState
-{
-    public bool HasSeenWizard { get; set; } = false;
-    public DateTime? FirstSeenAt { get; set; }
-}
+**Why this replaces the complex original design:**
+- Zero persistence overhead (chat history already persists)
+- No schema migration needed
+- No config storage changes
+- Natural UX: onboarding disappears when conversation starts
+- 3-4 lines of code vs. full OnboardingState + config layer
+- Self-managing pattern (no manual dismissal tracking)
 
-// Store in ContinueConfig.CustomSettings["ui.onboarding.status"]
-```
-
-**Workaround:** Onboarding card auto-closes if models available
-
-**Fix Priority:** ðŸŸ¡ MEDIUM â€” User experience enhancement
+**Priority:** LOW | Non-blocking UX enhancement; Phase 2 target
 
 ---
 
