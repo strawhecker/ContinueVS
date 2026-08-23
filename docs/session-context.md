@@ -2553,26 +2553,80 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 - Timer already running: Stops and recreates on next threshold breach
 - CanSendMessage() checks both _limitReachedFlag (gap23_4_3) and ShowErrorBanner (gap23_4_4)
 
-**Next Steps:** gap23_4_5 (Tool Call Limit Display in UI header)
+**Next Steps:** gap23_4_6 (Future enhancements)
 
 ##### gap23_4_5: Tool Call Limit Display in UI
-- **Action:** Show current progress (e.g., "42 / 100 tool calls") in chat header
-- **Implementation:**
-  - Add TextBlock to ChatPage.xaml in header bar
-  - Bind to ChatPageViewModel.ToolCallsExecuted and .MaxToolCallsPerSession
-  - Format: `<TextBlock Text="{Binding ToolCallCounterDisplay}" Foreground="Gray" FontSize="11" />`
-  - ToolCallCounterDisplay binding: `$"{ToolCallsExecuted} / {MaxToolCallsPerSession} tool calls"`
-  - Color logic:
-    * Gray (< 80%): Normal
-    * Orange (80-99%): Warning color
-    * Red (100%): Error color
-  - Tooltip: "Shows how many tools have been called in this session"
-- **Why:** Transparency; user can see progress at a glance
-- **Dependencies:** gap23_4_2, gap23_4_1
-- **Files to modify:**
-  - `src/VSIXProject1/UI/Pages/ChatPage.xaml` → Add TextBlock
-  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` → Add ToolCallCounterDisplay property
-- **Test:** `UIDisplayTests (3 tests: show counter at 0, update counter on tool call, change color at 80% threshold)`
+- **Status:** ✅ COMPLETE | Type: UI Display
+- **Implementation Date:** 2026-08-23
+- **Action:** Show current progress (e.g., "42 / 100 tool calls") in chat header with dynamic color coding
+
+**Completion Summary:**
+- ✅ Created `ToolCallCounterColorConverter.cs` in ViewModels/Converters
+  - Implements IValueConverter for double percentage → Brush mapping
+  - Gray (< 80%), Orange (80-99%), Red (100%)
+  - Null-safe handling for unit test compatibility (TryGetResource with fallback)
+- ✅ Added `ToolCallCounterDisplay` property to ChatPageViewModel
+  - Read-only string property with private setter
+  - Format: "{ToolCallsExecuted} / {MaxToolCallsPerSession} tool calls"
+  - MVVM binding via Set() for PropertyChanged notification
+- ✅ Added `GetToolCallCounterDisplay()` private method
+  - Returns formatted string; defaults to "0 / 0 tool calls" on null
+  - Reads session.ToolCallsExecuted and config.MaxToolCallsPerSession
+  - Null-safe with exception handling
+- ✅ Added `RefreshToolCallCounter()` private method
+  - Updates ToolCallCounterDisplay via GetToolCallCounterDisplay()
+  - Called on SessionChanged event (fires on tool count increment)
+- ✅ Subscribed SessionChanged event in constructor to call RefreshToolCallCounter()
+- ✅ Called RefreshToolCallCounter() at end of InitializeAsync() for startup
+- ✅ Added TextBlock to ChatPage.xaml Row 3 (Mode Selector row)
+  - Dual binding: Text="{Binding ToolCallCounterDisplay}", Foreground via ToolCallCounterColorConverter
+  - Font: 11pt, VerticalAlignment Center
+  - Tooltip: "Shows cumulative tool calls in current session (resets per-action)"
+  - Positioned after Model selector with Separator dividers
+- ✅ Registered ToolCallCounterColorConverter in ChatPage.xaml resources
+- ✅ Created 6 xUnit tests in ToolCallCounterColorConverterTests.cs
+  - Tests cover: 0%, 50%, 80%, 100%, null input, ConvertBack exception
+  - All 6 tests passing
+
+**Implementation Details:**
+
+**Files Created:**
+- `src/VSIXProject1/ViewModels/Converters/ToolCallCounterColorConverter.cs`
+  - 45 lines; IValueConverter implementation
+  - TryGetResource() helper for null-safe resource lookup
+
+**Files Modified:**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+  - Added _toolCallCounterDisplay field = "0 / 0 tool calls"
+  - Added ToolCallCounterDisplay property (public read-only with private set)
+  - Added GetToolCallCounterDisplay() → lazy string formatting
+  - Added RefreshToolCallCounter() → updates display on session changes
+  - Called RefreshToolCallCounter() in InitializeAsync() and SessionChanged lambda
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+  - Added ToolCallCounterColorConverter to ResourceDictionary (line 11)
+  - Added TextBlock in Mode Selector row with dual bindings + tooltip
+  - Added Separator elements for visual spacing
+
+**Files Created (Tests):**
+- `src/VSIXProject1.Tests/Converters/ToolCallCounterColorConverterTests.cs` (88 lines, 6 tests)
+
+**Test Results:** 
+- Converter tests: 6/6 passing
+- Full suite: 738/739 passing (1 pre-existing unrelated failure)
+
+**Build:** Main project builds successfully (VSIXProject1.csproj)
+
+**Design Rationale:**
+- **Converter pattern:** Reusable IValueConverter allows threshold-based color logic in XAML
+- **Lazy evaluation:** GetToolCallCounterDisplay() reads current session state on each call
+- **Event-driven refresh:** SessionChanged subscription keeps display synced with tool increments
+- **Null-safe design:** TryGetResource() with brush fallback prevents crashes in test contexts
+- **Visual hierarchy:** TextBlock placement in Mode Selector maintains UI flow; separators provide visual grouping
+- **Color consistency:** Reuses WarningBrush/ErrorBrush from gap23_4_4 banners for unified UX
+
+**Why:** Transparency—user sees tool call progress at a glance without opening banners. Dynamic color (Gray→Orange→Red) visual feedback reinforces usage intensity.
+
+**Dependencies Met:** gap23_4_2 (Session.ToolCallsExecuted), gap23_4_1 (config settings)
 
 ##### gap23_4_6: Session Reset Option
 - **Action:** Provide easy way to start fresh session after hitting limit

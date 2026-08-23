@@ -111,6 +111,12 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private DispatcherTimer? _warningDismissTimer;
 
+        /// <summary>
+        /// Formatted string display of tool call counter (gap23_4_5).
+        /// Format: "{ToolCallsExecuted} / {MaxToolCallsPerSession} tool calls"
+        /// </summary>
+        private string _toolCallCounterDisplay = "0 / 0 tool calls";
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
@@ -194,6 +200,16 @@ namespace ContinueVS.ViewModels
             set => Set(ref _showErrorBanner, value);
         }
 
+        /// <summary>
+        /// Gets the formatted tool call counter display (gap23_4_5).
+        /// Format: "{ToolCallsExecuted} / {MaxToolCallsPerSession} tool calls"
+        /// </summary>
+        public string ToolCallCounterDisplay
+        {
+            get => _toolCallCounterDisplay;
+            private set => Set(ref _toolCallCounterDisplay, value);
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -261,6 +277,8 @@ namespace ContinueVS.ViewModels
                     SendMessageCommand.RaiseCanExecuteChanged();
                     System.Diagnostics.Debug.WriteLine("[gap23_4_3-reset] Limit flag cleared on new session");
                 }
+                // gap23_4_5: Refresh counter display on any session change
+                RefreshToolCallCounter();
             };
         }
 
@@ -299,6 +317,9 @@ namespace ContinueVS.ViewModels
 
             // Reset limit flag on initialization
             _limitReachedFlag = false;
+
+            // gap23_4_5: Initialize and display tool call counter
+            RefreshToolCallCounter();
         }
 
         private async Task LoadModelsAsync()
@@ -365,6 +386,52 @@ namespace ContinueVS.ViewModels
             DismissWarningBanner(); // Stop any active dismissal timer
             SendMessageCommand.RaiseCanExecuteChanged();
             System.Diagnostics.Debug.WriteLine("[gap23_4_4-reset] Tool call limit reset for new user action. Fresh budget allocated.");
+        }
+
+        /// <summary>
+        /// Refreshes the tool call counter display (gap23_4_5).
+        /// Called when session changes or tool calls increment.
+        /// </summary>
+        private void RefreshToolCallCounter()
+        {
+            try
+            {
+                ToolCallCounterDisplay = GetToolCallCounterDisplay();
+                System.Diagnostics.Debug.WriteLine($"[gap23_4_5-refresh] Counter display updated: {ToolCallCounterDisplay}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap23_4_5-refresh-error] Failed to refresh counter: {ex.Message}");
+                ToolCallCounterDisplay = "0 / 0 tool calls";
+            }
+        }
+
+        /// <summary>
+        /// Gets the formatted tool call counter display string (gap23_4_5).
+        /// Format: "{ToolCallsExecuted} / {MaxToolCallsPerSession} tool calls"
+        /// Returns "0 / 0 tool calls" if session or config unavailable.
+        /// </summary>
+        private string GetToolCallCounterDisplay()
+        {
+            try
+            {
+                var session = _sessionService?.GetCurrentSession();
+                var config = _configService?.GetCurrentConfig();
+
+                if (session == null || config == null)
+                    return "0 / 0 tool calls";
+
+                int toolCallsExecuted = session.ToolCallsExecuted;
+                int maxToolCalls = (int)(config.CustomSettings?[UserSettings.Agent_MaxToolCallsPerSession] ?? 100);
+                if (maxToolCalls <= 0)
+                    maxToolCalls = 100;
+
+                return $"{toolCallsExecuted} / {maxToolCalls} tool calls";
+            }
+            catch
+            {
+                return "0 / 0 tool calls";
+            }
         }
 
         /// <summary>

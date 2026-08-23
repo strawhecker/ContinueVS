@@ -8,6 +8,7 @@
         <ResourceDictionary>
             <converters:ChatModeToVisibilityConverter x:Key="ChatModeToVisibilityConverter"/>
             <converters:ChatModeToBoolConverter x:Key="ChatModeToBoolConverter"/>
+            <converters:ToolCallCounterColorConverter x:Key="ToolCallCounterColorConverter"/>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <local:ChatMessageTemplateSelector x:Key="MessageTemplateSelector">
             <local:ChatMessageTemplateSelector.UserMessageTemplate>
@@ -106,6 +107,10 @@
 
             <TextBlock Text="Model:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="{DynamicResource PrimaryTextBrush}"/>
             <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="200" Margin="0,0,5,0" Foreground="White" Background="#2D2D30" Style="{DynamicResource ThemedComboBoxStyle}"/>
+
+            <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
+
+            <TextBlock Text="{Binding ToolCallCounterDisplay}" VerticalAlignment="Center" Margin="5,0,0,5" FontSize="11" Foreground="{Binding ToolCallCounterDisplay, Converter={StaticResource ToolCallCounterColorConverter}}" ToolTip="Shows cumulative tool calls in current session (resets per-action)"/>
         </StackPanel>
 
         <!-- Messages (Chat List) with ScrollViewer -->
