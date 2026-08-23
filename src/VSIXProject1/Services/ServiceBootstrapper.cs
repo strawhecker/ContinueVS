@@ -59,7 +59,14 @@ namespace ContinueVS.Services
             services.AddSingleton<ITokenCountingService, SimpleTokenCounterService>();
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();
-            services.AddSingleton<IToolService, ToolService>();
+            services.AddSingleton<IToolService>(sp =>
+            {
+                var ideService = sp.GetRequiredService<IIdeService>();
+                var configService = sp.GetRequiredService<IConfigService>();
+                var sessionService = sp.GetRequiredService<ISessionService>();
+                var mcpService = sp.GetRequiredService<IMcpService>();
+                return new ToolService(ideService, configService, sessionService, mcpService);
+            });
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();

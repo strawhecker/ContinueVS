@@ -21,6 +21,7 @@ namespace ContinueVS.Services.Implementations
     {
         private readonly IIdeService _ideService;
         private readonly IConfigService _configService;
+        private readonly ISessionService? _sessionService;
         private readonly IMcpService? _mcpService;
         private readonly IBridgeLogger? _logger;
         private readonly Dictionary<string, ToolDefinition> _builtInToolRegistry = new();
@@ -35,16 +36,19 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         /// <param name="ideService">The IDE service for file and subprocess operations.</param>
         /// <param name="configService">The configuration service for tool definitions.</param>
+        /// <param name="sessionService">Optional session service for tracking tool call counts.</param>
         /// <param name="mcpService">Optional MCP service for Model Context Protocol tools.</param>
         /// <param name="logger">Optional logger for diagnostics.</param>
         public ToolService(
             IIdeService ideService,
             IConfigService configService,
+            ISessionService? sessionService = null,
             IMcpService? mcpService = null,
             IBridgeLogger? logger = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+            _sessionService = sessionService;
             _mcpService = mcpService;
             _logger = logger;
 
@@ -104,6 +108,7 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Invokes a tool with the given arguments.
         /// Routes based on tool type: built-in, MCP, or HTTP.
+        /// Increments tool call counter in current session before execution.
         /// </summary>
         public async Task<ToolResult> InvokeAsync(
             string toolName,
@@ -119,6 +124,23 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
+                // Increment tool call counter before execution
+                if (_sessionService != null)
+                {
+                    try
+                    {
+                        var session = _sessionService.GetCurrentSession();
+                        if (session != null)
+                        {
+                            session.ToolCallsExecuted++;
+                        }
+                    }
+                    catch
+                    {
+                        // Silently ignore session access errors in unit test contexts
+                    }
+                }
+
                 return tool.ToolType switch
                 {
                     "builtin" => await InvokeBuiltInAsync(toolName, args, ct),

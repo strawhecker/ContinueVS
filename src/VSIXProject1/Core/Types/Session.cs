@@ -44,5 +44,11 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("isActive")]
         public bool IsActive { get; set; }
+
+        /// <summary>
+        /// Cumulative count of tool calls executed in this session.
+        /// </summary>
+        [JsonProperty("toolCallsExecuted")]
+        public int ToolCallsExecuted { get; set; }
     }
 }

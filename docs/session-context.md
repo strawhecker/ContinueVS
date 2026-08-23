@@ -2409,18 +2409,27 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 **Next Steps:** gap23_4_2 (Tool Call Counter in Session State)
 
 ##### gap23_4_2: Tool Call Counter in Session State
+- **Status:** ✓ Complete | Type: Session State Tracking
 - **Action:** Track cumulative tool calls in the current session
 - **Implementation:**
-  - Add to Session.cs: `public int ToolCallsExecuted { get; set; }`
-  - Increment counter in IWorkflowService.ExecuteToolAsync() before invoking tool
-  - Reset counter when user starts new session (ChatPageViewModel.NewSessionAsync())
-  - Expose counter via ISessionService.GetCurrentSession().ToolCallsExecuted
-- **Why:** Workflow needs to check before each tool execution
-- **Dependencies:** gap23_2 (tool execution), gap5 (session state)
-- **Files to create/modify:**
-  - `src/VSIXProject1/Core/Types/Session.cs` → Add ToolCallsExecuted property
-  - `src/VSIXProject1/Services/Implementations/WorkflowService.cs` → Increment counter
-- **Test:** `ToolCallCounterTests (3 tests: increment on each tool, reset on new session, read current count)`
+  - Added to Session.cs: `public int ToolCallsExecuted { get; set; } = 0;` with [JsonProperty("toolCallsExecuted")]
+  - Incremented in ToolService.InvokeAsync() before tool execution via _sessionService.GetCurrentSession()
+  - Reset counter in SessionService.CreateNewSessionAsync() with explicit initialization
+  - Exposed counter via ISessionService.GetCurrentSession().ToolCallsExecuted for limit checks
+  - Updated ServiceBootstrapper to inject ISessionService into ToolService constructor
+- **Why:** Gap23_4_3 (limit enforcement) and Gap23_4_4 (blocking on limit) depend on accurate tool call tracking
+- **Dependencies:** gap23_2 (tool execution via ToolService), gap5 (session state)
+- **Files Modified:**
+  - `src/VSIXProject1/Core/Types/Session.cs` → Added ToolCallsExecuted property with JSON mapping
+  - `src/VSIXProject1/Services/Implementations/ToolService.cs` → Updated constructor with ISessionService, incremented counter in InvokeAsync()
+  - `src/VSIXProject1/Services/Implementations/SessionService.cs` → Explicit ToolCallsExecuted = 0 in CreateNewSessionAsync()
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` → Factory registration for ToolService with ISessionService injection
+- **Test:** `ToolCallCounterTests` (5 tests: increment on each tool, reset on new session, read current count, handle null service, handle null session)
+- **Test Results:** All 5 tests passing; 721 total tests discovered; 0 failed
+- **Build:** Success (zero warnings/errors)
+- **Blocking Resolved:** gap23_4_3, gap23_4_4 now can implement limit enforcement
+
+---
 
 ##### gap23_4_3: Limit Check Before Tool Execution
 - **Action:** In IWorkflowService, check limit before executing tool

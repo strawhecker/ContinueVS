@@ -82,7 +82,8 @@ namespace ContinueVS.Services.Implementations
                 Messages = new List<ChatMessage>(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                IsActive = true
+                IsActive = true,
+                ToolCallsExecuted = 0
             };
 
             await SaveSessionToFileAsync(newSession);
