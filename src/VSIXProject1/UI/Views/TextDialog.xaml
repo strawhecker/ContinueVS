@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -22,8 +23,14 @@
                    TextWrapping="Wrap"
                    Margin="0,0,0,8" />
 
+        <!-- Progress Bar (Progress Mode) -->
+        <StackPanel x:Name="ProgressPanel" Grid.Row="1" Visibility="Collapsed" Margin="0,0,0,4">
+            <ProgressBar x:Name="ProgressBarControl" Height="14" Minimum="0" Maximum="100" Value="0" Margin="0,0,0,4" />
+            <TextBlock x:Name="ProgressPercentLabel" Text="0%" Foreground="{DynamicResource VsBrush.WindowText}" HorizontalAlignment="Right" FontSize="11" />
+        </StackPanel>
+
         <!-- TextBox for Text Input Mode -->
-        <TextBox Grid.Row="1"
+        <TextBox Grid.Row="2"
                  x:Name="InputTextBox"
                  Text="{Binding Input, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
                  Padding="8"
@@ -37,7 +44,7 @@
                  BorderThickness="1" />
 
         <!-- Button Stack Panel -->
-        <StackPanel Grid.Row="3"
+        <StackPanel Grid.Row="4"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Height="36">

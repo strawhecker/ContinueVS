@@ -70,7 +70,13 @@ namespace ContinueVS.Services
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();
-            services.AddSingleton<INotificationService>(sp => new WpfNotificationService());
+            services.AddSingleton<INotificationService>(sp =>
+            {
+                // Use a lazy factory for MainViewModel to avoid circular dependency
+                // MainViewModel is transient, so we'll get it when needed, not at singleton creation time
+                Func<MainViewModel?> getMainViewModel = () => sp.GetService<MainViewModel>();
+                return new WpfNotificationService(null, null, getMainViewModel);
+            });
             services.AddSingleton<IUIStateService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();
@@ -78,8 +84,9 @@ namespace ContinueVS.Services
             });
             services.AddSingleton<ILocalStorageService>(new LocalStorageService());
 
-            // Register ViewModels as transient (create new instance each time via factory)
-            services.AddTransient<MainViewModel>(sp =>
+            // MainViewModel must be a singleton so every consumer gets the same instance
+            // (the UI DataContext, the notification service overlay, etc.)
+            services.AddSingleton<MainViewModel>(sp =>
                 new MainViewModel(
                     sp.GetRequiredService<ISessionService>(),
                     sp.GetRequiredService<IMessengerService>(),

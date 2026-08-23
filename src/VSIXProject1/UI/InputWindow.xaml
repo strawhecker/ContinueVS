@@ -5,7 +5,9 @@
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource EditorBackground}"
-        ShowInTaskbar="True">
+        ShowActivated="False"
+        ShowInTaskbar="False"
+        Visibility="Hidden">
     <Grid VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="20">
         <StackPanel VerticalAlignment="Stretch">
             <TextBlock x:Name="PromptLabel" Text="Enter value:" Foreground="{StaticResource PrimaryTextBrush}" Margin="0,0,0,10" FontSize="14" TextWrapping="Wrap"/>

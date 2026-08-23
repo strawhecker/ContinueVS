@@ -16,11 +16,15 @@ namespace ContinueVS.UI.Views
         public enum DialogType
         {
             Text,
-            Confirmation
+            Confirmation,
+            Progress
         }
 
         private string? _result;
         private TaskCompletionSource<string?>? _resultTcs;
+        private System.Windows.Controls.StackPanel? _progressPanel;
+        private System.Windows.Controls.ProgressBar? _progressBarControl;
+        private System.Windows.Controls.TextBlock? _progressPercentLabel;
 
         public static readonly DependencyProperty PromptProperty =
             DependencyProperty.Register(
@@ -66,6 +70,9 @@ namespace ContinueVS.UI.Views
         public TextDialog()
         {
             InitializeComponent();
+            _progressPanel = (System.Windows.Controls.StackPanel?)FindName("ProgressPanel");
+            _progressBarControl = (System.Windows.Controls.ProgressBar?)FindName("ProgressBarControl");
+            _progressPercentLabel = (System.Windows.Controls.TextBlock?)FindName("ProgressPercentLabel");
         }
 
         public void Initialize(DialogType dialogType, string prompt, string defaultValue = "")
@@ -95,28 +102,52 @@ namespace ContinueVS.UI.Views
         {
             if (Type == DialogType.Text)
             {
-                // Text mode: show TextBox and OK/Cancel buttons
                 InputTextBox.Visibility = Visibility.Visible;
+                ProgressPanel.Visibility = Visibility.Collapsed;
                 OkButton.Visibility = Visibility.Visible;
                 CancelButton.Visibility = Visibility.Visible;
                 YesButton.Visibility = Visibility.Collapsed;
                 NoButton.Visibility = Visibility.Collapsed;
+                InputTextBox.Focus();
+                InputTextBox.SelectAll();
             }
-            else // DialogType.Confirmation
+            else if (Type == DialogType.Confirmation)
             {
-                // Confirmation mode: hide TextBox, show Yes/No buttons
                 InputTextBox.Visibility = Visibility.Collapsed;
+                ProgressPanel.Visibility = Visibility.Collapsed;
                 OkButton.Visibility = Visibility.Collapsed;
                 CancelButton.Visibility = Visibility.Collapsed;
                 YesButton.Visibility = Visibility.Visible;
                 NoButton.Visibility = Visibility.Visible;
             }
-
-            if (Type == DialogType.Text)
+            else // Progress
             {
-                InputTextBox.Focus();
-                InputTextBox.SelectAll();
+                InputTextBox.Visibility = Visibility.Collapsed;
+                ProgressPanel.Visibility = Visibility.Visible;
+                OkButton.Visibility = Visibility.Collapsed;
+                CancelButton.Visibility = Visibility.Collapsed;
+                YesButton.Visibility = Visibility.Collapsed;
+                NoButton.Visibility = Visibility.Collapsed;
             }
+        }
+
+        /// <summary>
+        /// Reports progress value (0-100) for Progress mode.
+        /// </summary>
+        public void ReportProgress(int value)
+        {
+            if (value < 0) value = 0;
+            if (value > 100) value = 100;
+            if (_progressBarControl != null) _progressBarControl.Value = value;
+            if (_progressPercentLabel != null) _progressPercentLabel.Text = $"{value}%";
+        }
+
+        /// <summary>
+        /// Signals that the progress work is complete and closes the overlay.
+        /// </summary>
+        public void CompleteProgress()
+        {
+            CompleteDialog("done");
         }
 
         private void OkButton_Click(object sender, RoutedEventArgs e)

@@ -18,7 +18,7 @@ namespace ContinueVS.Services.Implementations
     public class WpfNotificationService : INotificationService
     {
         private readonly IBridgeLogger? _logger;
-        private readonly MainViewModel? _viewModel;
+        private readonly Func<MainViewModel?>? _getViewModel;
 
         public event EventHandler<NotificationEventArgs>? NotificationShown;
 
@@ -26,11 +26,18 @@ namespace ContinueVS.Services.Implementations
         /// Initializes a new instance of WpfNotificationService.
         /// </summary>
         /// <param name="logger">Optional logger for diagnostics.</param>
-        /// <param name="viewModel">Optional view model for dialog display in overlay.</param>
-        public WpfNotificationService(IBridgeLogger? logger = null, MainViewModel? viewModel = null)
+        /// <param name="viewModel">Deprecated: kept for backward compatibility. Use getViewModel parameter instead.</param>
+        /// <param name="getViewModel">Factory function to lazily retrieve the MainViewModel.</param>
+        public WpfNotificationService(IBridgeLogger? logger = null, MainViewModel? viewModel = null, Func<MainViewModel?>? getViewModel = null)
         {
             _logger = logger;
-            _viewModel = viewModel;
+            _getViewModel = getViewModel;
+
+            // If no getViewModel factory is provided but a viewModel instance is, create a simple factory
+            if (_getViewModel == null && viewModel != null)
+            {
+                _getViewModel = () => viewModel;
+            }
         }
 
         /// <summary>
@@ -79,10 +86,21 @@ namespace ContinueVS.Services.Implementations
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            var progressWindow = new UI.ProgressWindow { Title = title };
+            var viewModel = _getViewModel?.Invoke();
+            if (viewModel == null)
+                throw new InvalidOperationException("MainViewModel must be provided to display progress.");
+
+            var dialog = new TextDialog();
+            dialog.Initialize(TextDialog.DialogType.Progress, title);
+            viewModel.ShowDialog(dialog);
+
             var progress = new Progress<int>(value =>
             {
-                progressWindow.ReportProgress(value);
+                ThreadHelper.JoinableTaskFactory.Run(async () =>
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    dialog.ReportProgress(value);
+                });
             });
 
             await Task.Run(() =>
@@ -96,7 +114,8 @@ namespace ContinueVS.Services.Implementations
                     ThreadHelper.JoinableTaskFactory.Run(async () =>
                     {
                         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                        progressWindow.Close();
+                        dialog.CompleteProgress();
+                        viewModel.HideDialog();
                     });
                 }
             });
@@ -118,14 +137,15 @@ namespace ContinueVS.Services.Implementations
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
             // If ViewModel is available, use TextDialog overlay; otherwise fall back to MessageBox
-            if (_viewModel != null)
+            var viewModel = _getViewModel?.Invoke();
+            if (viewModel != null)
             {
                 var dialog = new TextDialog();
                 dialog.Initialize(TextDialog.DialogType.Confirmation, message);
-                _viewModel.ShowDialog(dialog);
+                viewModel.ShowDialog(dialog);
 
                 var result = await dialog.GetResultAsync();
-                _viewModel.HideDialog();
+                viewModel.HideDialog();
 
                 return result?.Equals("yes", StringComparison.OrdinalIgnoreCase) ?? false;
             }
@@ -154,30 +174,19 @@ namespace ContinueVS.Services.Implementations
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            // If ViewModel is available, use TextDialog overlay; otherwise fall back to InputWindow
-            if (_viewModel != null)
-            {
-                var dialog = new TextDialog();
-                dialog.Initialize(TextDialog.DialogType.Text, prompt, defaultValue);
-                _viewModel.ShowDialog(dialog);
+            // Use TextDialog overlay (no fallback to InputWindow)
+            var viewModel = _getViewModel?.Invoke();
+            if (viewModel == null)
+                throw new InvalidOperationException("MainViewModel must be provided to display input dialogs.");
 
-                var result = await dialog.GetResultAsync();
-                _viewModel.HideDialog();
+            var dialog = new TextDialog();
+            dialog.Initialize(TextDialog.DialogType.Text, prompt, defaultValue);
+            viewModel.ShowDialog(dialog);
 
-                return result;
-            }
-            else
-            {
-                var inputWindow = new UI.InputWindow
-                {
-                    Title = title,
-                    Prompt = prompt,
-                    Input = defaultValue
-                };
+            var result = await dialog.GetResultAsync();
+            viewModel.HideDialog();
 
-                var dialogResult = inputWindow.ShowDialog();
-                return dialogResult == true ? inputWindow.Input : null;
-            }
+            return result;
         }
 
         /// <summary>

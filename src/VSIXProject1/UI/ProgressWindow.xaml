@@ -4,7 +4,10 @@
         Title="Progress" Height="120" Width="400"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Background="#F0F0F0">
+        Background="#F0F0F0"
+        ShowActivated="False"
+        ShowInTaskbar="False"
+        Visibility="Hidden">
     <Grid VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

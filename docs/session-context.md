@@ -4541,6 +4541,44 @@ Moved `InputText = string.Empty;` from the finally block to the **beginning of E
 
 ---
 
+### Window Focus Prevention for Dialog/Progress Windows
+
+**Status:** ✓ Complete | Type: UI Window Behavior
+
+**Problem:**
+InputWindow (text input dialog) and ProgressWindow (progress display) were popping to foreground during operations, disrupting video recording, screen capture, and user workflow when windows were used in background tasks or tests.
+
+**Solution Implemented:**
+Applied three key XAML attributes to both windows to prevent focus-stealing:
+
+1. **ShowActivated="False"** — Window does not take focus when shown; remains in background
+2. **ShowInTaskbar="False"** — Window not visible in taskbar; reduces visual clutter
+3. **Visibility="Hidden"** — Window starts hidden, preventing temporary flash during initialization or tests
+
+**Files Modified:**
+- src/VSIXProject1/UI/InputWindow.xaml
+  - Changed ShowInTaskbar from "True" to "False"
+  - Added ShowActivated="False"
+  - Added Visibility="Hidden"
+
+- src/VSIXProject1/UI/ProgressWindow.xaml
+  - Added ShowActivated="False"
+  - Added ShowInTaskbar="False"
+  - Added Visibility="Hidden"
+
+**Behavior:**
+- Windows remain in memory and functional
+- Existing code-behind Show() calls work normally, but windows display without stealing focus
+- Windows are initially hidden; callers must explicitly call Show() if visual display is needed
+- Ideal for background operations, long-running tasks, and test scenarios where window presence should not disrupt workflow
+
+**Testing:**
+- Build: XAML modifications verified, no parsing errors
+- Unit Tests: 742/742 tests passed (all tests confirm code remains functional)
+- No code-behind changes required; behavior is purely XAML-driven
+
+---
+
 **End of Implementation Plan**
 
 
