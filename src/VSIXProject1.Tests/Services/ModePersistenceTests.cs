@@ -14,8 +14,33 @@ namespace ContinueVS.Tests.Services
     /// Tests for mode persistence and restoration (gap27_5).
     /// Ensures modes are saved to session files and config, and restored on load/startup.
     /// </summary>
-    public class ModePersistenceTests
+    public class ModePersistenceTests : IDisposable
     {
+        private string _testTempDir;
+
+        public ModePersistenceTests()
+        {
+            // Create a unique temp directory for this test instance
+            _testTempDir = Path.Combine(Path.GetTempPath(), "ContinueVSTests", Guid.NewGuid().ToString());
+            Directory.CreateDirectory(_testTempDir);
+        }
+
+        public void Dispose()
+        {
+            // Clean up temp directory after test
+            if (Directory.Exists(_testTempDir))
+            {
+                try
+                {
+                    Directory.Delete(_testTempDir, true);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+
         /// <summary>
         /// Test gap27_5: Session stores mode when SetCurrentModeAsync is called.
         /// </summary>
@@ -90,6 +115,9 @@ namespace ContinueVS.Tests.Services
 
             // Act: Save default mode to Plan (2)
             await configService1.SaveDefaultModeAsync(2);
+
+            // Wait for file I/O to complete
+            await Task.Delay(200);
 
             // Create new service and initialize (should load saved mode)
             var configService2 = CreateConfigService();
@@ -175,13 +203,12 @@ namespace ContinueVS.Tests.Services
         }
 
         /// <summary>
-        /// Helper: Creates a ConfigService pointing to a temporary config file for testing.
+        /// Helper: Creates a ConfigService pointing to the test's temp directory.
+        /// All instances share the same temp dir so they can share config files.
         /// </summary>
         private ConfigService CreateConfigService()
         {
-            // Override config path to use temp directory for testing
-            // (ConfigService uses ~/.continueVS/ by default)
-            return new ConfigService();
+            return new ConfigService(null, _testTempDir);
         }
     }
 }

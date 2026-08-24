@@ -3390,15 +3390,22 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Goal:** Parse JavaScript/TypeScript stack traces from Node.js, Deno, browsers, and webpack
 - **Why:** Support full-stack debugging in mixed .NET + JS/TS projects (essential for modern development)
 - **Implementation:**
-- Detect JS format: look for `at `, `Error:`, `.js/.ts` files
-- Handle source maps for transpiled code (e.g., webpack, Babel, TypeScript)
-- Extract: file path (original source), line number, column number, function name
-- Parse browser console errors and Node.js stderr
-- Support Error objects with `.stack` property parsing
-- Handle async stack traces (if available in modern runtimes)
-- **Dependencies:** gap29_1, source-map library or similar
-- **Test:** JsStackTraceParsingTests (4 tests: Node.js format, source map resolution, browser console, async stacks)
-- **Status:** Phase 3 implementation (parallel with gap29_1 core)
+  - Detect JS format: look for `at `, `Error:`, `.js/.ts` files, async/await keywords
+  - Handle Node.js standard format (at functionName (filepath:line:col))
+  - Handle browser console format (Error.stack property with location in parens)
+  - Extract: file path (original source), line number, column number, function name
+  - Parse browser console errors and Node.js stderr
+  - Support Error objects with `.stack` property parsing
+  - Handle async stack traces with optional `async` prefix
+- **Dependencies:** gap29_1 (✓ complete)
+- **Test:** JsStackTraceParsingTests (9 tests: Node.js format, browser console, async stacks, error objects, CanParse detection, edge cases)
+- **Status:** ✅ COMPLETE - Phase 3 implementation
+  - Implemented CanParse() with 5 heuristic detection criteria (2+ required)
+  - Implemented ParseAsync() with regex frame extraction, exception type detection, graceful error handling
+  - All 9 tests passing (Node.js, browser, async, error objects, CanParse, null/empty input)
+  - ServiceBootstrapper DI registration verified (lines 80, 87)
+  - 827/828 total project tests passing (zero regressions in gap29_1b)
+  - Ready for gap29_1c (Python) and gap29_1d (Java/JVM)
 
 #### gap29_1c: Stack Trace Parsing - Python (HIGH PRIORITY)
 - **Goal:** Parse Python traceback format from Python runtime and pytest

@@ -13,22 +13,22 @@ namespace ContinueVS.Services.Tests
     [Collection("ConfigService Collection")]
     public class ConfigServiceTests : IDisposable
     {
-        private readonly string _testConfigPath;
+        private readonly string _testConfigDir;
 
         public ConfigServiceTests()
         {
-            _testConfigPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".continueVS", "continueVS.json");
+            // Create a unique temp directory for this test instance
+            _testConfigDir = Path.Combine(Path.GetTempPath(), "ContinueVSTests", Guid.NewGuid().ToString());
+            Directory.CreateDirectory(_testConfigDir);
         }
 
         public void Dispose()
         {
             try
             {
-                if (File.Exists(_testConfigPath))
+                if (Directory.Exists(_testConfigDir))
                 {
-                    File.Delete(_testConfigPath);
+                    Directory.Delete(_testConfigDir, true);
                 }
             }
             catch { }
@@ -36,8 +36,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task InitializeAsync_CreatesDefaultConfig_WhenFileDoesNotExist()
         {
-            Dispose();
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
 
             await service.InitializeAsync();
 
@@ -50,7 +49,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public void GetCurrentConfig_ThrowsInvalidOperationException_WhenNotInitialized()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
 
             var ex = Assert.Throws<InvalidOperationException>(() => service.GetCurrentConfig());
             Assert.Contains("InitializeAsync", ex.Message);
@@ -59,7 +58,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task AddModelAsync_AddsModel_AndFiresConfigChangedEvent()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var eventRaised = false;
@@ -81,7 +80,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task AddModelAsync_ThrowsArgumentNullException_WhenModelIsNull()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             await Assert.ThrowsAsync<ArgumentNullException>(() => service.AddModelAsync(null!));
@@ -90,7 +89,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task RemoveModelAsync_RemovesModel_AndFiresEvent()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var model = new CoreTypes.ModelInfo { Id = "test-1", Name = "Test Model", Provider = "OpenAI" };
@@ -110,7 +109,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task SelectModelAsync_SetsSelectedModel()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var model = new CoreTypes.ModelInfo { Id = "test-1", Name = "Test Model", Provider = "OpenAI" };
@@ -125,7 +124,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task GetSelectedModel_ReturnsSelectedModel()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var model = new CoreTypes.ModelInfo { Id = "test-1", Name = "Test Model", Provider = "OpenAI" };
@@ -140,7 +139,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task GetSelectedModel_ReturnsDefaultModel_WhenNoModelExplicitlySelected()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var selected = service.GetSelectedModel();
@@ -152,7 +151,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task GetEnabledTools_ReturnsOnlyEnabledTools()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var config = service.GetCurrentConfig();
@@ -169,7 +168,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task SetToolEnabledAsync_TogglesToolEnabled()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var config = service.GetCurrentConfig();
@@ -188,7 +187,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task GetProfiles_ReturnsProfiles()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var config = service.GetCurrentConfig();
@@ -204,7 +203,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task SelectProfileAsync_SetsSelectedProfile()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var config = service.GetCurrentConfig();
@@ -222,14 +221,14 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task SaveConfigAsync_PersistsConfiguration()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var model = new CoreTypes.ModelInfo { Id = "test-1", Name = "Test Model", Provider = "OpenAI" };
             await service.AddModelAsync(model);
             await service.SaveConfigAsync();
 
-            var service2 = new ConfigService();
+            var service2 = new ConfigService(null, _testConfigDir);
             await service2.InitializeAsync();
 
             var config = service2.GetCurrentConfig();
@@ -242,7 +241,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task ReloadConfigAsync_DiscardsUnsavedChanges()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             var model = new CoreTypes.ModelInfo { Id = "test-1", Name = "Test Model", Provider = "OpenAI" };
@@ -264,7 +263,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task RemoveModelAsync_ThrowsArgumentException_WhenModelIdIsNull()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.RemoveModelAsync(null!));
@@ -273,7 +272,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task SelectModelAsync_ThrowsArgumentException_WhenModelIdIsNull()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.SelectModelAsync(null!));
@@ -282,7 +281,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task SetToolEnabledAsync_ThrowsArgumentException_WhenToolNameIsNull()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.SetToolEnabledAsync(null!, true));
@@ -292,7 +291,7 @@ namespace ContinueVS.Services.Tests
         public async Task InitializeAsync_CreatesDefaultConfigWithOllamaModel_WhenFileDoesNotExist()
         {
             Dispose();
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
 
             await service.InitializeAsync();
 
@@ -313,7 +312,7 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task SelectProfileAsync_ThrowsArgumentException_WhenProfileIdIsNull()
         {
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
             await service.InitializeAsync();
 
             await Assert.ThrowsAsync<ArgumentException>(() => service.SelectProfileAsync(null!));
@@ -323,7 +322,7 @@ namespace ContinueVS.Services.Tests
         public async Task SaveConfigAsync_FiltersToolsByDelta_UsingToolOverrides()
         {
             Dispose();
-            var service = new ConfigService();
+            var service = new ConfigService(null, _testConfigDir);
 
             // Initialize and get all tools
             await service.InitializeAsync();
@@ -341,7 +340,8 @@ namespace ContinueVS.Services.Tests
             await service.SetToolEnabledAsync(toolToDisable.Name, false);
 
             // Read the JSON file directly
-            var jsonContent = File.ReadAllText(_testConfigPath);
+            var configFilePath = Path.Combine(_testConfigDir, "continueVS.json");
+            var jsonContent = File.ReadAllText(configFilePath);
 
             // Only ToolOverrides should be persisted, not the full Tools array
             var savedConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(jsonContent);
@@ -356,7 +356,7 @@ namespace ContinueVS.Services.Tests
             await service.SetToolEnabledAsync(toolToDisable.Name, true);
 
             // Read JSON again
-            jsonContent = File.ReadAllText(_testConfigPath);
+            jsonContent = File.ReadAllText(configFilePath);
             savedConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(jsonContent) 
                 ?? new CoreTypes.ContinueConfig();
 

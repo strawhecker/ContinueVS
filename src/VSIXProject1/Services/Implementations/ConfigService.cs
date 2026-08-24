@@ -29,12 +29,20 @@ namespace ContinueVS.Services.Implementations
         private bool _initialized = false;
         private readonly object _lock = new object();
         private readonly IBridgeLogger? _logger;
+        private readonly string _continueDir;
+        private readonly string _configFilePath;
 
-        private static readonly string ContinueDir = Path.Combine(
+        private static readonly string DefaultContinueDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".continueVS");
 
-        private static readonly string ConfigFilePath = Path.Combine(ContinueDir, "continueVS.json");
+        private static readonly string DefaultConfigFilePath = Path.Combine(DefaultContinueDir, "continueVS.json");
+
+        /// <summary>
+        /// For backward compatibility, expose static properties.
+        /// </summary>
+        private static string ContinueDir => DefaultContinueDir;
+        private string ConfigFilePath => _configFilePath;
 
         public event EventHandler<ConfigChangedEventArgs>? ConfigChanged;
 
@@ -42,9 +50,12 @@ namespace ContinueVS.Services.Implementations
         /// Initializes a new instance of ConfigService.
         /// </summary>
         /// <param name="logger">Optional logger for diagnostics.</param>
-        public ConfigService(IBridgeLogger? logger = null)
+        /// <param name="continueDir">Optional override for config directory (for testing).</param>
+        public ConfigService(IBridgeLogger? logger = null, string? continueDir = null)
         {
             _logger = logger;
+            _continueDir = continueDir ?? DefaultContinueDir;
+            _configFilePath = Path.Combine(_continueDir, "continueVS.json");
         }
 
         /// <summary>
