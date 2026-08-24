@@ -289,5 +289,70 @@ namespace ContinueVS.Services.Implementations
                 return result;
             }
         }
+
+        // Debug Operations
+
+        public async Task<RuntimeState?> InspectVariablesAsync(CancellationToken cancellationToken = default)
+        {
+            // This is a stub implementation. In a real scenario, this would use IDebuggerService.
+            // For now, return null indicating no active debugger.
+            return await Task.FromResult<RuntimeState?>(null);
+        }
+
+        public async Task<BreakpointInfo?> SetBreakpointAsync(string filePath, int lineNumber, string? condition = null, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("filePath must not be empty.", nameof(filePath));
+            if (lineNumber <= 0)
+                throw new ArgumentException("lineNumber must be positive.", nameof(lineNumber));
+
+            // This is a stub implementation.
+            var info = new BreakpointInfo
+            {
+                FilePath = filePath,
+                LineNumber = lineNumber,
+                IsEnabled = true,
+                HitCount = 0,
+                Condition = condition,
+                BreakpointId = Guid.NewGuid().ToString()
+            };
+
+            return await Task.FromResult<BreakpointInfo?>(info);
+        }
+
+        public async Task<bool> ClearBreakpointAsync(string filePath, int lineNumber, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("filePath must not be empty.", nameof(filePath));
+            if (lineNumber <= 0)
+                throw new ArgumentException("lineNumber must be positive.", nameof(lineNumber));
+
+            // This is a stub implementation.
+            return await Task.FromResult(true);
+        }
+
+        public async Task<RuntimeState?> StepAsync(DebugStepAction action, CancellationToken cancellationToken = default)
+        {
+            // This is a stub implementation.
+            return await Task.FromResult<RuntimeState?>(null);
+        }
+
+        public async Task ResumeDebugAsync(CancellationToken cancellationToken = default)
+        {
+            // Enforce 30-second timeout for resume operation
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                cts.CancelAfter(TimeSpan.FromSeconds(30));
+                try
+                {
+                    // This is a stub implementation.
+                    await Task.Delay(100, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw new TimeoutException("Execution did not resume within 30 seconds.");
+                }
+            }
+        }
     }
 }

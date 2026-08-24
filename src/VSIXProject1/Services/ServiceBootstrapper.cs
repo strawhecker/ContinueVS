@@ -102,6 +102,15 @@ namespace ContinueVS.Services
                 return new TestFailureService(ideService, logger);
             });
 
+            // Register debugger service for runtime event inspection (gap29_3)
+            services.AddSingleton<ITimeoutHelper, TimeoutHelper>();
+            services.AddSingleton<IDebuggerService>(sp =>
+            {
+                var dteProvider = sp.GetRequiredService<IDteProvider>();
+                var timeoutHelper = sp.GetRequiredService<ITimeoutHelper>();
+                return new DebuggerService(dteProvider, timeoutHelper);
+            });
+
             services.AddSingleton<INotificationService>(sp =>
             {
                 // Use a lazy factory for MainViewModel to avoid circular dependency

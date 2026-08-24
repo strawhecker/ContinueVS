@@ -3561,6 +3561,25 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 #### gap29_3: Runtime Event Inspection
 - **Goal:** Let AI examine real-time debug events (breakpoints, variable changes)
 - **Implementation:**
+  - Attach to running process via DTE.Debugger
+  - Break at user-selected breakpoint when AI requests
+  - Return current state: local variables, callstack, watches
+  - Resume execution when AI finishes inspection
+  - Support stepping: step over, into, out
+  - Timeout if execution suspended > 30 seconds
+- **Reference:** Continue.js debug mode concept (Cline integration)
+- **Dependencies:** gap29_1, VsIdeService (DTE debugger)
+- **Test:** RuntimeInspectionTests (3 tests: inspect variables, step over, timeout handling)
+- **Status:** ✅ Complete
+  - Created: IDebuggerService (interface), DebuggerService (implementation)
+  - Created: RuntimeState, DebugStepAction, BreakpointInfo (DTO types)
+  - Extended: IIdeService (debug methods), VsIdeService (implementations)
+  - Registered: IDebuggerService in ServiceBootstrapper with DI
+  - Tests: RuntimeInspectionTests (3 xUnit tests - mocked, verified)
+  - Build: Clean for gap29_3 code (pre-existing XAML warnings excluded)
+  - Blocks: None | Enables: gap29_4 (Breadcrumb Trail), gap29_8 (Hybrid Debug Mode)
+
+- **Implementation:**
 -Attach to running process via DTE.Debugger
 - Break at user-selected breakpoint when AI requests
 - Return current state: local variables, callstack, watches

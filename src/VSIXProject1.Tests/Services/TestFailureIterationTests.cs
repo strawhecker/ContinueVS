@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using Moq;
