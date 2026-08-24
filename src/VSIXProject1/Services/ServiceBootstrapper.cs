@@ -118,6 +118,14 @@ namespace ContinueVS.Services
                 Func<MainViewModel?> getMainViewModel = () => sp.GetService<MainViewModel>();
                 return new WpfNotificationService(null, null, getMainViewModel);
             });
+
+            // Breadcrumb trail recording service (gap29_4)
+            services.AddSingleton<IBreadcrumbService>(sp =>
+            {
+                var notificationService = sp.GetRequiredService<INotificationService>();
+                return new BreadcrumbService(notificationService);
+            });
+
             services.AddSingleton<IUIStateService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();
