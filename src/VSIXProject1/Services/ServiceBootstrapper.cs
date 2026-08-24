@@ -2,6 +2,7 @@
 using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.Services.Interfaces.Parsers;
 using ContinueVS.Services.Implementations;
 using ContinueVS.UI.Navigation;
 using ContinueVS.ViewModels;
@@ -71,6 +72,28 @@ namespace ContinueVS.Services
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();
+
+            // Stack trace parsing service and parsers (gap29_1)
+            services.AddSingleton<IDotNetFrameworkParser, DotNetFrameworkStackTraceParser>();
+            services.AddSingleton<IDotNetCoreParser, DotNetCoreStackTraceParser>();
+            services.AddSingleton<ICppNativeParser, CppNativeStackTraceParser>();
+            services.AddSingleton<IJavaScriptParser, JavaScriptStackTraceParser>();
+            services.AddSingleton<IPythonParser, PythonStackTraceParser>();
+            services.AddSingleton<IFormatDetector>(sp =>
+            {
+                var fwParser = sp.GetRequiredService<IDotNetFrameworkParser>();
+                var coreParser = sp.GetRequiredService<IDotNetCoreParser>();
+                var cppParser = sp.GetRequiredService<ICppNativeParser>();
+                var jsParser = sp.GetRequiredService<IJavaScriptParser>();
+                var pyParser = sp.GetRequiredService<IPythonParser>();
+                return new StackTraceFormatDetector(fwParser, coreParser, cppParser, jsParser, pyParser);
+            });
+            services.AddSingleton<IStackTraceService>(sp =>
+            {
+                var detector = sp.GetRequiredService<IFormatDetector>();
+                return new StackTraceService(detector);
+            });
+
             services.AddSingleton<INotificationService>(sp =>
             {
                 // Use a lazy factory for MainViewModel to avoid circular dependency

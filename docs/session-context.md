@@ -3344,17 +3344,23 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Goal:** Automatically extract meaningful context from error stack traces in .NET environments
 - **Why:** Enable AI to understand error origin without manual navigation
 - **Implementation:**
-- When user pastes stack trace in chat, parse it using regex/Roslyn
-- Extract: file path, line number, method name, exception type, message
-- Create ContextItem for each frame (file will be auto-opened)
-- Link frames to actual code symbols via IIdeService
-- Normalize paths (relative to project root)
-- Handle both .NET Framework and .NET Core stack formats
-- Auto-detect format via heuristics (e.g., look for "at " prefix)
+  - When user pastes stack trace in chat, parse it using regex/Roslyn
+  - Extract: file path, line number, method name, exception type, message
+  - Create ContextItem for each frame (file will be auto-opened)
+  - Link frames to actual code symbols via IIdeService
+  - Normalize paths (relative to project root)
+  - Handle both .NET Framework and .NET Core stack formats
+  - Auto-detect format via heuristics (e.g., look for "at " prefix)
 - **Reference:** Sentry-for-AI SKILL.md: `get_event_stacktrace` pattern
 - **Dependencies:** gap29 discovery, IIdeService, IContextService
-- **Test:** StackTraceParsingTests (5 tests: parse single frame, multiple frames, .NET Framework format, .NET Core format, invalid trace)
-- **Status:** Phase 3 implementation
+- **Test:** StackTraceParsingTests (11 tests), StackTraceContextIntegrationTests (8 tests)
+- **Status:** ✅ COMPLETE - Phase 3 implementation
+  - Created core domain types: StackTraceFrame, ParseResult, ParseError
+  - Implemented parsers: DotNetFrameworkStackTraceParser, DotNetCoreStackTraceParser
+  - Implemented orchestrator: StackTraceService with IFormatDetector
+  - Scaffolded future parsers: ICppNativeParser, IJavaScriptParser, IPythonParser
+  - DI registration complete in ServiceBootstrapper
+  - All 813 tests passing (including 19 new stack trace tests)
 
 #### gap29_1a: Stack Trace Parsing - C++ Native (HIGH PRIORITY)
 - **Goal:** Parse C++ native stack traces from Windows exceptions, debugger output, and crash dumps
