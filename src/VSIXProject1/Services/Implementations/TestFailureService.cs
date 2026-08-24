@@ -8,8 +8,8 @@ using ContinueVS.Services.Interfaces;
 namespace ContinueVS.Services.Implementations
 {
     /// <summary>
-    /// Orchestrates iterative test failure analysis with diagnostic capture and logging.
-    /// Enforces maximum 5 iterations to prevent runaway analysis loops.
+    /// Orchestrates test failure analysis with diagnostic capture and logging.
+    /// Iteration limits are enforced by the outer tool orchestrator (gap23_3) via user-configurable MaxToolCalls.
     /// </summary>
     internal class TestFailureService : ITestFailureService
     {
@@ -30,14 +30,6 @@ namespace ContinueVS.Services.Implementations
             if (string.IsNullOrWhiteSpace(testPath))
                 throw new ArgumentException("testPath must not be empty.", nameof(testPath));
 
-            if (iteration >= 5)
-            {
-                var message = $"Test failure analysis exceeded maximum 5 iterations. Last iteration: {iteration}";
-                Debug.WriteLine($"[gap29_2-iteration-limit] {message}");
-                await _logger.WriteErrorAsync($"[gap29_2] {message}");
-                throw new TestAnalysisException(message, iteration);
-            }
-
             Debug.WriteLine($"[gap29_2-analyze-start] TestPath: {testPath}, Iteration: {iteration}");
 
             var options = new TestRunOptions(testPath)
@@ -52,7 +44,7 @@ namespace ContinueVS.Services.Implementations
                 var result = await _ideService.RunTestAsync(testPath, options, ct);
 
                 await _logger.WriteInfoAsync(
-                    $"[gap29_2] Test analysis iteration {iteration + 1}/5: {testPath} - ExitCode={result.ExitCode}, Frames={result.FrameCount}");
+                    $"[gap29_2] Test analysis iteration {iteration + 1}: {testPath} - ExitCode={result.ExitCode}, Frames={result.FrameCount}");
 
                 Debug.WriteLine($"[gap29_2-analyze-complete] Iteration: {iteration}, ExitCode: {result.ExitCode}");
 

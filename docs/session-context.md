@@ -3526,29 +3526,28 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - IdeService.RunTestAsync(testPath, options) with debugging options
   - Capture enhanced output (breakpoint hits, variable states)
   - Return results; let AI continue investigation
-  - Track iteration steps (5 max) to prevent loops
+  - Iteration limits enforced by outer tool orchestrator (gap23_3) via user-configurable MaxToolCalls
 - **Reference:** Sentry-for-AI SKILL.md: iterative debugging flow
 - **Dependencies:** gap29_1 ✅, IIdeService ✅, IToolService ✅
-- **Test:** TestFailureIterationTests (3 tests: single iteration, multi-step analysis, stop after 5 iterations)
+- **Test:** TestFailureIterationTests (3 tests: single iteration, multi-step analysis, high iteration number)
 - **Status:** ✅ COMPLETE | Type: Test Failure Analysis Orchestration
 - **Implementation Details:**
   - Created `TestRunOptions` domain type with properties: testPath, debug, verbosity, breakpointFile/Line, timeout (30s default), currentIteration
   - Created `TestRunResult` domain type with properties: exitCode, stdout, stderr, frameCount, parsedFrames (List<StackTraceFrame>), succeeded (computed), message
   - Extended `IIdeService` with `RunTestAsync(string testPath, TestRunOptions options, CancellationToken ct)`
   - Created `ITestFailureService` interface with `AnalyzeFailureAsync(string testPath, int iteration, CancellationToken ct)` method
-  - Created `TestAnalysisException` for iteration limit enforcement (max 5 iterations)
   - Implemented `VsIdeService.RunTestAsync()` with Process-based test execution, stdout/stderr capture, 30s timeout handling
-  - Implemented `TestFailureService` with iteration validation, logging, and error handling
+  - Implemented `TestFailureService` with iteration context logging and error handling (NO hardcoded iteration limits)
   - Registered `ITestFailureService` → `TestFailureService` in ServiceBootstrapper
   - Created `TestFailureIterationTests.cs` with 3 xUnit tests:
     - `SingleIterationAnalysis_ReturnsResultWithFrameData` ✅ PASS
     - `MultiStepAnalysis_IncrementIterationCountAndRefineOutput` ✅ PASS
-    - `StopAfter5Iterations_ThrowsTestAnalysisException` ✅ PASS
+    - `HighIterationNumber_ContinuesNormally_WithIterationInLogging` ✅ PASS (validates no service-level iteration cap)
+- **Design Decision:** Removed artificial hardcoded iteration limit; iteration limits are enforced by outer orchestrator (gap23_3) based on user-configurable MaxToolCalls setting. Service is transparent to caller about limits.
 - **Files Created:**
   - src/VSIXProject1/Core/Types/TestRunOptions.cs
   - src/VSIXProject1/Core/Types/TestRunResult.cs
   - src/VSIXProject1/Services/Interfaces/ITestFailureService.cs
-  - src/VSIXProject1/Services/TestAnalysisException.cs
   - src/VSIXProject1/Services/Implementations/TestFailureService.cs
   - src/VSIXProject1.Tests/Services/TestFailureIterationTests.cs (new)
 - **Files Modified:**

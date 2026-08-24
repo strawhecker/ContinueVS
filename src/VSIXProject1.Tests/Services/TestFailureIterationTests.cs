@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
-using ContinueVS.Services;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using Moq;
@@ -92,22 +91,33 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task StopAfter5Iterations_ThrowsTestAnalysisException()
+        public async Task HighIterationNumber_ContinuesNormally_WithIterationInLogging()
         {
-            // Arrange
-            var testPath = "MyTest.PersistentlyFailing";
+            // Arrange - iteration limits are controlled by outer orchestrator, not this service
+            var testPath = "MyTest.Iteration20";
+            var iteration = 20; // User's config allows this; no service-level restriction
+            var expectedResult = new TestRunResult(0, "Success after many iterations", "", "Test passed");
 
-            // Act & Assert
-            var ex = await Assert.ThrowsAsync<TestAnalysisException>(
-                () => _service.AnalyzeFailureAsync(testPath, 5));
+            _mockIdeService
+                .Setup(s => s.RunTestAsync(testPath, It.IsAny<TestRunOptions>(), default))
+                .ReturnsAsync(expectedResult);
 
-            Assert.NotNull(ex);
-            Assert.Equal(5, ex.IterationCount);
-            Assert.Contains("exceeded maximum 5 iterations", ex.Message);
+            _mockLogger
+                .Setup(l => l.WriteInfoAsync(It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
 
-            _mockIdeService.Verify(
-                s => s.RunTestAsync(It.IsAny<string>(), It.IsAny<TestRunOptions>(), default),
-                Times.Never);
+            // Act
+            var result = await _service.AnalyzeFailureAsync(testPath, iteration);
+
+            // Assert - service allows any iteration count; orchestrator enforces limits
+            Assert.NotNull(result);
+            Assert.True(result.Succeeded);
+
+            // Verify logging includes iteration number
+            _mockLogger.Verify(
+                l => l.WriteInfoAsync(It.Is<string>(s => s.Contains("iteration") || s.Contains("21"))),
+                Times.Once);
         }
     }
 }
+
