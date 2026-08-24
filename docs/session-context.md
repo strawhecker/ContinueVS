@@ -3340,19 +3340,120 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 **Phase:** 3 (Advanced Features - Debugging & Error Analysis)  
 **Priority:** MEDIUM-HIGH (Enables user todebug complex issues)  
 
-#### gap29_1: Stack Trace Parsing & Analysis
-- **Goal:** Automatically extract meaningful context from error stack traces
+#### gap29_1: Stack Trace Parsing & Analysis (.NET Framework & .NET Core)
+- **Goal:** Automatically extract meaningful context from error stack traces in .NET environments
 - **Why:** Enable AI to understand error origin without manual navigation
 - **Implementation:**
-- When userpastes stack trace in chat, parse it using regex/Roslyn
+- When user pastes stack trace in chat, parse it using regex/Roslyn
 - Extract: file path, line number, method name, exception type, message
 - Create ContextItem for each frame (file will be auto-opened)
 - Link frames to actual code symbols via IIdeService
 - Normalize paths (relative to project root)
 - Handle both .NET Framework and .NET Core stack formats
+- Auto-detect format via heuristics (e.g., look for "at " prefix)
 - **Reference:** Sentry-for-AI SKILL.md: `get_event_stacktrace` pattern
 - **Dependencies:** gap29 discovery, IIdeService, IContextService
-- **Test:** StackTraceParsingTests (5tests: parse single frame, multiple frames, .NET Framework format, .NET Core format, invalid trace)
+- **Test:** StackTraceParsingTests (5 tests: parse single frame, multiple frames, .NET Framework format, .NET Core format, invalid trace)
+- **Status:** Phase 3 implementation
+
+#### gap29_1a: Stack Trace Parsing - C++ Native (HIGH PRIORITY)
+- **Goal:** Parse C++ native stack traces from Windows exceptions, debugger output, and crash dumps
+- **Why:** Support native interop scenarios and low-level debugging (critical for systems development)
+- **Implementation:**
+- Detect C++ format heuristics: look for `0x` addresses, `.cpp/.h` files, C++ mangled names
+- Parse frames: address, function name (handle name mangling via DbgHelp API)
+- Extract: file path, line number (via PDB symbols), method signature
+- Handle MSVC and clang-cl output formats
+- Create ContextItem for each frame with native symbol resolution
+- Support crash dump analysis (`.dmp` files) via Windows Debug Engine
+- **Dependencies:** gap29_1, PDB symbol services, Windows Debug Engine
+- **Test:** CppStackTraceParsingTests (4 tests: parse mangled names, address resolution, MSVC format, crash dump)
+- **Status:** Phase 3 implementation (parallel with gap29_1 core)
+
+#### gap29_1b: Stack Trace Parsing - JavaScript/TypeScript (HIGH PRIORITY)
+- **Goal:** Parse JavaScript/TypeScript stack traces from Node.js, Deno, browsers, and webpack
+- **Why:** Support full-stack debugging in mixed .NET + JS/TS projects (essential for modern development)
+- **Implementation:**
+- Detect JS format: look for `at `, `Error:`, `.js/.ts` files
+- Handle source maps for transpiled code (e.g., webpack, Babel, TypeScript)
+- Extract: file path (original source), line number, column number, function name
+- Parse browser console errors and Node.js stderr
+- Support Error objects with `.stack` property parsing
+- Handle async stack traces (if available in modern runtimes)
+- **Dependencies:** gap29_1, source-map library or similar
+- **Test:** JsStackTraceParsingTests (4 tests: Node.js format, source map resolution, browser console, async stacks)
+- **Status:** Phase 3 implementation (parallel with gap29_1 core)
+
+#### gap29_1c: Stack Trace Parsing - Python (HIGH PRIORITY)
+- **Goal:** Parse Python traceback format from Python runtime and pytest
+- **Why:** Support mixed .NET + Python projects and Python debugging (critical for cross-platform work)
+- **Implementation:**
+- Detect Python format: look for `File "` and `line` keywords, `Traceback` header
+- Extract: file path, line number, function name, source code line
+- Handle multi-line exception messages
+- Support pytest output format
+- Parse exception type and message
+- Handle chained exceptions (`__cause__`, `__context__`)
+- **Dependencies:** gap29_1
+- **Test:** PythonStackTraceParsingTests (4 tests: standard traceback, pytest format, chained exceptions, multiline messages)
+- **Status:** Phase 3 implementation (parallel with gap29_1 core)
+
+#### gap29_1d: Stack Trace Parsing - Java/JVM (Medium Priority, Deferred)
+- **Goal:** Parse Java and JVM stack traces from exceptions, thread dumps, and logs
+- **Why:** Support Java interop and JVM-based languages in mixed environments
+- **Implementation:**
+- Detect Java format: look for `at ` prefix, `.java` files, package-qualified class names
+- Extract: file path, line number, class name, method name, native/synthetic method indicators
+- Parse multi-threaded dump format
+- Handle suppressed exceptions
+- Support Kotlin and Scala JVM traces (format is compatible)
+- **Dependencies:** gap29_1
+- **Test:** JavaStackTraceParsingTests (3 tests: basic stack trace, multi-threaded dump, suppressed exceptions)
+- **Status:** Deferred - implement after gap29_1 core
+
+#### gap29_1e: Stack Trace Parsing - Go & Rust (Medium Priority, Deferred)
+- **Goal:** Parse goroutine panic traces (Go) and backtrace format (Rust)
+- **Why:** Support systems programming scenarios and cross-platform debugging
+- **Implementation:**
+- **Go:** Detect `panic:` or `throw`, goroutine ID, file:line format
+  - Extract: file path, line number, function name, goroutine context
+  - Handle defer unwinding
+- **Rust:** Detect backtrace format, handle memory addresses
+  - Extract: frame number, symbol name, file path (if available), line number
+  - Parse `RUST_BACKTRACE=1` and debug symbol output
+- Both: Support debug and optimized build formats
+- **Dependencies:** gap29_1
+- **Test:** GoRustStackTraceParsingTests (3 tests: Go panic trace, Rust backtrace, optimized builds)
+- **Status:** Deferred - implement after gap29_1 core
+
+#### gap29_1f: Stack Trace Parsing - C (Medium Priority, Deferred)
+- **Goal:** Parse C compiler errors and runtime stack traces
+- **Why:** Support C interop and native debugging
+- **Implementation:**
+- Compiler errors: gcc/clang format (`file.c:line: error:` etc.)
+- Runtime errors: signal handlers, segfault traces, sanitizer output
+- Extract: file path, line number, error type, message
+- Handle ASAN (AddressSanitizer) and UBSAN (UndefinedBehaviorSanitizer) output
+- Support MinGW and MSVC C compiler output
+- **Dependencies:** gap29_1
+- **Test:** CStackTraceParsingTests (3 tests: compiler error format, ASAN output, UBSAN output)
+- **Status:** Deferred - implement after gap29_1 core
+
+#### gap29_1g: Stack Trace Parsing - Ruby, PHP, Perl, R, Scala, Kotlin (Lower Priority, Deferred)
+- **Goal:** Extensible support for additional language stack traces
+- **Why:** Future-proof the parser for other languages as needed
+- **Implementation:**
+- Implement plugin architecture for language-specific parsers
+- Provide parser registration interface (e.g., `RegisterStackTraceParser(language, parserImpl)`)
+- **Ruby:** Parse Ruby exception format with `from` chains
+- **PHP:** Parse PHP error/exception format, handle call stack
+- **Perl:** Parse Perl die/warn with stack unwinding
+- **R:** Parse R traceback format and error messages
+- **Scala/Kotlin:** Delegate to Java JVM parser (format compatible)
+- Create base class for common patterns (line extraction, file normalization)
+- **Dependencies:** gap29_1, plugin registry interface
+- **Test:** LowPriorityLanguageParsingTests (2 tests: plugin registration, basic parse for each language)
+- **Status:** Deferred - implement as team demand warrants
 
 #### gap29_2: Test Failure Root Cause Iteration
 - **Goal:** Guide AI through test failure analysis loop
