@@ -96,10 +96,20 @@
             </ItemsControl>
         </Expander>
 
-        <!-- Mode Selector - gap27_1 -->
+        <!-- Mode Selector - gap27_1/27_6/27_7 -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
             <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,5,0" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <ComboBox ItemsSource="{Binding AvailableModes}" SelectedItem="{Binding SelectedMode, Mode=TwoWay}" DisplayMemberPath="Name" Width="100" Margin="0,0,5,0" Style="{DynamicResource ThemedComboBoxStyle}"/>
+            <ComboBox ItemsSource="{Binding AvailableModes}" SelectedItem="{Binding SelectedMode, Mode=TwoWay}" Width="120" Margin="0,0,5,0" Style="{DynamicResource ThemedComboBoxStyle}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Icon}" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="14"/>
+                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="?" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" FontWeight="Bold" ToolTip="{Binding SelectedMode.Description, StringFormat='Mode: {0}'}"/>
 
             <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
 
@@ -111,7 +121,8 @@
             <TextBlock Text="{Binding ToolCallCounterDisplay}" VerticalAlignment="Center" Margin="5,0,0,5" FontSize="11" Foreground="{Binding ToolCallCounterDisplay, Converter={StaticResource ToolCallCounterColorConverter}}" ToolTip="Shows cumulative tool calls in current session (resets per-action)"/>
         </StackPanel>
 
-        <!-- Onboarding Card - gap25_6 -->
+        <!-- Mode Description Helper Text - gap27_6 -->
+        <TextBlock Grid.Row="3" Text="{Binding SelectedMode.Description}" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" FontStyle="Italic" Margin="5,25,5,0" VerticalAlignment="Top"/>
         <Border Grid.Row="4" Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="5" Padding="15" VerticalAlignment="Top" Visibility="{Binding OnboardingCardVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel>
                 <TextBlock Text="🎯 Getting Started" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,10"/>

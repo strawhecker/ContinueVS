@@ -1,0 +1,104 @@
+﻿#nullable enable
+
+using System.Collections.Generic;
+using System.Linq;
+using Xunit;
+using Moq;
+using ContinueVS.Core;
+using ContinueVS.Core.Types;
+using ContinueVS.Services.Interfaces;
+using ContinueVS.ViewModels;
+using ContinueVS.ViewModels.Models;
+
+namespace ContinueVS.Tests.UI
+{
+    /// <summary>
+    /// Tests for mode option icons (gap27_7).
+    /// Verifies that each mode displays the correct visual emoji icon.
+    /// </summary>
+    public class ModeIconTests
+    {
+        private static ChatPageViewModel CreateViewModel()
+        {
+            var llmMock = new Mock<ILlmService>();
+
+            var contextMock = new Mock<IContextService>();
+            contextMock.Setup(x => x.GetContextItemsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+                .ReturnsAsync(new List<ContextItem>());
+
+            var toolMock = new Mock<IToolService>();
+
+            var sessionMock = new Mock<ISessionService>();
+            sessionMock.Setup(x => x.AddMessageAsync(It.IsAny<ChatMessage>()))
+                .Returns(System.Threading.Tasks.Task.CompletedTask);
+
+            var notifMock = new Mock<INotificationService>();
+
+            var config = new ContinueConfig
+            {
+                Models = new List<ModelInfo>
+                {
+                    new ModelInfo { Name = "Test Model", Provider = "ollama", BaseUrl = "http://localhost:11434" }
+                }
+            };
+            var configMock = new Mock<IConfigService>();
+            configMock.Setup(x => x.GetCurrentConfig()).Returns(config);
+
+            var promptMock = new Mock<ISystemPromptService>();
+            promptMock.Setup(x => x.LoadAsync()).Returns(System.Threading.Tasks.Task.CompletedTask);
+            promptMock.Setup(x => x.GetPromptForMode(It.IsAny<string>())).Returns("Test prompt");
+
+            var uiStateMock = new Mock<IUIStateService>();
+
+            return new ChatPageViewModel(
+                llmMock.Object,
+                contextMock.Object,
+                toolMock.Object,
+                sessionMock.Object,
+                notifMock.Object,
+                configMock.Object,
+                promptMock.Object,
+                uiStateMock.Object
+            );
+        }
+
+        [Fact]
+        public void AskModeIcon_Should_Be_SpeechBubble()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var askMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Ask);
+
+            // Assert
+            Assert.Equal("💬", askMode.Icon);
+        }
+
+        [Fact]
+        public void AgentModeIcon_Should_Be_Robot()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var agentMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Agent);
+
+            // Assert
+            Assert.Equal("🤖", agentMode.Icon);
+        }
+
+        [Fact]
+        public void PlanModeIcon_Should_Be_Clipboard()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var planMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Plan);
+
+            // Assert
+            Assert.Equal("📋", planMode.Icon);
+        }
+    }
+}
