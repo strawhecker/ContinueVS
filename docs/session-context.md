@@ -3410,16 +3410,55 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 #### gap29_1c: Stack Trace Parsing - Python (HIGH PRIORITY)
 - **Goal:** Parse Python traceback format from Python runtime and pytest
 - **Why:** Support mixed .NET + Python projects and Python debugging (critical for cross-platform work)
+- **Status:** ✅ COMPLETE | Type: Python Stack Trace Parser Implementation
 - **Implementation:**
-- Detect Python format: look for `File "` and `line` keywords, `Traceback` header
-- Extract: file path, line number, function name, source code line
-- Handle multi-line exception messages
-- Support pytest output format
-- Parse exception type and message
-- Handle chained exceptions (`__cause__`, `__context__`)
-- **Dependencies:** gap29_1
-- **Test:** PythonStackTraceParsingTests (4 tests: standard traceback, pytest format, chained exceptions, multiline messages)
-- **Status:** Phase 3 implementation (parallel with gap29_1 core)
+  - Detect Python format: look for `File "` and `line` keywords, `Traceback` header (2+ confidence indicators required)
+  - Extract: file path, line number, function name with graceful error handling
+  - Handle multi-line exception messages (joins lines following exception)
+  - Support pytest output format (detects and strips `E` prefix from each line)
+  - Parse exception type and message (ValueError, RuntimeError, AssertionError, etc.)
+  - Handle chained exceptions (`During handling of the above exception...` pattern detection)
+  - Handles frames without function names (defaults to `<module>`)
+
+**Implementation Details:**
+- **CanParse():** Heuristic detection using 5 confidence indicators (File pattern, line keyword, Traceback header, exception patterns, .py extension); requires 2+ indicators
+- **ParseAsync():** Regex-based frame extraction with exception type/message parsing and error accumulation
+- **Frame Extraction:** Regex pattern matches `File "path", line N [, in function_name]` format
+- **Pytest Support:** Detection via `E ` prefix; removes prefixes before parsing
+- **Chained Exception Detection:** Looks for `During handling of the above exception` separator
+- **Error Handling:** Graceful handling of null/empty input, missing frames, partial parsing
+
+**Files Modified:**
+- `src/VSIXProject1/Services/Implementations/PythonStackTraceParser.cs`: Full implementation
+- `src/VSIXProject1.Tests/Services/PythonStackTraceParsingTests.cs`: Comprehensive unit tests (15 tests)
+
+**Test Coverage (15 tests, all passing):**
+- CanParse detection: 6 tests (standard traceback, pytest format, chained exceptions, multiline message, empty, null)
+- Parse standard traceback: 2 tests (with function names, without function names)
+- Parse pytest format: 2 tests (format detection with E prefix, assertion error messages)
+- Parse chained exceptions: 1 test (detecting and marking chained exception types)
+- Parse multiline messages: 1 test (collecting full exception messages spanning lines)
+- Error handling: 3 tests (null input, empty input, no frames)
+
+**How It Works:**
+1. Input text analyzed for Python format indicators
+2. If 2+ indicators detected, parser activates
+3. Regex extracts frames matching `File "path", line N, in func_name` pattern
+4. Exception type/message extracted from final lines or exception header
+5. Pytest E-prefix detection and stripping
+6. Chained exception detection via separator patterns
+7. Results returned with diagnostic messaging including frame count, format type, chain info
+
+**Build Status:** ✅ Successful (0 warnings, 0 errors, 15/15 Python tests passing)
+**Test Results:** 
+- Python parser tests: 15/15 passing
+- Full suite: 842 tests passing (1 pre-existing failure in ConfigServiceTests unrelated to gap29_1c)
+- No regressions in existing code
+
+**Integration:**
+- DI registration already in place (StackTraceFormatDetector constructor)
+- Format detection heuristics already configured in StackTraceFormatDetector.cs (lines 119-125)
+- Ready for production use with mixed .NET + Python projects
 
 #### gap29_1d: Stack Trace Parsing - Java/JVM (Medium Priority, Deferred)
 - **Goal:** Parse Java and JVM stack traces from exceptions, thread dumps, and logs

@@ -322,6 +322,7 @@ namespace ContinueVS.Services.Tests
         public async Task SaveConfigAsync_FiltersToolsByDelta_UsingToolOverrides()
         {
             Dispose();
+            Directory.CreateDirectory(_testConfigDir);
             var service = new ConfigService(null, _testConfigDir);
 
             // Initialize and get all tools
