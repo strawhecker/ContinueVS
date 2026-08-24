@@ -129,6 +129,9 @@ namespace ContinueVS.Services
                 return new BreadcrumbService(notificationService);
             });
 
+            // Distributed tracing service for trace header parsing and async context flow (gap29_6)
+            services.AddSingleton<IDistributedTracingService, DistributedTracingService>();
+
             services.AddSingleton<IUIStateService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();
