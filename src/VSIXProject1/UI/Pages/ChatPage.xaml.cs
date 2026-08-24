@@ -105,7 +105,8 @@ namespace ContinueVS.UI.Pages
                     var config      = sp.GetRequiredService<IConfigService>();
                     var systemPrompt = sp.GetRequiredService<ISystemPromptService>();
                     var uiState     = sp.GetRequiredService<IUIStateService>();
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState);
+                    var workflow    = sp.GetService<IWorkflowService>();
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, null, workflow);
                 }
             }
             catch (Exception ex)

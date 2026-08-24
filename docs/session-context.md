@@ -3201,14 +3201,25 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 
 #### gap27_12: Continuation Policy ViewModel Support
 - **Goal:** Add policy selection to ChatPageViewModel
+- **Status:** ✅ COMPLETE
 - **Implementation:**
-- Add `ObservableCollection<PolicyOption> ContinuationPolicies` to ViewModel
-- Add `ContinuationPolicy SelectedPolicy` property (two-way binding)
-- Populate: {"Automatically continue", Auto}, {"Ask before each action", Interactive}, {"Bypass confirmations", Bypass}
-- SelectedPolicy.setter calls _workflowService.SetContinuationPolicyAsync(newPolicy)
-- Subscribe to policy changes; update service layer
-- **Dependencies:** gap27_11, gap27_1
-- **Test:** PolicyViewModelTests (4 tests: load policies, select Interactive, change event fires, persistence)
+  - Added `ObservableCollection<PolicyOption> ContinuationPolicies` to ViewModel (lazy-loaded)
+  - Added `ContinuationPolicy SelectedPolicy { get; set; }` property (defaults to Interactive, two-way binding ready)
+  - Populated with 3 options: {"Automatically continue", Auto, "Continue to next tool without pause", "⚡"}, {"Ask before each action", Interactive, "Show UI prompt before each tool execution", "❓"}, {"Bypass confirmations", Bypass, "Skip confirmation dialogs (risky mode)", "⏭️"}
+  - SelectedPolicy.setter calls `_workflowService?.SetContinuationPolicyAsync(newPolicy)` (respects null for test compatibility)
+  - Added `IWorkflowService? _workflowService` field to ChatPageViewModel
+  - Extended constructor with optional `IWorkflowService? workflowService = null`
+  - Updated all ChatPageViewModel construction sites in tests and ChatPage.xaml.cs
+  - Created `IWorkflowService` interface stub in Services/Interfaces/
+  - Restored `SelectedMode` property that was accidentally removed during initial edits
+- **Dependencies:** gap27_11 ✅, gap27_1 ✅
+- **Tests:** PolicyViewModelTests created with 4 xUnit tests: 
+  - ContinuationPolicies_Should_Load_On_First_Access ✅
+  - SelectedPolicy_Should_Default_To_Interactive ✅
+  - SelectedPolicy_Change_Should_Fire_PropertyChanged ✅
+  - SelectedPolicy_Setter_Should_Call_Service ✅
+- **Files Modified:** ChatPageViewModel.cs, PolicyViewModelTests.cs (new), IWorkflowService.cs (new), ChatPageViewModelContextTests.cs, ChatPageViewModelDeleteMessageTests.cs, ChatPageViewModelAgentModeTests.cs, ChatPageViewModelToolPolicyTests.cs, ChatPageViewModelOnboardingTests.cs, ModeIconTests.cs, ModeDropdownBindingTests.cs, ModeDescriptionTests.cs, UserNotificationTests.cs, ChatPage.xaml.cs
+- **Test Results:** All 780 tests pass ✅
 
 #### gap27_13: XAML Dropdown Control for Policies
 - **Goal:** Add dropdown for continuation policies next to mode selector

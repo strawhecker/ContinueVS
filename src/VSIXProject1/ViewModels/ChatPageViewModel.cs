@@ -72,6 +72,7 @@ namespace ContinueVS.ViewModels
             private readonly ISystemPromptService _systemPromptService;
             private readonly IUIStateService _uiStateService;
             private IModeService? _modeService;
+            private IWorkflowService? _workflowService;
             private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -136,6 +137,16 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private ModeOption? _selectedMode;
 
+        /// <summary>
+        /// Backing collection for available continuation policy options (gap27_12).
+        /// </summary>
+        private ObservableCollection<PolicyOption>? _continuationPolicies;
+
+        /// <summary>
+        /// Backing field for the currently selected continuation policy (gap27_12).
+        /// </summary>
+        private ContinuationPolicy _selectedPolicy = ContinuationPolicy.Interactive;
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
@@ -160,33 +171,48 @@ namespace ContinueVS.ViewModels
             }
 }
 
-        /// <summary>
-        /// Gets or sets the currently selected mode option (gap27_1).
-        /// Changing this property propagates the new ChatMode to CurrentMode.
-        /// When set, delegates to IModeService.SetModeAsync() to fire mode-change events (gap27_3).
-        /// Also saves mode to config as default (gap27_5).
-        /// </summary>
-        public ModeOption? SelectedMode
+/// <summary>
+/// Gets the available continuation policy options for the policy dropdown (gap27_12).
+/// Lazy-initialized collection of policy choices: Auto, Interactive, Bypass.
+/// </summary>
+public ObservableCollection<PolicyOption> ContinuationPolicies
+{
+    get
+    {
+        if (_continuationPolicies == null)
         {
-            get => _selectedMode;
-            set
+            _continuationPolicies = new ObservableCollection<PolicyOption>
             {
-                if (Set(ref _selectedMode, value) && value != null)
-                {
-                    CurrentMode = value.Value;
-                    if (_modeService != null)
-                    {
-                        // Mode enums are compatible; cast to int for service call
-                        _ = _modeService.SetModeAsync((int)value.Value);
-                    }
-                    // gap27_5: Save selected mode to config as default
-                    _ = _configService.SaveDefaultModeAsync((int)value.Value);
-                }
-            }
+                new PolicyOption("Automatically continue", ContinuationPolicy.Auto, "Continue to next tool without pause", "⚡"),
+                new PolicyOption("Ask before each action", ContinuationPolicy.Interactive, "Show UI prompt before each tool execution", "❓"),
+                new PolicyOption("Bypass confirmations", ContinuationPolicy.Bypass, "Skip confirmation dialogs (risky mode)", "⏭️")
+            };
         }
+        return _continuationPolicies;
+    }
+}
 
-        public string? InputText
+/// <summary>
+/// Gets or sets the currently selected continuation policy (gap27_12).
+/// Changing this property persists the policy via IWorkflowService.SetContinuationPolicyAsync().
+/// Defaults to Interactive (safe choice).
+/// </summary>
+public ContinuationPolicy SelectedPolicy
+{
+    get => _selectedPolicy;
+    set
+    {
+        if (Set(ref _selectedPolicy, value))
         {
+#pragma warning disable VSTHRD110
+            _workflowService?.SetContinuationPolicyAsync(value);
+#pragma warning restore VSTHRD110
+        }
+    }
+}
+
+public string? InputText
+{
             get => _inputText;
             set 
             {
@@ -217,6 +243,31 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
+        /// Gets or sets the currently selected mode option (gap27_1).
+        /// Changing this property propagates the new ChatMode to CurrentMode.
+        /// When set, delegates to IModeService.SetModeAsync() to fire mode-change events (gap27_3).
+        /// Also saves mode to config as default (gap27_5).
+        /// </summary>
+        public ModeOption? SelectedMode
+        {
+            get => _selectedMode;
+            set
+            {
+                if (Set(ref _selectedMode, value) && value != null)
+                {
+                    CurrentMode = value.Value;
+                    if (_modeService != null)
+                    {
+                        // Mode enums are compatible; cast to int for service call
+                        _ = _modeService.SetModeAsync((int)value.Value);
+                    }
+                    // gap27_5: Save selected mode to config as default
+                    _ = _configService.SaveDefaultModeAsync((int)value.Value);
+                }
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the current operational mode (Ask, Agent, or Plan).
         /// </summary>
         public ChatMode CurrentMode
@@ -232,7 +283,7 @@ namespace ContinueVS.ViewModels
                     // gap27_1: keep SelectedMode in sync when CurrentMode is set externally (e.g. SetModeCommand)
                     var matching = AvailableModes.FirstOrDefault(m => m.Value == _currentMode);
                     if (matching != null && !ReferenceEquals(_selectedMode, matching))
-                        Set(ref _selectedMode, matching, nameof(SelectedMode));
+                        Set(ref _selectedMode, matching, "SelectedMode");
                 }
                 else
                 {
@@ -309,7 +360,8 @@ namespace ContinueVS.ViewModels
             IConfigService configService,
             ISystemPromptService systemPromptService,
             IUIStateService uiStateService,
-            IModeService? modeService = null)
+            IModeService? modeService = null,
+            IWorkflowService? workflowService = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -329,6 +381,7 @@ namespace ContinueVS.ViewModels
             _systemPromptService = systemPromptService;
             _uiStateService = uiStateService;
             _modeService = modeService;
+            _workflowService = workflowService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -428,7 +481,7 @@ namespace ContinueVS.ViewModels
                 if (modeOption != null && !ReferenceEquals(_selectedMode, modeOption))
                 {
                     _selectedMode = modeOption;
-                    RaisePropertyChanged(nameof(SelectedMode));
+                    RaisePropertyChanged("SelectedMode");
                 }
             }
             catch (Exception ex)

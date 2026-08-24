@@ -72,7 +72,9 @@ namespace ContinueVS.Tests.Services
                 _mockNotificationService.Object,
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
-                _mockUIStateService.Object
+                _mockUIStateService.Object,
+                null,
+                null
             );
 
             // Act - Trigger the check via reflection to set banner state
@@ -120,7 +122,9 @@ namespace ContinueVS.Tests.Services
                 _mockNotificationService.Object,
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
-                _mockUIStateService.Object
+                _mockUIStateService.Object,
+                null,
+                null
             );
 
             // Act - Trigger the check
@@ -170,7 +174,9 @@ namespace ContinueVS.Tests.Services
                 _mockNotificationService.Object,
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
-                _mockUIStateService.Object
+                _mockUIStateService.Object,
+                null,
+                null
             );
 
             // First show the warning
@@ -221,7 +227,9 @@ namespace ContinueVS.Tests.Services
                 _mockNotificationService.Object,
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
-                _mockUIStateService.Object
+                _mockUIStateService.Object,
+                null,
+                null
             );
 
             // Act
@@ -269,7 +277,9 @@ namespace ContinueVS.Tests.Services
                 _mockNotificationService.Object,
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
-                _mockUIStateService.Object
+                _mockUIStateService.Object,
+                null,
+                null
             );
             viewModel.InputText = "test message";
 

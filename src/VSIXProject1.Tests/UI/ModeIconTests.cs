@@ -58,7 +58,9 @@ namespace ContinueVS.Tests.UI
                 notifMock.Object,
                 configMock.Object,
                 promptMock.Object,
-                uiStateMock.Object
+                uiStateMock.Object,
+                null,
+                null
             );
         }
 

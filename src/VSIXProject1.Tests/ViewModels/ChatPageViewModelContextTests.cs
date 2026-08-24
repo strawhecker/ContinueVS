@@ -112,7 +112,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             // Assert
             var selectedModel = configService.Object.GetSelectedModel();
@@ -162,7 +164,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             // Assert - the pruning method should be available
             Assert.NotNull(sessionService.Object);

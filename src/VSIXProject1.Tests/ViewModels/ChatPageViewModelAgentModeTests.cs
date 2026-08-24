@@ -378,7 +378,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
         }
 
         /// <summary>

@@ -91,7 +91,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateNotificationServiceMock().Object,
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
-                CreateUIStateServiceMock().Object
+                CreateUIStateServiceMock().Object,
+                null,
+                null
             );
         }
 

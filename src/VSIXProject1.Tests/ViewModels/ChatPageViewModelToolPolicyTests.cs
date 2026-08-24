@@ -110,7 +110,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
         }
 
         /// <summary>
@@ -256,7 +258,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             // Act - wait for InitializeAsync
             await Task.Delay(50);

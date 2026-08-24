@@ -1,7 +1,7 @@
 ﻿#nullable enable
 
 using System.Collections.Generic;
-using System.ComponentModel;
+using System.Linq;
 using Xunit;
 using Moq;
 using ContinueVS.Core;
@@ -10,15 +10,15 @@ using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 using ContinueVS.ViewModels.Models;
 
-namespace ContinueVS.Tests.UI
+namespace ContinueVS.Tests.ViewModels
 {
     /// <summary>
-    /// Tests for the mode dropdown data binding (gap27_1).
-    /// Verifies AvailableModes collection, SelectedMode binding, and CurrentMode sync.
+    /// Tests for continuation policy ViewModel support (gap27_12).
+    /// Verifies that ContinuationPolicies collection and SelectedPolicy property work correctly.
     /// </summary>
-    public class ModeDropdownBindingTests
+    public class PolicyViewModelTests
     {
-        private static ChatPageViewModel CreateViewModel()
+        private static ChatPageViewModel CreateViewModel(IWorkflowService? workflowService = null)
         {
             var llmMock = new Mock<ILlmService>();
 
@@ -48,9 +48,7 @@ namespace ContinueVS.Tests.UI
             promptMock.Setup(x => x.LoadAsync()).Returns(System.Threading.Tasks.Task.CompletedTask);
             promptMock.Setup(x => x.GetPromptForMode(It.IsAny<string>())).Returns("Test prompt");
 
-            var uiState = new UIState { ToolSettings = new Dictionary<string, ToolPolicy>() };
             var uiStateMock = new Mock<IUIStateService>();
-            uiStateMock.Setup(x => x.GetUIStateAsync()).ReturnsAsync(uiState);
 
             return new ChatPageViewModel(
                 llmMock.Object,
@@ -62,88 +60,71 @@ namespace ContinueVS.Tests.UI
                 promptMock.Object,
                 uiStateMock.Object,
                 null,
-                null);
+                workflowService
+            );
         }
 
         [Fact]
-        public void AvailableModes_LoadsWith3Options()
-        {
-            // Arrange / Act
-            var vm = CreateViewModel();
-
-            // Assert
-            Assert.NotNull(vm.AvailableModes);
-            Assert.Equal(3, vm.AvailableModes.Count);
-        }
-
-        [Fact]
-        public void AvailableModes_ContainsAskAgentPlan()
-        {
-            // Arrange / Act
-            var vm = CreateViewModel();
-
-            // Assert
-            Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Ask);
-            Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Agent);
-            Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Plan);
-        }
-
-        [Fact]
-        public void SelectedMode_DefaultsToAsk()
-        {
-            // Arrange / Act
-            var vm = CreateViewModel();
-
-            // Assert
-            Assert.NotNull(vm.SelectedMode);
-            Assert.Equal(ChatMode.Ask, vm.SelectedMode!.Value);
-        }
-
-        [Fact]
-        public void SelectedMode_WhenSet_UpdatesCurrentMode()
-        {
-            // Arrange
-            var vm = CreateViewModel();
-            var agentOption = vm.AvailableModes[1]; // Agent
-
-            // Act
-            vm.SelectedMode = agentOption;
-
-            // Assert
-            Assert.Equal(ChatMode.Agent, vm.CurrentMode);
-        }
-
-        [Fact]
-        public void CurrentMode_WhenSet_UpdatesSelectedMode()
+        public void ContinuationPolicies_Should_Load_On_First_Access()
         {
             // Arrange
             var vm = CreateViewModel();
 
             // Act
-            vm.CurrentMode = ChatMode.Plan;
+            var policies = vm.ContinuationPolicies;
 
             // Assert
-            Assert.NotNull(vm.SelectedMode);
-            Assert.Equal(ChatMode.Plan, vm.SelectedMode!.Value);
+            Assert.NotNull(policies);
+            Assert.Equal(3, policies.Count);
         }
 
         [Fact]
-        public void SelectedMode_WhenChanged_RaisesPropertyChanged()
+        public void SelectedPolicy_Should_Default_To_Interactive()
         {
             // Arrange
             var vm = CreateViewModel();
-            var raised = false;
+
+            // Act
+            var selectedPolicy = vm.SelectedPolicy;
+
+            // Assert
+            Assert.Equal(ContinuationPolicy.Interactive, selectedPolicy);
+        }
+
+        [Fact]
+        public void SelectedPolicy_Change_Should_Fire_PropertyChanged()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+            bool propertyChangedRaised = false;
             vm.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName == nameof(vm.SelectedMode))
-                    raised = true;
+                if (e.PropertyName == nameof(ChatPageViewModel.SelectedPolicy))
+                {
+                    propertyChangedRaised = true;
+                }
             };
 
             // Act
-            vm.SelectedMode = vm.AvailableModes[2]; // Plan
+            vm.SelectedPolicy = ContinuationPolicy.Auto;
 
             // Assert
-            Assert.True(raised);
+            Assert.True(propertyChangedRaised);
+            Assert.Equal(ContinuationPolicy.Auto, vm.SelectedPolicy);
+        }
+
+        [Fact]
+        public void SelectedPolicy_Setter_Should_Call_Service()
+        {
+            // Arrange
+            var workflowServiceMock = new Mock<IWorkflowService>();
+            var vm = CreateViewModel(workflowServiceMock.Object);
+
+            // Act
+            vm.SelectedPolicy = ContinuationPolicy.Bypass;
+
+            // Assert
+            workflowServiceMock.Verify(x => x.SetContinuationPolicyAsync(ContinuationPolicy.Bypass), Times.Once);
         }
     }
 }

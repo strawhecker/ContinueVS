@@ -112,7 +112,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             // Add 3 messages to the collection
             var msg1 = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Message 1" };
@@ -156,7 +158,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             var messageId = "test-message-id";
             var msg = new ChatMessage { Id = messageId, Role = ChatMessageRole.User, Content = "Test" };
@@ -197,7 +201,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             var messageId = "test-message-id";
             var msg = new ChatMessage { Id = messageId, Role = ChatMessageRole.User, Content = "Test" };
@@ -243,7 +249,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);
@@ -282,7 +290,9 @@ namespace ContinueVS.Tests.ViewModels
                 notificationService.Object,
                 configService.Object,
                 systemPromptService.Object,
-                uiStateService.Object);
+                uiStateService.Object,
+                null,
+                null);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);
