@@ -43,6 +43,15 @@ namespace ContinueVS.Tests.ViewModels
             };
             var configMock = new Mock<IConfigService>();
             configMock.Setup(x => x.GetCurrentConfig()).Returns(config);
+            // gap27_16: Mock GetDefaultPolicyAsync to return Interactive (default)
+            configMock.Setup(x => x.GetDefaultPolicyAsync())
+                .ReturnsAsync(ContinuationPolicy.Interactive);
+            // gap27_16: Mock SaveDefaultPolicyAsync (fire-and-forget, returns completed task)
+            configMock.Setup(x => x.SaveDefaultPolicyAsync(It.IsAny<ContinuationPolicy>()))
+                .Returns(System.Threading.Tasks.Task.CompletedTask);
+            // gap27_5: Mock GetDefaultModeAsync to return Ask (0)
+            configMock.Setup(x => x.GetDefaultModeAsync())
+                .ReturnsAsync(0);
 
             var promptMock = new Mock<ISystemPromptService>();
             promptMock.Setup(x => x.LoadAsync()).Returns(System.Threading.Tasks.Task.CompletedTask);

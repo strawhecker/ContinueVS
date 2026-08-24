@@ -132,5 +132,20 @@ namespace ContinueVS.Services.Interfaces
         /// </summary>
         /// <returns>The mode integer (0=Ask, 1=Agent, 2=Plan), or Ask if not configured.</returns>
         Task<int> GetDefaultModeAsync();
+
+        /// <summary>
+        /// Saves the default continuation policy to configuration (gap27_16).
+        /// Policy is persisted to config.json under "defaultContinuationPolicy" field.
+        /// </summary>
+        /// <param name="policy">The continuation policy (Auto=0, Interactive=1, Deferred=2).</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task SaveDefaultPolicyAsync(ContinuationPolicy policy);
+
+        /// <summary>
+        /// Gets the default continuation policy from configuration (gap27_16).
+        /// If missing or invalid, returns Interactive (safe default).
+        /// </summary>
+        /// <returns>The continuation policy, or Interactive if not configured.</returns>
+        Task<ContinuationPolicy> GetDefaultPolicyAsync();
     }
 }

@@ -10,6 +10,7 @@ using ContinueVS.Services.Implementations;
 
 namespace ContinueVS.Services.Tests
 {
+    [Collection("ConfigService Collection")]
     public class ConfigServiceTests : IDisposable
     {
         private readonly string _testConfigPath;

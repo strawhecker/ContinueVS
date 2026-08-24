@@ -192,24 +192,27 @@ public ObservableCollection<PolicyOption> ContinuationPolicies
     }
 }
 
-/// <summary>
-/// Gets or sets the currently selected continuation policy (gap27_12).
-/// Changing this property persists the policy via IWorkflowService.SetContinuationPolicyAsync().
-/// Defaults to Interactive (safe choice).
-/// </summary>
-public ContinuationPolicy SelectedPolicy
-{
-    get => _selectedPolicy;
-    set
-    {
-        if (Set(ref _selectedPolicy, value))
+        /// <summary>
+        /// Gets or sets the currently selected continuation policy (gap27_12, gap27_16).
+        /// Changing this property persists the policy via IWorkflowService.SetContinuationPolicyAsync() 
+        /// and saves to config via IConfigService.SaveDefaultPolicyAsync().
+        /// Defaults to Interactive (safe choice).
+        /// </summary>
+        public ContinuationPolicy SelectedPolicy
         {
+            get => _selectedPolicy;
+            set
+            {
+                if (Set(ref _selectedPolicy, value))
+                {
 #pragma warning disable VSTHRD110
-            _workflowService?.SetContinuationPolicyAsync(value);
+                    _workflowService?.SetContinuationPolicyAsync(value);
+                    // gap27_16: Fire-and-forget policy persistence to config
+                    _ = _configService.SaveDefaultPolicyAsync(value);
 #pragma warning restore VSTHRD110
+                }
+            }
         }
-    }
-}
 
 public string? InputText
 {
@@ -497,6 +500,23 @@ public string? InputText
             {
                 System.Diagnostics.Debug.WriteLine($"[gap27_5-init-error] Failed to load default mode: {ex.Message}");
                 // Default to Ask (already the default in _currentMode)
+            }
+
+            // gap27_16: Restore default policy from config on startup
+            try
+            {
+                var defaultPolicy = await _configService.GetDefaultPolicyAsync();
+                System.Diagnostics.Debug.WriteLine($"[gap27_16-init] Loaded default policy from config: {defaultPolicy}");
+
+                // Update _selectedPolicy backing field directly without triggering setter
+                // to avoid saving immediately after loading
+                _selectedPolicy = defaultPolicy;
+                RaisePropertyChanged("SelectedPolicy");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap27_16-init-error] Failed to load default policy: {ex.Message}");
+                // Default to Interactive (already set in field initialization)
             }
         }
 

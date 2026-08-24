@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Exceptions;
 using ContinueVS.Services.Interfaces;
@@ -742,6 +743,61 @@ namespace ContinueVS.Services.Implementations
 
                     System.Diagnostics.Debug.WriteLine("[ConfigService.GetDefaultModeAsync] No default mode configured, returning Ask (0)");
                     return 0; // Default to Ask
+                }
+            });
+        }
+
+        /// <summary>
+        /// Saves the default continuation policy to configuration (gap27_16).
+        /// Policy is persisted to config.json under "defaultContinuationPolicy" field.
+        /// </summary>
+        /// <param name="policy">The continuation policy (Auto=0, Interactive=1, Deferred=2).</param>
+        public async Task SaveDefaultPolicyAsync(ContinuationPolicy policy)
+        {
+            await Task.Run(() =>
+            {
+                lock (_lock)
+                {
+                    ThrowIfNotInitialized();
+
+                    const string defaultPolicyKey = "defaultContinuationPolicy";
+                    _currentConfig.CustomSettings[defaultPolicyKey] = policy.ToString();
+                    _currentConfig.LastModified = DateTime.UtcNow;
+
+                    System.Diagnostics.Debug.WriteLine($"[ConfigService.SaveDefaultPolicyAsync] Saved default policy {policy} to CustomSettings[\"{defaultPolicyKey}\"]");
+                }
+            });
+
+            // Persist to disk
+            await SaveConfigAsync();
+        }
+
+        /// <summary>
+        /// Gets the default continuation policy from configuration (gap27_16).
+        /// If missing or invalid, returns Interactive (safe default).
+        /// </summary>
+        /// <returns>The continuation policy, or Interactive if not configured.</returns>
+        public async Task<ContinuationPolicy> GetDefaultPolicyAsync()
+        {
+            return await Task.Run(() =>
+            {
+                lock (_lock)
+                {
+                    ThrowIfNotInitialized();
+
+                    const string defaultPolicyKey = "defaultContinuationPolicy";
+                    if (_currentConfig.CustomSettings.ContainsKey(defaultPolicyKey))
+                    {
+                        var policyValue = _currentConfig.CustomSettings[defaultPolicyKey]?.ToString();
+                        if (!string.IsNullOrEmpty(policyValue) && Enum.TryParse<ContinuationPolicy>(policyValue, out var policy))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[ConfigService.GetDefaultPolicyAsync] Retrieved default policy: {policy}");
+                            return policy;
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetDefaultPolicyAsync] No default policy configured, returning Interactive");
+                    return ContinuationPolicy.Interactive; // Default to Interactive (safe)
                 }
             });
         }

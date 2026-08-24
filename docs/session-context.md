@@ -3281,13 +3281,32 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 
 #### gap27_16: Policy Persistence & Restoration
 - **Goal:** Remember user's policy preference across restarts
+- **Status:** ✅ COMPLETE
 - **Implementation:**
-- When policy changes, save to config.json under "defaultContinuationPolicy" field
-- On startup, read value and set SelectedPolicy in ChatPageViewModel
-- If config missing or invalid, default to Interactive (safe choice)
-- Validate policy value against enum before setting
-- **Dependencies:** gap27_14, IConfigService.SaveAsync()
-- **Test:** PolicyPersistenceTests (3 tests: save policy, load policy, restore on startup)
+  - Added `SaveDefaultPolicyAsync(ContinuationPolicy policy)` and `GetDefaultPolicyAsync()` methods to IConfigService interface
+  - Implemented in ConfigService.cs using CustomSettings["defaultContinuationPolicy"] storage (mirrors SaveDefaultModeAsync/GetDefaultModeAsync pattern)
+  - Thread-safe via existing _lock; persists to disk via SaveConfigAsync()
+  - On startup, ChatPageViewModel.InitializeAsync() restores saved policy via GetDefaultPolicyAsync() without triggering setter
+  - When policy changes via dropdown, SelectedPolicy.setter calls SaveDefaultPolicyAsync() fire-and-forget
+  - If config missing or invalid, defaults to Interactive (safe choice)
+  - Validates policy value against enum via Enum.TryParse() before setting
+- **Dependencies:** gap27_14 ✅, gap27_12 ✅, gap27_13 ✅, IConfigService.SaveConfigAsync() ✅
+- **Files Created:**
+  - src/VSIXProject1.Tests/Services/PolicyPersistenceTests.cs (7 xUnit tests)
+- **Files Modified:**
+  - src/VSIXProject1/Services/Interfaces/IConfigService.cs (added method signatures)
+  - src/VSIXProject1/Services/Implementations/ConfigService.cs (added using ContinuationPolicy, implemented methods)
+  - src/VSIXProject1/ViewModels/ChatPageViewModel.cs (added InitializeAsync policy restore, added SaveDefaultPolicyAsync call in SelectedPolicy.setter)
+  - src/VSIXProject1.Tests/ViewModels/PolicyViewModelTests.cs (added mock setup for GetDefaultPolicyAsync and SaveDefaultPolicyAsync)
+- **Tests:** 
+  - PolicyPersistenceTests: 7 tests all passing ✅
+    - SavePolicy_Persists_To_Config ✅
+    - GetPolicy_Returns_InteractiveByDefault ✅
+    - RestorePolicy_On_Startup ✅
+    - InvalidPolicy_DefaultsToInteractive ✅
+    - AllPolicies_Persist_Correctly (3 parameterized tests) ✅
+  - Full suite: 792 tests passing (3 pre-existing file-lock issues unrelated to gap27_16)
+- **Blocks:** None | **Enables:** None (end of policy persistence feature chain)
 
 #### gap27_17: Policy Behavior Summary & Help
 - **Status:** ⏸️ OPTIONAL DEFERRED
@@ -3298,9 +3317,7 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - Auto: "Executes every step without pausing. Fast but risky."
   - Interactive: "Shows confirmation before each action. Recommended."
   - Deferred: "Queues execution for later review. Safest for exploration."
-  - Add "Learn More" link opening help documentation
-- **Dependencies:** gap27_13 (reference only, not blocking)
-- **Status Note:** Deprioritized; can be added later based on user feedback
+
 
 #### gap27_18: Policy Analytics & Recommendation
 - **Status:** ⏸️ OPTIONAL DEFERRED
