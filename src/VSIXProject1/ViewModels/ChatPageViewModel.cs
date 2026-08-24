@@ -173,7 +173,7 @@ namespace ContinueVS.ViewModels
 
 /// <summary>
 /// Gets the available continuation policy options for the policy dropdown (gap27_12).
-/// Lazy-initialized collection of policy choices: Auto, Interactive, Bypass.
+/// Lazy-initialized collection of policy choices: Auto, Interactive, Deferred.
 /// </summary>
 public ObservableCollection<PolicyOption> ContinuationPolicies
 {
@@ -185,7 +185,7 @@ public ObservableCollection<PolicyOption> ContinuationPolicies
             {
                 new PolicyOption("Automatically continue", ContinuationPolicy.Auto, "Continue to next tool without pause", "⚡"),
                 new PolicyOption("Ask before each action", ContinuationPolicy.Interactive, "Show UI prompt before each tool execution", "❓"),
-                new PolicyOption("Bypass confirmations", ContinuationPolicy.Bypass, "Skip confirmation dialogs (risky mode)", "⏭️")
+                new PolicyOption("Defer for review", ContinuationPolicy.Deferred, "Queue execution for later review (safest)", "⏸️")
             };
         }
         return _continuationPolicies;

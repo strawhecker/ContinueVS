@@ -121,10 +121,10 @@ namespace ContinueVS.Tests.ViewModels
             var vm = CreateViewModel(workflowServiceMock.Object);
 
             // Act
-            vm.SelectedPolicy = ContinuationPolicy.Bypass;
+            vm.SelectedPolicy = ContinuationPolicy.Deferred;
 
             // Assert
-            workflowServiceMock.Verify(x => x.SetContinuationPolicyAsync(ContinuationPolicy.Bypass), Times.Once);
+            workflowServiceMock.Verify(x => x.SetContinuationPolicyAsync(ContinuationPolicy.Deferred), Times.Once);
         }
     }
 }

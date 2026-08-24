@@ -14,7 +14,7 @@ namespace ContinueVS.Tests.Services
 {
     /// <summary>
     /// Tests for workflow policy behavior integration (gap27_14).
-    /// Verifies that ExecuteToolAsync correctly enforces Auto, Interactive, and Bypass policies.
+    /// Verifies that ExecuteToolAsync correctly enforces Auto, Interactive, and Deferred policies.
     /// </summary>
     public class PolicyBehaviorTests
     {
@@ -128,14 +128,14 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task ExecuteToolAsync_Bypass_Policy_Executes_Without_Confirmation()
+        public async Task ExecuteToolAsync_Deferred_Policy_Defers_Execution_And_Returns_Null()
         {
             // Arrange
             var toolServiceMock = CreateMockToolService();
             var notificationServiceMock = new Mock<INotificationService>();
             var workflowService = new WorkflowService(toolServiceMock.Object, notificationServiceMock.Object);
 
-            await workflowService.SetContinuationPolicyAsync(ContinuationPolicy.Bypass);
+            await workflowService.SetContinuationPolicyAsync(ContinuationPolicy.Deferred);
 
             var toolCall = new ToolCall
             {
@@ -148,9 +148,8 @@ namespace ContinueVS.Tests.Services
             var result = await workflowService.ExecuteToolAsync(toolCall);
 
             // Assert
-            Assert.NotNull(result);
-            Assert.True(result.IsSuccess);
-            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>()), Times.Once);
+            Assert.Null(result);
+            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>()), Times.Never);
             notificationServiceMock.Verify(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 

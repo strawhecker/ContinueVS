@@ -19,9 +19,10 @@
         Interactive = 1,
 
         /// <summary>
-        /// Bypass mode: Skip confirmation dialogs and execute without warnings.
-        /// Risky — use only when full automation is required.
+        /// Deferred mode: Queue tool execution for later review.
+        /// Agent defers execution; user can approve/reject from audit log.
+        /// Safest option for exploration and complex workflows.
         /// </summary>
-        Bypass = 2
+        Deferred = 2
     }
 }

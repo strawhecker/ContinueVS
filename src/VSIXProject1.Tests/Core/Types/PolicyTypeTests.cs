@@ -38,16 +38,16 @@ namespace ContinueVS.Tests.Core.Types
         }
 
         /// <summary>
-        /// Test 3: Verify ContinuationPolicy.Bypass exists and equals 2.
+        /// Test 3: Verify ContinuationPolicy.Deferred exists and equals 2.
         /// </summary>
         [Fact]
-        public void Bypass_EnumValue_EqualsTwo()
+        public void Deferred_EnumValue_EqualsTwo()
         {
             // Arrange & Act
-            var bypassValue = ContinuationPolicy.Bypass;
+            var deferredValue = ContinuationPolicy.Deferred;
 
             // Assert
-            Assert.Equal(2, (int)bypassValue);
+            Assert.Equal(2, (int)deferredValue);
         }
     }
 }

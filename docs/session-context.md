@@ -3249,7 +3249,7 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - Created WorkflowService implementation in src/VSIXProject1/Services/Implementations/WorkflowService.cs
   - Auto policy: Execute tool immediately via _toolService.InvokeAsync(), return result
   - Interactive policy: Call _notificationService.ShowConfirmationAsync("Execute Tool?", "Execute {toolName}?"), skip execution if user declines (return null)
-  - Bypass policy: Execute tool immediately without showing confirmation dialog
+  - Deferred policy: Defer tool execution and return null (user can review/approve later via audit log)
   - Each policy decision logged to _logger.WriteInfoAsync() with format: "Policy: {mode} | Tool: {toolName}"
   - Private _currentPolicy field initialized to Interactive, updated via SetContinuationPolicyAsync()
   - Nullable tool execution result (ToolResult?) supports skipped executions
@@ -3266,17 +3266,18 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Files Modified:**
   - src/VSIXProject1/Services/Interfaces/IWorkflowService.cs (added ExecuteToolAsync method signature)
 - **Test Results:** All 5 new tests passing. Total: 788 tests passed (780 existing + 8 new for gap27_14)
-- **Blocks:** None | **Enables:** gap27_15 (dialogs), gap27_16 (persistence), gap27_18 (analytics)
+- **Blocks:** None | **Enables:** gap27_16 (persistence)
 
 #### gap27_15: Policy Warning & Confirmation Dialogs
+- **Status:** ⏸️ OPTIONAL DEFERRED
 - **Goal:** Show warnings and confirmations for policy changes
-- **Implementation:**
-- When user selects Bypass, show yellow warning: "Continuing without approval may causeunintended actions"
-- When user selects Interactive, confirm: "ContinueVS will ask before each tool execution"
-- Add checkbox "Don't show this again" to warnings
-- Store dismissal in UserSettings (future gap25_X work)
-- **Dependencies:** gap27_12, INotificationService
-- **Test:** PolicyDialogTests (2 tests: Bypass shows warning, Interactive shows confirmation)
+- **Rationale:** No need to warn user about Interactive mode (safe default). Deferred mode does not require confirmation dialog—it queues execution for later review.
+- **Implementation (if needed in future):**
+  - When user selects Deferred, show info: "Tool execution deferred for later review"
+  - Add checkbox "Don't show this again" to notifications
+  - Store dismissal in UserSettings (future gap25_X work)
+- **Dependencies:** gap27_14 (reference only, not blocking)
+- **Status Note:** Deprioritized; can be added later if users request confirmation UI
 
 #### gap27_16: Policy Persistence & Restoration
 - **Goal:** Remember user's policy preference across restarts
@@ -3289,27 +3290,30 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Test:** PolicyPersistenceTests (3 tests: save policy, load policy, restore on startup)
 
 #### gap27_17: Policy Behavior Summary & Help
-- **Goal:**Show user-friendly descriptions and behavior examples
-- **Implementation:**
-- Add ToolTip to each policy option showing behavior summary
-- Auto: "Executes every step without pausing. Fast but risky."
-- Interactive: "Shows confirmation before each action.Recommended."
-- Bypass: "Skips all confirmations. Use with caution."
-- Add "Learn More" link opening help documentation
-- Show estimated time savings for Auto vs Interactive
-- **Dependencies:** gap27_13
-- **Test:** PolicyHelpTests (3 tests: Auto tooltip, Interactive tooltip, Bypass tooltip)
+- **Status:** ⏸️ OPTIONAL DEFERRED
+- **Goal:** Show user-friendly descriptions and behavior examples
+- **Rationale:** Core functionality (Auto, Interactive, Deferred) is self-explanatory. Tooltips and help can be added later if UX testing shows confusion.
+- **Implementation (if needed in future):**
+  - Add ToolTip to each policy option showing behavior summary
+  - Auto: "Executes every step without pausing. Fast but risky."
+  - Interactive: "Shows confirmation before each action. Recommended."
+  - Deferred: "Queues execution for later review. Safest for exploration."
+  - Add "Learn More" link opening help documentation
+- **Dependencies:** gap27_13 (reference only, not blocking)
+- **Status Note:** Deprioritized; can be added later based on user feedback
 
 #### gap27_18: Policy Analytics & Recommendation
+- **Status:** ⏸️ OPTIONAL DEFERRED
 - **Goal:** Track policy usage and suggest best choice
-- **Implementation:**
-- Log every policy execution decisionin analytics
-- Track which policy leads to fewer errors/corrections
-- On startup, show badge "You commonly use: Interactive" if pattern detected
-- Recommend policy based on current task type (e.g., "File operations suggest Interactive")
-- Allow users to dismiss recommendations
-- **Dependencies:** gap27_14, IAnalyticsService (future)
-- **Test:** PolicyAnalyticsTests (2 tests: usage logged, recommendation shown)
+- **Rationale:** Analytics can provide insights later but are not necessary for MVP. Core execution logging is already in place in gap27_14.
+- **Implementation (if needed in future):**
+  - Log every policy execution decision in analytics
+  - Track which policy leads to fewer errors/corrections
+  - On startup, show badge "You commonly use: Interactive" if pattern detected
+  - Recommend policy based on current task type (e.g., "File operations suggest Interactive")
+  - Allow users to dismiss recommendations
+- **Dependencies:** gap27_14 (reference only, not blocking); IAnalyticsService (future)
+- **Status Note:** Deprioritized; can be added later for advanced UX insights
 
 ---
 

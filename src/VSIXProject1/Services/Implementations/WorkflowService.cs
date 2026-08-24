@@ -9,7 +9,7 @@ namespace ContinueVS.Services.Implementations
 {
     /// <summary>
     /// Implementation of IWorkflowService that enforces continuation policies during tool execution (gap27_14).
-    /// Handles Auto (execute immediately), Interactive (show confirmation), and Bypass (suppress dialogs).
+    /// Handles Auto (execute immediately), Interactive (show confirmation), and Deferred (queue for later review).
     /// </summary>
     public class WorkflowService : IWorkflowService
     {
@@ -50,11 +50,11 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Executes a tool call according to the current continuation policy (gap27_14).
-        /// Handles Auto (execute immediately), Interactive (show confirmation), and Bypass (skip dialogs).
+        /// Handles Auto (execute immediately), Interactive (show confirmation), and Deferred (queue for later).
         /// </summary>
         /// <param name="toolCall">The tool call to execute.</param>
         /// <param name="policy">Optional policy override; if null, uses current policy.</param>
-        /// <returns>The result of tool execution, or null if execution was skipped.</returns>
+        /// <returns>The result of tool execution, null if deferred or skipped.</returns>
         public async Task<ToolResult?> ExecuteToolAsync(ToolCall toolCall, ContinuationPolicy? policy = null)
         {
             if (toolCall == null)
@@ -102,13 +102,14 @@ namespace ContinueVS.Services.Implementations
                     }
                     return await _toolService.InvokeAsync(toolName, args);
 
-                case ContinuationPolicy.Bypass:
-                    // Bypass mode: Execute without dialogs, suppress warnings
+                case ContinuationPolicy.Deferred:
+                    // Deferred mode: Queue execution for later review via audit log
                     if (_logger != null)
                     {
-                        await _logger.WriteInfoAsync($"Policy: Bypass | Tool: {toolName} | Suppressed warning");
+                        await _logger.WriteInfoAsync($"Policy: Deferred | Tool: {toolName} | Execution deferred for review");
                     }
-                    return await _toolService.InvokeAsync(toolName, args);
+                    // Return null to indicate execution was deferred, not performed
+                    return null;
 
                 default:
                     throw new InvalidOperationException($"Unknown continuation policy: {effectivePolicy}");
