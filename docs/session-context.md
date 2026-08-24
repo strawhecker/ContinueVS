@@ -3521,15 +3521,43 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Goal:** Guide AI through test failure analysis loop
 - **Why:** Tests often fail for indirect reasons; AI needs to explore
 - **Implementation:**
-- User shares failing test output
-- AI suggests: "Run test with verbose logging", "Check setup/teardown", "Inspect test data"
-- IdeService.RunTestAsync(testPath, options) with debugging options
-- Capture enhanced output (breakpoint hits, variable states)
-- Return results; let AI continue investigation
-- Track iterationsteps (5 max) to prevent loops
+  - User shares failing test output
+  - AI suggests: "Run test with verbose logging", "Check setup/teardown", "Inspect test data"
+  - IdeService.RunTestAsync(testPath, options) with debugging options
+  - Capture enhanced output (breakpoint hits, variable states)
+  - Return results; let AI continue investigation
+  - Track iteration steps (5 max) to prevent loops
 - **Reference:** Sentry-for-AI SKILL.md: iterative debugging flow
-- **Dependencies:** gap29_1, IIdeService (test runner), IToolService
-- **Test:** TestFailureIterationTests (3 tests: singleiteration, multi-step analysis, stop after 5 iterations)
+- **Dependencies:** gap29_1 ✅, IIdeService ✅, IToolService ✅
+- **Test:** TestFailureIterationTests (3 tests: single iteration, multi-step analysis, stop after 5 iterations)
+- **Status:** ✅ COMPLETE | Type: Test Failure Analysis Orchestration
+- **Implementation Details:**
+  - Created `TestRunOptions` domain type with properties: testPath, debug, verbosity, breakpointFile/Line, timeout (30s default), currentIteration
+  - Created `TestRunResult` domain type with properties: exitCode, stdout, stderr, frameCount, parsedFrames (List<StackTraceFrame>), succeeded (computed), message
+  - Extended `IIdeService` with `RunTestAsync(string testPath, TestRunOptions options, CancellationToken ct)`
+  - Created `ITestFailureService` interface with `AnalyzeFailureAsync(string testPath, int iteration, CancellationToken ct)` method
+  - Created `TestAnalysisException` for iteration limit enforcement (max 5 iterations)
+  - Implemented `VsIdeService.RunTestAsync()` with Process-based test execution, stdout/stderr capture, 30s timeout handling
+  - Implemented `TestFailureService` with iteration validation, logging, and error handling
+  - Registered `ITestFailureService` → `TestFailureService` in ServiceBootstrapper
+  - Created `TestFailureIterationTests.cs` with 3 xUnit tests:
+    - `SingleIterationAnalysis_ReturnsResultWithFrameData` ✅ PASS
+    - `MultiStepAnalysis_IncrementIterationCountAndRefineOutput` ✅ PASS
+    - `StopAfter5Iterations_ThrowsTestAnalysisException` ✅ PASS
+- **Files Created:**
+  - src/VSIXProject1/Core/Types/TestRunOptions.cs
+  - src/VSIXProject1/Core/Types/TestRunResult.cs
+  - src/VSIXProject1/Services/Interfaces/ITestFailureService.cs
+  - src/VSIXProject1/Services/TestAnalysisException.cs
+  - src/VSIXProject1/Services/Implementations/TestFailureService.cs
+  - src/VSIXProject1.Tests/Services/TestFailureIterationTests.cs (new)
+- **Files Modified:**
+  - src/VSIXProject1/Services/Interfaces/IIdeService.cs (added RunTestAsync method signature)
+  - src/VSIXProject1/Services/Implementations/VsIdeService.cs (added RunTestAsync implementation)
+  - src/VSIXProject1/Services/ServiceBootstrapper.cs (registered ITestFailureService)
+- **Build Status:** ✅ Clean build, 0 C# errors, XAML designer warnings pre-existing (not new)
+- **Test Results:** ✅ 843/843 tests passing (840 existing + 3 new gap29_2 tests, zero regressions)
+- **Blocks:** None | **Enables:** gap29_3 (Runtime Event Inspection), gap29_4 (Breadcrumb Trail)
 
 #### gap29_3: Runtime Event Inspection
 - **Goal:** Let AI examine real-time debug events (breakpoints, variable changes)

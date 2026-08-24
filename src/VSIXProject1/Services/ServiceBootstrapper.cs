@@ -94,6 +94,14 @@ namespace ContinueVS.Services
                 return new StackTraceService(detector);
             });
 
+            // Test failure analysis service (gap29_2)
+            services.AddSingleton<ITestFailureService>(sp =>
+            {
+                var ideService = sp.GetRequiredService<IIdeService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new TestFailureService(ideService, logger);
+            });
+
             services.AddSingleton<INotificationService>(sp =>
             {
                 // Use a lazy factory for MainViewModel to avoid circular dependency

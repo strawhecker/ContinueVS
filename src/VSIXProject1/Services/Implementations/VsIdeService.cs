@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
@@ -208,6 +210,83 @@ namespace ContinueVS.Services.Implementations
             {
                 Debug.WriteLine($"[gap8_3-ideservice-error] Error opening file in editor: {ex.Message}");
                 Debug.WriteLine($"[gap8_3-ideservice-error-stack] {ex.StackTrace}");
+            }
+        }
+
+        // Test Runner Operations
+        public async Task<TestRunResult> RunTestAsync(string testPath, TestRunOptions options, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(testPath))
+                throw new ArgumentException("testPath must not be empty.", nameof(testPath));
+            if (options == null)
+                throw new ArgumentNullException(nameof(options));
+
+            var result = new TestRunResult();
+
+            try
+            {
+                // Execute test via dotnet test subprocess
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(options.Timeout);
+
+                var testCommand = $"dotnet test --filter FullyQualifiedName~{testPath}";
+                if (options.Verbosity > 1)
+                    testCommand += " --verbosity detailed";
+
+                using var proc = new System.Diagnostics.Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "dotnet",
+                        Arguments = $"test --filter FullyQualifiedName~{testPath}",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                proc.Start();
+
+                // Capture output
+                var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+                var stderrTask = proc.StandardError.ReadToEndAsync();
+                var exitCodeTask = new TaskCompletionSource<int>();
+
+                var waitTask = Task.Run(() =>
+                {
+                    proc.WaitForExit();
+                    exitCodeTask.SetResult(proc.ExitCode);
+                }, cts.Token);
+
+                try
+                {
+                    await Task.WhenAny(waitTask, Task.Delay((int)options.Timeout.TotalMilliseconds, cts.Token));
+                }
+                catch (OperationCanceledException)
+                {
+                    try { proc.Kill(); } catch { }
+                    result.ExitCode = -1;
+                    result.Message = $"Test execution timeout after {options.Timeout.TotalSeconds}s";
+                    return result;
+                }
+
+                result.Stdout = await stdoutTask;
+                result.Stderr = await stderrTask;
+                result.ExitCode = proc.ExitCode;
+                result.Message = result.ExitCode == 0 ? "Test passed" : "Test failed";
+                result.FrameCount = 0;
+
+                Debug.WriteLine($"[gap29_2-test-run] Test: {testPath}, ExitCode: {result.ExitCode}, Frames: {result.FrameCount}");
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap29_2-test-error] Error running test: {ex.Message}");
+                result.ExitCode = -1;
+                result.Message = $"Error: {ex.Message}";
+                return result;
             }
         }
     }

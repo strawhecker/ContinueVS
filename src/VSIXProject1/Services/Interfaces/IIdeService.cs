@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 
 namespace ContinueVS.Services.Interfaces
@@ -268,6 +270,16 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="filePath">The path to the file to open.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task OpenFileInEditorAsync(string filePath);
+
+        // Test Runner Operations
+        /// <summary>
+        /// Runs a test and captures diagnostic output (stdout, stderr, stack frames).
+        /// </summary>
+        /// <param name="testPath">Path or identifier of the test to run.</param>
+        /// <param name="options">Test run options (debug mode, verbosity, timeout, iteration count).</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>Test run result with output and parsed frames.</returns>
+        Task<TestRunResult> RunTestAsync(string testPath, TestRunOptions options, CancellationToken ct = default);
 
         // Events
         /// <summary>
