@@ -293,6 +293,15 @@ public string? InputText
         }
 
         /// <summary>
+        /// Gets whether the continuation policy dropdown should be visible (gap27_13).
+        /// Returns true only in Agent or Plan modes; false in Ask mode.
+        /// </summary>
+        public bool IsPolicyVisible
+        {
+            get => CurrentMode == ChatMode.Agent || CurrentMode == ChatMode.Plan;
+        }
+
+        /// <summary>
         /// Gets or sets the currently selected model for chat messages.
         /// </summary>
         public ModelInfo? SelectedModel
