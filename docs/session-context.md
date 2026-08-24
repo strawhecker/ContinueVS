@@ -3178,16 +3178,26 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 ### gap27_2: Workflow Continuation Policy Selector (Auto, Interactive, Bypass)
 
 #### gap27_11: Continuation Policy Type System
-- **Goal:** Define the three continuation policy states
-- **Why:** Agent/Plan modes need to know whether to auto-continue or wait for user approval
-- **Implementation:**
-- Create enum ContinuationPolicy { Auto, Interactive, Bypass }
-- Define PolicyOption class with Name, Value, Description, Icon (similar to ModeOption)
-- ContinuationPolicy Auto = continue to next tool withoutpause
-- ContinuationPolicy Interactive = show UI prompt before each tool
-- ContinuationPolicy Bypass = skip confirmation dialogs (risky)
-- **Dependencies:** gap27_1 (structure pattern)
-- **Test:** PolicyTypeTests (3 tests: Auto enum value, Interactive enum value, Bypass enum value)
+**Status:** ✅ COMPLETE | Type: Type System Foundation
+**Implementation:**
+- Created `ContinuationPolicy` enum in `src/VSIXProject1/Core/Types/ContinuationPolicy.cs` with three values:
+  - Auto (0): Continue to next tool without pause
+  - Interactive (1): Show UI prompt before each tool execution
+  - Bypass (2): Skip confirmation dialogs (risky mode)
+- Created `PolicyOption` class in `src/VSIXProject1/ViewModels/Models/PolicyOption.cs` (mirrors ModeOption pattern):
+  - Properties: Name (display), Value (ContinuationPolicy enum), Description, Icon
+  - Constructor accepting all four parameters
+  - ToString() override returning "{Icon} {Name} ({Value})"
+- Created `PolicyTypeTests.cs` in `src/VSIXProject1.Tests/Core/Types/` with 3 xUnit tests:
+  - Auto_EnumValue_EqualsZero ✅ PASS
+  - Interactive_EnumValue_EqualsOne ✅ PASS
+  - Bypass_EnumValue_EqualsTwo ✅ PASS
+**Files Created:**
+- src/VSIXProject1/Core/Types/ContinuationPolicy.cs
+- src/VSIXProject1/ViewModels/Models/PolicyOption.cs
+- src/VSIXProject1.Tests/Core/Types/PolicyTypeTests.cs
+**Validation:** 3/3 tests passing; build clean (pre-existing XAML designer warnings ignored)
+**Blocks:** None | **Enables:** gap27_12 (ViewModel), gap27_13 (XAML), gap27_14+ (behavior, persistence)
 
 #### gap27_12: Continuation Policy ViewModel Support
 - **Goal:** Add policy selection to ChatPageViewModel
