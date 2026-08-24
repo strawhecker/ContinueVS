@@ -140,12 +140,91 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task ScaffoldedParsers_NotImplemented()
+        public async Task CppNative_ParseMangledNames_Success()
         {
-            var result = await _cppNativeParser.ParseAsync("Some C++ trace");
+            var trace = "my.exe!?MyClass@@UEAAXH@Z [C:\\src\\app.cpp:42]\r\n" +
+                        "0x401020 kernel32!CreateProcessA";
+
+            var result = await _cppNativeParser.ParseAsync(trace);
+
+            Assert.True(result.IsSuccessful);
+            Assert.NotEmpty(result.Frames);
+            // Should have parsed at least one frame
+            var firstFrame = result.Frames[0];
+            Assert.Contains("MyClass", firstFrame.MethodName);
+        }
+
+        [Fact]
+        public async Task CppNative_AddressResolution_Success()
+        {
+            var trace = "0x401020 module!GetMessage [C:\\Program Files\\app.cpp:123]\r\n" +
+                        "0x402030 module!ProcessData [C:\\Program Files\\data.cpp:456]";
+
+            var result = await _cppNativeParser.ParseAsync(trace);
+
+            Assert.True(result.IsSuccessful);
+            Assert.True(result.Frames.Length >= 1);
+            Assert.Equal("C:\\Program Files\\app.cpp", result.Frames[0].FilePath);
+            Assert.Equal(123, result.Frames[0].LineNumber);
+        }
+
+        [Fact]
+        public async Task CppNative_MSVCDebuggerFormat_Success()
+        {
+            var trace = "kernel32!WaitForSingleObject+0x23 [kernel32.dll:1234]\r\n" +
+                        "ntdll!ZwWaitForSingleObject [ntdll.dll:5678]\r\n" +
+                        "user32!MessageBoxA";
+
+            var result = await _cppNativeParser.ParseAsync(trace);
+
+            Assert.True(result.IsSuccessful);
+            Assert.NotEmpty(result.Frames);
+            // Should detect Windows API pattern
+            var firstFrame = result.Frames[0];
+            Assert.True(!string.IsNullOrWhiteSpace(firstFrame.MethodName));
+        }
+
+        [Fact]
+        public async Task CppNative_CrashDumpFormat_Success()
+        {
+            var trace = "Exception code: 0xC0000374 (Heap corruption)\r\n" +
+                        "0x7FFE0234 ProgramName!MainFunction [main.cpp:100]\r\n" +
+                        "0x7FFE0240 ProgramName!HelperFunction [helper.cpp:250]";
+
+            var result = await _cppNativeParser.ParseAsync(trace);
+
+            Assert.True(result.IsSuccessful);
+            Assert.NotEmpty(result.Frames);
+            Assert.True(result.Frames.Length >= 1);
+        }
+
+        [Fact]
+        public async Task CppNative_CanParse_DetectsCppFormat()
+        {
+            var trace = "0x401020 kernel32!CreateProcessA [kernel32.dll:1000]";
+
+            var canParse = _cppNativeParser.CanParse(trace);
+
+            Assert.True(canParse);
+        }
+
+        [Fact]
+        public async Task CppNative_CanParse_RejectsNonCppFormat()
+        {
+            var trace = "System.Exception: Error\r\n  at Method() in file.cs:line 42";
+
+            var canParse = _cppNativeParser.CanParse(trace);
+
+            Assert.False(canParse);
+        }
+
+        [Fact]
+        public async Task CppNative_NullInput_ReturnsError()
+        {
+            var result = await _cppNativeParser.ParseAsync(null);
 
             Assert.False(result.IsSuccessful);
-            Assert.Contains("gap29_1a", result.Errors[0].ErrorMessage ?? "");
+            Assert.NotEmpty(result.Errors);
         }
 
         [Fact]
