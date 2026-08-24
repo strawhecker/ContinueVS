@@ -94,6 +94,9 @@ namespace ContinueVS.Services
                 return new StackTraceService(detector);
             });
 
+            // Error fingerprinting and deduplication service (gap29_5)
+            services.AddSingleton<IErrorFingerprintService, ErrorFingerprintService>();
+
             // Test failure analysis service (gap29_2)
             services.AddSingleton<ITestFailureService>(sp =>
             {
