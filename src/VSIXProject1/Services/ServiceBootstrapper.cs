@@ -132,6 +132,14 @@ namespace ContinueVS.Services
             // Distributed tracing service for trace header parsing and async context flow (gap29_6)
             services.AddSingleton<IDistributedTracingService, DistributedTracingService>();
 
+            // Error repository for persistent error storage and querying (gap29_7)
+            services.AddSingleton<IErrorRepository>(sp =>
+            {
+                var configService = sp.GetRequiredService<IConfigService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new ErrorRepository(configService, logger);
+            });
+
             services.AddSingleton<IUIStateService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();

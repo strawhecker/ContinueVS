@@ -3709,15 +3709,39 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 
 #### gap29_7: Error Sink & Repository
 - **Goal:** Store all errors in a persistent, queryable repository
-- **Implementation:**
-- Create ~/.continue/errors/ folder to store error logs
-- Each error:JSON with timestamp, stack trace, fingerprint, user notes
-- When AI needs historical context: "Have we seen this before?"
-- Query API: GetErrorsByTimeRange(), GetErrorsByType(), GetErrorsByFingerprint()
-- Cleanup: Auto-delete errors older than 30 days
-- Support export: User can export error log as CSV/JSON for bug reports
-- **Dependencies:** gap29_1, gap29_5, IConfigService
-- **Test:** ErrorRepositoryTests (4tests: store error, query by type, cleanup old, export)
+- **Status:** ✅ COMPLETE - Phase 3 implementation
+  - Created ErrorRecord immutable type (timestamp, fingerprint, exceptionType, exceptionMessage, stackTraceJson, userNotes, sessionId)
+  - Created IErrorRepository interface with GetErrorsByTimeRangeAsync, GetErrorsByTypeAsync, GetErrorsByFingerprintAsync, StoreErrorAsync, DeleteErrorsOlderThanAsync, ExportAsJsonAsync, ExportAsCsvAsync, GetTotalErrorCountAsync methods
+  - Implemented ErrorRepository with file-based storage in ~/.continueVS/errors/
+  - Each error stored as JSON: {fingerprint}_{timestamp:yyyyMMddHHmmss}.json for uniqueness and sortability
+  - In-memory index (ConcurrentDictionary) for fast queries without full disk scans
+  - Thread-safe locking pattern for all file I/O operations
+  - Auto-cleanup on startup: scans errors directory and deletes records >30 days old
+  - Export support: JSON (full records) and CSV (timestamp, fingerprint, exceptionType, message, sessionId, userNotes)
+  - Registered IErrorRepository singleton in ServiceBootstrapper with IConfigService, IBridgeLogger dependencies
+  - All 4 unit tests passing (store/retrieve, query by type, cleanup, export):
+    - StoreError_And_Retrieve_By_Fingerprint_Success ✅
+    - QueryByType_Returns_Matching_Errors_Only ✅
+    - Cleanup_Auto_Deletes_Errors_Older_Than_30_Days ✅
+    - Export_As_JSON_And_CSV_Creates_Valid_Files ✅
+  - Build succeeded: 0 warnings, 0 errors
+  - Test results: 875 passing (863 existing + 4 new + 8 from other phases), 0 regressions
+  - Ready for gap29_8 (Hybrid Debug Mode)
+- **Implementation Completed:**
+- Store errors in ~/.continueVS/errors/ (project convention, not ~/.continue/) ✅
+- Each error: JSON with timestamp, fingerprint, exception type, stack trace, user notes ✅
+- Query API: GetErrorsByTimeRange(), GetErrorsByType(), GetErrorsByFingerprint() ✅
+- Cleanup: Auto-delete errors older than 30 days ✅
+- Export: CSV and JSON formats ✅
+- **Reference:** Sentry error repository pattern
+- **Dependencies:** gap29_1 ✅, gap29_5 ✅, IConfigService ✅
+- **Files Created:**
+  - src/VSIXProject1/Core/Types/ErrorRecord.cs
+  - src/VSIXProject1/Services/Interfaces/IErrorRepository.cs
+  - src/VSIXProject1/Services/Implementations/ErrorRepository.cs
+  - src/VSIXProject1.Tests/Services/ErrorRepositoryTests.cs (4 tests, all passing)
+- **Files Modified:**
+  - src/VSIXProject1/Services/ServiceBootstrapper.cs (registered IErrorRepository singleton)
 
 #### gap29_8: Hybrid Debug Mode (Interactive + Autonomous)
 - **Goal:** Switch between user-driven debugging and AI-driven debugging
