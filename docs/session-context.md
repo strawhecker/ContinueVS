@@ -3743,17 +3743,115 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Files Modified:**
   - src/VSIXProject1/Services/ServiceBootstrapper.cs (registered IErrorRepository singleton)
 
-#### gap29_8: Hybrid Debug Mode (Interactive + Autonomous)
-- **Goal:** Switch between user-driven debugging and AI-driven debugging
-- **Implementation:**
-- User can markin UI: "Switch to Debug Mode"
-- In debug mode: All input treated as debug commands, not chat messages
-- AI debugger can autonomously run tests, inspect variables, explore
-- User can regain control at any point
-- If AI seems stuck (5+ failed attempts same error): auto-switch back to interactive
-- Show clear visual indicator: "🔧 Debug Mode Active"
-- **Dependencies:** gap29_3, gap27(mode selector must support Debug)
-- **Test:** DebugModeTests (3 tests: switch to debug, auto-regain control, visual indicator)
+#### gap29_8: Debug Mode — Plan-Driven Instrumentation & Validation
+
+**Goal:** Implement Debug as a first-class mode (fourth alongside Ask, Agent, Plan) that executes debug instructions or test plans with instrumentation, phase-based execution, per-change rollback, and dual autonomous/interactive control.
+
+**Architecture:**
+- Debug mode is **standalone**, not a modifier of other modes
+- Takes user instruction (plain text, possibly vague) or TestPlan from Plan mode
+- LLM interprets instruction → generates internal phases (strategy attempts)
+- Each phase executes and may generate zero or more source changes (tracked in ChangeStack)
+- Rollback is **per-change**, not per-phase; earlier changes survive later failures
+- Execution halts on retry threshold (default 3); user can later resume
+- Autonomous mode auto-answers LLM questions; Interactive mode prompts user before proceeding
+
+**Key Concepts:**
+- **Instruction:** Plain-language user request (e.g., "Debug why SendMessage fails with null")
+- **Phase:** Internal strategy attempt (analysis, breakpoint, instrumentation, test execution)
+- **Change:** Atomic source modification tracked in ChangeStack (add log, fix bug, create test)
+- **Baseline:** Code state at the start of a change; rollback reverts to that baseline
+- **ChangeStack:** Per-change transaction log; each change has its own baseline; earlier changes survive rollback of later ones
+
+**Dependencies:** gap29_3 (mode selector), gap29_7 (ErrorRepository), ILlmService (for strategy generation), INotificationService (for prompts)
+
+---
+
+**Implementation Steps:**
+
+**gap29_8_1: TestPlan & Instruction Model + LLM Interpretation**
+- **Status:** ✅ COMPLETED
+- Reasoning: TestPlan (from Plan mode) and DebugInstruction (user input) are the entry points
+- LLM must interpret vague instructions and generate ordered internal phases (strategy attempts)
+- **Deliverables:** 
+  - TestPlan class (Core/Types) — immutable container with Id, Title, Phases list, CreatedAt
+  - DebugInstruction class (Core/Types) — user's free-text request with Id, Text, optional Context, CreatedAt
+  - InternalPhaseType enum (Core/Types) — phase strategy types: Analysis, Breakpoint, Instrumentation, Test, Observation
+  - InternalPhaseStatus enum (Core/Types) — phase statuses: Pending, InProgress, Completed, Failed
+  - InternalPhase class (Core/Types) — represents a discrete strategy attempt with Id, Type, Description, Status, CreatedAt
+  - IInstructionProcessorService interface (Services/Interfaces) — GenerateInternalPhasesAsync(instruction, cancellationToken)
+  - InstructionProcessorService implementation (Services/Implementations) — interprets instructions via LLM; simple prompts (LLM-optimized); parses phase output with regex; no validation loops (trust LLM)
+  - InstructionProcessorServiceTests (12 xUnit tests) — vague instruction generation, phase parsing, phase ordering, null/empty handling, LLM exceptions, context inclusion, cancellation, TestPlan/phase properties
+- **Test Results:** All 12 InstructionProcessorServiceTests PASSING; full suite 887 tests PASSING (zero warnings post-fix)
+- **Build Status:** ✅ Clean build, zero errors (1 warning on nullable reference context resolved via #nullable disable/restore)
+- **Design Decisions Applied:**
+  - No arbitrary phase limits; LLM generates however many phases needed (1 to N)
+  - Simple, direct LLM instructions (not over-specified); trust LLM output
+  - TestPlan persistence deferred to gap29_8_10 (kept lightweight here)
+  - Async-first throughout; null-safety checks at entry points
+  - Mocked ILlmService in tests using custom MockAsyncEnumerable/MockAsyncEnumerator for streaming simulation
+- **Files Created:** 8 new files (5 models + 1 interface + 1 service + 1 test class)
+
+**gap29_8_2: ChangeStack with Per-Change Baselines**
+- Reasoning: ChangeStack tracks all source modifications; each change has a baseline (code state before that change)
+- Per-change rollback ensures earlier changes survive failure of later ones
+- Deliverables: ChangeStack class (History, AppliedChanges, ApplyChange, RollbackChange, RollbackToChange); CodeChange class; ChangeBaseline snapshot
+- Tests: Apply change, rollback single change, rollback cascade, baseline preservation, earlier changes survive
+
+**gap29_8_3: Debug Mode UI & Mode Selector**
+- Reasoning: Debug must be selectable fourth mode; visual indicator when active
+- Deliverables: Extend mode selector ComboBox to include "Debug"; add visual indicator "🔧 Debug Mode"; ChatPageViewModel handles CurrentMode == Debug
+- Tests: Mode selection, visual indicator display
+
+**gap29_8_4: Instruction Processing → Phase Generation → Execution Orchestrator**
+- Reasoning: Accept instruction → LLM generates phases → execute sequentially; phases may produce zero or more changes
+- Each phase is a strategy attempt; annotation tracks strategy, result, changes applied
+- Deliverables: DebugSessionService.LoadInstructionAsync(); ExecuteInstructionAsync(); InternalPhase execution loop; phase annotation
+- Tests: Phase sequencing, zero-change phases (observation), multi-change phases, phase failure recovery
+
+**gap29_8_5: Instrumentation Strategy & Source Modification**
+- Reasoning: LLM decides what instrumentation is needed (not user-specified); changes are generated from strategy
+- Deliverables: InstrumentationStrategy class; DebugStrategyGeneratorService.GenerateStrategyAsync(); InstrumentationService.ApplyStrategyAsync()
+- Tests: Strategy generation from vague instruction, strategy application, compilation after changes
+
+**gap29_8_6: Failure Analysis & Refinement (Dual-Mode)**
+- Reasoning: Both autonomous and interactive analyze failures, generate hypotheses, attempt refinement before timeout
+- Interactive differs: prompts user before applying refined attempt
+- Deliverables: FailureAnalyzer.AnalyzeFailureAsync(); RefinementAttempt class; hypothesis generation
+- Tests: Error analysis (compilation, test failure, exception), hypothesis generation, confidence scoring
+
+**gap29_8_7: Change-Level Retry Loop & Bailout**
+- Reasoning: When a change fails, LLM analyzes, generates refined change, retries (up to threshold)
+- On threshold hit: **Stop execution** (no rollback); user can resume later
+- Deliverables: ChangeExecutionStack.AttemptChangeAsync(); retry loop with MaxRetries; refined change generation
+- Tests: Success on first attempt, success after retry, halt on max retries, no automatic rollback, resume capability
+
+**gap29_8_8: Interactive Mode User Prompts**
+- Reasoning: Interactive mode waits for user before phase/change decisions
+- Deliverables: InteractivePromptService; prompt on phase failure, on threshold, on risky changes; user choices (Retry | Skip | Cancel)
+- Tests: Prompt display, user choice handling, phase skipping, cancellation state
+
+**gap29_8_9: Autonomous Mode Auto-Answer**
+- Reasoning: Autonomous mode auto-answers LLM questions (not skip LLM analysis; answer LLM's questions on user's behalf)
+- Deliverables: LLMQuestionPrompt class; HandleLLMQuestionAsync(question, isAutonomous); AutoAnswerPolicy (question type → answer)
+- Tests: LLM question detection, auto-answer matching, question-answer flow
+
+**gap29_8_10: Plan Annotation & Execution History**
+- Reasoning: TestPlan remains immutable; only annotations change (Status, Evidence, AttemptCount, Timing)
+- Execution history is separate from plan definition; enables plan replay with new annotations
+- Deliverables: TestPlanExecution class; PhaseExecutionResult; plan persistence with execution history
+- Tests: Plan immutability, execution history isolation, plan re-execution with new annotations
+
+**gap29_8_11: Error-Driven Instrumentation (Reactive)**
+- Reasoning: When user encounters exception in Debug mode, offer instrumentation around that line
+- Deliverables: ErrorDrivenInstrumentationService.SuggestInstrumentationAsync(); integration with ErrorRepository
+- Tests: Exception capture, instrumentation suggestion, re-run with logs
+
+**gap29_8_12: End-to-End Integration Tests**
+- Reasoning: Validate full workflow: instruction → phases → changes → retry/rollback → annotation → save
+- Scenarios: all phases pass, phase fails then succeeds, threshold bailout, user skip/cancel, autonomous vs. interactive
+- Deliverables: DebugModeEndToEndTests with 5+ realistic scenarios
+- Tests: Mode selection, plan/instruction loading, phase execution, failure handling, resume capability
 
 #### gap29_9: Sentry MCP Integration
 - **Goal:** Connect toSentry.io for cloud-based error tracking
