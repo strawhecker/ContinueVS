@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using ContinueVS.Core.Types;
 using ContinueVS.ViewModels;
 using ContinueVS.ViewModels.Converters;
 using Xunit;

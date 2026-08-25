@@ -20,27 +20,6 @@ using GalaSoft.MvvmLight.Command;
 namespace ContinueVS.ViewModels
 {
     /// <summary>
-    /// Defines the operational mode for the chat interface.
-    /// </summary>
-    public enum ChatMode
-    {
-        /// <summary>
-        /// Chat mode: Basic Q&A with optional "Apply" button for code suggestions.
-        /// </summary>
-        Ask,
-
-        /// <summary>
-        /// Agent mode: Autonomous tool calling and code editing with user approval.
-        /// </summary>
-        Agent,
-
-        /// <summary>
-        /// Plan mode: Read-only plan generation and review.
-        /// </summary>
-        Plan
-    }
-
-    /// <summary>
     /// System message prompts for each operational mode.
     /// </summary>
     internal static class ChatModeSystemPrompts
@@ -164,7 +143,8 @@ namespace ContinueVS.ViewModels
                     {
                         new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "💬"),
                         new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "🤖"),
-                        new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "📋")
+                        new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "📋"),
+                        new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "🔧")
                     };
                 }
                 return _availableModes;

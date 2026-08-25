@@ -3,6 +3,7 @@
 using System;
 using System.Globalization;
 using Xunit;
+using ContinueVS.Core.Types;
 using ContinueVS.ViewModels;
 using ContinueVS.ViewModels.Converters;
 

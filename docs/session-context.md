@@ -3830,9 +3830,38 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Blocking Resolved:** gap29_8_4 (phase execution now has ChangeStack API), gap29_8_7 (retry loop can manage changes per-change rollback)
 
 **gap29_8_3: Debug Mode UI & Mode Selector**
+- **Status:** ✅ COMPLETE | Type: UI Mode Selection & Visual Indicator
 - Reasoning: Debug must be selectable fourth mode; visual indicator when active
-- Deliverables: Extend mode selector ComboBox to include "Debug"; add visual indicator "🔧 Debug Mode"; ChatPageViewModel handles CurrentMode == Debug
-- Tests: Mode selection, visual indicator display
+- **Implementation:**
+  - Canonical ChatMode enum (Core/Types/ChatMode.cs) \u2014 Ask, Agent, Plan, Debug (moved from ViewModels namespace to Core for single source of truth)
+  - ChatPageViewModel.AvailableModes now includes Debug mode option with 🔧 icon and description "Instrumentation-driven error diagnosis with interactive refinement."
+  - ModeOption model updated to reference Core.Types.ChatMode
+  - ChatModeToBoolConverter and ChatModeToVisibilityConverter updated to use canonical Core.Types.ChatMode
+  - All test files (ModeDropdownBindingTests, ModeDescriptionTests, ChatModeSystemPromptsTests, converter tests) updated to import from Core.Types
+- **Test Results:** All 23 mode-related tests PASSING:
+  - ModeDropdownBindingTests: 7/7 PASSING ✅ (AvailableModes_LoadsWith4Options, DebugMode_IsSelectable, mode sync, PropertyChanged firing)
+  - ModeDescriptionTests: 5/5 PASSING ✅ (Ask, Agent, Plan, Debug descriptions and Debug icon)
+  - ChatModeSystemPromptsTests: 6/6 PASSING ✅ (system prompt consistency)
+  - ChatModeToBoolConverterTests: 5/5 PASSING ✅ (conversion logic)
+- **Build Status:** ✅ Clean (zero C# errors, zero warnings)
+- **Design Decisions Applied:**
+  - Moved ChatMode enum to Core/Types to eliminate duplicate definitions and namespace conflicts
+  - Added using aliases where necessary to resolve imports in ViewModels and converters
+  - Debug mode integrated with existing mode infrastructure (no breaking changes to Ask/Agent/Plan)
+- **Files Created:** 1 new file
+  - src/VSIXProject1/Core/Types/ChatMode.cs (canonical enum with all four modes)
+- **Files Modified:** 10 files
+  - src/VSIXProject1/ViewModels/ChatPageViewModel.cs (removed local ChatMode enum, AvailableModes now includes Debug)
+  - src/VSIXProject1/ViewModels/Models/ModeOption.cs (updated import to Core.Types)
+  - src/VSIXProject1/ViewModels/Converters/ChatModeToBoolConverter.cs (updated import to Core.Types)
+  - src/VSIXProject1/ViewModels/Converters/ChatModeToVisibilityConverter.cs (updated import to Core.Types)
+  - src/VSIXProject1.Tests/UI/ModeDropdownBindingTests.cs (4-mode coverage, Debug selection test)
+  - src/VSIXProject1.Tests/UI/ModeDescriptionTests.cs (Debug description/icon assertions)
+  - src/VSIXProject1.Tests/ViewModels/ChatModeSystemPromptsTests.cs (updated import to Core.Types)
+  - src/VSIXProject1.Tests/ViewModels/Converters/ChatModeToVisibilityConverterTests.cs (updated import to Core.Types)
+  - src/VSIXProject1.Tests/ViewModels/Converters/ChatModeToBoolConverterTests.cs (updated import to Core.Types)
+  - src/VSIXProject1.Tests/ViewModels/Converters/ChatModeModeSwitchingTests.cs (updated import to Core.Types)
+- **Blocking Resolved:** gap29_8_4 (Debug mode now available to instruction executor), gap29_8_5 (instrumentation strategy can target Debug mode)
 
 **gap29_8_4: Instruction Processing → Phase Generation → Execution Orchestrator**
 - Reasoning: Accept instruction → LLM generates phases → execute sequentially; phases may produce zero or more changes

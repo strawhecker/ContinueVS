@@ -8,8 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Moq;
-using ContinueVS.Core;
 using ContinueVS.Core.Types;
+using ContinueVS.Core;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 

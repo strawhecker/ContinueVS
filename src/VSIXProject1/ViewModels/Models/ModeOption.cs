@@ -1,4 +1,4 @@
-﻿using ContinueVS.ViewModels;
+﻿using ContinueVS.Core.Types;
 
 namespace ContinueVS.ViewModels.Models
 {

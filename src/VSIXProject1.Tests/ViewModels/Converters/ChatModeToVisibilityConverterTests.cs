@@ -4,6 +4,7 @@ using System;
 using System.Globalization;
 using System.Windows;
 using Xunit;
+using ContinueVS.Core.Types;
 using ContinueVS.ViewModels;
 using ContinueVS.ViewModels.Converters;
 

@@ -2,6 +2,7 @@
 
 using System;
 using Xunit;
+using ContinueVS.Core.Types;
 using ContinueVS.ViewModels;
 
 namespace ContinueVS.Tests.ViewModels

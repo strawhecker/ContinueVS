@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using ContinueVS.Core.Types;
 
 namespace ContinueVS.ViewModels.Converters
 {

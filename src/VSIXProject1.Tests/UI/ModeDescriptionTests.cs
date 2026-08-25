@@ -102,5 +102,31 @@ namespace ContinueVS.Tests.UI
             // Assert
             Assert.Equal("Read-only plan generation and review.", planMode.Description);
         }
+
+        [Fact]
+        public void DebugModeDescription_Should_Be_Correct()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var debugMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Debug);
+
+            // Assert
+            Assert.Equal("Instrumentation-driven error diagnosis with interactive refinement.", debugMode.Description);
+        }
+
+        [Fact]
+        public void DebugModeIcon_Should_Be_Wrench()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var debugMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Debug);
+
+            // Assert
+            Assert.Equal("🔧", debugMode.Icon);
+        }
     }
 }
