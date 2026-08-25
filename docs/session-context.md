@@ -3793,10 +3793,41 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Files Created:** 8 new files (5 models + 1 interface + 1 service + 1 test class)
 
 **gap29_8_2: ChangeStack with Per-Change Baselines**
-- Reasoning: ChangeStack tracks all source modifications; each change has a baseline (code state before that change)
-- Per-change rollback ensures earlier changes survive failure of later ones
-- Deliverables: ChangeStack class (History, AppliedChanges, ApplyChange, RollbackChange, RollbackToChange); CodeChange class; ChangeBaseline snapshot
-- Tests: Apply change, rollback single change, rollback cascade, baseline preservation, earlier changes survive
+- **Status:** ✅ COMPLETE | Type: Transaction Log & Per-Change Rollback
+- Reasoning: ChangeStack tracks all source modifications; each change has a baseline (code state before that change); per-change rollback ensures earlier changes survive failure of later ones
+- **Implementation:**
+  - CodeChange class (Core/Types) — FilePath, OldContent, NewContent, ChangeId (Guid), Timestamp, Description, Baseline reference
+  - ChangeBaseline class (Core/Types) — FilePath, BaselineContent snapshot, CreatedAt timestamp
+  - ChangeStack class (Core/Types) — transaction log with History (List<CodeChange>), AppliedChanges (List<string> of ChangeIds), methods: RecordChange, MarkAsApplied, UnmarkAsApplied, GetChangeHistory, GetAppliedChanges, FindChangeById, GetChangesAfter
+  - IChangeStackService interface (Services/Interfaces) — CreateChangeStack(), GetChangeStack(stackId), ApplyChangeAsync(stackId, change, filePath), RollbackChangeAsync(stackId, changeId), RollbackToChangeAsync(stackId, changeId), RemoveChangeStack(stackId)
+  - ChangeStackService implementation (Services/Implementations) — manages ConcurrentDictionary<stackId, ChangeStack>; creates baseline before each change writes; file I/O with try-catch error handling; RollbackToChangeAsync cascades in reverse order
+  - Registered IChangeStackService singleton in ServiceBootstrapper.ConfigureServices()
+- **Test Results:** All 7 ChangeStackServiceTests PASSING:
+  - ApplyChange_CreatesBaselineAndWritesFile ✅
+  - RollbackChange_RestoresFileToBaseline ✅
+  - RollbackToChange_RevertsOnlyChangesAfter ✅
+  - EarlierChangesSurviveRollbackOfLaterChange ✅
+  - BaselinePreserved_AcrossOperations ✅
+  - CreateChangeStack_ReturnsUniqueIds ✅
+  - RemoveChangeStack_CleansUpInstance ✅
+- **Build Status:** ✅ Clean (zero C# errors; pre-existing XAML resource warnings inherited from layer 1, not from gap29_8_2)
+- **Design Decisions Applied:**
+  - Per-change baselines attached to each CodeChange (not centralized)
+  - AppliedChanges tracks only successfully applied changes (not attempted/failed)
+  - File I/O wraps in try-catch; logs errors without throwing (UI remains functional)
+  - RollbackToChangeAsync uses GetChangesAfter(id) to find what to revert (inclusive rollback to specified change)
+  - Thread-safe ConcurrentDictionary for multi-phase concurrent access
+  - No automatic deletion of files on empty baseline (baseline.BaselineContent.IsEmpty = file didn't exist, so delete on rollback)
+- **Files Created:** 6 new files
+  - src/VSIXProject1/Core/Types/CodeChange.cs
+  - src/VSIXProject1/Core/Types/ChangeBaseline.cs
+  - src/VSIXProject1/Core/Types/ChangeStack.cs
+  - src/VSIXProject1/Services/Interfaces/IChangeStackService.cs
+  - src/VSIXProject1/Services/Implementations/ChangeStackService.cs
+  - src/VSIXProject1.Tests/Services/ChangeStackServiceTests.cs (7 tests, all passing)
+- **Files Modified:**
+  - src/VSIXProject1/Services/ServiceBootstrapper.cs (added IChangeStackService singleton registration)
+- **Blocking Resolved:** gap29_8_4 (phase execution now has ChangeStack API), gap29_8_7 (retry loop can manage changes per-change rollback)
 
 **gap29_8_3: Debug Mode UI & Mode Selector**
 - Reasoning: Debug must be selectable fourth mode; visual indicator when active

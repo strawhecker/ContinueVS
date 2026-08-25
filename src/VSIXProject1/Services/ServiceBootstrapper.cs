@@ -140,6 +140,9 @@ namespace ContinueVS.Services
                 return new ErrorRepository(configService, logger);
             });
 
+            // Change stack service for per-change transaction tracking (gap29_8_2)
+            services.AddSingleton<IChangeStackService, ChangeStackService>();
+
             services.AddSingleton<IUIStateService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();
