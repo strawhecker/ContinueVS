@@ -38,5 +38,12 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Runtime execution annotation (not persisted with plan definition).
+        /// Tracks strategy, result, changes applied, and execution timing.
+        /// </summary>
+        [JsonIgnore]
+        public InternalPhaseExecution? Execution { get; set; }
     }
 }

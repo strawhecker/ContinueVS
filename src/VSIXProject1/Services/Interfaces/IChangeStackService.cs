@@ -21,7 +21,7 @@ namespace ContinueVS.Services.Interfaces
         /// </summary>
         /// <param name="stackId">The stack ID to retrieve.</param>
         /// <returns>The ChangeStack if found, otherwise null.</returns>
-        ChangeStack GetChangeStack(string stackId);
+        ChangeStack? GetChangeStack(string stackId);
 
         /// <summary>
         /// Applies a change to a file and records it in the change stack.

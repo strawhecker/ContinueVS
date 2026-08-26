@@ -3863,11 +3863,21 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - src/VSIXProject1.Tests/ViewModels/Converters/ChatModeModeSwitchingTests.cs (updated import to Core.Types)
 - **Blocking Resolved:** gap29_8_4 (Debug mode now available to instruction executor), gap29_8_5 (instrumentation strategy can target Debug mode)
 
-**gap29_8_4: Instruction Processing → Phase Generation → Execution Orchestrator**
+**gap29_8_4: Instruction Processing → Phase Generation → Execution Orchestrator** ✓ COMPLETED
 - Reasoning: Accept instruction → LLM generates phases → execute sequentially; phases may produce zero or more changes
 - Each phase is a strategy attempt; annotation tracks strategy, result, changes applied
 - Deliverables: DebugSessionService.LoadInstructionAsync(); ExecuteInstructionAsync(); InternalPhase execution loop; phase annotation
 - Tests: Phase sequencing, zero-change phases (observation), multi-change phases, phase failure recovery
+- Implementation Summary:
+  - Created InternalPhaseExecution class for runtime phase annotations (not persisted)
+  - Extended InternalPhase with Execution property (runtime-only, JsonIgnore)
+  - Created IPhaseExecutor interface with phase type-specific executors
+  - Implemented AnalysisPhaseExecutor, ObservationPhaseExecutor, InstrumentationPhaseExecutor
+  - Created PhaseExecutorFactory for executor resolution
+  - Implemented DebugSessionService orchestrator with LoadInstructionAsync() and ExecuteInstructionAsync()
+  - Sequential phase execution with annotation, stops on first failure (no auto-recovery)
+  - 6 comprehensive unit tests: phase sequencing success, zero-change phases, multi-change phases, phase failure halts execution, file I/O, session state persistence
+  - All 905 existing tests pass; zero new test failures
 
 **gap29_8_5: Instrumentation Strategy & Source Modification**
 - Reasoning: LLM decides what instrumentation is needed (not user-specified); changes are generated from strategy
