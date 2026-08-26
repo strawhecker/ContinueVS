@@ -157,14 +157,24 @@ namespace ContinueVS.Services
                 });
 
                 // Failure analyzer service for refinement attempts (gap29_8_6)
-                services.AddSingleton<IFailureAnalyzerService>(sp =>
+                    services.AddSingleton<IFailureAnalyzerService>(sp =>
+                    {
+                        var llmService = sp.GetRequiredService<ILlmService>();
+                        var logger = sp.GetRequiredService<IBridgeLogger>();
+                        return new FailureAnalyzerService(llmService, logger);
+                    });
+
+                // Change executor service for change-level retry loop with LLM refinement (gap29_8_7)
+                services.AddSingleton<IChangeExecutor>(sp =>
                 {
-                    var llmService = sp.GetRequiredService<ILlmService>();
+                    var changeStackService = sp.GetRequiredService<IChangeStackService>();
+                    var failureAnalyzer = sp.GetRequiredService<IFailureAnalyzerService>();
+                    var configService = sp.GetRequiredService<IConfigService>();
                     var logger = sp.GetRequiredService<IBridgeLogger>();
-                    return new FailureAnalyzerService(llmService, logger);
+                    return new ChangeExecutionStack(changeStackService, failureAnalyzer, configService, logger);
                 });
 
-                // Phase executor factory for debug session orchestration (gap29_8_4)
+                    // Phase executor factory for debug session orchestration (gap29_8_4)
             services.AddSingleton<PhaseExecutorFactory>(sp =>
             {
                 var changeStackService = sp.GetRequiredService<IChangeStackService>();

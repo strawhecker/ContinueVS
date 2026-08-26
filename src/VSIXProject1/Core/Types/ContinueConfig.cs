@@ -89,6 +89,15 @@ namespace ContinueVS.Core.Types
         public int MaxToolCallsPerSession { get; set; } = 100;
 
         /// <summary>
+        /// Maximum retry attempts per change (gap29_8_7).
+        /// When a change fails, LLM analyzes and generates refined change; retried up to this limit.
+        /// On threshold hit, execution halts without automatic rollback; user controls resume.
+        /// Default: 3 retries per change.
+        /// </summary>
+        [JsonProperty("maxRetriesPerChange")]
+        public int MaxRetriesPerChange { get; set; } = 3;
+
+        /// <summary>
         /// Timestamp when the configuration was last modified.
         /// </summary>
         [JsonIgnore]

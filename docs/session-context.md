@@ -3917,11 +3917,30 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - Build Status: ✅ All C# code compiles successfully
   - XAML warnings in ChatPage.xaml remain pre-existing, not part of gap29_8_6
 
-**gap29_8_7: Change-Level Retry Loop & Bailout**
+**gap29_8_7: Change-Level Retry Loop & Bailout** ✅ COMPLETED
 - Reasoning: When a change fails, LLM analyzes, generates refined change, retries (up to threshold)
 - On threshold hit: **Stop execution** (no rollback); user can resume later
-- Deliverables: ChangeExecutionStack.AttemptChangeAsync(); retry loop with MaxRetries; refined change generation
-- Tests: Success on first attempt, success after retry, halt on max retries, no automatic rollback, resume capability
+- Deliverables: 
+  - ✅ `IChangeExecutor.AttemptChangeAsync()` interface defined
+  - ✅ `ChangeExecutionStack` implements retry loop with `MaxRetriesPerChange` (default 3)
+  - ✅ `ChangeExecutionResult` with status codes: `Success`, `RetriedSuccess`, `RetryThresholdExceeded`, `ExecutionCancelled`
+  - ✅ `ChangeExecutionAttempt` for per-attempt tracking
+  - ✅ `ContinueConfig.MaxRetriesPerChange` configuration property
+  - ✅ Service registered in `ServiceBootstrapper` (DI singleton)
+  - ✅ Refinement-driven retry loop calls `FailureAnalyzerService.AnalyzeFailureAsync()` on first failure
+  - ✅ Bailout with no automatic rollback when max attempts exceeded
+- Tests: 
+  - ✅ Success on first attempt (status=Success, attemptCount=1)
+  - ✅ Success after retry with refinement (status=RetriedSuccess, attemptCount=2+)
+  - ✅ Halt on max retries without rollback (status=RetryThresholdExceeded, evidence lists threshold)
+  - ✅ Cancellation support (status=ExecutionCancelled)
+  - ✅ Argument validation (null guards, empty filepath)
+  - ✅ Refinement history population and confidence tracking
+- Implementation Notes:
+  - Refinement loop polls `IFailureAnalyzerService` for LLM-generated refined `CodeChange` on each failure
+  - `RefinementAttempt.IsViable()` gates whether a refined change is applied
+  - Execution times tracked in `ChangeExecutionResult.ExecutionTimeMs`
+  - Logger uses structured `WriteInfoAsync()` and `WriteErrorAsync()` with `[gap29_8_7]` tags for observability
 
 **gap29_8_8: Interactive Mode User Prompts**
 - Reasoning: Interactive mode waits for user before phase/change decisions
