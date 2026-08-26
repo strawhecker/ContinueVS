@@ -4218,7 +4218,79 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 
 ---
 
-### gap31 pause button because sometimes i just need to pause
+### gap31: Pause/Resume Execution Control
+
+**Status:** NOT IMPLEMENTED | Type: User Control Flow  
+**Phase:** 4 (Polish & UX Refinement)  
+**Priority:** MEDIUM (Quality-of-life feature; improves confidence in autonomous mode)  
+
+#### **gap31_1: Pause Button UI & State Management**
+
+- **Goal:** Allow user to pause long-running autonomous or interactive sessions mid-execution
+- **Reasoning:** Autonomous mode can execute for minutes; user needs ability to halt gracefully without force-kill
+- **Implementation:**
+  - Add "Pause" button to ChatPage toolbar (next to Send/Cancel buttons)
+  - Button state: Enabled during execution, disabled otherwise
+  - Click behavior: Set `IsPaused` flag in ChatPageViewModel and DebugSessionService
+  - Visual feedback: Button changes to "Resume" while paused; grayed out when not executing
+  - Keyboard shortcut: Ctrl+Shift+P to toggle pause
+- **Scope:**
+  - UI state only (pause button visibility and interactivity)
+  - Does NOT cancel execution; only suspends it
+  - Resume continues from exact suspension point (preserves state)
+- **Dependencies:** ChatPageViewModel, DebugSessionService, ISessionService
+- **Test:** PauseButtonUITests (3 tests: button disables during execution, shows Resume when paused, keyboard shortcut works)
+
+#### **gap31_2: Pause Signal Propagation**
+
+- **Goal:** Propagate pause signal through all layers (UI → Service → Phase Executor)
+- **Reasoning:** Each phase (Analysis, Observation, Instrumentation) must check `IsPaused` flag and yield control
+- **Implementation:**
+  - Add `CancellationToken pauseToken` to IPhaseExecutor.ExecuteAsync(instruction, isInteractiveMode, pauseToken)
+  - Each phase executor polls `pauseToken.IsCancellationRequested` at loop entry and after each sub-task
+  - LlmService.StreamAsync() checks pauseToken on chunk arrival (async-friendly)
+  - ToolService executes tool; if paused during tool execution, pauses after tool completes (no mid-tool interruption)
+  - DebugSessionService holds PauseTokenSource; exposes ResumeAsync() method to restart
+- **Scope:**
+  - Pause signal flows from UI → DebugSessionService → Phase Executors → Sub-services
+  - Resume recreates new CancellationToken and resumes from saved execution state
+- **Dependencies:** IPhaseExecutor, ILlmService, IToolService, DebugSessionService
+- **Test:** PauseSignalTests (4 tests: phase respects pause token, LLM stream pauses, tool completion before pause, resume restarts)
+
+#### **gap31_3: Execution State Preservation**
+
+- **Goal:** Preserve sufficient state so resume continues meaningful work (not re-run entire phase)
+- **Reasoning:** If paused mid-streaming LLM response, resume should continue from same prompt context
+- **Implementation:**
+  - LlmService accumulates streamed text in buffer; pause captures buffer state
+  - Phase executor saves last-completed sub-task checkpoint (e.g., "Analysis: 80% complete, awaiting LLM response")
+  - DebugSessionService stores checkpoint in PhaseExecutionResult.PauseCheckpoint (PauseContext, LastChunkIndex, ResumeInstructions)
+  - On resume, LlmService rewinds to LastChunkIndex; resumes streaming from that point (server already sent data; client re-buffers)
+- **Scope:**
+  - Does NOT persist to disk (pause state lost on app restart)
+  - Preserves in-memory state only (sufficient for seconds-to-minutes pause windows)
+  - Future: gap31_4 persists checkpoint to disk for app-close/crash recovery
+- **Dependencies:** ILlmService, PhaseExecutionResult, DebugSessionService
+- **Test:** StatePreservationTests (3 tests: LLM buffer state preserved, checkpoint saved, resume rebuilds from checkpoint)
+
+#### **gap31_4: Pause Persistence Across App Restart (Deferred)**
+
+- **Goal:** Allow user to pause, close app, restart, and resume (session not lost)
+- **Reasoning:** Autonomous runs might take hours; user may close app in middle
+- **Implementation (future):**
+  - On pause, serialize PhaseExecutionResult (including PauseCheckpoint) to disk: `~/.continueVs/paused_session.json`
+  - On app startup, detect paused session; show dialog: "Resume previous session: [DebugTask: '...' paused at Analysis (80%)] [Resume] [Discard]"
+  - Resume path: Reload paused session state; continue from checkpoint
+  - Discard path: Delete paused_session.json; start fresh
+- **Scope:** Post-MVP; requires session serialization and recovery UI
+- **Dependencies:** IConfigService (file I/O), gap31_3 (checkpoint format), new ResumeSessionDialog
+- **Test:** PausePersistenceTests (stub; defer implementation)
+
+#### **Design Notes:**
+- Pause is NOT equivalent to Cancel: Cancel discards execution; Pause saves state and allows resume
+- Pause respects tool isolation: Tools run to completion (no mid-tool pause); pause takes effect after tool returns
+- Resume is best-effort: If external state changed (user edited code, LLM model changed), resume may fail; show graceful error
+- Keyboard shortcut Ctrl+Shift+P chosen to avoid VS conflicts (Ctrl+Shift+P is Continue.VS custom; not VS native)
 
 ---
 
