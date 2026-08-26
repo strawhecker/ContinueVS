@@ -16,16 +16,22 @@ namespace ContinueVS.Services.Implementations
 
         public PhaseExecutorFactory(
             IChangeStackService changeStackService,
+            IDebugStrategyGeneratorService strategyGeneratorService,
+            IInstrumentationService instrumentationService,
             IBridgeLogger? logger = null)
         {
             if (changeStackService == null)
                 throw new ArgumentNullException(nameof(changeStackService));
+            if (strategyGeneratorService == null)
+                throw new ArgumentNullException(nameof(strategyGeneratorService));
+            if (instrumentationService == null)
+                throw new ArgumentNullException(nameof(instrumentationService));
 
             _executors = new Dictionary<InternalPhaseType, IPhaseExecutor>
             {
                 { InternalPhaseType.Analysis, new AnalysisPhaseExecutor(logger) },
                 { InternalPhaseType.Observation, new ObservationPhaseExecutor(logger) },
-                { InternalPhaseType.Instrumentation, new InstrumentationPhaseExecutor(changeStackService, logger) },
+                { InternalPhaseType.Instrumentation, new InstrumentationPhaseExecutor(changeStackService, strategyGeneratorService, instrumentationService, logger) },
                 // Future executors: Breakpoint, Test
             };
         }

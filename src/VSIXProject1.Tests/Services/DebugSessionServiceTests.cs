@@ -25,6 +25,8 @@ namespace ContinueVS.Tests.Services
     {
         private readonly Mock<IInstructionProcessorService> _mockInstructionProcessor;
         private readonly Mock<IChangeStackService> _mockChangeStackService;
+        private readonly Mock<IDebugStrategyGeneratorService> _mockStrategyGenerator;
+        private readonly Mock<IInstrumentationService> _mockInstrumentationService;
         private readonly Mock<IBridgeLogger> _mockLogger;
         private readonly DebugSessionService _service;
 
@@ -32,9 +34,15 @@ namespace ContinueVS.Tests.Services
         {
             _mockInstructionProcessor = new Mock<IInstructionProcessorService>();
             _mockChangeStackService = new Mock<IChangeStackService>();
+            _mockStrategyGenerator = new Mock<IDebugStrategyGeneratorService>();
+            _mockInstrumentationService = new Mock<IInstrumentationService>();
             _mockLogger = new Mock<IBridgeLogger>();
 
-            var executorFactory = new PhaseExecutorFactory(_mockChangeStackService.Object, _mockLogger.Object);
+            var executorFactory = new PhaseExecutorFactory(
+                _mockChangeStackService.Object, 
+                _mockStrategyGenerator.Object,
+                _mockInstrumentationService.Object,
+                _mockLogger.Object);
             _service = new DebugSessionService(
                 _mockInstructionProcessor.Object,
                 _mockChangeStackService.Object,

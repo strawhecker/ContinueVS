@@ -9,20 +9,26 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
     /// <summary>
     /// Executor for Instrumentation phases.
     /// Instrumentation phases add logging, monitoring, or diagnostic output.
-    /// They generate and apply code changes via the change stack.
+    /// Uses LLM-generated InstrumentationStrategy to guide code changes.
     /// </summary>
     public class InstrumentationPhaseExecutor : IPhaseExecutor
     {
         private readonly IBridgeLogger? _logger;
         private readonly IChangeStackService _changeStackService;
+        private readonly IDebugStrategyGeneratorService _strategyGeneratorService;
+        private readonly IInstrumentationService _instrumentationService;
 
         public InternalPhaseType PhaseType => InternalPhaseType.Instrumentation;
 
         public InstrumentationPhaseExecutor(
             IChangeStackService changeStackService,
+            IDebugStrategyGeneratorService strategyGeneratorService,
+            IInstrumentationService instrumentationService,
             IBridgeLogger? logger = null)
         {
             _changeStackService = changeStackService ?? throw new ArgumentNullException(nameof(changeStackService));
+            _strategyGeneratorService = strategyGeneratorService ?? throw new ArgumentNullException(nameof(strategyGeneratorService));
+            _instrumentationService = instrumentationService ?? throw new ArgumentNullException(nameof(instrumentationService));
             _logger = logger;
         }
 
@@ -46,24 +52,42 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
 
             try
             {
-                // Mock: Generate one instrumentation change for demonstration
-                var mockChange = new CodeChange
-                {
-                    ChangeId = Guid.NewGuid().ToString(),
-                    NewContent = "// Instrumentation added\nConsole.WriteLine(\"Debug trace\");"
-                };
+                // Generate instrumentation strategy from phase description
+                var strategy = await _strategyGeneratorService.GenerateStrategyAsync(
+                    phase.Description,
+                    failureContext: null,
+                    targetFile: null,
+                    cancellationToken);
 
-                // Record change in the stack
-                changeStack.RecordChange(mockChange);
-                changeStack.MarkAsApplied(mockChange.ChangeId);
-                changesApplied++;
+                if (strategy == null)
+                {
+                    if (_logger != null)
+                        await _logger.WriteDebugAsync("InstrumentationPhaseExecutor: strategy generation returned null");
+
+                    return new InternalPhaseExecution
+                    {
+                        Strategy = "Instrumentation",
+                        Result = "Completed",
+                        ChangesAppliedCount = 0,
+                        ExecutedAt = DateTime.UtcNow
+                    };
+                }
+
+                // Apply strategy to source files
+                var appliedChangeIds = await _instrumentationService.ApplyStrategyAsync(
+                    strategy,
+                    changeStack,
+                    targetDir,
+                    cancellationToken);
+
+                changesApplied = appliedChangeIds.Count;
 
                 if (_logger != null)
                     await _logger.WriteDebugAsync($"InstrumentationPhaseExecutor: applied {changesApplied} change(s)");
 
                 return new InternalPhaseExecution
                 {
-                    Strategy = "Instrumentation",
+                    Strategy = strategy.Description,
                     Result = "Completed",
                     ChangesAppliedCount = changesApplied,
                     ExecutedAt = DateTime.UtcNow

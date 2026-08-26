@@ -143,6 +143,47 @@ namespace ContinueVS.Services
             // Change stack service for per-change transaction tracking (gap29_8_2)
             services.AddSingleton<IChangeStackService, ChangeStackService>();
 
+            // Instrumentation strategy generation and application services (gap29_8_5)
+            services.AddSingleton<IDebugStrategyGeneratorService>(sp =>
+            {
+                var llmService = sp.GetRequiredService<ILlmService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new DebugStrategyGeneratorService(llmService, logger);
+            });
+            services.AddSingleton<IInstrumentationService>(sp =>
+            {
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new InstrumentationService(logger);
+            });
+
+            // Phase executor factory for debug session orchestration (gap29_8_4)
+            services.AddSingleton<PhaseExecutorFactory>(sp =>
+            {
+                var changeStackService = sp.GetRequiredService<IChangeStackService>();
+                var strategyGenerator = sp.GetRequiredService<IDebugStrategyGeneratorService>();
+                var instrumentationService = sp.GetRequiredService<IInstrumentationService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new PhaseExecutorFactory(changeStackService, strategyGenerator, instrumentationService, logger);
+            });
+
+            // Instruction processor for converting debug instructions to test plans (gap29_8_4)
+            services.AddSingleton<IInstructionProcessorService>(sp =>
+            {
+                var llmService = sp.GetRequiredService<ILlmService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new InstructionProcessorService(llmService, logger);
+            });
+
+            // Debug session service for orchestrating execution (gap29_8_4)
+            services.AddSingleton<IDebugSessionService>(sp =>
+            {
+                var instructionProcessor = sp.GetRequiredService<IInstructionProcessorService>();
+                var changeStackService = sp.GetRequiredService<IChangeStackService>();
+                var executorFactory = sp.GetRequiredService<PhaseExecutorFactory>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new DebugSessionService(instructionProcessor, changeStackService, executorFactory, logger);
+            });
+
             services.AddSingleton<IUIStateService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();
