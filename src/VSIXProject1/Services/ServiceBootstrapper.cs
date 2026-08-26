@@ -201,6 +201,13 @@ namespace ContinueVS.Services
                 return new LlmQuestionService(promptService, logger);
             });
 
+            // Test plan execution repository for persistence and history tracking (gap29_8_10)
+            services.AddSingleton<ITestPlanExecutionRepository>(sp =>
+            {
+                var configService = sp.GetRequiredService<IConfigService>();
+                return new TestPlanExecutionRepository(configService);
+            });
+
             // Instruction processor for converting debug instructions to test plans (gap29_8_4)
             services.AddSingleton<IInstructionProcessorService>(sp =>
             {

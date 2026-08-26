@@ -7,8 +7,10 @@ namespace ContinueVS.Core.Types
     /// <summary>
     /// Represents an immutable test plan generated from a debug instruction.
     /// Contains an ordered list of internal phases (strategy attempts).
+    /// This class is sealed to prevent modification. Execution history is tracked
+    /// separately in TestPlanExecution records to maintain immutability.
     /// </summary>
-    public class TestPlan
+    public sealed class TestPlan
     {
         /// <summary>
         /// Unique identifier for this test plan.
@@ -25,12 +27,14 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Ordered list of internal phases that comprise this test plan.
         /// Phases are strategy attempts generated from the debug instruction.
+        /// This list is the immutable definition; execution results are tracked separately.
         /// </summary>
         [JsonProperty("phases")]
         public List<InternalPhase> Phases { get; set; } = new List<InternalPhase>();
 
         /// <summary>
         /// Timestamp when this test plan was created.
+        /// This timestamp represents the plan definition, not its execution.
         /// </summary>
         [JsonProperty("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
