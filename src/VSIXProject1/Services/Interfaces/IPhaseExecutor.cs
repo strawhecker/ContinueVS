@@ -22,6 +22,7 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="phase">The phase to execute.</param>
         /// <param name="changeStack">The change stack to apply changes to (if any).</param>
         /// <param name="targetDir">The target directory for applying changes.</param>
+        /// <param name="isInteractiveMode">If true, prompts user on phase failure. If false, auto-retries. (gap29_8_8)</param>
         /// <param name="cancellationToken">Cancellation token for async operation.</param>
         /// <returns>
         /// An InternalPhaseExecution object containing the result, status, and number of changes applied.
@@ -31,6 +32,7 @@ namespace ContinueVS.Services.Interfaces
             InternalPhase phase,
             ChangeStack changeStack,
             string targetDir,
+            bool isInteractiveMode = false,
             CancellationToken cancellationToken = default);
     }
 }

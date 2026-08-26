@@ -14,18 +14,21 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
     public class ObservationPhaseExecutor : IPhaseExecutor
     {
         private readonly IBridgeLogger? _logger;
+        private readonly IInteractivePromptService? _promptService;
 
         public InternalPhaseType PhaseType => InternalPhaseType.Observation;
 
-        public ObservationPhaseExecutor(IBridgeLogger? logger = null)
+        public ObservationPhaseExecutor(IBridgeLogger? logger = null, IInteractivePromptService? promptService = null)
         {
             _logger = logger;
+            _promptService = promptService;
         }
 
         public async Task<InternalPhaseExecution> ExecuteAsync(
             InternalPhase phase,
             ChangeStack changeStack,
             string targetDir,
+            bool isInteractiveMode = false,
             CancellationToken cancellationToken = default)
         {
             if (phase == null)

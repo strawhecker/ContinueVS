@@ -181,7 +181,16 @@ namespace ContinueVS.Services
                 var strategyGenerator = sp.GetRequiredService<IDebugStrategyGeneratorService>();
                 var instrumentationService = sp.GetRequiredService<IInstrumentationService>();
                 var logger = sp.GetRequiredService<IBridgeLogger>();
-                return new PhaseExecutorFactory(changeStackService, strategyGenerator, instrumentationService, logger);
+                var promptService = sp.GetRequiredService<IInteractivePromptService>();
+                return new PhaseExecutorFactory(changeStackService, strategyGenerator, instrumentationService, logger, promptService);
+            });
+
+            // Interactive prompt service for user decision prompts in Debug mode (gap29_8_8)
+            services.AddSingleton<IInteractivePromptService>(sp =>
+            {
+                var notificationService = sp.GetRequiredService<INotificationService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new InteractivePromptService(notificationService, logger);
             });
 
             // Instruction processor for converting debug instructions to test plans (gap29_8_4)

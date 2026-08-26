@@ -14,6 +14,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
     public class InstrumentationPhaseExecutor : IPhaseExecutor
     {
         private readonly IBridgeLogger? _logger;
+        private readonly IInteractivePromptService? _promptService;
         private readonly IChangeStackService _changeStackService;
         private readonly IDebugStrategyGeneratorService _strategyGeneratorService;
         private readonly IInstrumentationService _instrumentationService;
@@ -24,18 +25,21 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
             IChangeStackService changeStackService,
             IDebugStrategyGeneratorService strategyGeneratorService,
             IInstrumentationService instrumentationService,
-            IBridgeLogger? logger = null)
+            IBridgeLogger? logger = null,
+            IInteractivePromptService? promptService = null)
         {
             _changeStackService = changeStackService ?? throw new ArgumentNullException(nameof(changeStackService));
             _strategyGeneratorService = strategyGeneratorService ?? throw new ArgumentNullException(nameof(strategyGeneratorService));
             _instrumentationService = instrumentationService ?? throw new ArgumentNullException(nameof(instrumentationService));
             _logger = logger;
+            _promptService = promptService;
         }
 
         public async Task<InternalPhaseExecution> ExecuteAsync(
             InternalPhase phase,
             ChangeStack changeStack,
             string targetDir,
+            bool isInteractiveMode = false,
             CancellationToken cancellationToken = default)
         {
             if (phase == null)

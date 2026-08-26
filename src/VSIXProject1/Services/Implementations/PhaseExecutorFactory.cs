@@ -18,7 +18,8 @@ namespace ContinueVS.Services.Implementations
             IChangeStackService changeStackService,
             IDebugStrategyGeneratorService strategyGeneratorService,
             IInstrumentationService instrumentationService,
-            IBridgeLogger? logger = null)
+            IBridgeLogger? logger = null,
+            IInteractivePromptService? promptService = null)
         {
             if (changeStackService == null)
                 throw new ArgumentNullException(nameof(changeStackService));
@@ -29,9 +30,9 @@ namespace ContinueVS.Services.Implementations
 
             _executors = new Dictionary<InternalPhaseType, IPhaseExecutor>
             {
-                { InternalPhaseType.Analysis, new AnalysisPhaseExecutor(logger) },
-                { InternalPhaseType.Observation, new ObservationPhaseExecutor(logger) },
-                { InternalPhaseType.Instrumentation, new InstrumentationPhaseExecutor(changeStackService, strategyGeneratorService, instrumentationService, logger) },
+                { InternalPhaseType.Analysis, new AnalysisPhaseExecutor(logger, promptService) },
+                { InternalPhaseType.Observation, new ObservationPhaseExecutor(logger, promptService) },
+                { InternalPhaseType.Instrumentation, new InstrumentationPhaseExecutor(changeStackService, strategyGeneratorService, instrumentationService, logger, promptService) },
                 // Future executors: Breakpoint, Test
             };
         }

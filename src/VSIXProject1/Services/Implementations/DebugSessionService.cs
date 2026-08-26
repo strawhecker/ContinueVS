@@ -28,12 +28,14 @@ namespace ContinueVS.Services.Implementations
         /// <param name="instruction">The instruction to execute.</param>
         /// <param name="changeStackId">The change stack ID to apply changes to.</param>
         /// <param name="targetDir">Target directory for applying changes.</param>
+        /// <param name="mode">Debug execution mode: Autonomous (auto-answers) or Interactive (prompts user). (gap29_8_8)</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The TestPlan with phases and their execution annotations.</returns>
         Task<TestPlan> ExecuteInstructionAsync(
             DebugInstruction instruction,
             string changeStackId,
             string targetDir,
+            DebugExecutionMode mode = DebugExecutionMode.Autonomous,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -109,6 +111,7 @@ namespace ContinueVS.Services.Implementations
             DebugInstruction instruction,
             string changeStackId,
             string targetDir,
+            DebugExecutionMode mode = DebugExecutionMode.Autonomous,
             CancellationToken cancellationToken = default)
         {
             if (instruction == null)
@@ -119,7 +122,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Target directory cannot be empty.", nameof(targetDir));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"DebugSessionService.ExecuteInstructionAsync: starting execution for '{instruction.Text}'");
+                await _logger.WriteDebugAsync($"DebugSessionService.ExecuteInstructionAsync: starting execution for '{instruction.Text}' (mode={mode})");
 
             try
             {
@@ -165,7 +168,8 @@ namespace ContinueVS.Services.Implementations
                     // Execute the phase
                     try
                     {
-                        phase.Execution = await executor.ExecuteAsync(phase, changeStack, targetDir, cancellationToken);
+                        bool isInteractiveMode = (mode == DebugExecutionMode.Interactive);
+                        phase.Execution = await executor.ExecuteAsync(phase, changeStack, targetDir, isInteractiveMode, cancellationToken);
 
                         // Update phase status based on execution result
                         if (phase.Execution.Result == "Completed" || phase.Execution.Result == "Skipped")
