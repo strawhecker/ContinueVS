@@ -152,11 +152,19 @@ namespace ContinueVS.Services
             });
             services.AddSingleton<IInstrumentationService>(sp =>
             {
-                var logger = sp.GetRequiredService<IBridgeLogger>();
-                return new InstrumentationService(logger);
-            });
+                    var logger = sp.GetRequiredService<IBridgeLogger>();
+                    return new InstrumentationService(logger);
+                });
 
-            // Phase executor factory for debug session orchestration (gap29_8_4)
+                // Failure analyzer service for refinement attempts (gap29_8_6)
+                services.AddSingleton<IFailureAnalyzerService>(sp =>
+                {
+                    var llmService = sp.GetRequiredService<ILlmService>();
+                    var logger = sp.GetRequiredService<IBridgeLogger>();
+                    return new FailureAnalyzerService(llmService, logger);
+                });
+
+                // Phase executor factory for debug session orchestration (gap29_8_4)
             services.AddSingleton<PhaseExecutorFactory>(sp =>
             {
                 var changeStackService = sp.GetRequiredService<IChangeStackService>();

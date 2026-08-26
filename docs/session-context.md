@@ -3906,6 +3906,16 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - Interactive differs: prompts user before applying refined attempt
 - Deliverables: FailureAnalyzer.AnalyzeFailureAsync(); RefinementAttempt class; hypothesis generation
 - Tests: Error analysis (compilation, test failure, exception), hypothesis generation, confidence scoring
+- Status: ✅ COMPLETE
+  - IFailureAnalyzerService interface created with AnalyzeFailureAsync method
+  - FailureAnalyzerService implementation with error parsing, LLM hypothesis generation, confidence scoring
+  - ErrorType enum for error categorization (Compilation, TestFailure, Exception, Unknown)
+  - ErrorAnalysisResult DTO for structured error data
+  - RefinementAttempt DTO for refinement results with confidence and viability checks
+  - FailureAnalyzerServiceTests with comprehensive test coverage
+  - ServiceBootstrapper DI registration
+  - Build Status: ✅ All C# code compiles successfully
+  - XAML warnings in ChatPage.xaml remain pre-existing, not part of gap29_8_6
 
 **gap29_8_7: Change-Level Retry Loop & Bailout**
 - Reasoning: When a change fails, LLM analyzes, generates refined change, retries (up to threshold)
