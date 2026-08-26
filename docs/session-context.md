@@ -4132,9 +4132,44 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - Extension point: Future versioning of execution records can use subdirectories (execution-v1.json, execution-v2.json) without schema migration
 
 **gap29_8_11: Error-Driven Instrumentation (Reactive)**
-- Reasoning: When user encounters exception in Debug mode, offer instrumentation around that line
-- Deliverables: ErrorDrivenInstrumentationService.SuggestInstrumentationAsync(); integration with ErrorRepository
-- Tests: Exception capture, instrumentation suggestion, re-run with logs
+- **Status:** ✅ Complete | Type: Reactive Exception-Driven Instrumentation
+- **Reasoning:** When user encounters exception in Debug mode, offer instrumentation around that line by querying historical error patterns
+- **Implementation:**
+  - Created `InstrumentationSuggestion.cs`: Data type containing ExceptionType, FilePath, LineNumber, Reasoning, SuggestedStrategy, ConfidenceScore, MatchFingerprint, GeneratedAt
+  - Created `IErrorDrivenInstrumentationService.cs` interface: SuggestInstrumentationAsync(exceptionType, message, stackTrace, filePath, lineNumber, cancellationToken) → InstrumentationSuggestion?
+  - Created `ErrorDrivenInstrumentationService.cs` implementation:
+    - Validates inputs (throws ArgumentNullException for null/empty exceptionType or filePath)
+    - Computes fingerprint from exception type + message
+    - Queries ErrorRepository for historical matches by fingerprint
+    - Calls DebugStrategyGeneratorService with failure context + historical patterns
+    - Wraps returned strategy in InstrumentationSuggestion with confidence score and metadata
+    - Logs at each stage via IBridgeLogger; returns null on any error (doesn't throw to caller)
+    - Confidence score calculated: 0.5 + (matchCount * 0.1), capped at 1.0
+  - Registered `IErrorDrivenInstrumentationService` as singleton in `ServiceBootstrapper.ConfigureServices()`
+  - Integration: Works with ErrorRepository (gap29_7), DebugStrategyGeneratorService (gap29_8_5), InstrumentationService
+- **Unit Tests (7/7 passing, all 969 full suite pass):**
+  - SuggestInstrumentation_WithHistoricalMatch_ReturnsStrategy: Mock repo returns 1 error; LLM generates strategy → verify strategy with confidence > 0.5
+  - SuggestInstrumentation_NoHistoricalData_GeneratesBlankSlateStrategy: Empty repo → LLM generates generic strategy
+  - SuggestInstrumentation_RepositoryQueryFails_ReturnsNull: Mock repo throws exception → returns null, logs error
+  - SuggestInstrumentation_LlmTimeoutOrError_ReturnsNull: Mock LLM throws OperationCanceledException → returns null
+  - SuggestInstrumentation_NullExceptionContext_ThrowsArgumentNullException: Null/empty inputs → throws ArgumentNullException
+  - SuggestInstrumentation_MultipleHistoricalErrors_ReturnsAggregatedInstrumentation: Mock repo returns 3 errors → confidence > 0.75, reasoning contains "3"
+  - ServiceBootstrapper_RegistersErrorDrivenInstrumentation_Correctly: Verify service instantiation
+- **Files Created:**
+  - src/VSIXProject1/Core/Types/InstrumentationSuggestion.cs
+  - src/VSIXProject1/Services/Interfaces/IErrorDrivenInstrumentationService.cs
+  - src/VSIXProject1/Services/Implementations/ErrorDrivenInstrumentationService.cs
+  - src/VSIXProject1.Tests/Services/ErrorDrivenInstrumentationTests.cs
+- **Files Modified:**
+  - src/VSIXProject1/Services/ServiceBootstrapper.cs (registered service as singleton, added dependency wiring)
+- **Blocking Resolved:** gap29_8_11 complete; gap29_8_12 (end-to-end tests) can now use error-driven instrumentation in scenarios
+- **Design Decisions Applied:**
+  - Stateless reactive service: triggered only when exception occurs
+  - Leverages ErrorRepository fingerprint-based lookup for efficient historical querying
+  - Confidence score enables UI to rank suggestions (high confidence = prominent display)
+  - Errors logged but not thrown; service degrades gracefully
+  - All timestamps in UTC for audit consistency
+  - .NET Framework 4.7.2 compatible (no async I/O wrappers needed; already async-shaped)
 
 **gap29_8_12: End-to-End Integration Tests**
 - Reasoning: Validate full workflow: instruction → phases → changes → retry/rollback → annotation → save

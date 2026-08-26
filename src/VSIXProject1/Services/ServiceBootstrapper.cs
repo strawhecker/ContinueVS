@@ -208,6 +208,15 @@ namespace ContinueVS.Services
                 return new TestPlanExecutionRepository(configService);
             });
 
+            // Error-driven instrumentation service for reactive exception-triggered suggestions (gap29_8_11)
+            services.AddSingleton<IErrorDrivenInstrumentationService>(sp =>
+            {
+                var errorRepository = sp.GetRequiredService<IErrorRepository>();
+                var strategyGenerator = sp.GetRequiredService<IDebugStrategyGeneratorService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new ErrorDrivenInstrumentationService(errorRepository, strategyGenerator, logger);
+            });
+
             // Instruction processor for converting debug instructions to test plans (gap29_8_4)
             services.AddSingleton<IInstructionProcessorService>(sp =>
             {
