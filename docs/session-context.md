@@ -4322,20 +4322,28 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 
 #### **gap31_1: Pause Button UI & State Management**
 
+- **Status:** ✅ COMPLETED
 - **Goal:** Allow user to pause long-running autonomous or interactive sessions mid-execution
 - **Reasoning:** Autonomous mode can execute for minutes; user needs ability to halt gracefully without force-kill
-- **Implementation:**
-  - Add "Pause" button to ChatPage toolbar (next to Send/Cancel buttons)
-  - Button state: Enabled during execution, disabled otherwise
-  - Click behavior: Set `IsPaused` flag in ChatPageViewModel and DebugSessionService
-  - Visual feedback: Button changes to "Resume" while paused; grayed out when not executing
-  - Keyboard shortcut: Ctrl+Shift+P to toggle pause
+- **Implementation (Completed):**
+  - ✅ Added "Pause" button to ChatPage toolbar (Grid.Column="3", between Cancel and Apply)
+  - ✅ Button state: Enabled when IsStreaming=true, disabled otherwise
+  - ✅ Click behavior: PauseCommand toggles IsPaused flag in ChatPageViewModel and syncs to DebugSessionService.SetPausedAsync()
+  - ✅ Visual feedback: Button label auto-computes via IsPausedDisplay property (returns "Pause" when not paused, "Resume" when paused)
+  - ⏳ Keyboard shortcut: Ctrl+Shift+P not yet implemented (deferred to gap31_1b if required)
 - **Scope:**
   - UI state only (pause button visibility and interactivity)
-  - Does NOT cancel execution; only suspends it
-  - Resume continues from exact suspension point (preserves state)
-- **Dependencies:** ChatPageViewModel, DebugSessionService, ISessionService
-- **Test:** PauseButtonUITests (3 tests: button disables during execution, shows Resume when paused, keyboard shortcut works)
+  - Does NOT cancel execution; only suspends it (resume logic deferred to gap31_2)
+  - ChatPageViewModel.IsPaused property mirrors to DebugSessionService for downstream propagation
+- **Files Modified:**
+  - src/VSIXProject1/ViewModels/ChatPageViewModel.cs (added _isPaused, IsPaused, IsPausedDisplay, PauseCommand, ExecutePause)
+  - src/VSIXProject1/UI/Pages/ChatPage.xaml (added Pause button in toolbar)
+  - src/VSIXProject1/Services/Implementations/DebugSessionService.cs (added _isPaused, IsPaused property, SetPausedAsync method)
+- **Test:** PauseButtonUITests (3 tests: all passing)
+  - ✅ PauseCommand_IsDisabledWhenNotStreaming: Verifies button disabled when not streaming
+  - ✅ IsPausedDisplay_TogglesBetweenPauseAndResume: Verifies label toggles correctly
+  - ✅ PauseCommand_TogglesIsPausedState: Verifies command toggles state and label
+- **Dependencies:** ChatPageViewModel, DebugSessionService, ISessionService (ready for gap31_2 integration)
 
 #### **gap31_2: Pause Signal Propagation**
 

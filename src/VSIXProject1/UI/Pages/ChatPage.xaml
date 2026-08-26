@@ -173,13 +173,17 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <Button Grid.Column="1" Command="{Binding SendMessageCommand}" 
                         Content="Send" Padding="10" Margin="5,0" Background="{DynamicResource ButtonPrimaryBrush}" Style="{DynamicResource ThemedButtonStyle}"/>
                 <Button Grid.Column="2" Command="{Binding CancelCommand}" 
                         Content="Cancel" Padding="10" Margin="5,0" Background="{DynamicResource ErrorBrush}" Style="{DynamicResource ThemedButtonStyle}"/>
-                <Button Grid.Column="3" Content="Apply" Padding="10" Margin="5,0" Background="{DynamicResource SuccessBrush}"
+                <Button Grid.Column="3" Command="{Binding PauseCommand}" 
+                        Content="{Binding IsPausedDisplay}" Padding="10" Margin="5,0" Background="{DynamicResource ErrorBrush}" 
+                        IsEnabled="{Binding IsStreaming}" Style="{DynamicResource ThemedButtonStyle}"/>
+                <Button Grid.Column="4" Content="Apply" Padding="10" Margin="5,0" Background="{DynamicResource SuccessBrush}"
                         Visibility="{Binding CurrentMode, Converter={StaticResource ChatModeToVisibilityConverter}}" Style="{DynamicResource ThemedButtonStyle}"/>
             </Grid>
         </Grid>

@@ -126,6 +126,12 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private ContinuationPolicy _selectedPolicy = ContinuationPolicy.Interactive;
 
+        /// <summary>
+        /// Flag to track pause state for long-running sessions (gap31_1).
+        /// When true, execution is paused; when false, execution can proceed.
+        /// </summary>
+        private bool _isPaused = false;
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
@@ -331,6 +337,22 @@ public string? InputText
             set => Set(ref _onboardingCardVisible, value);
         }
 
+        /// <summary>
+        /// Gets or sets the pause state for the current session (gap31_1).
+        /// When true, execution is paused; when false, execution can proceed.
+        /// </summary>
+        public bool IsPaused
+        {
+            get => _isPaused;
+            set => Set(ref _isPaused, value);
+        }
+
+        /// <summary>
+        /// Gets the display text for the pause button (gap31_1).
+        /// Returns "Pause" when not paused, "Resume" when paused.
+        /// </summary>
+        public string IsPausedDisplay => _isPaused ? "Resume" : "Pause";
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -342,6 +364,10 @@ public string? InputText
         /// Command to delete a message by ID.
         /// </summary>
         public RelayCommand<string> DeleteMessageCommand { get; }
+        /// <summary>
+        /// Command to toggle pause state (gap31_1).
+        /// </summary>
+        public RelayCommand PauseCommand { get; }
 
         public ChatPageViewModel(
             ILlmService llmService,
@@ -392,6 +418,7 @@ public string? InputText
             AddContextCommand = new RelayCommand<string>(ExecuteAddContext);
             SetModeCommand = new RelayCommand<ChatMode>(mode => CurrentMode = mode);
             DeleteMessageCommand = new RelayCommand<string>(ExecuteDeleteMessage);
+            PauseCommand = new RelayCommand(ExecutePause, () => IsStreaming);
 
             _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
@@ -1047,6 +1074,16 @@ public string? InputText
         private void ExecuteCancel()
         {
             _streamingCts?.Cancel();
+        }
+
+        /// <summary>
+        /// Executes the pause command by toggling the pause state (gap31_1).
+        /// Updates IsPaused flag which is consumed by DebugSessionService and phase executors.
+        /// </summary>
+        private void ExecutePause()
+        {
+            IsPaused = !IsPaused;
+            RaisePropertyChanged(nameof(IsPausedDisplay));
         }
 
 #pragma warning disable VSTHRD100

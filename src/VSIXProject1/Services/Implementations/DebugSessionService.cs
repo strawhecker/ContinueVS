@@ -56,6 +56,7 @@ namespace ContinueVS.Services.Implementations
         private readonly PhaseExecutorFactory _executorFactory;
         private readonly IBridgeLogger? _logger;
         private TestPlan? _currentSessionState;
+        private bool _isPaused = false;
 
         public DebugSessionService(
             IInstructionProcessorService instructionProcessor,
@@ -229,6 +230,22 @@ namespace ContinueVS.Services.Implementations
         public TestPlan? GetSessionState()
         {
             return _currentSessionState;
+        }
+
+        /// <summary>
+        /// Gets the current pause state of the session (gap31_1).
+        /// </summary>
+        public bool IsPaused => _isPaused;
+
+        /// <summary>
+        /// Sets the pause state asynchronously (gap31_1).
+        /// Consumed by phase executors via CancellationToken polling.
+        /// </summary>
+        public async Task SetPausedAsync(bool paused)
+        {
+            _isPaused = paused;
+            if (_logger != null)
+                await _logger.WriteDebugAsync($"DebugSessionService.SetPausedAsync: pause state set to {paused}");
         }
     }
 }
