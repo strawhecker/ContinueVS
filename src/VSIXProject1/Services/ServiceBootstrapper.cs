@@ -193,6 +193,14 @@ namespace ContinueVS.Services
                 return new InteractivePromptService(notificationService, logger);
             });
 
+            // LLM question service for detecting and auto-answering LLM questions (gap29_8_9)
+            services.AddSingleton<ILlmQuestionService>(sp =>
+            {
+                var promptService = sp.GetRequiredService<IInteractivePromptService>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new LlmQuestionService(promptService, logger);
+            });
+
             // Instruction processor for converting debug instructions to test plans (gap29_8_4)
             services.AddSingleton<IInstructionProcessorService>(sp =>
             {

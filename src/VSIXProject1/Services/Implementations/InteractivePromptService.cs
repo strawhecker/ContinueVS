@@ -98,7 +98,7 @@ namespace ContinueVS.Services.Implementations
             {
                 if (_logger != null)
                     await _logger.WriteDebugAsync($"[gap29_8_8] Risky change to '{filePath}'; Autonomous mode auto-approves without prompt");
-                return UserPromptChoice.Retry; // Retry means "approve and apply" for risky changes
+                return UserPromptChoice.Retry;
             }
 
             var previewText = string.IsNullOrWhiteSpace(changePreview) ? "" : $"\n\nPreview:\n{changePreview}";
@@ -113,6 +113,33 @@ namespace ContinueVS.Services.Implementations
 
             var confirmed = await _notificationService.ShowConfirmationAsync(title, message);
             return confirmed ? UserPromptChoice.Retry : UserPromptChoice.Cancel;
+        }
+
+        public async Task<string> PromptOnLLMQuestionAsync(LLMQuestionPrompt question, bool isInteractiveMode = true)
+        {
+            if (question == null)
+                throw new ArgumentNullException(nameof(question));
+            if (string.IsNullOrWhiteSpace(question.QuestionText))
+                throw new ArgumentException("Question text cannot be empty.", nameof(question));
+
+            if (!isInteractiveMode)
+            {
+                var defaultAnswer = AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, AutoAnswerResponse.Default);
+
+                if (_logger != null)
+                    await _logger.WriteDebugAsync($"[gap29_8_9] LLM question in Autonomous mode; returning default answer: {defaultAnswer}");
+
+                return defaultAnswer;
+            }
+
+            var title = "LLM Question";
+            var message = $"{question.QuestionText}\n\n(Answering 'Yes' proceeds; 'No' halts.)";
+
+            if (_logger != null)
+                await _logger.WriteDebugAsync($"[gap29_8_9] Interactive prompt: {title}");
+
+            var confirmed = await _notificationService.ShowConfirmationAsync(title, message);
+            return confirmed ? "Yes, proceed" : "No, halt";
         }
     }
 }

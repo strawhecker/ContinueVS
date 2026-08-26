@@ -4015,9 +4015,72 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - Future extensibility: prompt methods can be called from gap29_8_9 for auto-answer policy matching
 
 **gap29_8_9: Autonomous Mode Auto-Answer**
-- Reasoning: Autonomous mode auto-answers LLM questions (not skip LLM analysis; answer LLM's questions on user's behalf)
-- Deliverables: LLMQuestionPrompt class; HandleLLMQuestionAsync(question, isAutonomous); AutoAnswerPolicy (question type → answer)
-- Tests: LLM question detection, auto-answer matching, question-answer flow
+- **Status:** ✅ Complete | Type: LLM Question Handling
+- **Reasoning:** Autonomous mode auto-answers LLM questions (not skip LLM analysis; answer LLM's questions on user's behalf per autonomous policy)
+- **Implementation:**
+  - Created `LLMQuestionPrompt` DTO: QuestionText, Context, QuestionType, Timestamp, AutoAnswerHint, Id properties
+  - Created `LLMQuestionType` enum: Clarification, Confirmation, Selection, ThresholdWarning (question categories for policy matching)
+  - Created `AutoAnswerResponse` enum: Default, Conservative, Aggressive, None (policy strength levels)
+  - Created `AutoAnswerPolicyRegistry`: Maps (question type, policy) → default answer text
+    - Confirmation → "Yes, proceed" (Aggressive) or "No, reconsider" (Conservative)
+    - Selection → "Option 1" with fallback handling
+    - ThresholdWarning → "Retry" or "Abort" based on policy
+    - Clarification → "Continue with current approach" (policy-agnostic)
+  - Created `ILlmQuestionService` interface with:
+    - `DetectLLMQuestionAsync(llmResponse, ct)` → extracts first question from LLM output with type classification
+    - `HandleLLMQuestionAsync(question, isAutonomous, policy, ct)` → routes to auto-answer (autonomous) or interactive prompt (interactive)
+  - Implemented `LlmQuestionService`:
+    - Question extraction: Matches first question mark (?) in response, captures full context from start to ? for accurate classification
+    - Classification logic: Checks keywords in priority order (ThresholdWarning first, then Selection, then Confirmation, default Clarification)
+    - Autonomous flow: Calls `AutoAnswerPolicyRegistry.GetDefaultAnswer()` and returns answer text
+    - Interactive flow: Calls `IInteractivePromptService.PromptOnLLMQuestionAsync()` and returns user's answer
+  - Extended `IInteractivePromptService` with `PromptOnLLMQuestionAsync(question, isInteractiveMode)` method
+  - Implemented in `InteractivePromptService`:
+    - Shows confirmation dialog: "LLM Question" title, question text, "Yes, proceed" / "No, halt" buttons
+    - Returns user selection as normalized answer
+    - Integrates with INotificationService for UI display
+  - Registered `ILlmQuestionService` singleton in `ServiceBootstrapper`
+  - Unit Tests (8/8 passing):
+    - Constructor validation (null dependency check)
+    - Autonomous mode applies correct policy
+    - Interactive mode prompts user
+    - Clarification question returns default answer
+    - Confirmation question returns "proceed" text
+    - Parse and detect questions from LLM response
+    - Handle invalid (empty) questions
+    - No question in response returns null
+  - Integration Tests (5/5 passing):
+    - Autonomous mode bypasses InteractivePromptService entirely
+    - Policy registry maps question types to responses
+    - Full question detection and classification flow
+    - Interactive prompt integration
+    - Classification accuracy for Confirmation, Selection, ThresholdWarning types
+- **Key Bug Fixes:**
+  - Fixed question extraction regex: Changed from `[^?.!]*\?` (stops at period) to direct IndexOf approach
+    - Before: "Retry attempts have exceeded the threshold. Should I continue?" → extracted only "Should I continue?" → classified as Confirmation
+    - After: Extracts full text with context → classified correctly as ThresholdWarning
+  - Ensured keyword ordering: Threshold checks before Confirmation to prevent misclassification of compound questions
+  - All question texts now preserve context from start of LLM response through first question mark
+- **Files Created:**
+  - src/VSIXProject1/Core/Types/LLMQuestionPrompt.cs
+  - src/VSIXProject1/Core/Types/LLMQuestionType.cs
+  - src/VSIXProject1/Core/Types/AutoAnswerResponse.cs
+  - src/VSIXProject1/Services/Interfaces/ILlmQuestionService.cs
+  - src/VSIXProject1/Services/Implementations/LlmQuestionService.cs
+  - src/VSIXProject1/Services/Implementations/AutoAnswerPolicyRegistry.cs
+  - src/VSIXProject1.Tests/Services/LlmQuestionServiceTests.cs
+  - src/VSIXProject1.Tests/Services/LlmQuestionIntegrationTests.cs
+- **Files Modified:**
+  - src/VSIXProject1/Services/Interfaces/IInteractivePromptService.cs (added PromptOnLLMQuestionAsync method)
+  - src/VSIXProject1/Services/Implementations/InteractivePromptService.cs (implemented PromptOnLLMQuestionAsync)
+  - src/VSIXProject1/Services/ServiceBootstrapper.cs (registered ILlmQuestionService singleton)
+- **Blocking Resolved:** None (this is a feature addition; no other gaps depended on it)
+- **Design Decisions Applied:**
+  - Question detection preserves full context for accurate classification (not just isolated question text)
+  - Policy registry is centralized and extensible (supports custom policies per question type)
+  - Autonomous vs. interactive routing is handled by service layer (UI agnostic)
+  - Integration with existing InteractivePromptService avoids duplicating confirmation dialogs
+  - Question types map to cognitive categories (not UI actions) for future extensibility
 
 **gap29_8_10: Plan Annotation & Execution History**
 - Reasoning: TestPlan remains immutable; only annotations change (Status, Evidence, AttemptCount, Timing)
@@ -4152,6 +4215,10 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
 - **Reference:** Redux-persist migration pattern (AGENTS.md)
 - **Dependencies:** IConfigService, gap25 (settings comprehensive)
 - **Test:** MigrationTests (3 tests: migrate v1→v2, backup old config, handle unknown version)
+
+---
+
+### gap31 pause button because sometimes i just need to pause
 
 ---
 

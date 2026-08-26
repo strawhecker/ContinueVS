@@ -41,5 +41,15 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="isInteractiveMode">If false, returns Retry (auto-approves) without prompting.</param>
         /// <returns>User's choice: Retry (approve and apply) or Cancel.</returns>
         Task<UserPromptChoice> PromptOnRiskyChangeAsync(string filePath, string riskReason, string? changePreview = null, bool isInteractiveMode = true);
+
+        /// <summary>
+        /// Prompts the user when an LLM question is detected during phase execution.
+        /// Displays the question and collects user response in interactive mode,
+        /// or returns a default answer in autonomous mode.
+        /// </summary>
+        /// <param name="question">The LLM question to prompt on.</param>
+        /// <param name="isInteractiveMode">If false, returns default answer for the question type.</param>
+        /// <returns>The user's answer to the question as a string.</returns>
+        Task<string> PromptOnLLMQuestionAsync(LLMQuestionPrompt question, bool isInteractiveMode = true);
     }
 }
