@@ -340,11 +340,19 @@ public string? InputText
         /// <summary>
         /// Gets or sets the pause state for the current session (gap31_1).
         /// When true, execution is paused; when false, execution can proceed.
+        /// gap31_2: When pause state changes, updates SendMessageCommand availability.
         /// </summary>
         public bool IsPaused
         {
             get => _isPaused;
-            set => Set(ref _isPaused, value);
+            set
+            {
+                if (Set(ref _isPaused, value))
+                {
+                    // gap31_2: Notify SendMessageCommand that CanExecute may have changed
+                    SendMessageCommand.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         /// <summary>
@@ -1068,7 +1076,8 @@ public string? InputText
         {
             // gap23_4_3: Disable send while limit is active
             // gap23_4_4: Also disable when error banner is shown
-            return !IsStreaming && !string.IsNullOrWhiteSpace(InputText) && !_limitReachedFlag && !ShowErrorBanner;
+            // gap31_2: Also disable send when paused (only resume/cancel allowed)
+            return !IsStreaming && !string.IsNullOrWhiteSpace(InputText) && !_limitReachedFlag && !ShowErrorBanner && !IsPaused;
         }
 
         private void ExecuteCancel()
@@ -1078,12 +1087,20 @@ public string? InputText
 
         /// <summary>
         /// Executes the pause command by toggling the pause state (gap31_1).
-        /// Updates IsPaused flag which is consumed by DebugSessionService and phase executors.
+        /// gap31_2: When pause is activated, cancels the active streaming token to interrupt LLM response.
+        /// When pause is deactivated (resume), allows new streams to proceed.
         /// </summary>
         private void ExecutePause()
         {
             IsPaused = !IsPaused;
             RaisePropertyChanged(nameof(IsPausedDisplay));
+
+            // gap31_2: Cancel active stream if pause activated and streaming is in progress
+            if (IsPaused && IsStreaming && _streamingCts != null && !_streamingCts.Token.IsCancellationRequested)
+            {
+                System.Diagnostics.Debug.WriteLine("[gap31_2-pause] Cancelling active stream due to pause signal");
+                _streamingCts.Cancel();
+            }
         }
 
 #pragma warning disable VSTHRD100
