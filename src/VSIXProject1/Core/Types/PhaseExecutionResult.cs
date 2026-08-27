@@ -66,5 +66,13 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("errorDetails")]
         public string? ErrorDetails { get; set; }
+
+        /// <summary>
+        /// Optional checkpoint captured when this phase execution was paused.
+        /// Contains buffered streamed text, chunk metadata, and session context snapshot.
+        /// Null if phase never paused or checkpoint not yet captured.
+        /// </summary>
+        [JsonProperty("pauseCheckpoint")]
+        public PauseCheckpoint? PauseCheckpoint { get; set; }
     }
 }

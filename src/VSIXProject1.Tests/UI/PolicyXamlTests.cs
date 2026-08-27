@@ -5,6 +5,7 @@ using Xunit;
 using Moq;
 using ContinueVS.Core;
 using ContinueVS.Core.Types;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 
@@ -50,6 +51,8 @@ namespace ContinueVS.Tests.UI
             var uiStateMock = new Mock<IUIStateService>();
             uiStateMock.Setup(x => x.GetUIStateAsync()).ReturnsAsync(uiState);
 
+            var debugSessionMock = new Mock<IDebugSessionService>();
+
             return new ChatPageViewModel(
                 llmMock.Object,
                 contextMock.Object,
@@ -59,6 +62,7 @@ namespace ContinueVS.Tests.UI
                 configMock.Object,
                 promptMock.Object,
                 uiStateMock.Object,
+                debugSessionMock.Object,
                 null,
                 null);
         }

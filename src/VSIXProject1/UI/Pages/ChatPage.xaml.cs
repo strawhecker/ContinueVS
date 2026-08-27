@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Core.Types;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 
@@ -105,8 +106,9 @@ namespace ContinueVS.UI.Pages
                     var config      = sp.GetRequiredService<IConfigService>();
                     var systemPrompt = sp.GetRequiredService<ISystemPromptService>();
                     var uiState     = sp.GetRequiredService<IUIStateService>();
+                    var debugSession = sp.GetRequiredService<IDebugSessionService>();
                     var workflow    = sp.GetService<IWorkflowService>();
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, null, workflow);
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, debugSession, null, workflow);
                 }
             }
             catch (Exception ex)

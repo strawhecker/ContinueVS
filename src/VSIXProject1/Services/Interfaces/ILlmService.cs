@@ -70,6 +70,20 @@ namespace ContinueVS.Services.Interfaces
         Task LogInteractionAsync(LlmInteractionLog log);
 
         /// <summary>
+        /// Retrieves all buffered chunks from the current streaming session (gap31_3).
+        /// Used by pause checkpointing to capture streamed response state.
+        /// Returns a copy of the buffer to prevent external modification.
+        /// </summary>
+        /// <returns>List of buffered CompletionChunk objects.</returns>
+        List<CompletionChunk> GetStreamBuffer();
+
+        /// <summary>
+        /// Clears the stream buffer (gap31_3).
+        /// Called before starting a new stream to ensure fresh buffer per stream session.
+        /// </summary>
+        void ClearStreamBuffer();
+
+        /// <summary>
         /// Event raised when an error occurs in the LLM service.
         /// </summary>
         event EventHandler<LlmErrorEventArgs>? Error;

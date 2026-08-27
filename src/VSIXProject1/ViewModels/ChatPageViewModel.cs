@@ -11,6 +11,7 @@ using System.Windows.Threading;
 using ContinueVS.Core;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Utilities;
 using ContinueVS.ViewModels.Models;
@@ -43,15 +44,16 @@ namespace ContinueVS.ViewModels
     public class ChatPageViewModel : ViewModelBase
         {
             private readonly ILlmService _llmService;
-            private readonly IContextService _contextService;
-            private readonly IToolService _toolService;
-            private readonly ISessionService _sessionService;
-            private readonly INotificationService _notificationService;
-            private readonly IConfigService _configService;
-            private readonly ISystemPromptService _systemPromptService;
-            private readonly IUIStateService _uiStateService;
-            private IModeService? _modeService;
-            private IWorkflowService? _workflowService;
+                private readonly IContextService _contextService;
+                private readonly IToolService _toolService;
+                private readonly ISessionService _sessionService;
+                private readonly INotificationService _notificationService;
+                private readonly IConfigService _configService;
+                private readonly ISystemPromptService _systemPromptService;
+                private readonly IUIStateService _uiStateService;
+                private readonly IDebugSessionService _debugSessionService;
+                private IModeService? _modeService;
+                private IWorkflowService? _workflowService;
             private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -386,6 +388,7 @@ public string? InputText
             IConfigService configService,
             ISystemPromptService systemPromptService,
             IUIStateService uiStateService,
+            IDebugSessionService debugSessionService,
             IModeService? modeService = null,
             IWorkflowService? workflowService = null)
         {
@@ -397,6 +400,7 @@ public string? InputText
             if (configService == null) throw new ArgumentNullException(nameof(configService));
             if (systemPromptService == null) throw new ArgumentNullException(nameof(systemPromptService));
             if (uiStateService == null) throw new ArgumentNullException(nameof(uiStateService));
+            if (debugSessionService == null) throw new ArgumentNullException(nameof(debugSessionService));
 
             _llmService = llmService;
             _contextService = contextService;
@@ -406,6 +410,7 @@ public string? InputText
             _configService = configService;
             _systemPromptService = systemPromptService;
             _uiStateService = uiStateService;
+            _debugSessionService = debugSessionService;
             _modeService = modeService;
             _workflowService = workflowService;
 
@@ -474,6 +479,8 @@ public string? InputText
         private async Task InitializeAsync()
         {
             await _systemPromptService.LoadAsync();
+
+            // Load models after ConfigService is initialized (only called after ServiceInitializer.InitializeAsync)
             await LoadModelsAsync();
 
             // Cache UIState for tool policy decisions in ExecuteToolCallsAsync
@@ -540,10 +547,13 @@ public string? InputText
             try
             {
                 var config = _configService.GetCurrentConfig();
-                if (config?.Models != null)
+                if (config?.Models != null && config.Models.Any())
                 {
+                    var models = config.Models.ToList();
+                    await SwitchToMainThreadAsync();
+
                     AvailableModels.Clear();
-                    foreach (var model in config.Models)
+                    foreach (var model in models)
                     {
                         AvailableModels.Add(model);
                     }
@@ -551,12 +561,17 @@ public string? InputText
                     if (AvailableModels.Count > 0 && _selectedModel == null)
                     {
                         SelectedModel = AvailableModels[0];
+                        System.Diagnostics.Debug.WriteLine($"[chat-model-load] Loaded {AvailableModels.Count} models, selected: {SelectedModel?.Name}");
                     }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[chat-model-load] No models in config (config null={config == null}, Models null/empty={config?.Models == null || !config.Models.Any()})");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[chat-model-load-error] Failed to load models: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[chat-model-load-error] {ex.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -742,7 +757,7 @@ public string? InputText
             }
         }
 
-#pragma warning disable VSTHRD100
+        #pragma warning disable VSTHRD100
         private async void ExecuteSendMessage()
 #pragma warning restore VSTHRD100
         {
@@ -752,6 +767,10 @@ public string? InputText
                 _streamingCts = new CancellationTokenSource();
                 _pendingToolCalls.Clear();
                 _toolCallIterationCount = 0;
+
+                // Clear buffers for fresh stream session (gap31_3)
+                _llmService.ClearStreamBuffer();
+                _debugSessionService.ClearPauseCheckpoint();
 
                 // Reset tool limit state for this action (gap23_4_4)
                 // Each user-initiated send action gets its own tool call budget
@@ -1088,9 +1107,12 @@ public string? InputText
         /// <summary>
         /// Executes the pause command by toggling the pause state (gap31_1).
         /// gap31_2: When pause is activated, cancels the active streaming token to interrupt LLM response.
+        /// gap31_3: When pause is activated, captures a checkpoint of buffered streamed content.
         /// When pause is deactivated (resume), allows new streams to proceed.
         /// </summary>
-        private void ExecutePause()
+#pragma warning disable VSTHRD100
+        private async void ExecutePause()
+#pragma warning restore VSTHRD100
         {
             IsPaused = !IsPaused;
             RaisePropertyChanged(nameof(IsPausedDisplay));
@@ -1100,6 +1122,38 @@ public string? InputText
             {
                 System.Diagnostics.Debug.WriteLine("[gap31_2-pause] Cancelling active stream due to pause signal");
                 _streamingCts.Cancel();
+
+                // gap31_3: Capture checkpoint with buffered stream state
+                try
+                {
+                    var buffer = _llmService.GetStreamBuffer();
+                    var streamedText = string.Concat(buffer.Select(c => c.Content));
+
+                    var snapshot = new Dictionary<string, string>();
+                    foreach (var ci in SelectedContext)
+                    {
+                        // Create a display text from available properties
+                        var displayKey = ci.Type.ToString();
+                        var displayValue = ci.FilePath ?? ci.Source ?? ci.Content?.Substring(0, Math.Min(50, ci.Content.Length)) ?? "Unknown";
+                        snapshot[displayKey] = displayValue;
+                    }
+
+                    var checkpoint = new PauseCheckpoint
+                    {
+                        StreamedText = streamedText,
+                        ChunkCount = buffer.Count,
+                        PauseTimestamp = DateTime.UtcNow,
+                        SessionContextSnapshot = snapshot
+                    };
+
+                    await _debugSessionService.SetPauseCheckpointAsync(checkpoint);
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[gap31_3-checkpoint] Captured pause checkpoint: {checkpoint.ChunkCount} chunks, {streamedText.Length} chars");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[gap31_3-checkpoint] Error capturing checkpoint: {ex.Message}");
+                }
             }
         }
 

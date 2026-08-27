@@ -6,6 +6,7 @@ using Xunit;
 using Moq;
 using ContinueVS.Core;
 using ContinueVS.Core.Types;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 using ContinueVS.ViewModels.Models;
@@ -61,6 +62,7 @@ namespace ContinueVS.Tests.UI
                 configMock.Object,
                 promptMock.Object,
                 uiStateMock.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
         }

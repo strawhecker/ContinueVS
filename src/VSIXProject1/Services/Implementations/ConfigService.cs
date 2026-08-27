@@ -97,8 +97,32 @@ namespace ContinueVS.Services.Implementations
                         // Apply schema migrations for CustomSettings (v0→v1, etc.)
                         CoreTypes.SettingsMigration.MigrateCustomSettings(_currentConfig);
 
-                        // Migrate/upgrade: populate OllamaModelId for any missing entries
                         bool needsSave = false;
+
+                        // Migrate/upgrade: seed default Ollama model when config has no models at all
+                        if (_currentConfig.Models == null || _currentConfig.Models.Count == 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Config has no models — seeding default Ollama model");
+                            _currentConfig.Models = new List<CoreTypes.ModelInfo>
+                            {
+                                new CoreTypes.ModelInfo
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    Name = "Llama 3.1 8B Instruct",
+                                    Provider = "ollama",
+                                    ApiKey = null,
+                                    BaseUrl = "http://localhost:11434",
+                                    ContextWindow = 8192,
+                                    SupportsFunctionCalling = false,
+                                    SupportedToolFormats = new List<string>(),
+                                    OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"
+                                }
+                            };
+                            _currentConfig.SelectedModelId = _currentConfig.Models[0].Id;
+                            needsSave = true;
+                        }
+
+                        // Migrate/upgrade: populate OllamaModelId for any missing entries
                         foreach (var model in _currentConfig.Models)
                         {
                             if (string.IsNullOrEmpty(model.OllamaModelId) && model.Provider == "ollama" && model.Name == "Llama 3.1 8B Instruct")

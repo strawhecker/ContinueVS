@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Xunit;
 using Moq;
 using ContinueVS.Core.Types;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 
@@ -73,12 +74,13 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null
             );
 
             // Act - Trigger the check via reflection to set banner state
-            var method = typeof(ChatPageViewModel).GetMethod("CheckToolCallLimit", 
+            var method = typeof(ChatPageViewModel).GetMethod("CheckToolCallLimit",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             method?.Invoke(viewModel, null);
 
@@ -123,6 +125,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null
             );
@@ -175,6 +178,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null
             );
@@ -228,6 +232,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null
             );
@@ -278,6 +283,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null
             );

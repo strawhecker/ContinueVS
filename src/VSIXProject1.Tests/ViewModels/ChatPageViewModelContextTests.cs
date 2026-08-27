@@ -113,6 +113,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
 
@@ -165,6 +166,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
 

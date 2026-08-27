@@ -20,6 +20,7 @@ namespace ContinueVS.Services.Implementations
         private readonly IMessengerService _messengerService;
         private readonly IConfigService? _configService;
         private readonly IBridgeLogger? _logger;
+        private List<CompletionChunk> _currentStreamBuffer = new List<CompletionChunk>();
 
         public event EventHandler<LlmErrorEventArgs>? Error;
 
@@ -34,6 +35,7 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Streams LLM completion chunks asynchronously for the given messages.
+        /// Chunks are buffered internally and can be retrieved via GetStreamBuffer() for pause checkpoint capture (gap31_3).
         /// </summary>
         /// <param name="messages">Enumerable of chat messages to stream completion for.</param>
         /// <param name="options">Optional streaming options (model, temperature, etc.).</param>
@@ -62,8 +64,30 @@ namespace ContinueVS.Services.Implementations
                 streamOptions,
                 ct))
             {
+                // Buffer the chunk before yielding (gap31_3: execution state preservation)
+                _currentStreamBuffer.Add(chunk);
                 yield return chunk;
             }
+        }
+
+        /// <summary>
+        /// Retrieves all buffered chunks from the current streaming session.
+        /// Used by pause checkpointing (gap31_3) to capture streamed response state.
+        /// Returns a copy of the buffer to prevent external modification.
+        /// </summary>
+        /// <returns>List of buffered CompletionChunk objects (copy of internal buffer).</returns>
+        public List<CompletionChunk> GetStreamBuffer()
+        {
+            return new List<CompletionChunk>(_currentStreamBuffer);
+        }
+
+        /// <summary>
+        /// Clears the stream buffer.
+        /// Called before starting a new stream to ensure fresh buffer per stream session.
+        /// </summary>
+        public void ClearStreamBuffer()
+        {
+            _currentStreamBuffer.Clear();
         }
 
         public bool SupportsStreaming(string modelId)

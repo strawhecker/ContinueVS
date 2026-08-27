@@ -43,6 +43,34 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         /// <returns>The current TestPlan or null if no execution has occurred.</returns>
         TestPlan? GetSessionState();
+
+        /// <summary>
+        /// Gets the current pause state of the session (gap31_1).
+        /// </summary>
+        bool IsPaused { get; }
+
+        /// <summary>
+        /// Sets the pause state asynchronously (gap31_1).
+        /// Consumed by phase executors via CancellationToken polling.
+        /// </summary>
+        Task SetPausedAsync(bool paused);
+
+        /// <summary>
+        /// Stores a pause checkpoint captured during streaming (gap31_3).
+        /// Checkpoint contains buffered streamed text, chunk count, and session context snapshot.
+        /// </summary>
+        Task SetPauseCheckpointAsync(PauseCheckpoint checkpoint);
+
+        /// <summary>
+        /// Retrieves the current pause checkpoint if one exists (gap31_3).
+        /// </summary>
+        Task<PauseCheckpoint?> GetPauseCheckpointAsync();
+
+        /// <summary>
+        /// Clears the pause checkpoint.
+        /// Called when starting a new stream session to ensure fresh state.
+        /// </summary>
+        void ClearPauseCheckpoint();
     }
 
     /// <summary>
@@ -247,5 +275,36 @@ namespace ContinueVS.Services.Implementations
             if (_logger != null)
                 await _logger.WriteDebugAsync($"DebugSessionService.SetPausedAsync: pause state set to {paused}");
         }
+
+        /// <summary>
+        /// Stores a pause checkpoint captured during streaming (gap31_3).
+        /// Checkpoint contains buffered streamed text, chunk count, and session context snapshot.
+        /// </summary>
+        public async Task SetPauseCheckpointAsync(PauseCheckpoint checkpoint)
+        {
+            _currentPauseCheckpoint = checkpoint;
+            if (_logger != null)
+                await _logger.WriteDebugAsync($"DebugSessionService.SetPauseCheckpointAsync: checkpoint stored with {checkpoint.ChunkCount} chunks");
+        }
+
+        /// <summary>
+        /// Retrieves the current pause checkpoint if one exists (gap31_3).
+        /// </summary>
+        public async Task<PauseCheckpoint?> GetPauseCheckpointAsync()
+        {
+            await Task.CompletedTask;
+            return _currentPauseCheckpoint;
+        }
+
+        /// <summary>
+        /// Clears the pause checkpoint.
+        /// Called when starting a new stream session to ensure fresh state.
+        /// </summary>
+        public void ClearPauseCheckpoint()
+        {
+            _currentPauseCheckpoint = null;
+        }
+
+        private PauseCheckpoint? _currentPauseCheckpoint;
     }
 }

@@ -10,6 +10,7 @@ using Moq;
 using ContinueVS.Core;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
+using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
 
@@ -113,6 +114,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
 
@@ -159,6 +161,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
 
@@ -202,6 +205,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
 
@@ -250,6 +254,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
 
@@ -291,6 +296,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
+                new Mock<IDebugSessionService>().Object,
                 null,
                 null);
 
