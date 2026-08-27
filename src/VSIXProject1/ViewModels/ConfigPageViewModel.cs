@@ -133,8 +133,15 @@ namespace ContinueVS.ViewModels
             _settingsViewModel.LoadSettings();
             RaisePropertyChanged(nameof(SettingsViewModel));
 
-            // Lazy-create AddModelViewModel; it will be created in ExecuteAddModel with proper callbacks
-            Debug.WriteLine("[gap12_3-configvm-ctor-addmodel-lazy] AddModelViewModel will be created lazily in ExecuteAddModel");
+            // Eagerly create AddModelViewModel so the Add Model tab is populated immediately
+            _addModelViewModel = new AddModelViewModel(
+                _modelDiscoveryService,
+                _configService,
+                onSaveCompleted: () => SelectedTabIndex = 0,
+                onCanceled: () => SelectedTabIndex = 0
+            );
+            AddModelViewModel = _addModelViewModel;
+            Debug.WriteLine("[gap12_3-configvm-ctor-addmodel-eager] AddModelViewModel created eagerly in constructor");
 
             // Subscribe to config changes to refresh filtered models
             _configService.ConfigChanged += (s, e) =>
@@ -316,7 +323,7 @@ private void ExecuteAddModel()
     {
         Debug.WriteLine("[gap12_2-configvm-addmodel-start] ExecuteAddModel called");
 
-        // Initialize viewmodel if not already done
+        // Initialize viewmodel if somehow not created (defensive)
         if (_addModelViewModel == null)
         {
             // Callbacks to switch back to Models tab after save or cancel

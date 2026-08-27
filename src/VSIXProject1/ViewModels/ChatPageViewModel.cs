@@ -660,10 +660,13 @@ public string? InputText
                     return "0 / 0 tool calls";
 
                 int toolCallsExecuted = session.ToolCallsExecuted;
-                int maxToolCalls = (int)(config.CustomSettings?[UserSettings.Agent_MaxToolCallsPerSession] ?? 100);
+                object? maxVal = null;
+                config.CustomSettings?.TryGetValue(UserSettings.Agent_MaxToolCallsPerSession, out maxVal);
+                int maxToolCalls = (int)(maxVal ?? 100);
                 if (maxToolCalls <= 0)
                     maxToolCalls = 100;
 
+                System.Diagnostics.Debug.WriteLine($"[gap23_4_5-counter] toolCallsExecuted={toolCallsExecuted}, maxToolCalls={maxToolCalls}");
                 return $"{toolCallsExecuted} / {maxToolCalls} tool calls";
             }
             catch
@@ -686,7 +689,9 @@ public string? InputText
                 if (session == null || config == null)
                     return 0.0;
 
-                int maxToolCalls = (int)(config.CustomSettings?[UserSettings.Agent_MaxToolCallsPerSession] ?? 100);
+                object? maxVal = null;
+                config.CustomSettings?.TryGetValue(UserSettings.Agent_MaxToolCallsPerSession, out maxVal);
+                int maxToolCalls = (int)(maxVal ?? 100);
                 if (maxToolCalls <= 0)
                     maxToolCalls = 100;
 

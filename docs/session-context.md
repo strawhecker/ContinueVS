@@ -102,6 +102,45 @@
 - src/VSIXProject1/UI/Pages/ChatPage.xaml: Added model selector ComboBox in toolbar
 - src/VSIXProject1/UI/Pages/ChatPage.xaml.cs: Pass IConfigService to ChatPageViewModel constructor
 - src/VSIXProject1.Tests/ViewModels/ChatPageViewModelTests.cs: Added config mock helper; updated 7 tests; added 3 new model-loading tests
+
+---
+
+### gap_startup: Startup 100% Effective — DI Gap Fix + IBridgeLogger Debug Routing
+**Status:** ✓ Implemented (pending debugger verification) | Type: DI Registration + Debug Instrumentation
+
+**Root Causes (code scan confirmed, no guessing):**
+- `IBridgeLogger` had NO concrete implementation — 8+ factory lambdas in ServiceBootstrapper called `sp.GetRequiredService<IBridgeLogger>()` → `InvalidOperationException` on first resolution
+- `IDteProvider` never registered — `DebuggerService` factory called `sp.GetRequiredService<IDteProvider>()` → same throw
+- `ChatPage.xaml.cs` silently caught the cascade exception → `DataContext` never assigned → ALL bindings dead (AvailableModels empty, mode dropdown empty, model selector empty)
+
+**Implementation:**
+- Created `DebugBridgeLogger : IBridgeLogger` — routes all log levels to `System.Diagnostics.Debug.WriteLine` with tagged prefixes (`[BL-debug]`, `[BL-info]`, `[BL-warn]`, `[BL-error]`), consistent with `ExecutionTracer` / `[CV-...]` pattern; `FlushAsync` is no-op
+- Registered `IBridgeLogger` (DebugBridgeLogger) as the **first** entry in `ServiceBootstrapper.ConfigureServices()` — before any factory that requires it
+- Registered `IDteProvider` using `Package.GetGlobalService(typeof(EnvDTE.DTE))` lazy factory in ServiceBootstrapper
+- Added `[sv-di]` tagged `Debug.WriteLine` entries bracketing every registration block and at `BuildServiceProvider()`
+- Added `// BP:sv-di-build` comment anchor at `BuildServiceProvider()` call
+- Expanded `ChatPage.xaml.cs` constructor catch block: logs exception type, message, and full stack trace tagged `[sv-chatpage-FAIL]`
+- Added `[sv-chatpage-N]` tagged log after each individual `GetRequiredService<T>` call (1–10) so the exact failure point is visible
+- Added `[sv-chatpage-dc]` log + `// BP:sv-chatpage-dc` comment anchor at `DataContext` assignment
+
+**Debug Verification Tags (filter VS Output Window by these):**
+- `[sv-di]` — ServiceBootstrapper registration steps + BuildServiceProvider confirmation
+- `[sv-chatpage-N]` — per-service resolution (1=LlmService … 9=DebugSessionService, 10=WorkflowService optional)
+- `[sv-chatpage-dc]` — DataContext assigned successfully
+- `[sv-chatpage-FAIL]` — full exception detail if resolution fails
+- `[BL-debug/info/warn/error]` — IBridgeLogger output from all gap29 services
+
+**Breakpoint Anchors:**
+- `// BP:sv-di-build` in ServiceBootstrapper.cs — confirms all DI registrations succeeded
+- `// BP:sv-chatpage-dc` in ChatPage.xaml.cs — confirms ViewModel constructed and DataContext set
+- `// BP:sv-ibridgelogger` in DebugBridgeLogger.cs — confirms IBridgeLogger resolves
+
+**Files Created:**
+- src/VSIXProject1/Services/Implementations/DebugBridgeLogger.cs
+
+**Files Modified:**
+- src/VSIXProject1/Services/ServiceBootstrapper.cs: IBridgeLogger + IDteProvider registered; [sv-di] instrumentation added
+- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs: [sv-chatpage-N] per-service logs + expanded catch block
 - src/VSIXProject1.Tests/UI/ChatPageBindingTests.cs: Added config mock helper; updated 12 binding tests
 - src/VSIXProject1.Tests/Integration/ChatPageViewModelLlmServiceIntegrationTests.cs: Added config mock helper; updated 4 integration tests
 
@@ -4575,6 +4614,94 @@ When pause is pressed:
 - Pause respects tool isolation: Tools run to completion (no mid-tool pause); pause takes effect after tool returns
 - Resume is best-effort: If external state changed (user edited code, LLM model changed), resume may fail; show graceful error
 - Keyboard shortcut Ctrl+Shift+P chosen to avoid VS conflicts (Ctrl+Shift+P is Continue.VS custom; not VS native)
+
+---
+
+### gap32: addCurrentFileByDefault — Inject Active File into LLM Context
+
+**Status:** NOT IMPLEMENTED | Type: Context Injection  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** HIGH (Setting exists and is user-configurable but has zero runtime effect)
+
+#### **gap32_1: Inject Active File into SelectedContext Before Send**
+
+- **Status:** ❌ NOT IMPLEMENTED
+- **Goal:** When `experimental.addCurrentFileByDefault` is `true` in config, automatically prepend a `ContextItem` for the currently open file into the message context before each LLM send
+- **Reasoning:** The setting is fully wired through config → `SettingsViewModel.AddCurrentFileByDefault` → UI toggle → persistence, but `ChatPageViewModel.ExecuteSendMessageAsync` never reads it. The active-file context is silently dropped.
+- **Implementation Plan:**
+  - In `ChatPageViewModel.ExecuteSendMessageAsync`, before the `if (SelectedContext.Count > 0)` block (line ~834):
+    - Read `_configService.GetConfig().CustomSettings.TryGetValue(UserSettings.Experimental_AddCurrentFileByDefault, out var val)`
+    - If true, call `_ideService.GetActiveFilepath()` to get the current file path
+    - If path is non-null and not already in `SelectedContext`, read file contents via `_ideService.ReadFileAsync(path)`
+    - Prepend a `ContextItem { FilePath = path, Content = fileContents, Name = Path.GetFileName(path) }` to the context list used for context summary injection
+    - Add debug log: `[gap32-inject] Auto-injecting active file: {path}`
+  - Note: do NOT mutate `SelectedContext` — build a local merged list for the send only, so the UI context pills are not polluted
+- **Scope:**
+  - `ChatPageViewModel.ExecuteSendMessageAsync` only (single injection point)
+  - `VsIdeService.GetActiveFilepath()` already exists but returns `null` (stub — needs DTE wiring, tracked separately)
+  - Until DTE is wired, injection will silently no-op when `GetActiveFilepath()` returns null — acceptable degraded behavior
+- **Files to Modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — injection logic in send path
+- **Dependencies:**
+  - `UserSettings.Experimental_AddCurrentFileByDefault` (exists: `UserSettings.cs` line 30)
+  - `SettingsViewModel.AddCurrentFileByDefault` (exists: wired to config read/write)
+  - `IIdeService.GetActiveFilepath()` (exists as stub: `VsIdeService.cs` line 110)
+  - `IIdeService.ReadFileAsync()` (exists and functional)
+  - DTE active-document wiring for `GetActiveFilepath()` (separate gap — needed for full effect)
+
+### gap33: Wire DTE Active Document into VsIdeService
+
+**Status:** NOT IMPLEMENTED | Type: VS IDE Integration  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** HIGH (Blocks gap32 from having any runtime effect; `GetActiveFilepath()` returns `null` today)
+
+#### **gap33_1: Add `GetActiveFilepath()` to `IDteProvider` and `DteProvider`**
+
+- **Status:** ❌ NOT IMPLEMENTED
+- **Goal:** Expose `_dte.ActiveDocument?.FullName` through `IDteProvider` so `VsIdeService` can forward it
+- **Reasoning:** `DteProvider` already wraps `_dte` and has the DTE pattern established (`GetSelectedText`, `GetActiveDocumentContent`, `GetRecentFiles`). `ActiveDocument.FullName` is the full path of the currently open file — one line to add.
+- **Implementation Plan:**
+  - Add `string? GetActiveFilepath()` to `IDteProvider` interface (`src/VSIXProject1/Services/Interfaces/IDteProvider.cs`)
+  - Implement in `DteProvider` (`src/VSIXProject1/Services/Implementations/DteProvider.cs`):
+    ```
+    ThreadHelper.ThrowIfNotOnUIThread();
+    return _dte.ActiveDocument?.FullName;
+    ```
+  - Wrap in try/catch returning `null` on failure (matches existing DteProvider pattern)
+  - Add debug log: `[gap33-dte-active] GetActiveFilepath resolved: {path ?? "null"}`
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Interfaces/IDteProvider.cs`
+  - `src/VSIXProject1/Services/Implementations/DteProvider.cs`
+
+#### **gap33_2: Wire `IDteProvider` into `VsIdeService` and implement `GetActiveFilepath()`**
+
+- **Status:** ❌ NOT IMPLEMENTED
+- **Goal:** Replace the `return null` stub in `VsIdeService.GetActiveFilepath()` with a real call to `IDteProvider.GetActiveFilepath()`
+- **Reasoning:** `VsIdeService` is the DI-registered `IIdeService`. It currently has no reference to `IDteProvider`. The pattern of injecting `IDteProvider` is already established in `ContextWindowCollector`.
+- **Implementation Plan:**
+  - Add `IDteProvider` constructor parameter to `VsIdeService`
+  - Update `ServiceBootstrapper` registration of `IIdeService`/`VsIdeService` to pass `IDteProvider` (already registered as singleton)
+  - Replace stub: `public string? GetActiveFilepath() => _dteProvider.GetActiveFilepath();`
+  - Add debug log: `[gap33-ideservice-active] GetActiveFilepath => {result ?? "null"}`
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Implementations/VsIdeService.cs`
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs`
+
+#### **gap33_3: Test coverage**
+
+- **Status:** ❌ NOT IMPLEMENTED
+- **Goal:** Verify `GetActiveFilepath()` delegates through the chain correctly
+- **Implementation Plan:**
+  - Unit test: `GetActiveFilepath_ReturnsDteProviderValue` — mock `IDteProvider.GetActiveFilepath()` returns a path; assert `VsIdeService.GetActiveFilepath()` returns same value
+  - Unit test: `GetActiveFilepath_ReturnsNull_WhenDteProviderReturnsNull` — mock returns null; assert null propagates
+  - Tests live in `src/VSIXProject1.Tests/Services/VsIdeServiceTests.cs` (create if not exists)
+- **Files to Modify/Create:**
+  - `src/VSIXProject1.Tests/Services/VsIdeServiceTests.cs`
+
+#### **Design Notes:**
+- `ThreadHelper.ThrowIfNotOnUIThread()` is required in `DteProvider` because `_dte.ActiveDocument` is a COM call; `VsIdeService` delegates and does not call COM directly — no thread annotation needed there
+- When the active document is a non-file window (e.g. Output, Error List), `ActiveDocument.FullName` may be empty or a non-path string — the null/empty guard in gap32_1 handles this correctly
+- `IDteProvider` already has the DTE wired via `ServiceBootstrapper` singleton factory — no new DTE resolution needed
 
 ---
 

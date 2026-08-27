@@ -26,6 +26,9 @@
                       ItemContainerStyle="{StaticResource ComboBoxItemStyle}"/>
             <ComboBox ItemsSource="{Binding AvailableModels}"
                       SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
+                      Text="{Binding SelectedModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      IsEditable="True"
+                      IsTextSearchEnabled="False"
                       MinHeight="35"
                       Margin="0,0,0,10"
                       Foreground="Black"

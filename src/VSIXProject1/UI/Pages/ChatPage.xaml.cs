@@ -95,25 +95,61 @@ namespace ContinueVS.UI.Pages
 
             try
             {
+                System.Diagnostics.Debug.WriteLine("[sv-chatpage] ChatPage constructor: resolving services from DI");
                 var sp = ViewModelLocator.ServiceProvider;
                 if (sp != null)
                 {
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage] ServiceProvider is available");
+
                     var llm         = sp.GetRequiredService<ILlmService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-1] ✓ ILlmService resolved");
+
                     var context     = sp.GetRequiredService<IContextService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-2] ✓ IContextService resolved");
+
                     var tool        = sp.GetRequiredService<IToolService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-3] ✓ IToolService resolved");
+
                     var session     = sp.GetRequiredService<ISessionService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-4] ✓ ISessionService resolved");
+
                     var notif       = sp.GetRequiredService<INotificationService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-5] ✓ INotificationService resolved");
+
                     var config      = sp.GetRequiredService<IConfigService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-6] ✓ IConfigService resolved");
+
                     var systemPrompt = sp.GetRequiredService<ISystemPromptService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-7] ✓ ISystemPromptService resolved");
+
                     var uiState     = sp.GetRequiredService<IUIStateService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-8] ✓ IUIStateService resolved");
+
                     var debugSession = sp.GetRequiredService<IDebugSessionService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-9] ✓ IDebugSessionService resolved");
+
                     var workflow    = sp.GetService<IWorkflowService>();
+                    System.Diagnostics.Debug.WriteLine($"[sv-chatpage-10] IWorkflowService resolved={workflow != null} (optional)");
+
+                    // BP:sv-chatpage-dc — breakpoint here confirms all services resolved and DataContext is being assigned
                     this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, debugSession, null, workflow);
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-FAIL] ServiceProvider is NULL — ViewModelLocator.ServiceProvider not set. InitializeAsync may not have completed.");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ChatPage] DataContext initialization error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[sv-chatpage-FAIL] ✗ Exception type: {ex.GetType().FullName}");
+                System.Diagnostics.Debug.WriteLine($"[sv-chatpage-FAIL] ✗ Message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[sv-chatpage-FAIL] ✗ StackTrace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[sv-chatpage-FAIL] ✗ InnerException type: {ex.InnerException.GetType().FullName}");
+                    System.Diagnostics.Debug.WriteLine($"[sv-chatpage-FAIL] ✗ InnerException message: {ex.InnerException.Message}");
+                }
             }
 
             // Wire up scroll-to-bottom on messages collection changed

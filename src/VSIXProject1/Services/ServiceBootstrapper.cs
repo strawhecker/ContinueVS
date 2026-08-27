@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.Shell;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Interfaces.Parsers;
 using ContinueVS.Services.Implementations;
@@ -25,6 +26,29 @@ namespace ContinueVS.Services
         public static IServiceProvider ConfigureServices()
         {
             var services = new ServiceCollection();
+
+            // BP:sv-di-build — breakpoint at BuildServiceProvider() below confirms all registrations succeeded
+            System.Diagnostics.Debug.WriteLine("[sv-di] ConfigureServices START");
+
+            // --- IBridgeLogger: must be first — many factory lambdas below require it ---
+            System.Diagnostics.Debug.WriteLine("[sv-di] registering IBridgeLogger (DebugBridgeLogger)");
+            services.AddSingleton<IBridgeLogger, DebugBridgeLogger>();
+            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IBridgeLogger registered");
+
+            // --- IDteProvider: required by DebuggerService factory ---
+            System.Diagnostics.Debug.WriteLine("[sv-di] registering IDteProvider (DteProvider)");
+            services.AddSingleton<IDteProvider>(sp =>
+            {
+                var dte = Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE.DTE;
+                System.Diagnostics.Debug.WriteLine($"[sv-di] IDteProvider: DTE resolved={dte != null}");
+                if (dte == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[sv-di] ⚠ DTE is null — IDteProvider will throw on use; VS may not be fully loaded yet");
+                    throw new InvalidOperationException("[sv-di] Cannot resolve EnvDTE.DTE from Package.GetGlobalService. Ensure ServiceBootstrapper is called after VS package initialization.");
+                }
+                return new DteProvider(dte);
+            });
+            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IDteProvider registered");
 
             // Register UI/Navigation services
             services.AddSingleton<IPageNavigator, PageNavigator>();
@@ -256,7 +280,11 @@ namespace ContinueVS.Services
             services.AddTransient<Func<MainViewModel>>(sp => () => sp.GetRequiredService<MainViewModel>());
 
             // Build and return
-            return services.BuildServiceProvider();
+            // BP:sv-di-build — if execution reaches here, all registrations succeeded
+            System.Diagnostics.Debug.WriteLine("[sv-di] All registrations complete — calling BuildServiceProvider()");
+            var provider = services.BuildServiceProvider();
+            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ ServiceProvider built successfully");
+            return provider;
         }
     }
 }
