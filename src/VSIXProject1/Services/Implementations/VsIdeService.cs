@@ -116,9 +116,17 @@ namespace ContinueVS.Services.Implementations
 
         public string? GetActiveFilepath() => _dteProvider.GetActiveFilepath();
 
-        public string? GetSelectedText() => null;
+        public string? GetSelectedText()
+        {
+            Debug.WriteLine("[gap33-getselected] VsIdeService.GetSelectedText delegating to DteProvider");
+            return _dteProvider.GetSelectedText();
+        }
 
-        public Selection? GetCursorSelection() => null;
+        public Selection? GetCursorSelection()
+        {
+            Debug.WriteLine("[gap33-getcursor] VsIdeService.GetCursorSelection delegating to DteProvider");
+            return _dteProvider.GetCursorSelection();
+        }
 
         // File Queries
 

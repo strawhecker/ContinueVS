@@ -1,6 +1,7 @@
 ﻿using EnvDTE;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using ContinueVS.Services.Interfaces;
 using Microsoft.VisualStudio.Shell;
@@ -104,6 +105,46 @@ namespace ContinueVS.Services.Implementations
             catch
             {
                 return string.Empty;
+            }
+        }
+
+        public Selection? GetCursorSelection()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var activeDoc = _dte.ActiveDocument;
+                if (activeDoc == null)
+                {
+                    Debug.WriteLine("[gap33-dte-cursor-nodoc] No active document");
+                    return null;
+                }
+
+                var selection = activeDoc.Selection as TextSelection;
+                if (selection == null)
+                {
+                    Debug.WriteLine("[gap33-dte-cursor-nosel] Active document has no TextSelection");
+                    return null;
+                }
+
+                var filePath = activeDoc.FullName ?? string.Empty;
+                var startLine = selection.AnchorPoint.Line;
+                var startCol = selection.AnchorPoint.DisplayColumn;
+                var endLine = selection.ActivePoint.Line;
+                var endCol = selection.ActivePoint.DisplayColumn;
+
+                Debug.WriteLine($"[gap33-dte-cursor] file={filePath} start={startLine}:{startCol} end={endLine}:{endCol}");
+
+                return new Selection
+                {
+                    Start = new Location { FilePath = filePath, Line = startLine, Column = startCol },
+                    End = new Location { FilePath = filePath, Line = endLine, Column = endCol }
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[gap33-dte-cursor-error] {ex.Message}");
+                return null;
             }
         }
     }

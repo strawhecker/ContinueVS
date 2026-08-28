@@ -42,6 +42,8 @@ namespace ContinueVS.Tests.Services
             {
                 return ActiveFilepath;
             }
+
+            public Selection? GetCursorSelection() => null;
         }
 
         [Fact]

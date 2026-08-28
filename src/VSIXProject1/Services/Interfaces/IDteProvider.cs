@@ -27,6 +27,11 @@ namespace ContinueVS.Services.Interfaces
         /// Get the full file path of the active document, or empty string if none.
         /// </summary>
         string GetActiveFilepath();
+
+        /// <summary>
+        /// Get the current cursor selection from the active document, or null if unavailable.
+        /// </summary>
+        Selection? GetCursorSelection();
     }
 }
 

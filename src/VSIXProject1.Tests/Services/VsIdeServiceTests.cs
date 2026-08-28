@@ -17,11 +17,14 @@ namespace ContinueVS.Tests.Services
         private class StubDteProvider : IDteProvider
         {
             public string ActiveFilepath { get; set; } = string.Empty;
+            public string SelectedText { get; set; } = string.Empty;
+            public Selection? CursorSelection { get; set; }
 
             public string GetActiveFilepath() => ActiveFilepath;
-            public string GetSelectedText() => string.Empty;
+            public string GetSelectedText() => SelectedText;
             public string GetActiveDocumentContent() => string.Empty;
             public List<string> GetRecentFiles(int maxCount) => new List<string>();
+            public Selection? GetCursorSelection() => CursorSelection;
         }
 
         [Fact]
@@ -57,6 +60,71 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange / Act / Assert
             Assert.Throws<ArgumentNullException>(() => new VsIdeService(null!));
+        }
+
+        [Fact]
+        public void GetSelectedText_ReturnsDelegatedText_WhenDteProviderReturnsText()
+        {
+            // Arrange
+            var stub = new StubDteProvider { SelectedText = "hello world" };
+            var sut = new VsIdeService(stub);
+
+            // Act
+            var result = sut.GetSelectedText();
+
+            // Assert
+            Assert.Equal("hello world", result);
+        }
+
+        [Fact]
+        public void GetSelectedText_ReturnsEmpty_WhenDteProviderReturnsEmpty()
+        {
+            // Arrange
+            var stub = new StubDteProvider { SelectedText = string.Empty };
+            var sut = new VsIdeService(stub);
+
+            // Act
+            var result = sut.GetSelectedText();
+
+            // Assert
+            Assert.Equal(string.Empty, result);
+        }
+
+        [Fact]
+        public void GetCursorSelection_ReturnsSelection_WhenDteProviderReturnsSelection()
+        {
+            // Arrange
+            var expected = new Selection
+            {
+                Start = new Location { FilePath = @"C:\Foo\Bar.cs", Line = 10, Column = 5 },
+                End = new Location { FilePath = @"C:\Foo\Bar.cs", Line = 10, Column = 15 }
+            };
+            var stub = new StubDteProvider { CursorSelection = expected };
+            var sut = new VsIdeService(stub);
+
+            // Act
+            var result = sut.GetCursorSelection();
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(10, result!.Start!.Line);
+            Assert.Equal(5, result.Start.Column);
+            Assert.Equal(10, result.End!.Line);
+            Assert.Equal(15, result.End.Column);
+        }
+
+        [Fact]
+        public void GetCursorSelection_ReturnsNull_WhenDteProviderReturnsNull()
+        {
+            // Arrange
+            var stub = new StubDteProvider { CursorSelection = null };
+            var sut = new VsIdeService(stub);
+
+            // Act
+            var result = sut.GetCursorSelection();
+
+            // Assert
+            Assert.Null(result);
         }
     }
 }

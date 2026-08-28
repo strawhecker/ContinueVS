@@ -4651,13 +4651,13 @@ When pause is pressed:
 
 ### gap33: Wire DTE Active Document into VsIdeService
 
-**Status:** NOT IMPLEMENTED | Type: VS IDE Integration  
+**Status:** ✓ debugged | Type: VS IDE Integration  
 **Phase:** 3 (Core Feature Completion)  
 **Priority:** HIGH (Blocks gap32 from having any runtime effect; `GetActiveFilepath()` returns `null` today)
 
-#### **gap33_1: Add `GetActiveFilepath()` to `IDteProvider` and `DteProvider`**
+#### **gap33_1: Add `GetActiveFilepath()` and `GetCursorSelection()` to `IDteProvider` and `DteProvider`**
 
-- **Status:** ✅ IMPLEMENTED
+- **Status:** ✓ debugged
 - **Goal:** Expose `_dte.ActiveDocument?.FullName` through `IDteProvider` so `VsIdeService` can forward it
 - **Reasoning:** `DteProvider` already wraps `_dte` and has the DTE pattern established (`GetSelectedText`, `GetActiveDocumentContent`, `GetRecentFiles`). `ActiveDocument.FullName` is the full path of the currently open file — one line to add.
 - **Implementation Plan:**
@@ -4673,9 +4673,9 @@ When pause is pressed:
   - `src/VSIXProject1/Services/Interfaces/IDteProvider.cs`
   - `src/VSIXProject1/Services/Implementations/DteProvider.cs`
 
-#### **gap33_2: Wire `IDteProvider` into `VsIdeService` and implement `GetActiveFilepath()`**
+#### **gap33_2: Wire `IDteProvider` into `VsIdeService` — `GetActiveFilepath()`, `GetSelectedText()`, `GetCursorSelection()`**
 
-- **Status:** ✅ IMPLEMENTED
+- **Status:** ✓ debugged
 - **Goal:** Replace the `return null` stub in `VsIdeService.GetActiveFilepath()` with a real call to `IDteProvider.GetActiveFilepath()`
 - **Reasoning:** `VsIdeService` is the DI-registered `IIdeService`. It currently has no reference to `IDteProvider`. The pattern of injecting `IDteProvider` is already established in `ContextWindowCollector`.
 - **Implementation Plan:**
@@ -4689,14 +4689,15 @@ When pause is pressed:
 
 #### **gap33_3: Test coverage**
 
-- **Status:** ✅ IMPLEMENTED
-- **Goal:** Verify `GetActiveFilepath()` delegates through the chain correctly
+- **Status:** ✓ debugged
+- **Goal:** Verify `GetSelectedText()`, `GetCursorSelection()`, and `GetActiveFilepath()` delegate through the chain correctly
 - **Implementation Plan:**
-  - Unit test: `GetActiveFilepath_ReturnsDteProviderValue` — mock `IDteProvider.GetActiveFilepath()` returns a path; assert `VsIdeService.GetActiveFilepath()` returns same value
-  - Unit test: `GetActiveFilepath_ReturnsNull_WhenDteProviderReturnsNull` — mock returns null; assert null propagates
-  - Tests live in `src/VSIXProject1.Tests/Services/VsIdeServiceTests.cs` (create if not exists)
-- **Files to Modify/Create:**
+  - Unit tests in `VsIdeServiceTests.cs` via `StubDteProvider` for all three methods
+  - 7 tests passing: GetActiveFilepath (path/empty), GetSelectedText (text/empty), GetCursorSelection (selection/null), Constructor null-guard
+- **Files Modified:**
   - `src/VSIXProject1.Tests/Services/VsIdeServiceTests.cs`
+  - `src/VSIXProject1.Tests/Services/DteProviderTests.cs` (stub extended)
+  - `src/VSIXProject1.Tests/Services/ContextWindowCollectorTests.cs` (stub extended)
 
 #### **Design Notes:**
 - `ThreadHelper.ThrowIfNotOnUIThread()` is required in `DteProvider` because `_dte.ActiveDocument` is a COM call; `VsIdeService` delegates and does not call COM directly — no thread annotation needed there
