@@ -54,6 +54,7 @@ namespace ContinueVS.ViewModels
                 private readonly IDebugSessionService _debugSessionService;
                 private IModeService? _modeService;
                 private IWorkflowService? _workflowService;
+                private readonly IIdeService? _ideService;
             private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -390,7 +391,8 @@ public string? InputText
             IUIStateService uiStateService,
             IDebugSessionService debugSessionService,
             IModeService? modeService = null,
-            IWorkflowService? workflowService = null)
+            IWorkflowService? workflowService = null,
+            IIdeService? ideService = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -413,6 +415,7 @@ public string? InputText
             _debugSessionService = debugSessionService;
             _modeService = modeService;
             _workflowService = workflowService;
+            _ideService = ideService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -831,10 +834,35 @@ public string? InputText
                     Content = systemPrompt
                 });
 
-                if (SelectedContext.Count > 0)
+                // gap32_1: Build effective context — start from SelectedContext, inject active file if not already present
+                var effectiveContext = new List<ContextItem>(SelectedContext);
+                if (_ideService != null)
+                {
+                    var activePath = _ideService.GetActiveFilepath();
+                    if (!string.IsNullOrEmpty(activePath)
+                        && !effectiveContext.Any(c => string.Equals(c.FilePath, activePath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string nonNullPath = activePath!;
+                        var activeContent = await _ideService.ReadFileAsync(nonNullPath);
+                        if (!string.IsNullOrEmpty(activeContent))
+                        {
+                            effectiveContext.Insert(0, new ContextItem
+                            {
+                                Type = ContextItemType.File,
+                                FilePath = activePath,
+                                Content = activeContent,
+                                Source = "active-file",
+                                Relevance = 1.0
+                            });
+                            System.Diagnostics.Debug.WriteLine($"[gap32_1] Active file injected into context: {activePath}");
+                        }
+                    }
+                }
+
+                if (effectiveContext.Count > 0)
                 {
                     var contextSummary = string.Join("\n",
-                        SelectedContext.Select(c => c.FilePath + ": " + c.Content));
+                        effectiveContext.Select(c => c.FilePath + ": " + c.Content));
                     messages.Add(new ChatMessage
                     {
                         Role = ChatMessageRole.System,

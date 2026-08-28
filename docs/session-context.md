@@ -4619,13 +4619,13 @@ When pause is pressed:
 
 ### gap32: addCurrentFileByDefault — Inject Active File into LLM Context
 
-**Status:** NOT IMPLEMENTED | Type: Context Injection  
+**Status:** ✅ IMPLEMENTED | Type: Context Injection  
 **Phase:** 3 (Core Feature Completion)  
 **Priority:** HIGH (Setting exists and is user-configurable but has zero runtime effect)
 
 #### **gap32_1: Inject Active File into SelectedContext Before Send**
 
-- **Status:** ❌ NOT IMPLEMENTED
+- **Status:** ✅ IMPLEMENTED
 - **Goal:** When `experimental.addCurrentFileByDefault` is `true` in config, automatically prepend a `ContextItem` for the currently open file into the message context before each LLM send
 - **Reasoning:** The setting is fully wired through config → `SettingsViewModel.AddCurrentFileByDefault` → UI toggle → persistence, but `ChatPageViewModel.ExecuteSendMessageAsync` never reads it. The active-file context is silently dropped.
 - **Implementation Plan:**
