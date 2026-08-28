@@ -4657,7 +4657,7 @@ When pause is pressed:
 
 #### **gap33_1: Add `GetActiveFilepath()` to `IDteProvider` and `DteProvider`**
 
-- **Status:** ❌ NOT IMPLEMENTED
+- **Status:** ✅ IMPLEMENTED
 - **Goal:** Expose `_dte.ActiveDocument?.FullName` through `IDteProvider` so `VsIdeService` can forward it
 - **Reasoning:** `DteProvider` already wraps `_dte` and has the DTE pattern established (`GetSelectedText`, `GetActiveDocumentContent`, `GetRecentFiles`). `ActiveDocument.FullName` is the full path of the currently open file — one line to add.
 - **Implementation Plan:**

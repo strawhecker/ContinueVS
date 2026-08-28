@@ -22,6 +22,11 @@ namespace ContinueVS.Services.Interfaces
         /// Get recently opened file paths (up to maxCount).
         /// </summary>
         System.Collections.Generic.List<string> GetRecentFiles(int maxCount);
+
+        /// <summary>
+        /// Get the full file path of the active document, or empty string if none.
+        /// </summary>
+        string GetActiveFilepath();
     }
 }
 

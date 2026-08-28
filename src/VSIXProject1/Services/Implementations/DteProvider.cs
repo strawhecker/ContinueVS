@@ -89,6 +89,23 @@ namespace ContinueVS.Services.Implementations
             }
             return recentFiles;
         }
+
+        public string GetActiveFilepath()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var activeDoc = _dte.ActiveDocument;
+                if (activeDoc == null)
+                    return string.Empty;
+
+                return activeDoc.FullName ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
     }
 }
 

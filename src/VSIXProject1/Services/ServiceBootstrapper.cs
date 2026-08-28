@@ -39,6 +39,7 @@ namespace ContinueVS.Services
             System.Diagnostics.Debug.WriteLine("[sv-di] registering IDteProvider (DteProvider)");
             services.AddSingleton<IDteProvider>(sp =>
             {
+                ThreadHelper.ThrowIfNotOnUIThread();
                 var dte = Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE.DTE;
                 System.Diagnostics.Debug.WriteLine($"[sv-di] IDteProvider: DTE resolved={dte != null}");
                 if (dte == null)

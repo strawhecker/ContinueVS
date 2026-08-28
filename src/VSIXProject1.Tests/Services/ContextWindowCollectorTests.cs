@@ -21,6 +21,7 @@ namespace ContinueVS.Tests.Services
             public string ActiveDocumentContent { get; set; } = string.Empty;
             public string SelectedText { get; set; } = string.Empty;
             public List<string> RecentFilesData { get; set; } = new();
+            public string ActiveFilepath { get; set; } = string.Empty;
 
             public string GetSelectedText()
             {
@@ -35,6 +36,11 @@ namespace ContinueVS.Tests.Services
             public List<string> GetRecentFiles(int maxCount)
             {
                 return new List<string>(RecentFilesData.Take(maxCount));
+            }
+
+            public string GetActiveFilepath()
+            {
+                return ActiveFilepath;
             }
         }
 
