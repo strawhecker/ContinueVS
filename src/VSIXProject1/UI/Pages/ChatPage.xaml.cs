@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Implementations;
@@ -268,6 +269,21 @@ namespace ContinueVS.UI.Pages
             {
                 vm.ShowErrorBanner = false;
             }
+        }
+
+        /// <summary>
+        /// gap35_1: Intercepts Enter to fire SendMessageCommand; Shift+Enter falls through for natural newline.
+        /// </summary>
+        private void InputTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+            {
+                e.Handled = true;
+                System.Diagnostics.Debug.WriteLine("[gap35] Enter key intercepted — firing SendMessageCommand");
+                if (DataContext is ChatPageViewModel vm && vm.SendMessageCommand.CanExecute(null))
+                    vm.SendMessageCommand.Execute(null);
+            }
+            // Shift+Enter: not handled → WPF inserts newline naturally
         }
     }
 }

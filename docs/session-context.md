@@ -4706,6 +4706,147 @@ When pause is pressed:
 
 ---
 
+### gap34: LLM-Optimized Send + Receive for Existing Sessions
+
+**Status:** ⏳ Pending | Type: LLM Messaging Optimization  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** HIGH (Continuation messages do not apply context-window budgeting, history pruning, or token-aware packaging — each send likely transmits the full raw history or ignores it entirely)
+
+**Problem:**  
+When a user sends a new message in an existing session (message 2+), the send+receive flow does not apply any LLM-optimized packaging. This means:
+- No history pruning relative to the active model's context window
+- No token-budget awareness before appending the new user message
+- No structured system/user/assistant role sequencing for continuation turns
+- Risk of exceeding context window silently, or losing prior turns entirely
+
+#### **gap34_1: Audit Existing Send Flow for Continuation-Message Behavior**
+
+- **Status:** ⏳ Pending
+- **Goal:** Determine exactly what payload is sent to the LLM on message 2+ (full history? last message only? nothing?)
+- **Reasoning:** Before building the optimized path, confirm the current baseline so the fix is scoped correctly.
+- **Implementation Plan:**
+  - Trace `ChatPageViewModel.ExecuteSendMessage()` → `ILlmService.SendAsync()` / `StreamAsync()`
+  - Confirm whether `ISessionService.GetHistory()` (or equivalent) is called and included
+  - Log the outbound payload shape at `[gap34-audit] payload messages count: {n}`
+- **Files to Inspect:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+  - `src/VSIXProject1/Services/Implementations/MessengerService.cs` (or equivalent LLM send path)
+  - `src/VSIXProject1/Services/Implementations/SessionService.cs`
+
+#### **gap34_2: Build History-Aware Message Packager**
+
+- **Status:** ⏳ Pending
+- **Goal:** Produce a correctly ordered `List<ChatMessage>` (system + pruned history + new user turn) respecting the active model's `ContextWindow` token budget
+- **Reasoning:** Continue.js packages messages via `constructMessages()` which prunes from the oldest turns first, preserving the system prompt and the most-recent exchange. ContinueVS needs the same logic.
+- **Implementation Plan:**
+  - Add `IMessagePackager` interface (or method on `ISessionService`) — `PackageMessages(ModelInfo model, string newUserMessage) : List<ChatMessage>`
+  - Apply gap22 pruning service to trim history to `model.ContextWindow` token budget before appending new turn
+  - Order: `[SystemPrompt]` → `[pruned history turns]` → `[new UserMessage]`
+  - Add debug log: `[gap34-package] sending {n} messages, est. tokens: {t}, model context: {c}`
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Interfaces/ISessionService.cs` (or new `IMessagePackager.cs`)
+  - `src/VSIXProject1/Services/Implementations/SessionService.cs`
+
+#### **gap34_3: Wire Optimized Packager into Send Flow**
+
+- **Status:** ⏳ Pending
+- **Goal:** Replace the current ad-hoc message construction in `ExecuteSendMessage()` with a call to the new packager
+- **Reasoning:** All optimization logic should be encapsulated in the packager, keeping the ViewModel thin.
+- **Implementation Plan:**
+  - In `ChatPageViewModel.ExecuteSendMessage()`, replace direct message construction with `_sessionService.PackageMessages(SelectedModel, userMessage)`
+  - Pass the resulting list to `ILlmService.StreamAsync()` (or equivalent)
+  - Verify streaming still works end-to-end for both first and continuation messages
+- **Files to Modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+  - `src/VSIXProject1/Services/Implementations/MessengerService.cs`
+
+#### **gap34_4: Test Coverage**
+
+- **Status:** ⏳ Pending
+- **Goal:** Verify packager produces correct message ordering and respects context window limits
+- **Implementation Plan:**
+  - Unit tests for `PackageMessages()`: empty history, single-turn, multi-turn, over-budget (pruning kicks in)
+  - Integration test: mock LLM receives correct payload on message 3 of a session
+- **Files to Modify:**
+  - `src/VSIXProject1.Tests/Services/SessionServiceTests.cs` (or `MessagePackagerTests.cs`)
+
+#### **Design Notes:**
+- Token counting should reuse the existing `TokenCounter` / gap22 infrastructure — do not introduce a second counting path
+- The system prompt (if any) must always be preserved regardless of budget pressure; prune oldest user/assistant pairs first
+- `SelectedModel.ContextWindow` (from gap19_1) is the authoritative budget; fall back to a safe default (e.g. 4096) if zero or unset
+- Streaming response handling is unchanged — only the outbound payload shape changes
+
+---
+
+### gap35: Shift+Enter for New Line / Enter to Send in Chat Input
+
+**Status:** ⏳ Pending | Type: UI Keyboard Interaction  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** MEDIUM (Standard chat UX convention; improves usability and matches Continue.js / VS Code behavior)
+
+**Problem:**  
+The chat input `TextBox` currently has no keyboard handling wired. Pressing `Enter` inserts a newline (default WPF `TextBox` behavior) rather than triggering Send, and there is no way to insert a newline via keyboard without a mouse. This breaks the expected chat interaction model where:
+- `Enter` → send the message
+- `Shift+Enter` → insert a newline into the input
+
+#### **gap35_1: Handle `Enter` / `Shift+Enter` in Chat Input XAML**
+
+- **Status:** ✅ Complete
+- **Goal:** Intercept `KeyDown` on the input `TextBox` so `Enter` fires Send and `Shift+Enter` inserts `\n`
+- **Reasoning:** WPF `TextBox` does not natively distinguish `Enter` vs `Shift+Enter`; a `KeyDown` handler (or attached behavior) is required. The handler must suppress the default newline-on-Enter so the two keys have distinct roles.
+- **Implementation Plan:**
+  - In `ChatPage.xaml`, add `KeyDown="InputTextBox_KeyDown"` to the input `TextBox`
+  - In `ChatPage.xaml.cs`, implement the handler:
+    ```csharp
+    private void InputTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+        {
+            e.Handled = true;   // suppress newline
+            // fire Send command
+            if (DataContext is ChatPageViewModel vm && vm.SendMessageCommand.CanExecute(null))
+                vm.SendMessageCommand.Execute(null);
+        }
+        // Shift+Enter: not handled → WPF inserts newline naturally
+    }
+    ```
+  - Confirm `AcceptsReturn="True"` is set on the `TextBox` so `Shift+Enter` newlines render correctly
+  - Add debug log: `[gap35] Enter key intercepted — firing SendMessageCommand`
+- **Files to Modify:**
+  - `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+  - `src/VSIXProject1/UI/Pages/ChatPage.xaml.cs`
+
+#### **gap35_2: Ensure `SendMessageCommand` is Executable from Keyboard Path**
+
+- **Status:** ⏳ Pending
+- **Goal:** Verify `SendMessageCommand.CanExecute()` returns `true` when there is text in the input and no send is in progress — same guard used by the Send button
+- **Reasoning:** The keyboard path must respect the same `CanExecute` guard as the button to prevent double-sends or sends during streaming.
+- **Implementation Plan:**
+  - Inspect `ChatPageViewModel.SendMessageCommand` `CanExecute` predicate
+  - Confirm it checks `!string.IsNullOrWhiteSpace(InputText) && !IsBusy` (or equivalent)
+  - No ViewModel change expected; this sub-gap is a verification step
+- **Files to Inspect:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+
+#### **gap35_3: Test Coverage**
+
+- **Status:** ⏳ Pending
+- **Goal:** Verify keyboard routing behavior via unit/integration tests
+- **Implementation Plan:**
+  - Unit test: simulate `KeyDown` with `Key.Enter` → `SendMessageCommand.Execute` called once
+  - Unit test: simulate `KeyDown` with `Key.Enter + Shift` → `SendMessageCommand` not called, newline appended
+  - Unit test: `Enter` while `IsBusy = true` → command not executed (CanExecute guard)
+- **Files to Modify:**
+  - `src/VSIXProject1.Tests/UI/ChatPageKeyboardTests.cs` (new file)
+
+#### **Design Notes:**
+- Keep the handler in code-behind (`ChatPage.xaml.cs`) rather than a ViewModel command — keyboard routing is a View responsibility; the ViewModel already exposes `SendMessageCommand`
+- `AcceptsReturn="True"` must remain on the `TextBox`; removing it would break `Shift+Enter` newline insertion
+- Do not use `PreviewKeyDown` unless `KeyDown` proves insufficient; `KeyDown` is the correct hook for suppressing `Enter` before it reaches the `TextBox`
+- This pattern matches Continue.js (`onKeyDown` in `mainInput.tsx`) and standard VS Code chat behavior
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

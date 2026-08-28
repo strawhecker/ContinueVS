@@ -166,7 +166,8 @@
             <TextBox Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
                      TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="False" 
                      MinHeight="80" MaxHeight="200" VerticalScrollBarVisibility="Auto"
-                     Margin="0,0,0,5" Style="{StaticResource DefaultTextBoxStyle}"/>
+                     Margin="0,0,0,5" Style="{StaticResource DefaultTextBoxStyle}"
+                     KeyDown="InputTextBox_KeyDown"/>
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
