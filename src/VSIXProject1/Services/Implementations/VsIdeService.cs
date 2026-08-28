@@ -20,6 +20,13 @@ namespace ContinueVS.Services.Implementations
     /// </summary>
     internal class VsIdeService : IIdeService
     {
+        private readonly IDteProvider _dteProvider;
+
+        public VsIdeService(IDteProvider dteProvider)
+        {
+            _dteProvider = dteProvider ?? throw new ArgumentNullException(nameof(dteProvider));
+        }
+
         #pragma warning disable CS0067 // Events are part of IIdeService contract; raised by future VS automation wiring
         public event EventHandler<FileChangedEventArgs>? FileChanged;
         public event EventHandler<ActiveFileChangedEventArgs>? ActiveFileChanged;
@@ -107,7 +114,7 @@ namespace ContinueVS.Services.Implementations
 
         // Editor State
 
-        public string? GetActiveFilepath() => null;
+        public string? GetActiveFilepath() => _dteProvider.GetActiveFilepath();
 
         public string? GetSelectedText() => null;
 

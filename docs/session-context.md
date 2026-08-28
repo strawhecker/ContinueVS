@@ -4675,7 +4675,7 @@ When pause is pressed:
 
 #### **gap33_2: Wire `IDteProvider` into `VsIdeService` and implement `GetActiveFilepath()`**
 
-- **Status:** ❌ NOT IMPLEMENTED
+- **Status:** ✅ IMPLEMENTED
 - **Goal:** Replace the `return null` stub in `VsIdeService.GetActiveFilepath()` with a real call to `IDteProvider.GetActiveFilepath()`
 - **Reasoning:** `VsIdeService` is the DI-registered `IIdeService`. It currently has no reference to `IDteProvider`. The pattern of injecting `IDteProvider` is already established in `ContextWindowCollector`.
 - **Implementation Plan:**
@@ -4689,7 +4689,7 @@ When pause is pressed:
 
 #### **gap33_3: Test coverage**
 
-- **Status:** ❌ NOT IMPLEMENTED
+- **Status:** ✅ IMPLEMENTED
 - **Goal:** Verify `GetActiveFilepath()` delegates through the chain correctly
 - **Implementation Plan:**
   - Unit test: `GetActiveFilepath_ReturnsDteProviderValue` — mock `IDteProvider.GetActiveFilepath()` returns a path; assert `VsIdeService.GetActiveFilepath()` returns same value
