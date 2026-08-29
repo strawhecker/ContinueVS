@@ -5203,7 +5203,7 @@ Debug mode is used to investigate runtime failures, exceptions, and incorrect be
 
 ### gap42: Multiline Paste Support in Chat Input
 
-**Status:** ⏳ Pending | Type: Chat Input UX Feature  
+**Status:** ✅ Complete | Type: Chat Input UX Feature  
 **Phase:** 3 (Core Feature Completion)  
 **Priority:** MEDIUM (User experience: clipboard paste should preserve newlines; current TextBox behavior may strip or incorrectly handle multiline content)
 
@@ -5215,7 +5215,7 @@ The chat input TextBox cannot reliably handle multiline paste operations (e.g., 
 
 #### **gap42_1: Audit Current TextBox Paste Behavior**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Confirm how `TextBox.Paste()` (or `Ctrl+V`) currently handles multiline content, and whether newlines are preserved
 - **Reasoning:** Establish baseline before implementing fix
 - **Implementation Plan:**
@@ -5228,7 +5228,7 @@ The chat input TextBox cannot reliably handle multiline paste operations (e.g., 
 
 #### **gap42_2: Ensure Multiline Paste Support in TextBox**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Verify or enable the TextBox to accept `AcceptsReturn="True"` and `TextWrapping="Wrap"` so multiline paste is preserved
 - **Reasoning:** WPF TextBox requires explicit configuration to support multiline input and newline preservation on paste
 - **Implementation Plan:**
@@ -5242,7 +5242,7 @@ The chat input TextBox cannot reliably handle multiline paste operations (e.g., 
 
 #### **gap42_3: Test Multiline Paste**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Unit tests confirming multiline paste works end-to-end
 - **Implementation Plan:**
   - Unit test: simulate `TextBox.Paste()` with multiline clipboard content (string with `\n`)

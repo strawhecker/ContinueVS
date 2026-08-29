@@ -272,9 +272,29 @@ namespace ContinueVS.UI.Pages
         }
 
         /// <summary>
+        /// gap42_2: PreviewExecuted handler for ApplicationCommands.Paste.
+        /// Reads clipboard text and logs line/character count. e.Handled is NOT set,
+        /// so WPF default paste proceeds and newlines are preserved (AcceptsReturn="True").
+        /// </summary>
+        private void InputTextBox_Paste_PreviewExecuted(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
+        {
+            if (!System.Windows.Clipboard.ContainsText())
+                return;
+
+            string content = System.Windows.Clipboard.GetText();
+            if (string.IsNullOrEmpty(content))
+                return;
+
+            int lines = content.Split('\n').Length;
+            int len = content.Length;
+            System.Diagnostics.Debug.WriteLine($"[gap42-paste] multiline content pasted: {lines} lines, {len} characters");
+        }
+
+        /// <summary>
         /// gap35_1: Intercepts Enter to fire SendMessageCommand; Shift+Enter inserts a newline.
         /// Uses PreviewKeyDown (tunneling) so handler fires before WPF default TextBox processing.
-        /// AcceptsReturn="False" on the TextBox ensures Enter alone never inserts a newline.
+        /// AcceptsReturn="True" on the TextBox preserves newlines on paste (gap42_2); Enter alone
+        /// is consumed here so it never inserts a newline.
         /// </summary>
         private void InputTextBox_KeyDown(object sender, KeyEventArgs e)
         {

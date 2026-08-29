@@ -4,6 +4,11 @@
              xmlns:controls="clr-namespace:ContinueVS.UI.Views"
              xmlns:converters="clr-namespace:ContinueVS.ViewModels.Converters"
              xmlns:local="clr-namespace:ContinueVS.UI.Pages">
+    <UserControl.CommandBindings>
+        <!-- gap42_2: intercept Paste to log multiline content; e.Handled not set so WPF default paste proceeds -->
+        <CommandBinding Command="ApplicationCommands.Paste"
+                        PreviewExecuted="InputTextBox_Paste_PreviewExecuted"/>
+    </UserControl.CommandBindings>
     <UserControl.Resources>
         <ResourceDictionary>
             <converters:ChatModeToVisibilityConverter x:Key="ChatModeToVisibilityConverter"/>
@@ -163,8 +168,10 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBox Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
-                     TextWrapping="Wrap" AcceptsReturn="False" AcceptsTab="False" 
+            <!-- gap42_2: AcceptsReturn="True" enables newline preservation on Ctrl+V paste;
+                 Enter key is still intercepted by InputTextBox_KeyDown (PreviewKeyDown, e.Handled=true) so no regression -->
+            <TextBox x:Name="InputTextBox" Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
+                     TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="False" 
                      MinHeight="80" MaxHeight="200" VerticalScrollBarVisibility="Auto"
                      Margin="0,0,0,5" Style="{StaticResource DefaultTextBoxStyle}"
                      PreviewKeyDown="InputTextBox_KeyDown"/>
