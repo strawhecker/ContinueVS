@@ -4847,13 +4847,123 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 ---
 
-### gap36: system prompts are not included in the send context.
-* system-prompts.json is missing debug.
+### gap36: Debug Mode System Prompt Missing
+
+**Status:** ⏳ Pending | Type: Service / Configuration  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** MEDIUM (Debug mode sends wrong system prompt; degrades LLM behaviour in Debug sessions)
+
+**Problem:**  
+`GetDefaultPromptForMode` in `SystemPromptService.cs` has no `case "debug"` in its switch statement. Debug mode falls through to the `default` branch and receives the generic "chat/ask mode" prompt instead of a debug-specific one. Additionally, `EnsureConfigFileExistsAsync` only seeds `ask`, `agent`, and `plan` entries into `system-prompts.json`, so the `debug` key is absent from both the generated config file and the runtime lookup. At send-time, `ChatPageViewModel` calls `GetSystemMessageForMode(CurrentMode)` → `_systemPromptService.GetPromptForMode("debug")` → no match in JSON → `GetDefaultPromptForMode("debug")` → wrong prompt.
+
+#### **gap36_1: Add `debug` case to `GetDefaultPromptForMode`**
+
+- **Status:** ⏳ Pending
+- **Goal:** Return a debug-specific system prompt when `mode == "debug"` instead of the generic chat/ask fallback
+- **Reasoning:** The switch `default` branch is the ask/chat prompt — it instructs the LLM to offer the Apply Button and switch to Agent mode, which is irrelevant and misleading in a debug session.
+- **Implementation Plan:**
+  - In `SystemPromptService.cs`, add `case "debug":` before `default:` in `GetDefaultPromptForMode`
+  - Prompt content: instructs the LLM to diagnose step-by-step, use read-only tools, identify root causes before suggesting fixes, and offer to switch to Agent mode when a fix is ready
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
+
+#### **gap36_2: Add `debug` entry to `EnsureConfigFileExistsAsync`**
+
+- **Status:** ⏳ Pending
+- **Goal:** Include a `debug` key in the generated `system-prompts.json` scaffold so users can override the debug prompt without editing source code
+- **Reasoning:** `EnsureConfigFileExistsAsync` seeds the file with `ask`, `agent`, and `plan` only; `debug` is silently absent, making it impossible for users to discover or customise the debug prompt via the config file.
+- **Implementation Plan:**
+  - Add `["debug"]` entry to the `SystemPrompts` dictionary inside `EnsureConfigFileExistsAsync`
+  - Use `GetDefaultPromptForMode("debug")` as the seeded prompt value (consistent with the other entries)
+  - Description: `"Instrumentation-driven error diagnosis; use read-only tools and identify root causes before suggesting fixes"`
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
+
+#### **gap36_3: Test Coverage**
+
+- **Status:** ⏳ Pending
+- **Goal:** Verify the debug prompt is returned correctly at runtime and seeded correctly to the config file
+- **Implementation Plan:**
+  - Unit test: `GetPromptForMode_Debug_ReturnsDebugSpecificPrompt` — after `LoadAsync`, calling `GetPromptForMode("debug")` must not return the generic ask/chat prompt
+  - Unit test: `EnsureConfigFileExistsAsync_WritesDebugEntry` — after `EnsureConfigFileExistsAsync`, the written JSON must contain a `"debug"` key
+- **Files to Modify:**
+  - `src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs`
+
+#### **Design Notes:**
+- The debug prompt should remain read-only by default — no write tools — consistent with `plan` mode
+- `GetDefaultPromptForMode` is the single source of truth for fallback content; the JSON file is user-overridable on top of it
+- No changes required to `ChatPageViewModel`, `ChatMode` enum, or send path — the fix is entirely inside `SystemPromptService`
 
 ---
 
-### gap37: add a first class reasoning to the list of first class such as Ask, Agent, Plan, Debug, Reason
-* don't forget system-prompts.json
+### gap37: Add `Reason` as a First-Class Chat Mode
+
+**Status:** ⏳ Pending | Type: Feature / UI + Service  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** MEDIUM (Parity with Continue.js reasoning mode; improves structured thinking UX)
+
+**Problem:**  
+The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of-thought / structured reasoning) is a first-class mode in Continue.js but is absent from ContinueVS. Adding it requires changes in four places: the `ChatMode` enum, `AvailableModes` in `ChatPageViewModel`, `GetDefaultPromptForMode` in `SystemPromptService`, and the `system-prompts.json` scaffold in `EnsureConfigFileExistsAsync`.
+
+#### **gap37_1: Add `Reason` value to `ChatMode` enum**
+
+- **Status:** ⏳ Pending
+- **Goal:** Extend the `ChatMode` enum with a `Reason` value so all downstream code can reference it by name
+- **Implementation Plan:**
+  - Add `Reason` after `Debug` in `src/VSIXProject1/Core/Types/ChatMode.cs`
+  - XML doc: `"Reason mode: Structured chain-of-thought reasoning; LLM thinks step-by-step before answering."`
+- **Files to Modify:**
+  - `src/VSIXProject1/Core/Types/ChatMode.cs`
+
+#### **gap37_2: Register `Reason` in `AvailableModes`**
+
+- **Status:** ⏳ Pending
+- **Goal:** Expose the new mode in the UI mode dropdown
+- **Implementation Plan:**
+  - Add `new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "🧠")` to `AvailableModes` in `ChatPageViewModel.cs`
+  - Position after `Debug` to preserve existing order
+- **Files to Modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+
+#### **gap37_3: Add `reason` case to `GetDefaultPromptForMode`**
+
+- **Status:** ⏳ Pending
+- **Goal:** Return a reason-specific system prompt instead of falling through to the generic chat/ask default
+- **Implementation Plan:**
+  - Add `case "reason":` before `default:` in `GetDefaultPromptForMode` in `SystemPromptService.cs`
+  - Prompt instructs the LLM to think step-by-step, show its reasoning explicitly, and withhold a final answer until reasoning is complete
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
+
+#### **gap37_4: Add `reason` entry to `EnsureConfigFileExistsAsync`**
+
+- **Status:** ⏳ Pending
+- **Goal:** Seed the `reason` key into `system-prompts.json` so users can override the prompt
+- **Implementation Plan:**
+  - Add `["reason"]` entry to the `SystemPrompts` dictionary in `EnsureConfigFileExistsAsync`
+  - Use `GetDefaultPromptForMode("reason")` as the seeded value
+  - Description: `"Structured chain-of-thought reasoning; LLM thinks step-by-step before answering"`
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
+
+#### **gap37_5: Test Coverage**
+
+- **Status:** ⏳ Pending
+- **Goal:** Verify the new mode is present, selectable, and routes to the correct system prompt
+- **Implementation Plan:**
+  - Unit test: `AvailableModes_ContainsReasonMode` — `AvailableModes` includes an entry with `Value == ChatMode.Reason`
+  - Unit test: `GetPromptForMode_Reason_ReturnsReasonSpecificPrompt` — prompt must not equal the ask/chat default
+  - Unit test: `EnsureConfigFileExistsAsync_WritesReasonEntry` — written JSON contains `"reason"` key
+  - Update `ModeDropdownBindingTests` and `ModeDescriptionTests` for the new mode count (4 → 5)
+- **Files to Modify:**
+  - `src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs`
+  - `src/VSIXProject1.Tests/UI/ModeDropdownBindingTests.cs`
+  - `src/VSIXProject1.Tests/UI/ModeDescriptionTests.cs`
+
+#### **Design Notes:**
+- `Reason` mode is read-only like `Plan` — no write tools; offer Agent mode for implementation
+- `ModeValidator` may need updating if it enumerates known modes explicitly
+- `system-prompts.json` on disk is user-overridable; `GetDefaultPromptForMode` is the in-process fallback
 
 ---
 

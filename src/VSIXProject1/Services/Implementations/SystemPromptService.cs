@@ -173,13 +173,22 @@ namespace ContinueVS.Services.Implementations
                            "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
                            "</important_rules>";
 
+                case "debug":
+                    return "<important_rules>\n" +
+                           "You are in debug mode.\n\n" +
+                           "Diagnose the issue step-by-step using available tools. Read stack traces, inspect variables, and identify root causes before suggesting fixes.\n\n" +
+                           "You operate as in agent mode so all tools are available. prompt user for changes, on accept, make the changes.\n\n" +
+                           CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
+                           BRIEF_LAZY_INSTRUCTIONS + "\n" +
+                           "</important_rules>";
+
                 default:  // chat/ask mode
                     return "<important_rules>\n" +
                            "You are in chat mode.\n\n" +
                            "If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.\n" +
                            "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
-                           EDIT_CODE_INSTRUCTIONS + "\n" +
+                           //EDIT_CODE_INSTRUCTIONS + "\n" +
                            "</important_rules>";
             }
         }
