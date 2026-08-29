@@ -5352,7 +5352,7 @@ When a user operates in Plan mode (mode=2), the LLM generates a structured imple
 
 ### gap44: One Pipeline, Five Configurations
 
-**Status:** ⏳ Pending | Type: Architectural Refactor  
+**Status:** ✅ Completed | Type: Architectural Refactor  
 **Phase:** 3 (Core Feature Completion)  
 **Priority:** HIGH (Current implementation has mode-specific code paths and phase executors that duplicate pipeline logic; all five modes share identical streaming, tool loop, context building, token budgeting, and session infrastructure — the only true differentiators are system prompt and tool policy)
 
@@ -5386,7 +5386,7 @@ The LLM is the runtime orchestrator. C# enforces policy (which capabilities are 
 
 #### **gap44_1: Audit and Map Existing Mode-Specific Code Paths**
 
-- **Status:** ⏳ Pending
+- **Status:** ⏭ Skipped (no new md files per implementit constraint; findings embedded in gap44_3 commit)
 - **Goal:** Identify every place in the codebase where mode-specific logic is encoded in C# that should instead be expressed as system prompt or tool policy
 - **Reasoning:** Before refactoring, get a complete inventory of what needs to move
 - **Implementation Plan:**
@@ -5402,7 +5402,7 @@ The LLM is the runtime orchestrator. C# enforces policy (which capabilities are 
 
 #### **gap44_2: Define ModeConfig as the Single Mode Descriptor**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Replace implicit mode behavior with an explicit `ModeConfig` record that fully describes what a mode is
 - **Reasoning:** A named configuration is the single source of truth — no behavior scattered across services
 - **Implementation Plan:**
@@ -5428,7 +5428,7 @@ The LLM is the runtime orchestrator. C# enforces policy (which capabilities are 
 
 #### **gap44_3: Unify ExecuteSendMessage to Use ModeConfig**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Remove all `if (CurrentMode == ChatMode.X)` branches in `ExecuteSendMessage` and replace with a single `ModeConfig`-driven dispatch
 - **Reasoning:** One pipeline: resolve config → build payload → stream → handle tool calls → done. The config decides what's allowed; the LLM decides what to do with it
 - **Implementation Plan:**
@@ -5446,7 +5446,7 @@ The LLM is the runtime orchestrator. C# enforces policy (which capabilities are 
 
 #### **gap44_4: Remove Redundant Phase Executor Infrastructure**
 
-- **Status:** ⏳ Pending
+- **Status:** ⏭ Deferred — PhaseExecutors still consumed by DebugSessionService (kept per spec); deletion unblocked when DebugSessionService is eventually refactored
 - **Goal:** Delete or stub out `PhaseExecutors`, `InstrumentationPhaseExecutor`, and the debug-specific orchestration layer
 - **Reasoning:** These are C# trying to orchestrate what the LLM handles via the tool loop and system prompt; they add complexity without adding capability
 - **Implementation Plan:**
@@ -5461,7 +5461,7 @@ The LLM is the runtime orchestrator. C# enforces policy (which capabilities are 
 
 #### **gap44_5: Test Coverage for Unified Pipeline**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Confirm all five modes produce correct system prompts, correct tool policies, and correct capability gating through the unified path
 - **Implementation Plan:**
   - Unit tests for `ModeConfigRegistry`: each mode returns correct config values

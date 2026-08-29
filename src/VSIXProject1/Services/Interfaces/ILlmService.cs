@@ -118,6 +118,18 @@ namespace ContinueVS.Services.Interfaces
         /// Chat messages to send to the LLM (conversation context).
         /// </summary>
         public IEnumerable<ChatMessage>? Messages { get; set; }
+
+        /// <summary>
+        /// When true, write-side tools may be offered to the LLM for this request.
+        /// Sourced from <see cref="ModeConfig.AllowWriteTools"/> via ModeConfigRegistry (gap44_3).
+        /// </summary>
+        public bool AllowWriteTools { get; set; }
+
+        /// <summary>
+        /// When true, the tool-call loop continues after each LLM response until no pending tool calls remain.
+        /// Sourced from <see cref="ModeConfig.AllowToolLoop"/> via ModeConfigRegistry (gap44_3).
+        /// </summary>
+        public bool AllowToolLoop { get; set; }
     }
 
     /// <summary>

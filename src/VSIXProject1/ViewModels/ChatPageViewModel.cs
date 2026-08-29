@@ -55,6 +55,7 @@ namespace ContinueVS.ViewModels
                 private IModeService? _modeService;
                 private IWorkflowService? _workflowService;
                 private readonly IIdeService? _ideService;
+            private IModeConfigRegistry _modeConfigRegistry;
             private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -393,7 +394,8 @@ public string? InputText
             IDebugSessionService debugSessionService,
             IModeService? modeService = null,
             IWorkflowService? workflowService = null,
-            IIdeService? ideService = null)
+            IIdeService? ideService = null,
+            IModeConfigRegistry? modeConfigRegistry = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -417,6 +419,8 @@ public string? InputText
             _modeService = modeService;
             _workflowService = workflowService;
             _ideService = ideService;
+            // gap44_3: fall back to default registry if none supplied — keeps existing call sites unchanged
+            _modeConfigRegistry = modeConfigRegistry ?? new ModeConfigRegistry(_systemPromptService);
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -825,6 +829,9 @@ public string? InputText
 
                 StreamingResponse = string.Empty;
 
+                // gap44_3: Resolve mode policy once per send — drives tool-loop gate and StreamOptions
+                var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
+
                 // gap34: Build combined system message (mode prompt + context block)
                 var selectedModelForPackaging = _configService.GetSelectedModel();
                 var systemContent = GetSystemMessageForMode(CurrentMode);
@@ -887,7 +894,9 @@ public string? InputText
 
                     var streamOptions = new StreamOptions
                     {
-                        Messages = messages
+                        Messages = messages,
+                        AllowWriteTools = modeConfig.AllowWriteTools,
+                        AllowToolLoop   = modeConfig.AllowToolLoop
                     };
 
                     // Create provisional assistant message BEFORE streaming starts
@@ -933,9 +942,9 @@ public string? InputText
                     // gap23_4_4: Check tool call limit and show banners
                     CheckToolCallLimit();
 
-                    // Only execute tools in Agent mode
-                    System.Diagnostics.Debug.WriteLine($"[a9-command-toolcheck] Checking tool execution: CurrentMode={CurrentMode}, _pendingToolCalls.Count={_pendingToolCalls.Count}, ShouldExecute={CurrentMode == ChatMode.Agent && _pendingToolCalls.Count > 0}");
-                    if (CurrentMode == ChatMode.Agent && _pendingToolCalls.Count > 0)
+                    // gap44_3: Tool execution gated by ModeConfig.AllowToolLoop — not hard-coded to Agent
+                    System.Diagnostics.Debug.WriteLine($"[a9-command-toolcheck] Checking tool execution: CurrentMode={CurrentMode}, AllowToolLoop={modeConfig.AllowToolLoop}, _pendingToolCalls.Count={_pendingToolCalls.Count}, ShouldExecute={modeConfig.AllowToolLoop && _pendingToolCalls.Count > 0}");
+                    if (modeConfig.AllowToolLoop && _pendingToolCalls.Count > 0)
                     {
                         System.Diagnostics.Debug.WriteLine($"[a9-command-toolexec] Executing tools in Agent mode");
                         _toolFailureCount = await ExecuteToolCallsAsync(_pendingToolCalls);

@@ -56,6 +56,9 @@ namespace ContinueVS.Services
             services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<ISystemPromptService, SystemPromptService>();
             services.AddSingleton<IMarkdownService, MarkdownService>();
+            // gap44_2: ModeConfigRegistry is the single source of truth for mode policy
+            services.AddSingleton<IModeConfigRegistry>(sp =>
+                new ModeConfigRegistry(sp.GetRequiredService<ISystemPromptService>()));
 
             // Register HTTP client singleton for MessengerService
             // Set Timeout to Infinite for streaming operations (Ollama responses may take time)
