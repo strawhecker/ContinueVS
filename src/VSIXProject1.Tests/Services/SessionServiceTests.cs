@@ -475,5 +475,114 @@ namespace VSIXProject1.Tests.Services
         }
 
         #endregion
+
+        #region gap34 PackageMessages Tests
+
+        [Fact]
+        public void PackageMessages_EmptyHistory_ReturnsTwoMessages()
+        {
+            // Arrange
+            var model = new ModelInfo { ContextWindow = 4096 };
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "You are helpful." };
+
+            // Act
+            var result = _sessionService.PackageMessages(model, systemMessage, "Hello");
+
+            // Assert
+            Assert.Equal(2, result.Count);
+            Assert.Equal(ChatMessageRole.System, result[0].Role);
+            Assert.Equal("You are helpful.", result[0].Content);
+            Assert.Equal(ChatMessageRole.User, result[1].Role);
+            Assert.Equal("Hello", result[1].Content);
+        }
+
+        [Fact]
+        public async Task PackageMessages_SingleTurn_ReturnsFourMessages()
+        {
+            // Arrange
+            var model = new ModelInfo { ContextWindow = 4096 };
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "You are helpful." };
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "First question" });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "First answer" });
+
+            // Act — "Second question" is the new user content (not yet in session)
+            var result = _sessionService.PackageMessages(model, systemMessage, "Second question");
+
+            // Assert: [system, user:First question, assistant:First answer, user:Second question]
+            Assert.Equal(4, result.Count);
+            Assert.Equal(ChatMessageRole.System, result[0].Role);
+            Assert.Equal(ChatMessageRole.User, result[1].Role);
+            Assert.Equal("First question", result[1].Content);
+            Assert.Equal(ChatMessageRole.Assistant, result[2].Role);
+            Assert.Equal("First answer", result[2].Content);
+            Assert.Equal(ChatMessageRole.User, result[3].Role);
+            Assert.Equal("Second question", result[3].Content);
+        }
+
+        [Fact]
+        public async Task PackageMessages_MultiTurn_WithinBudget_ReturnsAllHistory()
+        {
+            // Arrange
+            var model = new ModelInfo { ContextWindow = 8192 };
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "sys" };
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "Q1" });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "A1" });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "Q2" });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "A2" });
+
+            // Act
+            var result = _sessionService.PackageMessages(model, systemMessage, "Q3");
+
+            // Assert — all 4 history turns + system + new user = 6
+            Assert.Equal(6, result.Count);
+            Assert.Equal(ChatMessageRole.System, result[0].Role);
+            Assert.Equal("Q1", result[1].Content);
+            Assert.Equal("A1", result[2].Content);
+            Assert.Equal("Q2", result[3].Content);
+            Assert.Equal("A2", result[4].Content);
+            Assert.Equal(ChatMessageRole.User, result[5].Role);
+            Assert.Equal("Q3", result[5].Content);
+        }
+
+        [Fact]
+        public async Task PackageMessages_OverBudget_PrunesOldestTurnsFirst()
+        {
+            // Arrange — use a tiny context window so history cannot fit
+            var model = new ModelInfo { ContextWindow = 300 };
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "sys" };
+            // Add two old turns (will be pruned) and one recent turn (will be kept)
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = new string('x', 400), Timestamp = DateTime.UtcNow.AddMinutes(-10) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = new string('y', 400), Timestamp = DateTime.UtcNow.AddMinutes(-9) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "recent Q", Timestamp = DateTime.UtcNow.AddMinutes(-1) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "recent A", Timestamp = DateTime.UtcNow });
+
+            // Act
+            var result = _sessionService.PackageMessages(model, systemMessage, "new Q");
+
+            // Assert — system always present; oldest turns pruned; result has fewer than 6 messages
+            Assert.Equal(ChatMessageRole.System, result[0].Role);
+            Assert.Equal(ChatMessageRole.User, result[result.Count - 1].Role);
+            Assert.Equal("new Q", result[result.Count - 1].Content);
+            Assert.True(result.Count < 6, "Over-budget history should be pruned");
+        }
+
+        [Fact]
+        public void PackageMessages_NullOrZeroContextWindow_FallsBackTo4096()
+        {
+            // Arrange — ContextWindow = 0 should fall back to 4096 budget
+            var modelZero = new ModelInfo { ContextWindow = 0 };
+            var modelNull = (ModelInfo?)null;
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "sys" };
+
+            // Act — should not throw
+            var resultZero = _sessionService.PackageMessages(modelZero, systemMessage, "hello");
+            var resultNull = _sessionService.PackageMessages(modelNull, systemMessage, "hello");
+
+            // Assert
+            Assert.Equal(2, resultZero.Count);
+            Assert.Equal(2, resultNull.Count);
+        }
+
+        #endregion
     }
 }

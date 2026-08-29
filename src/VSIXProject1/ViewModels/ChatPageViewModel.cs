@@ -825,15 +825,9 @@ public string? InputText
 
                 StreamingResponse = string.Empty;
 
-                var messages = new List<ChatMessage>();
-
-                // Inject mode-specific system message
-                var systemPrompt = GetSystemMessageForMode(CurrentMode);
-                messages.Add(new ChatMessage
-                {
-                    Role = ChatMessageRole.System,
-                    Content = systemPrompt
-                });
+                // gap34: Build combined system message (mode prompt + context block)
+                var selectedModelForPackaging = _configService.GetSelectedModel();
+                var systemContent = GetSystemMessageForMode(CurrentMode);
 
                 // gap32_1: Build effective context — start from SelectedContext, inject active file if not already present
                 var effectiveContext = new List<ContextItem>(SelectedContext);
@@ -864,14 +858,25 @@ public string? InputText
                 {
                     var contextSummary = string.Join("\n",
                         effectiveContext.Select(c => c.FilePath + ": " + c.Content));
-                    messages.Add(new ChatMessage
-                    {
-                        Role = ChatMessageRole.System,
-                        Content = "Context:\n" + contextSummary
-                    });
+                    systemContent += "\n\nContext:\n" + contextSummary;
                 }
 
-                messages.Add(userMessage);
+                var systemMessage = new ChatMessage
+                {
+                    Role = ChatMessageRole.System,
+                    Content = systemContent
+                };
+
+                // gap34-audit: log session history count vs. packaged payload
+                var sessionForAudit = _sessionService.GetCurrentSession();
+                System.Diagnostics.Debug.WriteLine(
+                    $"[gap34-audit] history turns in session: {sessionForAudit?.Messages.Count ?? 0}, packaging with token-budget pruning");
+
+                // gap34: Package messages — system + pruned history + new user turn
+                var messages = _sessionService.PackageMessages(
+                    selectedModelForPackaging,
+                    systemMessage,
+                    userMessage.Content ?? string.Empty);
 
                 // Loop until no more tool calls or max iterations reached
                 while (_toolCallIterationCount < MaxToolCallIterations)

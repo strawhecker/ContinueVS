@@ -99,5 +99,16 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="newMode">The chat mode to set as an integer (0=Ask, 1=Agent, 2=Plan).</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task SetCurrentModeAsync(int newMode);
+
+        /// <summary>
+        /// Packages messages for an LLM send: [systemMessage] + [token-budget-pruned history turns] + [new user turn].
+        /// History is pruned oldest-first to fit within 80% of the model's ContextWindow (fallback 4096 if unset).
+        /// The system message and new user turn are always preserved regardless of budget pressure.
+        /// </summary>
+        /// <param name="model">Active model; ContextWindow determines the token budget.</param>
+        /// <param name="systemMessage">The system-role message to prepend (mode prompt combined with context).</param>
+        /// <param name="newUserContent">Content of the new user turn to append.</param>
+        /// <returns>Ordered list: systemMessage → pruned history → new user message.</returns>
+        List<ChatMessage> PackageMessages(ModelInfo? model, ChatMessage systemMessage, string newUserContent);
     }
 }

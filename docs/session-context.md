@@ -4708,7 +4708,7 @@ When pause is pressed:
 
 ### gap34: LLM-Optimized Send + Receive for Existing Sessions
 
-**Status:** ⏳ Pending | Type: LLM Messaging Optimization  
+**Status:** ✅ Complete | Type: LLM Messaging Optimization  
 **Phase:** 3 (Core Feature Completion)  
 **Priority:** HIGH (Continuation messages do not apply context-window budgeting, history pruning, or token-aware packaging — each send likely transmits the full raw history or ignores it entirely)
 
@@ -4719,9 +4719,7 @@ When a user sends a new message in an existing session (message 2+), the send+re
 - No structured system/user/assistant role sequencing for continuation turns
 - Risk of exceeding context window silently, or losing prior turns entirely
 
-#### **gap34_1: Audit Existing Send Flow for Continuation-Message Behavior**
-
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Determine exactly what payload is sent to the LLM on message 2+ (full history? last message only? nothing?)
 - **Reasoning:** Before building the optimized path, confirm the current baseline so the fix is scoped correctly.
 - **Implementation Plan:**
@@ -4733,9 +4731,7 @@ When a user sends a new message in an existing session (message 2+), the send+re
   - `src/VSIXProject1/Services/Implementations/MessengerService.cs` (or equivalent LLM send path)
   - `src/VSIXProject1/Services/Implementations/SessionService.cs`
 
-#### **gap34_2: Build History-Aware Message Packager**
-
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Produce a correctly ordered `List<ChatMessage>` (system + pruned history + new user turn) respecting the active model's `ContextWindow` token budget
 - **Reasoning:** Continue.js packages messages via `constructMessages()` which prunes from the oldest turns first, preserving the system prompt and the most-recent exchange. ContinueVS needs the same logic.
 - **Implementation Plan:**
@@ -4747,9 +4743,7 @@ When a user sends a new message in an existing session (message 2+), the send+re
   - `src/VSIXProject1/Services/Interfaces/ISessionService.cs` (or new `IMessagePackager.cs`)
   - `src/VSIXProject1/Services/Implementations/SessionService.cs`
 
-#### **gap34_3: Wire Optimized Packager into Send Flow**
-
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Replace the current ad-hoc message construction in `ExecuteSendMessage()` with a call to the new packager
 - **Reasoning:** All optimization logic should be encapsulated in the packager, keeping the ViewModel thin.
 - **Implementation Plan:**
@@ -4760,9 +4754,7 @@ When a user sends a new message in an existing session (message 2+), the send+re
   - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
   - `src/VSIXProject1/Services/Implementations/MessengerService.cs`
 
-#### **gap34_4: Test Coverage**
-
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Verify packager produces correct message ordering and respects context window limits
 - **Implementation Plan:**
   - Unit tests for `PackageMessages()`: empty history, single-turn, multi-turn, over-budget (pruning kicks in)

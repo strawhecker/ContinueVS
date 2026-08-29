@@ -456,6 +456,68 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
+        /// Packages messages for an LLM send with token-budget-aware history pruning (gap34).
+        /// Assembles: [systemMessage] + [oldest-first history that fits budget] + [new user turn].
+        /// Budget = 80% of model.ContextWindow (fallback 4096). System + new user turn always included.
+        /// </summary>
+        public List<ChatMessage> PackageMessages(ModelInfo? model, ChatMessage systemMessage, string newUserContent)
+        {
+            if (systemMessage == null) throw new ArgumentNullException(nameof(systemMessage));
+            if (newUserContent == null) throw new ArgumentNullException(nameof(newUserContent));
+
+            int contextWindow = (model != null && model.ContextWindow > 0) ? model.ContextWindow : 4096;
+            int budget = (int)(contextWindow * 0.8);
+
+            var newUserMessage = new ChatMessage { Role = ChatMessageRole.User, Content = newUserContent };
+
+            int systemTokens = _tokenCountingService.CountMessageTokens(systemMessage);
+            int newUserTokens = _tokenCountingService.CountMessageTokens(newUserMessage);
+            int remainingBudget = budget - systemTokens - newUserTokens;
+
+            // Retrieve User/Assistant history ordered oldest-first
+            var session = GetCurrentSession();
+            var history = session.Messages
+                .Where(m => m.Role == ChatMessageRole.User || m.Role == ChatMessageRole.Assistant)
+                .OrderBy(m => m.Timestamp ?? DateTime.MinValue)
+                .ToList();
+
+            // Exclude the new user message just added to the session store (avoid duplicate)
+            if (history.Count > 0
+                && history[history.Count - 1].Role == ChatMessageRole.User
+                && history[history.Count - 1].Content == newUserContent)
+            {
+                history = history.Take(history.Count - 1).ToList();
+            }
+
+            // Walk newest-to-oldest; accumulate history that fits within remainingBudget
+            var fittingHistory = new List<ChatMessage>();
+            int historyTokens = 0;
+            for (int i = history.Count - 1; i >= 0; i--)
+            {
+                int msgTokens = _tokenCountingService.CountMessageTokens(history[i]);
+                if (historyTokens + msgTokens <= remainingBudget)
+                {
+                    fittingHistory.Insert(0, history[i]);
+                    historyTokens += msgTokens;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            int totalEstimated = systemTokens + historyTokens + newUserTokens;
+            System.Diagnostics.Debug.WriteLine(
+                $"[gap34-package] sending {1 + fittingHistory.Count + 1} messages, est. tokens: {totalEstimated}, model context: {contextWindow}");
+
+            var result = new List<ChatMessage>();
+            result.Add(systemMessage);
+            result.AddRange(fittingHistory);
+            result.Add(newUserMessage);
+            return result;
+        }
+
+        /// <summary>
         /// Sets the current chat mode and fires SessionChanged event for mode-change propagation (gap27_3).
         /// Also updates Session.Mode for persistence (gap27_5).
         /// </summary>
