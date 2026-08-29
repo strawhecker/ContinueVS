@@ -4818,7 +4818,7 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 #### **gap35_2: Ensure `SendMessageCommand` is Executable from Keyboard Path**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Verify `SendMessageCommand.CanExecute()` returns `true` when there is text in the input and no send is in progress — same guard used by the Send button
 - **Reasoning:** The keyboard path must respect the same `CanExecute` guard as the button to prevent double-sends or sends during streaming.
 - **Implementation Plan:**
@@ -4830,7 +4830,7 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 #### **gap35_3: Test Coverage**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Verify keyboard routing behavior via unit/integration tests
 - **Implementation Plan:**
   - Unit test: simulate `KeyDown` with `Key.Enter` → `SendMessageCommand.Execute` called once
@@ -4844,6 +4844,16 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 - `AcceptsReturn="True"` must remain on the `TextBox`; removing it would break `Shift+Enter` newline insertion
 - Do not use `PreviewKeyDown` unless `KeyDown` proves insufficient; `KeyDown` is the correct hook for suppressing `Enter` before it reaches the `TextBox`
 - This pattern matches Continue.js (`onKeyDown` in `mainInput.tsx`) and standard VS Code chat behavior
+
+---
+
+### gap36: system prompts are not included in the send context.
+* system-prompts.json is missing debug.
+
+---
+
+### gap37: add a first class reasoning to the list of first class such as Ask, Agent, Plan, Debug, Reason
+* don't forget system-prompts.json
 
 ---
 

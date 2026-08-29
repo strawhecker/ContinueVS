@@ -12,8 +12,10 @@ using ContinueVS.ViewModels;
 namespace ContinueVS.Tests.UI
 {
     /// <summary>
-    /// gap35_1: Unit tests verifying the SendMessageCommand CanExecute guard used by
+    /// gap35_1 / gap35_3: Unit tests verifying the SendMessageCommand CanExecute guard used by
     /// the InputTextBox_KeyDown handler. Tests are headless (no STA / WPF required).
+    /// gap35_1 covers: text present/not-streaming → true, empty text → false, streaming → false.
+    /// gap35_3 covers: IsPaused → false, ShowErrorBanner → false, whitespace-only input → false.
     /// </summary>
     public class ChatPageKeyboardTests
     {
@@ -115,6 +117,55 @@ namespace ContinueVS.Tests.UI
             var vm = CreateViewModel();
             vm.InputText = "hello world";
             vm.IsStreaming = true;
+
+            // Act
+            var canExecute = vm.SendMessageCommand.CanExecute(null);
+
+            // Assert
+            Assert.False(canExecute);
+        }
+
+        /// <summary>
+        /// gap35_3: Additional CanExecute guard tests — IsPaused, ShowErrorBanner, whitespace-only input.
+        /// Covers the composite predicate in CanSendMessage() that the InputTextBox_KeyDown handler
+        /// respects before calling SendMessageCommand.Execute(null).
+        /// </summary>
+        [Fact]
+        public void WhenIsPausedIsTrue_SendMessageCommand_CanExecuteReturnsFalse()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+            vm.InputText = "hello world";
+            vm.IsPaused = true;
+
+            // Act
+            var canExecute = vm.SendMessageCommand.CanExecute(null);
+
+            // Assert
+            Assert.False(canExecute);
+        }
+
+        [Fact]
+        public void WhenShowErrorBannerIsTrue_SendMessageCommand_CanExecuteReturnsFalse()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+            vm.InputText = "hello world";
+            vm.ShowErrorBanner = true;
+
+            // Act
+            var canExecute = vm.SendMessageCommand.CanExecute(null);
+
+            // Assert
+            Assert.False(canExecute);
+        }
+
+        [Fact]
+        public void WhenInputTextIsWhitespaceOnly_SendMessageCommand_CanExecuteReturnsFalse()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+            vm.InputText = "   ";
 
             // Act
             var canExecute = vm.SendMessageCommand.CanExecute(null);
