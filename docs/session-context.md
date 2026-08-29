@@ -6673,6 +6673,49 @@ Applied three key XAML attributes to both windows to prevent focus-stealing:
 
 **End of Implementation Plan**
 
+---
+
+### gap43: Plan Mode Output Not Persisted to ~/.continueVS/plans
+
+**Status:** ✓ Complete | Type: Plan Mode Persistence
+
+**Implementation:**
+
+**gap43_1**: Created `IPlanOutputService` interface with `Task<string> SavePlanAsync(string content, CancellationToken)` and `string GetPlansDirectory()`.
+
+**gap43_2**: Created `PlanOutputService` implementing `IPlanOutputService`:
+- Resolves `~/.continueVS/plans/` (optional `continueDir` ctor param for test isolation)
+- Creates directory if missing via `Directory.CreateDirectory`
+- Writes `plan_{yyyyMMdd_HHmmss}.md` via `Task.Run(() => File.WriteAllText(...))`
+- Returns absolute file path of saved file
+
+**gap43_3**: Updated `ChatPageViewModel`:
+- Added `private readonly IPlanOutputService? _planOutputService` field
+- Added `IPlanOutputService? planOutputService = null` optional ctor param (after `modeConfigRegistry`)
+- After streaming `await foreach` completes and tool calls are finalized, added Plan mode persistence branch:
+  `if (CurrentMode == ChatMode.Plan && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))`
+  calls `await _planOutputService.SavePlanAsync(...)` before `AddMessageAsync`
+
+**gap43_4**: Created 6 xUnit tests in `PlanOutputServiceTests.cs`:
+- `SavePlanAsync_CreatesPlansDirectory_WhenNotExists`
+- `SavePlanAsync_WritesContentToFile`
+- `SavePlanAsync_ReturnsAbsoluteFilePath`
+- `SavePlanAsync_FileNameFollowsTimestampPattern`
+- `SavePlanAsync_ThrowsArgumentException_WhenContentIsNullOrWhitespace`
+- `GetPlansDirectory_ReturnsPathEndingWithPlans`
+
+**Files Modified:**
+- src/VSIXProject1/Services/Interfaces/IPlanOutputService.cs (new)
+- src/VSIXProject1/Services/Implementations/PlanOutputService.cs (new)
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs (field, ctor param, Plan mode save)
+- src/VSIXProject1/Services/ServiceBootstrapper.cs (IPlanOutputService/PlanOutputService singleton)
+- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs (resolve + pass planOutput to ChatPageViewModel)
+- src/VSIXProject1.Tests/Services/PlanOutputServiceTests.cs (new, 6 tests)
+
+**Testing:**
+- Build: Clean (0 warnings, 0 errors)
+- Unit Tests: 6/6 PlanOutputServiceTests pass; 1061 total tests discovered, all passing
+
 
 
 

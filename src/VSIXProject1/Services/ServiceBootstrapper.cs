@@ -68,6 +68,8 @@ namespace ContinueVS.Services
             // Register core services as singletons (application lifetime)
             services.AddSingleton<IIdeService, VsIdeService>();
             services.AddSingleton<IConfigService, ConfigService>();
+            // gap43_2: Persist Plan mode output to ~/.continueVS/plans/
+            services.AddSingleton<IPlanOutputService, PlanOutputService>();
             services.AddSingleton<IContextDumpService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();

@@ -135,8 +135,11 @@ namespace ContinueVS.UI.Pages
                     var ideService  = sp.GetService<IIdeService>();
                     System.Diagnostics.Debug.WriteLine($"[sv-chatpage-11] IIdeService resolved={ideService != null} (optional)");
 
+                    var planOutput  = sp.GetService<IPlanOutputService>();
+                    System.Diagnostics.Debug.WriteLine($"[sv-chatpage-12] IPlanOutputService resolved={planOutput != null} (optional)");
+
                     // BP:sv-chatpage-dc — breakpoint here confirms all services resolved and DataContext is being assigned
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, debugSession, null, workflow, ideService);
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, debugSession, null, workflow, ideService, null, planOutput);
                     System.Diagnostics.Debug.WriteLine("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
                 }
                 else

@@ -55,6 +55,8 @@ namespace ContinueVS.ViewModels
                 private IModeService? _modeService;
                 private IWorkflowService? _workflowService;
                 private readonly IIdeService? _ideService;
+                // gap43_3: Optional plan output service for persisting Plan mode responses
+                private readonly IPlanOutputService? _planOutputService;
             private IModeConfigRegistry _modeConfigRegistry;
             private UIState? _cachedUIState;
 
@@ -395,7 +397,8 @@ public string? InputText
             IModeService? modeService = null,
             IWorkflowService? workflowService = null,
             IIdeService? ideService = null,
-            IModeConfigRegistry? modeConfigRegistry = null)
+            IModeConfigRegistry? modeConfigRegistry = null,
+            IPlanOutputService? planOutputService = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -419,6 +422,8 @@ public string? InputText
             _modeService = modeService;
             _workflowService = workflowService;
             _ideService = ideService;
+            // gap43_3: planOutputService is optional (nullable); no null-check required
+            _planOutputService = planOutputService;
             // gap44_3: fall back to default registry if none supplied — keeps existing call sites unchanged
             _modeConfigRegistry = modeConfigRegistry ?? new ModeConfigRegistry(_systemPromptService);
 
@@ -936,6 +941,14 @@ public string? InputText
                     {
                         assistantMessage.ToolCalls = new List<ToolCall>(_pendingToolCalls);
                     }
+
+                    // gap43_3: Persist plan output when streaming completes in Plan mode
+                    if (CurrentMode == ChatMode.Plan && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
+                    {
+                        var savedPath = await _planOutputService.SavePlanAsync(assistantMessage.Content, _streamingCts.Token);
+                        System.Diagnostics.Debug.WriteLine($"[gap43_3] Plan saved to: {savedPath}");
+                    }
+
                     await _sessionService.AddMessageAsync(assistantMessage);
                     System.Diagnostics.Debug.WriteLine($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
