@@ -151,6 +151,21 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
+        public async Task GetPromptForMode_Debug_ReturnsDebugSpecificPrompt()
+        {
+            // Arrange
+            await _service.LoadAsync();
+
+            // Act
+            var prompt = _service.GetPromptForMode("debug");
+
+            // Assert
+            Assert.NotEmpty(prompt);
+            Assert.Contains("debug mode", prompt, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("chat mode", prompt, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
         public async Task EnsureConfigFileExistsAsync_CreatesDirectoryIfNeeded()
         {
             // Arrange
@@ -160,6 +175,26 @@ namespace ContinueVS.Tests.Services
             // Act & Assert
             await _service.EnsureConfigFileExistsAsync();
             // Service will attempt to create in ~/.continueVS, so we just verify no exception
+        }
+
+        [Fact]
+        public async Task EnsureConfigFileExistsAsync_WritesDebugEntry()
+        {
+            // Arrange
+            var configPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".continueVS",
+                "system-prompts.json");
+
+            // Act
+            await _service.EnsureConfigFileExistsAsync();
+
+            // Assert
+            Assert.True(File.Exists(configPath));
+            var json = File.ReadAllText(configPath);
+            var config = Newtonsoft.Json.JsonConvert.DeserializeObject<ContinueVS.Core.Types.SystemPromptConfig>(json);
+            Assert.NotNull(config);
+            Assert.True(config.SystemPrompts.ContainsKey("debug"), "system-prompts.json must contain a 'debug' key");
         }
     }
 }

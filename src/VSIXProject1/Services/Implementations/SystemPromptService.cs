@@ -101,6 +101,11 @@ namespace ContinueVS.Services.Implementations
                             {
                                 Prompt = GetDefaultPromptForMode("plan"),
                                 Description = "Read-only planning tool; suggest Agent Mode for implementation"
+                            },
+                            ["debug"] = new SystemPromptItem
+                            {
+                                Prompt = GetDefaultPromptForMode("debug"),
+                                Description = "Instrumentation-driven error diagnosis; use read-only tools and identify root causes before suggesting fixes"
                             }
                         }
                     };
@@ -121,32 +126,32 @@ namespace ContinueVS.Services.Implementations
                 "Always include the language and file name in the info string when you write code blocks.\n" +
                 "If you are editing \"src/main.py\" for example, your code block should start with '```python src/main.py'";
 
-            const string EDIT_CODE_INSTRUCTIONS =
-                "When addressing code modification requests, present a concise code snippet that\n" +
-                "emphasizes only the necessary changes and uses abbreviated placeholders for\n" +
-                "unmodified sections. For example:\n\n" +
-                "```language /path/to/file\n" +
-                "// ... existing code ...\n" +
-                "{{ modified code here }}\n" +
-                "// ... existing code ...\n" +
-                "{{ another modification }}\n" +
-                "// ... rest of code ...\n" +
-                "```\n\n" +
-                "In existing files, you should always restate the function or class that the snippet belongs to:\n\n" +
-                "```language /path/to/file\n" +
-                "// ... existing code ...\n\n" +
-                "function exampleFunction() {\n" +
-                "  // ... existing code ...\n\n" +
-                "  {{ modified code here }}\n\n" +
-                "  // ... rest of function ...\n" +
-                "}\n\n" +
-                "// ... rest of code ...\n" +
-                "```\n\n" +
-                "Since users have access to their complete file, they prefer reading only the\n" +
-                "relevant modifications. It's perfectly acceptable to omit unmodified portions\n" +
-                "at the beginning, middle, or end of files using these \"lazy\" comments. Only\n" +
-                "provide the complete file when explicitly requested. Include a concise explanation\n" +
-                "of changes unless the user specifically asks for code only.";
+            //const string EDIT_CODE_INSTRUCTIONS =
+            //    "When addressing code modification requests, present a concise code snippet that\n" +
+            //    "emphasizes only the necessary changes and uses abbreviated placeholders for\n" +
+            //    "unmodified sections. For example:\n\n" +
+            //    "```language /path/to/file\n" +
+            //    "// ... existing code ...\n" +
+            //    "{{ modified code here }}\n" +
+            //    "// ... existing code ...\n" +
+            //    "{{ another modification }}\n" +
+            //    "// ... rest of code ...\n" +
+            //    "```\n\n" +
+            //    "In existing files, you should always restate the function or class that the snippet belongs to:\n\n" +
+            //    "```language /path/to/file\n" +
+            //    "// ... existing code ...\n\n" +
+            //    "function exampleFunction() {\n" +
+            //    "  // ... existing code ...\n\n" +
+            //    "  {{ modified code here }}\n\n" +
+            //    "  // ... rest of function ...\n" +
+            //    "}\n\n" +
+            //    "// ... rest of code ...\n" +
+            //    "```\n\n" +
+            //    "Since users have access to their complete file, they prefer reading only the\n" +
+            //    "relevant modifications. It's perfectly acceptable to omit unmodified portions\n" +
+            //    "at the beginning, middle, or end of files using these \"lazy\" comments. Only\n" +
+            //    "provide the complete file when explicitly requested. Include a concise explanation\n" +
+            //    "of changes unless the user specifically asks for code only.";
 
             const string BRIEF_LAZY_INSTRUCTIONS =
                 "For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'";

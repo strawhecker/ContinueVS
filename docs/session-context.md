@@ -4849,7 +4849,7 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 ### gap36: Debug Mode System Prompt Missing
 
-**Status:** ⏳ Pending | Type: Service / Configuration  
+**Status:** ✅ Complete | Type: Service / Configuration  
 **Phase:** 3 (Core Feature Completion)  
 **Priority:** MEDIUM (Debug mode sends wrong system prompt; degrades LLM behaviour in Debug sessions)
 
@@ -4858,7 +4858,7 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 #### **gap36_1: Add `debug` case to `GetDefaultPromptForMode`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete (pre-existing — `case "debug":` already present in `SystemPromptService.cs` line 176)
 - **Goal:** Return a debug-specific system prompt when `mode == "debug"` instead of the generic chat/ask fallback
 - **Reasoning:** The switch `default` branch is the ask/chat prompt — it instructs the LLM to offer the Apply Button and switch to Agent mode, which is irrelevant and misleading in a debug session.
 - **Implementation Plan:**
@@ -4869,7 +4869,7 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 #### **gap36_2: Add `debug` entry to `EnsureConfigFileExistsAsync`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Include a `debug` key in the generated `system-prompts.json` scaffold so users can override the debug prompt without editing source code
 - **Reasoning:** `EnsureConfigFileExistsAsync` seeds the file with `ask`, `agent`, and `plan` only; `debug` is silently absent, making it impossible for users to discover or customise the debug prompt via the config file.
 - **Implementation Plan:**
@@ -4881,7 +4881,7 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 #### **gap36_3: Test Coverage**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Verify the debug prompt is returned correctly at runtime and seeded correctly to the config file
 - **Implementation Plan:**
   - Unit test: `GetPromptForMode_Debug_ReturnsDebugSpecificPrompt` — after `LoadAsync`, calling `GetPromptForMode("debug")` must not return the generic ask/chat prompt
