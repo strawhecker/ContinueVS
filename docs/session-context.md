@@ -4898,7 +4898,7 @@ The chat input `TextBox` currently has no keyboard handling wired. Pressing `Ent
 
 ### gap37: Add `Reason` as a First-Class Chat Mode
 
-**Status:** ⏳ Pending | Type: Feature / UI + Service  
+**Status:** ✅ Completed | Type: Feature / UI + Service  
 **Phase:** 3 (Core Feature Completion)  
 **Priority:** MEDIUM (Parity with Continue.js reasoning mode; improves structured thinking UX)
 
@@ -4907,7 +4907,7 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 #### **gap37_1: Add `Reason` value to `ChatMode` enum**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Extend the `ChatMode` enum with a `Reason` value so all downstream code can reference it by name
 - **Implementation Plan:**
   - Add `Reason` after `Debug` in `src/VSIXProject1/Core/Types/ChatMode.cs`
@@ -4917,7 +4917,7 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 #### **gap37_2: Register `Reason` in `AvailableModes`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Expose the new mode in the UI mode dropdown
 - **Implementation Plan:**
   - Add `new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "🧠")` to `AvailableModes` in `ChatPageViewModel.cs`
@@ -4927,7 +4927,7 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 #### **gap37_3: Add `reason` case to `GetDefaultPromptForMode`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Return a reason-specific system prompt instead of falling through to the generic chat/ask default
 - **Implementation Plan:**
   - Add `case "reason":` before `default:` in `GetDefaultPromptForMode` in `SystemPromptService.cs`
@@ -4937,7 +4937,7 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 #### **gap37_4: Add `reason` entry to `EnsureConfigFileExistsAsync`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Seed the `reason` key into `system-prompts.json` so users can override the prompt
 - **Implementation Plan:**
   - Add `["reason"]` entry to the `SystemPrompts` dictionary in `EnsureConfigFileExistsAsync`
@@ -4948,21 +4948,21 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 #### **gap37_5: Test Coverage**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Completed
 - **Goal:** Verify the new mode is present, selectable, and routes to the correct system prompt
 - **Implementation Plan:**
   - Unit test: `AvailableModes_ContainsReasonMode` — `AvailableModes` includes an entry with `Value == ChatMode.Reason`
   - Unit test: `GetPromptForMode_Reason_ReturnsReasonSpecificPrompt` — prompt must not equal the ask/chat default
   - Unit test: `EnsureConfigFileExistsAsync_WritesReasonEntry` — written JSON contains `"reason"` key
   - Update `ModeDropdownBindingTests` and `ModeDescriptionTests` for the new mode count (4 → 5)
-- **Files to Modify:**
+- **Files Modified:**
   - `src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs`
   - `src/VSIXProject1.Tests/UI/ModeDropdownBindingTests.cs`
   - `src/VSIXProject1.Tests/UI/ModeDescriptionTests.cs`
 
 #### **Design Notes:**
 - `Reason` mode is read-only like `Plan` — no write tools; offer Agent mode for implementation
-- `ModeValidator` may need updating if it enumerates known modes explicitly
+- `ModeValidator.MaxValidMode` updated from stale `2` to `4` to cover Debug=3 and Reason=4
 - `system-prompts.json` on disk is user-overridable; `GetDefaultPromptForMode` is the in-process fallback
 
 ---

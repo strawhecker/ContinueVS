@@ -106,6 +106,11 @@ namespace ContinueVS.Services.Implementations
                             {
                                 Prompt = GetDefaultPromptForMode("debug"),
                                 Description = "Instrumentation-driven error diagnosis; use read-only tools and identify root causes before suggesting fixes"
+                            },
+                            ["reason"] = new SystemPromptItem
+                            {
+                                Prompt = GetDefaultPromptForMode("reason"),
+                                Description = "Structured chain-of-thought reasoning; LLM thinks step-by-step before answering"
                             }
                         }
                     };
@@ -183,6 +188,16 @@ namespace ContinueVS.Services.Implementations
                            "You are in debug mode.\n\n" +
                            "Diagnose the issue step-by-step using available tools. Read stack traces, inspect variables, and identify root causes before suggesting fixes.\n\n" +
                            "You operate as in agent mode so all tools are available. prompt user for changes, on accept, make the changes.\n\n" +
+                           CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
+                           BRIEF_LAZY_INSTRUCTIONS + "\n" +
+                           "</important_rules>";
+
+                case "reason":
+                    return "<important_rules>\n" +
+                           "You are in reason mode.\n\n" +
+                           "Think step-by-step before providing a final answer. Show your reasoning explicitly, working through the problem in structured stages. Withhold a definitive conclusion until your reasoning is complete.\n\n" +
+                           "Show code only as required for logical points or references. The user wants your reasoning in place of code.\n" +
+                           "Only use read-only tools. If the user wants changes implemented, suggest switching to Agent mode.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
                            "</important_rules>";

@@ -23,6 +23,11 @@
         /// <summary>
         /// Debug mode: Instrumentation-driven error diagnosis with interactive refinement.
         /// </summary>
-        Debug
+        Debug,
+
+        /// <summary>
+        /// Reason mode: Structured chain-of-thought reasoning; LLM thinks step-by-step before answering.
+        /// </summary>
+        Reason
     }
 }

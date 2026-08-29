@@ -9,9 +9,9 @@ namespace ContinueVS.Services.Utilities
     public static class ModeValidator
     {
         /// <summary>
-        /// Gets the maximum valid mode value (Plan = 2).
+        /// Gets the maximum valid mode value (Reason = 4).
         /// </summary>
-        public const int MaxValidMode = 2;
+        public const int MaxValidMode = 4;
 
         /// <summary>
         /// Gets the default/fallback mode (Ask = 0).
@@ -21,7 +21,7 @@ namespace ContinueVS.Services.Utilities
         /// <summary>
         /// Determines if a mode value is known and supported.
         /// </summary>
-        /// <param name="mode">The mode integer value (0=Ask, 1=Agent, 2=Plan).</param>
+        /// <param name="mode">The mode integer value (0=Ask, 1=Agent, 2=Plan, 3=Debug, 4=Reason).</param>
         /// <returns>True if mode is a known ChatMode; false for unknown/future modes.</returns>
         public static bool IsValidMode(int mode)
         {

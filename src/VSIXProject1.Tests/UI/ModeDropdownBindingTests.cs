@@ -68,18 +68,18 @@ namespace ContinueVS.Tests.UI
         }
 
         [Fact]
-        public void AvailableModes_LoadsWith4Options()
+        public void AvailableModes_LoadsWith5Options()
         {
             // Arrange / Act
             var vm = CreateViewModel();
 
             // Assert
             Assert.NotNull(vm.AvailableModes);
-            Assert.Equal(4, vm.AvailableModes.Count);
+            Assert.Equal(5, vm.AvailableModes.Count);
         }
 
         [Fact]
-        public void AvailableModes_ContainsAskAgentPlanDebug()
+        public void AvailableModes_ContainsAskAgentPlanDebugReason()
         {
             // Arrange / Act
             var vm = CreateViewModel();
@@ -89,6 +89,7 @@ namespace ContinueVS.Tests.UI
             Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Agent);
             Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Plan);
             Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Debug);
+            Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Reason);
         }
 
         [Fact]
@@ -163,6 +164,22 @@ namespace ContinueVS.Tests.UI
             Assert.Equal(ChatMode.Debug, vm.CurrentMode);
             Assert.NotNull(vm.SelectedMode);
             Assert.Equal(ChatMode.Debug, vm.SelectedMode.Value);
+        }
+
+        [Fact]
+        public void ReasonMode_IsSelectable()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+            var reasonOption = vm.AvailableModes.Single(m => m.Value == ChatMode.Reason);
+
+            // Act
+            vm.SelectedMode = reasonOption;
+
+            // Assert
+            Assert.Equal(ChatMode.Reason, vm.CurrentMode);
+            Assert.NotNull(vm.SelectedMode);
+            Assert.Equal(ChatMode.Reason, vm.SelectedMode.Value);
         }
     }
 }

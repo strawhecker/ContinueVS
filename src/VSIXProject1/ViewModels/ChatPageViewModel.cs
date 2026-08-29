@@ -153,7 +153,8 @@ namespace ContinueVS.ViewModels
                         new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "💬"),
                         new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "🤖"),
                         new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "📋"),
-                        new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "🔧")
+                        new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "🔧"),
+                        new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "🧠")
                     };
                 }
                 return _availableModes;

@@ -11,7 +11,7 @@ namespace ContinueVS.Services.Interfaces
         /// <summary>
         /// Sets the current chat mode and propagates the change to all subscribers via SessionService.SessionChanged event.
         /// </summary>
-        /// <param name="newMode">The chat mode to set as an integer (0=Ask, 1=Agent, 2=Plan).</param>
+        /// <param name="newMode">The chat mode to set as an integer (0=Ask, 1=Agent, 2=Plan, 3=Debug, 4=Reason).</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task SetModeAsync(int newMode);
     }

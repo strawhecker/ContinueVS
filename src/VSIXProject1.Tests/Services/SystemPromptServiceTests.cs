@@ -196,5 +196,42 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(config);
             Assert.True(config.SystemPrompts.ContainsKey("debug"), "system-prompts.json must contain a 'debug' key");
         }
+
+        [Fact]
+        public async Task GetPromptForMode_Reason_ReturnsReasonSpecificPrompt()
+        {
+            // Arrange
+            await _service.LoadAsync();
+
+            // Act
+            var prompt = _service.GetPromptForMode("reason");
+            var askPrompt = _service.GetPromptForMode("ask");
+
+            // Assert
+            Assert.NotEmpty(prompt);
+            Assert.Contains("reason mode", prompt, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("chat mode", prompt, StringComparison.OrdinalIgnoreCase);
+            Assert.NotEqual(askPrompt, prompt);
+        }
+
+        [Fact]
+        public async Task EnsureConfigFileExistsAsync_WritesReasonEntry()
+        {
+            // Arrange
+            var configPath = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".continueVS",
+                "system-prompts.json");
+
+            // Act
+            await _service.EnsureConfigFileExistsAsync();
+
+            // Assert
+            Assert.True(File.Exists(configPath));
+            var json = File.ReadAllText(configPath);
+            var config = Newtonsoft.Json.JsonConvert.DeserializeObject<ContinueVS.Core.Types.SystemPromptConfig>(json);
+            Assert.NotNull(config);
+            Assert.True(config.SystemPrompts.ContainsKey("reason"), "system-prompts.json must contain a 'reason' key");
+        }
     }
 }

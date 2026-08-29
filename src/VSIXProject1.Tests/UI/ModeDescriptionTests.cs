@@ -130,5 +130,31 @@ namespace ContinueVS.Tests.UI
             // Assert
             Assert.Equal("🔧", debugMode.Icon);
         }
+
+        [Fact]
+        public void ReasonModeDescription_Should_Be_Correct()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var reasonMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Reason);
+
+            // Assert
+            Assert.Equal("Structured chain-of-thought reasoning before answering.", reasonMode.Description);
+        }
+
+        [Fact]
+        public void ReasonModeIcon_Should_Be_Brain()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var reasonMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Reason);
+
+            // Assert
+            Assert.Equal("🧠", reasonMode.Icon);
+        }
     }
 }
