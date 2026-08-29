@@ -272,18 +272,33 @@ namespace ContinueVS.UI.Pages
         }
 
         /// <summary>
-        /// gap35_1: Intercepts Enter to fire SendMessageCommand; Shift+Enter falls through for natural newline.
+        /// gap35_1: Intercepts Enter to fire SendMessageCommand; Shift+Enter inserts a newline.
+        /// Uses PreviewKeyDown (tunneling) so handler fires before WPF default TextBox processing.
+        /// AcceptsReturn="False" on the TextBox ensures Enter alone never inserts a newline.
         /// </summary>
         private void InputTextBox_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+            if (e.Key == Key.Enter)
             {
-                e.Handled = true;
-                System.Diagnostics.Debug.WriteLine("[gap35] Enter key intercepted — firing SendMessageCommand");
-                if (DataContext is ChatPageViewModel vm && vm.SendMessageCommand.CanExecute(null))
-                    vm.SendMessageCommand.Execute(null);
+                e.Handled = true; // always consume — we decide what happens
+                if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                {
+                    // Shift+Enter → insert newline at caret
+                    if (sender is System.Windows.Controls.TextBox tb)
+                    {
+                        int caret = tb.CaretIndex;
+                        tb.Text = tb.Text.Insert(caret, "\n");
+                        tb.CaretIndex = caret + 1;
+                    }
+                }
+                else
+                {
+                    // Enter alone → send message
+                    System.Diagnostics.Debug.WriteLine("[gap35] Enter key intercepted — firing SendMessageCommand");
+                    if (DataContext is ChatPageViewModel vm && vm.SendMessageCommand.CanExecute(null))
+                        vm.SendMessageCommand.Execute(null);
+                }
             }
-            // Shift+Enter: not handled → WPF inserts newline naturally
         }
     }
 }
