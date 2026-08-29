@@ -5201,6 +5201,286 @@ Debug mode is used to investigate runtime failures, exceptions, and incorrect be
 
 ---
 
+### gap42: Multiline Paste Support in Chat Input
+
+**Status:** ⏳ Pending | Type: Chat Input UX Feature  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** MEDIUM (User experience: clipboard paste should preserve newlines; current TextBox behavior may strip or incorrectly handle multiline content)
+
+**Problem:**  
+The chat input TextBox cannot reliably handle multiline paste operations (e.g., pasting code snippets, stack traces, or multi-sentence text from clipboard). This means:
+- Multiline content pasted from clipboard may be truncated, corrupted, or converted to single-line
+- No clear visual feedback that multiline paste succeeded
+- Inconsistent behavior with standard chat applications
+
+#### **gap42_1: Audit Current TextBox Paste Behavior**
+
+- **Status:** ⏳ Pending
+- **Goal:** Confirm how `TextBox.Paste()` (or `Ctrl+V`) currently handles multiline content, and whether newlines are preserved
+- **Reasoning:** Establish baseline before implementing fix
+- **Implementation Plan:**
+  - Run manual test: copy multiline text (code block, multi-line message) and paste into chat input
+  - Log the resulting content and verify newlines are preserved in `InputText` property
+  - Check if any event handlers suppress newlines on paste
+- **Files to Inspect:**
+  - `src/VSIXProject1/Views/ChatPage.xaml` (TextBox markup)
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (InputText property, paste handling)
+
+#### **gap42_2: Ensure Multiline Paste Support in TextBox**
+
+- **Status:** ⏳ Pending
+- **Goal:** Verify or enable the TextBox to accept `AcceptsReturn="True"` and `TextWrapping="Wrap"` so multiline paste is preserved
+- **Reasoning:** WPF TextBox requires explicit configuration to support multiline input and newline preservation on paste
+- **Implementation Plan:**
+  - Confirm `ChatPage.xaml` TextBox has `AcceptsReturn="True"` and `TextWrapping="Wrap"`
+  - Verify `InputTextBox.Paste()` does not suppress or sanitize newlines
+  - Add/update paste event handler if needed to preserve newlines: `PreviewTextInputEvent` or `Clipboard` monitoring
+  - Log: `[gap42-paste] multiline content pasted: {n} lines, {len} characters`
+- **Files to Modify:**
+  - `src/VSIXProject1/Views/ChatPage.xaml` (TextBox attributes)
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (if paste event handler needed)
+
+#### **gap42_3: Test Multiline Paste**
+
+- **Status:** ⏳ Pending
+- **Goal:** Unit tests confirming multiline paste works end-to-end
+- **Implementation Plan:**
+  - Unit test: simulate `TextBox.Paste()` with multiline clipboard content (string with `\n`)
+  - Verify `InputText` property reflects all lines
+  - Manual test matrix:
+    - Code block with 5+ lines
+    - Stack trace (typically multiline)
+    - JSON payload with indentation
+- **Files to Modify:**
+  - `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelTests.cs` (or new test file)
+
+#### **Design Notes:**
+- No changes to keyboard handling (`Enter`/`Shift+Enter`) — those remain unchanged
+- Multiline paste must work alongside existing `Enter` = Send, `Shift+Enter` = newline feature
+- Visual feedback: user should see all pasted lines in the input box before hitting Send
+
+---
+
+### gap43: Plan Mode Output Not Persisted to ~/.continueVS/plans
+
+**Status:** ⏳ Pending | Type: Plan Persistence Feature  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** HIGH (Plan mode generates LLM responses but does not save them to disk; users cannot retrieve or review plans after session closes)
+
+**Problem:**  
+When a user operates in Plan mode (mode=2), the LLM generates a structured implementation plan in response to the user query. However, the generated plan text is not automatically persisted to the user's home directory under `~/.continueVS/plans/`. This means:
+- Plans exist only in memory during the session; lost when session ends
+- No persistent plan history or audit trail
+- Users cannot reference or re-run old plans
+- Inconsistent with Continue.js which exports plans to the file system
+
+#### **gap43_1: Audit Current Plan Mode Output Behavior**
+
+- **Status:** ⏳ Pending
+- **Goal:** Confirm that Plan mode LLM responses are received but not persisted, and identify where persistence should hook in
+- **Reasoning:** Establish the gap before implementing the save logic
+- **Implementation Plan:**
+  - Run manual test: enter Plan mode, send a message like "create a plan for X", observe response in UI
+  - Check logs for plan generation completion
+  - Verify `~/.continueVS/plans/` directory does not contain new files after plan generation
+  - Trace `ChatPageViewModel` to find where Plan mode response is handled
+- **Files to Inspect:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (Plan mode handling, response assembly)
+  - `src/VSIXProject1/Services/Interfaces/` (look for plan-related service interfaces)
+  - `~/.continueVS/plans/` (verify no files created)
+
+#### **gap43_2: Create IPlanService Interface and PlanService Implementation**
+
+- **Status:** ⏳ Pending
+- **Goal:** Build a service to handle plan persistence: save, load, list, delete plans
+- **Reasoning:** Encapsulate plan I/O and lifecycle in a dedicated service
+- **Implementation Plan:**
+  - Create `IplanService.cs` interface with methods:
+    - `SavePlanAsync(string title, string content, DateTime createdAt) : Task<string>` → returns plan ID (filename)
+    - `LoadPlanAsync(string planId) : Task<string>` → returns plan content
+    - `ListPlansAsync() : IAsyncEnumerable<PlanMetadata>` → enumerate all saved plans
+    - `DeletePlanAsync(string planId) : Task`
+  - Create `PlanService.cs` implementation:
+    - Plans directory: `Path.Combine(Environment.UserProfile, ".continueVS", "plans")`
+    - File format: `<timestamp>_<title>.md` (e.g., `20240115_RefactorAuth_plan.md`)
+    - File content: markdown with plan text (structured with headers, steps)
+    - Handle directory creation, file I/O, serialization
+- **Files to Create:**
+  - `src/VSIXProject1/Services/Interfaces/IPlanService.cs`
+  - `src/VSIXProject1/Services/Implementations/PlanService.cs`
+
+#### **gap43_3: Wire Plan Export into ChatPageViewModel**
+
+- **Status:** ⏳ Pending
+- **Goal:** Trigger plan save whenever Plan mode response completes
+- **Reasoning:** Plans should auto-save on generation; no extra user action required
+- **Implementation Plan:**
+  - Inject `IPlanService` into `ChatPageViewModel`
+  - After Plan mode response is fully streamed and added to session, extract the plan text from `assistantMessage.Content`
+  - Build title from first line or user query + timestamp
+  - Call `_planService.SavePlanAsync(title, content, DateTime.UtcNow)`
+  - Log: `[gap43-export] plan saved to ~/.continueVS/plans/{planId}`
+  - Add UI notification: "Plan saved to file" toast/banner (optional)
+- **Files to Modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (Plan mode export hook)
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs` (register `IPlanService` → `PlanService`)
+
+#### **gap43_4: Test Plan Persistence**
+
+- **Status:** ⏳ Pending
+- **Goal:** Unit and integration tests confirming plans save and load correctly
+- **Implementation Plan:**
+  - Unit tests for `PlanService`:
+    - `SavePlanAsync` creates file with correct name and content
+    - `LoadPlanAsync` retrieves saved plan
+    - `ListPlansAsync` returns correct count
+    - `DeletePlanAsync` removes file
+  - Integration test: mock Plan mode response → verify plan file created and readable
+  - Manual test: generate plan in UI → verify file in `~/.continueVS/plans/`
+- **Files to Modify:**
+  - `src/VSIXProject1.Tests/Services/PlanServiceTests.cs` (new)
+
+#### **Design Notes:**
+- Plan files are markdown for human readability and version control
+- Naming convention: `<timestamp>_<sanitized-title>.md` to ensure uniqueness and sortability
+- Plans directory auto-created on first save
+- No size limits enforced; assume user disk space is adequate
+- Plans are immutable after save (no edit-in-place; delete and re-generate if needed)
+- UIState or SessionService can optionally track plan references for quick-access UI
+
+---
+
+### gap44: One Pipeline, Five Configurations
+
+**Status:** ⏳ Pending | Type: Architectural Refactor  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** HIGH (Current implementation has mode-specific code paths and phase executors that duplicate pipeline logic; all five modes share identical streaming, tool loop, context building, token budgeting, and session infrastructure — the only true differentiators are system prompt and tool policy)
+
+**Problem:**  
+The five chat modes (Ask, Agent, Plan, Debug, Reason) are implemented as partially separate code paths. `DebugStrategyGeneratorService`, `InstrumentationPhaseExecutor`, and `PhaseExecutors` are C# orchestration trying to do what the LLM already does naturally given the right system prompt and tool policy. The debug system prompt itself already says *"You operate as in agent mode so all tools are available"* — confirming there is no architectural difference. This means:
+
+- Mode-specific phase executors duplicate logic already handled by the tool loop
+- Adding a new mode requires new C# orchestration code instead of just a new configuration entry
+- When Agent mode encounters errors it applies debug-style reasoning anyway — the LLM decides, not the mode code
+- Ask, Plan, and Reason all perform root cause analysis when needed — the capability isn't exclusive to Debug
+- The partition creates false ceilings: Debug can't freely use Agent's write tools; Reason can't hand off to Plan mid-conversation
+
+**Architectural Principle:**  
+```
+Mode = SystemPrompt + ToolPolicy + LLM
+```
+The LLM is the runtime orchestrator. C# enforces policy (which capabilities are available). The system prompt steers intent. Everything else — sequencing, tool selection, iteration, hypothesis testing — is the LLM's job.
+
+**Capability Registry (shared across all modes):**
+
+| Capability | Ask | Agent | Plan | Debug | Reason |
+|---|---|---|---|---|---|
+| `read_file` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `write_file` | — | ✓ | — | ✓ | — |
+| `tool_loop` | — | ✓ | — | ✓ | — |
+| `debugger_context` | — | — | — | ✓ | — |
+| `plan_export` | — | — | ✓ | — | — |
+| `codeblock_format` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `session_history` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `token_budget` | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+#### **gap44_1: Audit and Map Existing Mode-Specific Code Paths**
+
+- **Status:** ⏳ Pending
+- **Goal:** Identify every place in the codebase where mode-specific logic is encoded in C# that should instead be expressed as system prompt or tool policy
+- **Reasoning:** Before refactoring, get a complete inventory of what needs to move
+- **Implementation Plan:**
+  - Grep for `CurrentMode ==` / `ChatMode.Debug` / `PhaseExecutor` / `DebugStrategy` checks in non-service files
+  - Document each site: is this a system-prompt concern, a tool-policy concern, or genuinely C# infrastructure?
+  - Flag `InstrumentationPhaseExecutor`, `DebugStrategyGeneratorService`, and all `PhaseExecutors` as candidates for removal
+  - Confirm `SystemPromptService.GetDefaultPromptForMode()` already covers the LLM-instruction half
+- **Files to Inspect:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (mode-switch branches)
+  - `src/VSIXProject1/Services/Implementations/PhaseExecutors/` (all files)
+  - `src/VSIXProject1/Services/Implementations/DebugStrategyGeneratorService.cs`
+  - `src/VSIXProject1/Services/Implementations/DebugSessionService.cs`
+
+#### **gap44_2: Define ModeConfig as the Single Mode Descriptor**
+
+- **Status:** ⏳ Pending
+- **Goal:** Replace implicit mode behavior with an explicit `ModeConfig` record that fully describes what a mode is
+- **Reasoning:** A named configuration is the single source of truth — no behavior scattered across services
+- **Implementation Plan:**
+  - Create `ModeConfig` type:
+    ```csharp
+    public class ModeConfig
+    {
+        public ChatMode Mode { get; init; }
+        public string SystemPrompt { get; init; }
+        public IReadOnlyList<string> EnabledCapabilities { get; init; }
+        public bool AllowWriteTools { get; init; }
+        public bool AllowToolLoop { get; init; }
+        public bool RequiresDebuggerContext { get; init; }
+        public bool ExportsPlanFile { get; init; }
+    }
+    ```
+  - Create `ModeConfigRegistry` that returns the five built-in configs and supports user overrides
+  - System prompts sourced from `SystemPromptService` (already exists — no change needed there)
+- **Files to Create:**
+  - `src/VSIXProject1/Core/Types/ModeConfig.cs`
+  - `src/VSIXProject1/Services/Implementations/ModeConfigRegistry.cs`
+  - `src/VSIXProject1/Services/Interfaces/IModeConfigRegistry.cs`
+
+#### **gap44_3: Unify ExecuteSendMessage to Use ModeConfig**
+
+- **Status:** ⏳ Pending
+- **Goal:** Remove all `if (CurrentMode == ChatMode.X)` branches in `ExecuteSendMessage` and replace with a single `ModeConfig`-driven dispatch
+- **Reasoning:** One pipeline: resolve config → build payload → stream → handle tool calls → done. The config decides what's allowed; the LLM decides what to do with it
+- **Implementation Plan:**
+  - In `ExecuteSendMessage()`:
+    - Resolve `ModeConfig cfg = _modeConfigRegistry.GetConfig(CurrentMode)`
+    - System prompt: `cfg.SystemPrompt` (sourced via `SystemPromptService`)
+    - Tool policy: pass `cfg.AllowWriteTools`, `cfg.AllowToolLoop` to `StreamOptions`
+    - Debugger context: if `cfg.RequiresDebuggerContext`, inject debug session state into context
+    - Plan export: if `cfg.ExportsPlanFile`, call `_planService.SavePlanAsync()` on completion
+  - Tool loop guard: check `cfg.AllowToolLoop` instead of `CurrentMode == ChatMode.Agent`
+  - Remove `PhaseExecutors` call sites — the LLM now orchestrates its own phases
+- **Files to Modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+  - `src/VSIXProject1/Core/Types/StreamOptions.cs` (add ToolPolicy fields)
+
+#### **gap44_4: Remove Redundant Phase Executor Infrastructure**
+
+- **Status:** ⏳ Pending
+- **Goal:** Delete or stub out `PhaseExecutors`, `InstrumentationPhaseExecutor`, and the debug-specific orchestration layer
+- **Reasoning:** These are C# trying to orchestrate what the LLM handles via the tool loop and system prompt; they add complexity without adding capability
+- **Implementation Plan:**
+  - Verify gap44_3 is complete and no mode is broken
+  - Remove `InstrumentationPhaseExecutor` and any other `PhaseExecutors` that are now unreachable
+  - Keep `DebugSessionService` and `DebugSessionCollector` — they provide debugger context data (genuine infrastructure)
+  - Keep `DebugStrategyGeneratorService` only if it produces context injected into the system prompt; remove otherwise
+  - Run full test suite; fix any broken references
+- **Files to Modify/Delete:**
+  - `src/VSIXProject1/Services/Implementations/PhaseExecutors/` (remove contents)
+  - `src/VSIXProject1/Services/Implementations/DebugStrategyGeneratorService.cs` (evaluate)
+
+#### **gap44_5: Test Coverage for Unified Pipeline**
+
+- **Status:** ⏳ Pending
+- **Goal:** Confirm all five modes produce correct system prompts, correct tool policies, and correct capability gating through the unified path
+- **Implementation Plan:**
+  - Unit tests for `ModeConfigRegistry`: each mode returns correct config values
+  - Unit tests for `ExecuteSendMessage` mock path: correct system prompt injected per mode, tool loop runs for Agent/Debug, skipped for Ask/Plan/Reason, debugger context injected for Debug only, plan file saved for Plan only
+  - Regression tests: existing `ChatPageViewModelAgentModeTests` still pass; new equivalent for Debug, Plan, Reason, Ask
+- **Files to Create/Modify:**
+  - `src/VSIXProject1.Tests/Services/ModeConfigRegistryTests.cs` (new)
+  - `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelModeTests.cs` (new or extend existing)
+
+#### **Design Notes:**
+- `DebugSessionService` / `DebugSessionCollector` remain — they are data providers (debugger context), not orchestrators
+- `SystemPromptService` remains unchanged — it is the correct home for LLM instruction text
+- `ModeConfig` is the only new type; no new services needed beyond the registry
+- Adding a sixth mode in the future = one new `ModeConfig` entry + one system prompt string; zero new C# orchestration
+- The LLM is trusted to apply the right behavior given the right policy + prompt; C# enforces guardrails only
+- Mode-switching mid-conversation is safe: the next `PackageMessages` call picks up the new `ModeConfig`
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
