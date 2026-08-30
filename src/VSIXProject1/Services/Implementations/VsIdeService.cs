@@ -87,6 +87,19 @@ namespace ContinueVS.Services.Implementations
 
         // Git Operations
 
+        public Task<string> GetActiveDocumentPathAsync()
+        {
+            try
+            {
+                var path = _dteProvider.GetActiveFilepath();
+                return Task.FromResult(string.IsNullOrWhiteSpace(path) ? "none" : path);
+            }
+            catch
+            {
+                return Task.FromResult("none");
+            }
+        }
+
         public Task<string> GetBranchAsync() => Task.FromResult(string.Empty);
 
         public Task<string> GetRepoNameAsync() => Task.FromResult(string.Empty);

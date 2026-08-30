@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
@@ -20,8 +21,16 @@ namespace ContinueVS.Services.Implementations
 
         private static readonly string ConfigFilePath = Path.Combine(ConfigDirectory, "system-prompts.json");
 
+        private readonly IWorkspaceStatsService? _statsService;
+
         private SystemPromptConfig? _config;
         private bool _isLoaded;
+
+        /// <summary>Initializes with optional workspace stats service for runtime context injection.</summary>
+        public SystemPromptService(IWorkspaceStatsService? statsService = null)
+        {
+            _statsService = statsService;
+        }
 
         public async Task LoadAsync()
         {
@@ -125,7 +134,7 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
-        private static string GetDefaultPromptForMode(string mode)
+        private string GetDefaultPromptForMode(string mode)
         {
             const string CODEBLOCK_FORMATTING_INSTRUCTIONS =
                 "Always include the language and file name in the info string when you write code blocks.\n" +
@@ -170,7 +179,7 @@ namespace ContinueVS.Services.Implementations
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
-                           "</important_rules>";
+                           "</important_rules>" + GetContextSuffix("agent");
 
                 case "plan":
                     return "<important_rules>\n" +
@@ -181,7 +190,7 @@ namespace ContinueVS.Services.Implementations
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +
                            "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
-                           "</important_rules>";
+                           "</important_rules>" + GetContextSuffix("plan");
 
                 case "debug":
                     return "<important_rules>\n" +
@@ -190,7 +199,7 @@ namespace ContinueVS.Services.Implementations
                            "You operate as in agent mode so all tools are available. prompt user for changes, on accept, make the changes.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
-                           "</important_rules>";
+                           "</important_rules>" + GetContextSuffix("debug");
 
                 case "reason":
                     return "<important_rules>\n" +
@@ -200,7 +209,7 @@ namespace ContinueVS.Services.Implementations
                            "Only use read-only tools. If the user wants changes implemented, suggest switching to Agent mode.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
-                           "</important_rules>";
+                           "</important_rules>" + GetContextSuffix("reason");
 
                 default:  // chat/ask mode
                     return "<important_rules>\n" +
@@ -209,9 +218,101 @@ namespace ContinueVS.Services.Implementations
                            "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
                            //EDIT_CODE_INSTRUCTIONS + "\n" +
-                           "</important_rules>";
+                           "</important_rules>" + GetContextSuffix("ask");
             }
         }
+
+        private string GetContextSuffix(string mode)
+        {
+            if (_statsService == null)
+                return string.Empty;
+
+            _statsService.Refresh();
+            var s = _statsService.GetStats();
+
+            var sb = new StringBuilder();
+            sb.Append("\n").Append(BuildWorkspaceContextBlock(s, mode));
+
+            switch (mode)
+            {
+                case "agent":
+                    var agentBlock = BuildAgentContextBlock(s);
+                    if (!string.IsNullOrEmpty(agentBlock)) sb.Append("\n").Append(agentBlock);
+                    break;
+                case "plan":
+                    var planBlock = BuildPlanContextBlock(s);
+                    if (!string.IsNullOrEmpty(planBlock)) sb.Append("\n").Append(planBlock);
+                    break;
+                case "debug":
+                    var debugBlock = BuildDebugContextBlock(s);
+                    if (!string.IsNullOrEmpty(debugBlock)) sb.Append("\n").Append(debugBlock);
+                    break;
+            }
+
+            return sb.ToString();
+        }
+
+        private static string BuildWorkspaceContextBlock(WorkspaceStats s, string mode)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<workspace_context>");
+            AppendField(sb, "active_file", s.ActiveFile);
+            AppendField(sb, "git_branch", s.GitBranch);
+            AppendField(sb, "solution_path", s.SolutionPath);
+            // chat_mode reflects the mode string being built
+            if (!IsEmpty(mode)) sb.AppendLine($"  <chat_mode>{mode}</chat_mode>");
+            sb.Append("</workspace_context>");
+            return sb.ToString();
+        }
+
+        private static string BuildAgentContextBlock(WorkspaceStats s)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<agent_context>");
+            AppendField(sb, "target_frameworks", s.TargetFrameworks);
+            AppendField(sb, "git_remote", s.GitRemote);
+            AppendField(sb, "shell", s.Shell);
+            sb.Append("</agent_context>");
+            return HasAnyContent(sb) ? sb.ToString() : string.Empty;
+        }
+
+        private static string BuildPlanContextBlock(WorkspaceStats s)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<plan_context>");
+            AppendField(sb, "target_frameworks", s.TargetFrameworks);
+            AppendField(sb, "git_remote", s.GitRemote);
+            AppendField(sb, "completed_gaps", s.CompletedGaps);
+            sb.Append("</plan_context>");
+            return HasAnyContent(sb) ? sb.ToString() : string.Empty;
+        }
+
+        private static string BuildDebugContextBlock(WorkspaceStats s)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<debug_context>");
+            AppendField(sb, "target_frameworks", s.TargetFrameworks);
+            AppendField(sb, "git_remote", s.GitRemote);
+            AppendField(sb, "debug_mode", s.DebugMode);
+            AppendField(sb, "break_location", s.BreakLocation);
+            sb.Append("</debug_context>");
+            return HasAnyContent(sb) ? sb.ToString() : string.Empty;
+        }
+
+        private static void AppendField(StringBuilder sb, string name, string value)
+        {
+            if (!IsEmpty(value))
+                sb.AppendLine($"  <{name}>{value}</{name}>");
+        }
+
+        private static bool IsEmpty(string value)
+            => string.IsNullOrWhiteSpace(value)
+               || string.Equals(value, "unknown", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(value, "none", StringComparison.OrdinalIgnoreCase);
+
+        // Returns true when the StringBuilder contains at least one field element between the outer tags
+        private static bool HasAnyContent(StringBuilder sb)
+            => sb.ToString().Contains("  <");
     }
 }
 

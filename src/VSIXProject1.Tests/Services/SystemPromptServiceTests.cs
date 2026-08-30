@@ -233,5 +233,49 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(config);
             Assert.True(config.SystemPrompts.ContainsKey("reason"), "system-prompts.json must contain a 'reason' key");
         }
+
+        [Fact]
+        public void GetPromptForMode_Ask_ContainsWorkspaceContextBlock()
+        {
+            // Arrange
+            var stats = new ContinueVS.Core.Types.WorkspaceStats { GitBranch = "main" };
+            var stubStats = new StubWorkspaceStatsService(stats);
+            var svc = new SystemPromptService(stubStats);
+
+            // Act
+            var prompt = svc.GetPromptForMode("ask");
+
+            // Assert
+            Assert.Contains("<workspace_context>", prompt, StringComparison.Ordinal);
+            Assert.Contains("<git_branch>main</git_branch>", prompt, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void GetPromptForMode_Agent_ContainsAgentContextBlock_NotPlanContextBlock()
+        {
+            // Arrange
+            var stats = new ContinueVS.Core.Types.WorkspaceStats
+            {
+                GitBranch = "main",
+                TargetFrameworks = "net472",
+                Shell = "powershell.exe"
+            };
+            var svc = new SystemPromptService(new StubWorkspaceStatsService(stats));
+
+            // Act
+            var prompt = svc.GetPromptForMode("agent");
+
+            // Assert
+            Assert.Contains("<agent_context>", prompt, StringComparison.Ordinal);
+            Assert.DoesNotContain("<plan_context>", prompt, StringComparison.Ordinal);
+        }
+
+        private sealed class StubWorkspaceStatsService : ContinueVS.Services.Interfaces.IWorkspaceStatsService
+        {
+            private readonly ContinueVS.Core.Types.WorkspaceStats _stats;
+            public StubWorkspaceStatsService(ContinueVS.Core.Types.WorkspaceStats stats) => _stats = stats;
+            public ContinueVS.Core.Types.WorkspaceStats GetStats() => _stats;
+            public void Refresh() { }
+        }
     }
 }

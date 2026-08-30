@@ -54,7 +54,16 @@ namespace ContinueVS.Services
             // Register UI/Navigation services
             services.AddSingleton<IPageNavigator, PageNavigator>();
             services.AddSingleton<IThemeService, ThemeService>();
-            services.AddSingleton<ISystemPromptService, SystemPromptService>();
+
+            // Workspace stats service: collects runtime fields for system prompt context injection (gap38)
+            System.Diagnostics.Debug.WriteLine("[sv-di] registering IWorkspaceStatsService (WorkspaceStatsService)");
+            services.AddSingleton<IWorkspaceStatsService>(sp => new WorkspaceStatsService(
+                sp.GetRequiredService<IIdeService>(),
+                sp.GetRequiredService<IDebuggerService>()));
+            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IWorkspaceStatsService registered");
+
+            services.AddSingleton<ISystemPromptService>(sp =>
+                new SystemPromptService(sp.GetRequiredService<IWorkspaceStatsService>()));
             services.AddSingleton<IMarkdownService, MarkdownService>();
             // gap44_2: ModeConfigRegistry is the single source of truth for mode policy
             services.AddSingleton<IModeConfigRegistry>(sp =>

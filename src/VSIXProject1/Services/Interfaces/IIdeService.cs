@@ -174,6 +174,12 @@ namespace ContinueVS.Services.Interfaces
 
         // Git Operations
         /// <summary>
+        /// Gets the full path of the currently active document in the editor, or "none".
+        /// </summary>
+        /// <returns>Absolute file path of the active document, or "none" if none is open.</returns>
+        Task<string> GetActiveDocumentPathAsync();
+
+        /// <summary>
         /// Gets the current git branch.
         /// </summary>
         /// <returns>The branch name.</returns>

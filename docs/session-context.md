@@ -4961,9 +4961,9 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 ### gap38: Runtime Workspace Context Injection into System Prompts
 
-**Status:** ⏳ Pending | Type: Feature / Service
+**Status:** ✅ Complete | Type: Feature / Service
 **Phase:** 3 (Core Feature Completion)
-**Priority:** HIGH — All five modes currently send static system prompts with zero runtime workspace awareness. The LLM cannot know the active file, git state, target framework, debugger state, or implementation progress. This gap adds a single `IWorkspaceStatsService` that collects all runtime fields once per prompt-build, and `SystemPromptService` slices the result into a per-mode XML context block appended to each mode's existing `</important_rules>` string.
+**Priority:** HIGH
 
 **Replaces:** original gap38 (chat stats), gap39 (agent stats), gap40 (plan stats), gap41 (debug stats) — unified under one service and one pass.
 
@@ -4982,7 +4982,7 @@ Elements whose value is `"unknown"` or `"none"` are **omitted** from the block t
 
 #### **gap38_1: Create `WorkspaceStats` record**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Single flat class holding all fields collected by `IWorkspaceStatsService`; modes consume what they need
 - **Reasoning:** One type avoids the `WorkspaceStats` / `AgentWorkspaceStats` / `PlanWorkspaceStats` / `DebugWorkspaceStats` quad that the original specs described — zero duplicate collection code, no type hierarchy to maintain
 - **Implementation Plan:**
@@ -4995,7 +4995,7 @@ Elements whose value is `"unknown"` or `"none"` are **omitted** from the block t
 
 #### **gap38_2: Create `IWorkspaceStatsService` interface**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Define the contract for stats collection; decouples `SystemPromptService` from DTE2, git processes, and file I/O
 - **Reasoning:** `SystemPromptService.GetPromptForMode` is sync — stats must be returned synchronously from a pre-collected cache. The interface returns a cached `WorkspaceStats` immediately; background refresh is an implementation detail
 - **Implementation Plan:**
@@ -5009,7 +5009,7 @@ Elements whose value is `"unknown"` or `"none"` are **omitted** from the block t
 
 #### **gap38_3: Implement `WorkspaceStatsService`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Collect all `WorkspaceStats` fields from existing services (`IIdeService`, `IDebuggerService`) and system environment; cache result
 - **Reasoning:** All underlying sources already exist — `IIdeService.GetBranchAsync()`, `GetGitRootPathAsync()`, `GetRepoNameAsync()`; `IDebuggerService.GetCurrentStateAsync()`; `.csproj` XML scan; environment variables; `session-context.md` regex — only the aggregation is missing
 - **Implementation Plan:**
@@ -5032,7 +5032,7 @@ Elements whose value is `"unknown"` or `"none"` are **omitted** from the block t
 
 #### **gap38_4: Add `GetActiveDocumentPathAsync()` to `IIdeService` and implement in `VsIdeService`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Expose active document path from DTE2 through the existing `IIdeService` abstraction so `WorkspaceStatsService` is not coupled to `IDteProvider` directly
 - **Reasoning:** `IIdeService` already wraps all DTE2 access; adding one member keeps the abstraction boundary consistent and keeps `WorkspaceStatsService` testable without a VS process
 - **Implementation Plan:**
@@ -5046,7 +5046,7 @@ Elements whose value is `"unknown"` or `"none"` are **omitted** from the block t
 
 #### **gap38_5: Inject `IWorkspaceStatsService` into `SystemPromptService` and emit context blocks**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Append mode-scoped XML context blocks to each `case` in `GetDefaultPromptForMode`
 - **Reasoning:** `SystemPromptService` is the single assembly point for all system prompts; no other file needs to change to add context
 - **Implementation Plan:**
@@ -5065,7 +5065,7 @@ Elements whose value is `"unknown"` or `"none"` are **omitted** from the block t
 
 #### **gap38_6: Register `IWorkspaceStatsService` in `ServiceBootstrapper`**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Wire the new service into the DI container
 - **Implementation Plan:**
   - `services.AddSingleton<IWorkspaceStatsService>(sp => new WorkspaceStatsService(sp.GetRequiredService<IIdeService>(), sp.GetRequiredService<IDebuggerService>()))`
@@ -5077,7 +5077,7 @@ Elements whose value is `"unknown"` or `"none"` are **omitted** from the block t
 
 #### **gap38_7: Tests**
 
-- **Status:** ⏳ Pending
+- **Status:** ✅ Complete
 - **Goal:** Verify all four mode-specific context blocks emit correctly; verify graceful fallback when all sources are unavailable
 - **Implementation Plan:**
   - `WorkspaceStatsServiceTests.cs` (new):
