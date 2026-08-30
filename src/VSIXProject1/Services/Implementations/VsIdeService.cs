@@ -100,11 +100,84 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
-        public Task<string> GetBranchAsync() => Task.FromResult(string.Empty);
+        public Task<string> GetBranchAsync()
+        {
+            try
+            {
+                var workDir = ResolveGitWorkingDir();
+                if (workDir == null) return Task.FromResult(string.Empty);
+                var branch = RunGit("rev-parse --abbrev-ref HEAD", workDir);
+                return Task.FromResult(branch);
+            }
+            catch { return Task.FromResult(string.Empty); }
+        }
 
-        public Task<string> GetRepoNameAsync() => Task.FromResult(string.Empty);
+        public Task<string> GetRepoNameAsync()
+        {
+            try
+            {
+                var root = RunGitRootSync();
+                if (string.IsNullOrWhiteSpace(root)) return Task.FromResult(string.Empty);
+                return Task.FromResult(Path.GetFileName((root ?? string.Empty).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
+            }
+            catch { return Task.FromResult(string.Empty); }
+        }
 
-        public Task<string> GetGitRootPathAsync() => Task.FromResult(string.Empty);
+        public Task<string> GetGitRootPathAsync()
+        {
+            try
+            {
+                var root = RunGitRootSync();
+                return Task.FromResult(root ?? string.Empty);
+            }
+            catch { return Task.FromResult(string.Empty); }
+        }
+
+        private string? ResolveGitWorkingDir()
+        {
+            try
+            {
+                var activeFile = _dteProvider.GetActiveFilepath();
+                if (!string.IsNullOrWhiteSpace(activeFile))
+                {
+                    var dir = Path.GetDirectoryName(activeFile);
+                    if (dir != null && Directory.Exists(dir)) return dir;
+                }
+            }
+            catch { /* fall through */ }
+            return Directory.GetCurrentDirectory();
+        }
+
+        private string? RunGitRootSync()
+        {
+            var workDir = ResolveGitWorkingDir();
+            if (workDir == null) return null;
+            var result = RunGit("rev-parse --show-toplevel", workDir);
+            // git outputs forward slashes on Windows; normalise to backslash
+            return string.IsNullOrWhiteSpace(result) ? null : result.Replace('/', Path.DirectorySeparatorChar);
+        }
+
+        private static string RunGit(string args, string workingDir)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("git", args)
+                {
+                    WorkingDirectory = workingDir,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var proc = System.Diagnostics.Process.Start(psi))
+                {
+                    var output = proc?.StandardOutput.ReadToEnd()?.Trim() ?? string.Empty;
+                    proc?.WaitForExit();
+                    return output;
+                }
+            }
+            catch { return string.Empty; }
+        }
 
         // LSP Operations
 

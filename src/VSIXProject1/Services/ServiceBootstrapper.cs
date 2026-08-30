@@ -59,7 +59,8 @@ namespace ContinueVS.Services
             System.Diagnostics.Debug.WriteLine("[sv-di] registering IWorkspaceStatsService (WorkspaceStatsService)");
             services.AddSingleton<IWorkspaceStatsService>(sp => new WorkspaceStatsService(
                 sp.GetRequiredService<IIdeService>(),
-                sp.GetRequiredService<IDebuggerService>()));
+                sp.GetRequiredService<IDebuggerService>(),
+                sp.GetRequiredService<IConfigService>()));
             System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IWorkspaceStatsService registered");
 
             services.AddSingleton<ISystemPromptService>(sp =>

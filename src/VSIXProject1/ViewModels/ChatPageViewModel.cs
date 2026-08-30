@@ -992,9 +992,13 @@ public string? InputText
                         if (modeConfig.AllowPhaseExecution && !string.IsNullOrWhiteSpace(assistantMessage.Content))
                         {
                             var changeStackId = Guid.NewGuid().ToString();
-                            var targetDir = _ideService != null
-                                ? await _ideService.GetGitRootPathAsync()
-                                : System.Environment.CurrentDirectory;
+                            var targetDir = System.Environment.CurrentDirectory;
+                            if (_ideService != null)
+                            {
+                                var gitRoot = await _ideService.GetGitRootPathAsync();
+                                if (!string.IsNullOrWhiteSpace(gitRoot))
+                                    targetDir = gitRoot;
+                            }
                             var execInstruction = new ContinueVS.Core.Types.ExecutionInstruction
                             {
                                 Text = assistantMessage.Content

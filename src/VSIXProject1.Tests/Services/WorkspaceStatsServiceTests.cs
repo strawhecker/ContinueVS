@@ -89,7 +89,7 @@ namespace ContinueVS.Services.Tests
             {
                 OnGetCurrentState = () => throw new Exception("fail")
             };
-            var svc = new WorkspaceStatsService(ideStub, debugStub, testGitRoot: CreateTempDir());
+            var svc = new WorkspaceStatsService(ideStub, debugStub, testGitRoot: CreateTempDir(), testGitBranch: "unknown");
 
             // Act
             var stats = svc.GetStats();
@@ -108,9 +108,10 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public void GetStats_GitBranch_PopulatedFromIdeService()
         {
-            // Arrange
-            var ideStub = new StubIdeService { OnGetBranchAsync = () => Task.FromResult("main") };
-            var svc = new WorkspaceStatsService(ideStub, new StubDebuggerService(), testGitRoot: CreateTempDir());
+            // Arrange — use testGitBranch seam; git process is not available in test environment
+            var svc = new WorkspaceStatsService(
+                new StubIdeService(), new StubDebuggerService(),
+                testGitRoot: CreateTempDir(), testGitBranch: "main");
 
             // Act
             var stats = svc.GetStats();

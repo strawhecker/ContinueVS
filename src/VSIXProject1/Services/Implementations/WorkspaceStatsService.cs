@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
@@ -19,17 +20,165 @@ namespace ContinueVS.Services.Implementations
     {
         private readonly IIdeService _ideService;
         private readonly IDebuggerService _debuggerService;
+        private readonly IConfigService? _configService;
 
-        // Optional test seam: when non-null, used as git root instead of calling IIdeService.GetGitRootPathAsync()
+        // Optional test seam: when non-null, used as git root instead of running git rev-parse
         private readonly string? _testGitRoot;
+        // Optional test seam: when non-null, returned as branch instead of running git rev-parse
+        private readonly string? _testGitBranch;
 
         private WorkspaceStats? _stats;
 
-        public WorkspaceStatsService(IIdeService ideService, IDebuggerService debuggerService, string? testGitRoot = null)
+        // Resolved once at construction time from user config + environment probes.
+        private readonly string _gitExe;
+
+        public WorkspaceStatsService(
+            IIdeService ideService,
+            IDebuggerService debuggerService,
+            IConfigService? configService = null,
+            string? testGitRoot = null,
+            string? testGitBranch = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _debuggerService = debuggerService ?? throw new ArgumentNullException(nameof(debuggerService));
+            _configService = configService;
             _testGitRoot = testGitRoot;
+            _testGitBranch = testGitBranch;
+            _gitExe = ResolveGitExe(GetUserConfiguredGitPath());
+            System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git resolved to: {_gitExe}");
+        }
+
+        private string? GetUserConfiguredGitPath()
+        {
+            try
+            {
+                var cfg = _configService?.GetCurrentConfig();
+                return string.IsNullOrWhiteSpace(cfg?.GitPath) ? null : cfg!.GitPath;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Resolves the git executable at startup using a priority-ordered probe chain:
+        /// 1. User-configured path from config.json (highest priority)
+        /// 2. VS-bundled git (ships with VS for source control)
+        /// 3. Windows registry GitForWindows InstallPath
+        /// 4. GIT_EXEC_PATH / GIT_INSTALL_ROOT environment variables
+        /// 5. Walk the process PATH entries
+        /// 6. Common Git-for-Windows install locations
+        /// 7. Bare "git" fallback (works when git is already on PATH in the host process)
+        /// </summary>
+        private static string ResolveGitExe(string? userPath)
+        {
+            // 1. User override
+            if (!string.IsNullOrWhiteSpace(userPath) && File.Exists(userPath))
+            {
+                System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: using user config path: {userPath}");
+                return userPath!;
+            }
+
+            // 2. VS-bundled git — most reliable when devenv.exe has a stripped PATH
+            //    VSAPPIDDIR points to the VS IDE directory (e.g. ...\Common7\IDE\)
+            var vsAppIdDir = Environment.GetEnvironmentVariable("VSAPPIDDIR");
+            if (!string.IsNullOrWhiteSpace(vsAppIdDir))
+            {
+                var vsBundled = Path.Combine(
+                    vsAppIdDir.TrimEnd(Path.DirectorySeparatorChar),
+                    "..", "..",
+                    "CommonExtensions", "Microsoft", "TeamFoundation",
+                    "Team Explorer", "Git", "cmd", "git.exe");
+                try
+                {
+                    var full = Path.GetFullPath(vsBundled);
+                    if (File.Exists(full))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: using VS-bundled git: {full}");
+                        return full;
+                    }
+                }
+                catch { /* path resolution failed */ }
+            }
+
+            // 3. Windows registry: HKLM\SOFTWARE\GitForWindows → InstallPath
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.LocalMachine
+                    .OpenSubKey(@"SOFTWARE\GitForWindows"))
+                {
+                    var installPath = key?.GetValue("InstallPath") as string;
+                    if (!string.IsNullOrWhiteSpace(installPath))
+                    {
+                        foreach (var rel in new[] { @"bin\git.exe", @"cmd\git.exe" })
+                        {
+                            var candidate = Path.Combine(installPath, rel);
+                            if (File.Exists(candidate))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: registry hit: {candidate}");
+                                return candidate;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* registry access failed */ }
+
+            // 4. GIT_EXEC_PATH / GIT_INSTALL_ROOT environment variables
+            foreach (var envVar in new[] { "GIT_EXEC_PATH", "GIT_INSTALL_ROOT" })
+            {
+                var val = Environment.GetEnvironmentVariable(envVar);
+                if (string.IsNullOrWhiteSpace(val)) continue;
+                foreach (var rel in new[] { "git.exe", @"bin\git.exe", @"cmd\git.exe" })
+                {
+                    try
+                    {
+                        var candidate = Path.Combine(val, rel);
+                        if (File.Exists(candidate))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: env var {envVar} hit: {candidate}");
+                            return candidate;
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // 5. Walk the process PATH
+            var pathVar = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            foreach (var dir in pathVar.Split(Path.PathSeparator))
+            {
+                try
+                {
+                    var candidate = Path.Combine(dir.Trim(), "git.exe");
+                    if (File.Exists(candidate))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: PATH hit: {candidate}");
+                        return candidate;
+                    }
+                }
+                catch { }
+            }
+
+            // 6. Common Git-for-Windows install locations
+            var common = new[]
+            {
+                @"C:\Program Files\Git\bin\git.exe",
+                @"C:\Program Files\Git\cmd\git.exe",
+                @"C:\Program Files (x86)\Git\bin\git.exe",
+            };
+            foreach (var c in common)
+            {
+                if (File.Exists(c))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: common path hit: {c}");
+                    return c;
+                }
+            }
+
+            // 7. Bare fallback
+            System.Diagnostics.Debug.WriteLine(
+                "[WorkspaceStatsService] git: all probes failed; falling back to bare 'git'. " +
+                "Set 'gitPath' in ~/.continueVS/config.json to override.");
+            return "git";
         }
 
         /// <inheritdoc/>
@@ -43,12 +192,27 @@ namespace ContinueVS.Services.Implementations
         /// <inheritdoc/>
         public void Refresh()
         {
+            // Collect the DTE-dependent active file path on the calling (UI) thread before
+            // dispatching to a thread-pool thread, where ThreadHelper.ThrowIfNotOnUIThread() would throw.
+            string activeFile = CollectActiveFile();
+
+            // Dispatch remaining (git/filesystem/blocking) work to a thread-pool thread so the
+            // inner .GetAwaiter().GetResult() calls never block the VS UI thread.
+#pragma warning disable VSTHRD002
+            Task.Run(() => RefreshCore(activeFile)).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+        }
+
+        private void RefreshCore(string activeFile)
+        {
             var s = new WorkspaceStats();
 
-            s.ActiveFile = CollectActiveFile();
-            s.GitBranch = CollectGitBranch();
+            s.ActiveFile = activeFile;
 
-            var gitRoot = CollectGitRoot();
+            var workDir = ResolveWorkDirFromFile(activeFile);
+            s.GitBranch = CollectGitBranch(workDir);
+
+            var gitRoot = CollectGitRoot(workDir);
 
             s.GitRemote = CollectGitRemote(gitRoot);
             s.SolutionPath = CollectSolutionPath(gitRoot);
@@ -58,6 +222,17 @@ namespace ContinueVS.Services.Implementations
             s.CompletedGaps = CollectCompletedGaps(gitRoot);
 
             _stats = s;
+            System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] Refresh complete: ActiveFile={s.ActiveFile}, GitBranch={s.GitBranch}, SolutionPath={s.SolutionPath}");
+        }
+
+        private static string? ResolveWorkDirFromFile(string activeFile)
+        {
+            if (!string.IsNullOrWhiteSpace(activeFile) && activeFile != "none")
+            {
+                var dir = Path.GetDirectoryName(activeFile);
+                if (dir != null && Directory.Exists(dir)) return dir;
+            }
+            return Directory.GetCurrentDirectory();
         }
 
         private string CollectActiveFile()
@@ -72,39 +247,63 @@ namespace ContinueVS.Services.Implementations
             catch { return "none"; }
         }
 
-        private string CollectGitBranch()
+        private string CollectGitBranch(string? workDir)
         {
+            if (_testGitBranch != null) return _testGitBranch;
+            if (string.IsNullOrWhiteSpace(workDir)) return "unknown";
             try
             {
-#pragma warning disable VSTHRD002
-                var branch = _ideService.GetBranchAsync().GetAwaiter().GetResult();
-#pragma warning restore VSTHRD002
-                return string.IsNullOrWhiteSpace(branch) ? "unknown" : branch;
+                var psi = new ProcessStartInfo(_gitExe, "rev-parse --abbrev-ref HEAD")
+                {
+                    WorkingDirectory = workDir,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var proc = Process.Start(psi))
+                {
+                    var output = (proc?.StandardOutput.ReadToEnd() ?? string.Empty).Trim();
+                    proc?.WaitForExit();
+                    return string.IsNullOrWhiteSpace(output) ? "unknown" : output;
+                }
             }
             catch { return "unknown"; }
         }
 
-        private string CollectGitRoot()
+        private string CollectGitRoot(string? workDir)
         {
             if (_testGitRoot != null)
                 return _testGitRoot;
+            if (string.IsNullOrWhiteSpace(workDir)) return string.Empty;
             try
             {
-#pragma warning disable VSTHRD002
-                var root = _ideService.GetGitRootPathAsync().GetAwaiter().GetResult();
-#pragma warning restore VSTHRD002
-                return string.IsNullOrWhiteSpace(root) ? string.Empty : root;
+                var psi = new ProcessStartInfo(_gitExe, "rev-parse --show-toplevel")
+                {
+                    WorkingDirectory = workDir,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (var proc = Process.Start(psi))
+                {
+                    var output = (proc?.StandardOutput.ReadToEnd() ?? string.Empty).Trim();
+                    proc?.WaitForExit();
+                    if (string.IsNullOrWhiteSpace(output)) return string.Empty;
+                    return output.Replace('/', Path.DirectorySeparatorChar);
+                }
             }
             catch { return string.Empty; }
         }
 
-        private static string CollectGitRemote(string gitRoot)
+        private string CollectGitRemote(string gitRoot)
         {
             if (string.IsNullOrWhiteSpace(gitRoot) || !Directory.Exists(gitRoot))
                 return "none";
             try
             {
-                var psi = new ProcessStartInfo("git", "remote get-url origin")
+                var psi = new ProcessStartInfo(_gitExe, "remote get-url origin")
                 {
                     WorkingDirectory = gitRoot,
                     RedirectStandardOutput = true,

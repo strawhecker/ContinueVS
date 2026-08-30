@@ -102,5 +102,12 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonIgnore]
         public DateTime LastModified { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Optional full path to the git executable (e.g. "C:\Program Files\Git\bin\git.exe").
+        /// When set, overrides automatic git discovery. Leave null/empty to use auto-detection.
+        /// </summary>
+        [JsonProperty("gitPath")]
+        public string? GitPath { get; set; }
     }
 }

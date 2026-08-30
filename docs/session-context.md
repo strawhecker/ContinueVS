@@ -4967,6 +4967,13 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 **Replaces:** original gap38 (chat stats), gap39 (agent stats), gap40 (plan stats), gap41 (debug stats) — unified under one service and one pass.
 
+**Additional fixes applied post-completion:**
+- Fixed UI-thread deadlock: `Refresh()` now collects `activeFile` on UI thread, dispatches git/FS work to thread pool via `Task.Run`
+- Fixed `GetPromptForMode` not appending context suffix when prompt loaded from config file (was only appended on fallback path)
+- Fixed git not found in VS process: implemented 7-step git resolver at startup (user config > VS-bundled git > registry > env vars > PATH > common dirs > bare fallback)
+- Added `gitPath` setting to `ContinueConfig` for user override when auto-detection fails
+- `WorkspaceStatsService` now accepts `IConfigService` to read user-configured `gitPath`
+
 **Per-mode output contract:**
 
 | Mode | XML block tag | Fields |

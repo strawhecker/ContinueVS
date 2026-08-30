@@ -68,7 +68,7 @@ namespace ContinueVS.Services.Implementations
 
             if (_config?.SystemPrompts.TryGetValue(mode.ToLowerInvariant(), out var item) == true)
             {
-                return item.Prompt;
+                return item.Prompt + GetContextSuffix(mode);
             }
 
             return GetDefaultPromptForMode(mode);
@@ -217,39 +217,51 @@ namespace ContinueVS.Services.Implementations
                            "If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.\n" +
                            "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
-                           //EDIT_CODE_INSTRUCTIONS + "\n" +
                            "</important_rules>" + GetContextSuffix("ask");
+                    //EDIT_CODE_INSTRUCTIONS + "\n" +
             }
         }
 
         private string GetContextSuffix(string mode)
         {
             if (_statsService == null)
-                return string.Empty;
-
-            _statsService.Refresh();
-            var s = _statsService.GetStats();
-
-            var sb = new StringBuilder();
-            sb.Append("\n").Append(BuildWorkspaceContextBlock(s, mode));
-
-            switch (mode)
             {
-                case "agent":
-                    var agentBlock = BuildAgentContextBlock(s);
-                    if (!string.IsNullOrEmpty(agentBlock)) sb.Append("\n").Append(agentBlock);
-                    break;
-                case "plan":
-                    var planBlock = BuildPlanContextBlock(s);
-                    if (!string.IsNullOrEmpty(planBlock)) sb.Append("\n").Append(planBlock);
-                    break;
-                case "debug":
-                    var debugBlock = BuildDebugContextBlock(s);
-                    if (!string.IsNullOrEmpty(debugBlock)) sb.Append("\n").Append(debugBlock);
-                    break;
+                System.Diagnostics.Debug.WriteLine("[SystemPromptService] GetContextSuffix: _statsService is NULL — workspace context will not be injected");
+                return string.Empty;
             }
 
-            return sb.ToString();
+            try
+            {
+                var s = _statsService.GetStats();
+
+                var sb = new StringBuilder();
+                sb.Append("\n").Append(BuildWorkspaceContextBlock(s, mode));
+
+                switch (mode)
+                {
+                    case "agent":
+                        var agentBlock = BuildAgentContextBlock(s);
+                        if (!string.IsNullOrEmpty(agentBlock)) sb.Append("\n").Append(agentBlock);
+                        break;
+                    case "plan":
+                        var planBlock = BuildPlanContextBlock(s);
+                        if (!string.IsNullOrEmpty(planBlock)) sb.Append("\n").Append(planBlock);
+                        break;
+                    case "debug":
+                        var debugBlock = BuildDebugContextBlock(s);
+                        if (!string.IsNullOrEmpty(debugBlock)) sb.Append("\n").Append(debugBlock);
+                        break;
+                }
+
+                var suffix = sb.ToString();
+                System.Diagnostics.Debug.WriteLine($"[SystemPromptService] GetContextSuffix({mode}) produced {suffix.Length} chars");
+                return suffix;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SystemPromptService] GetContextSuffix failed: {ex.Message}");
+                return string.Empty;
+            }
         }
 
         private static string BuildWorkspaceContextBlock(WorkspaceStats s, string mode)
