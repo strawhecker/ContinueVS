@@ -4959,249 +4959,156 @@ The current mode list is `Ask | Agent | Plan | Debug`. A `Reason` mode (chain-of
 
 ---
 
-### gap38: chat mode stats that help LLM
+### gap38: Runtime Workspace Context Injection into System Prompts
 
-**Status:** ⏳ Pending | Type: Feature / Service  
-**Phase:** 3 (Core Feature Completion)  
-**Priority:** MEDIUM (Improves LLM grounding by supplying runtime workspace context automatically)
+**Status:** ⏳ Pending | Type: Feature / Service
+**Phase:** 3 (Core Feature Completion)
+**Priority:** HIGH — All five modes currently send static system prompts with zero runtime workspace awareness. The LLM cannot know the active file, git state, target framework, debugger state, or implementation progress. This gap adds a single `IWorkspaceStatsService` that collects all runtime fields once per prompt-build, and `SystemPromptService` slices the result into a per-mode XML context block appended to each mode's existing `</important_rules>` string.
 
-**Problem:**  
-The system prompt returned from `GetDefaultPromptForMode` in `SystemPromptService.cs` contains static text. The LLM has no visibility into runtime workspace state (active file, git branch, solution path, current chat mode, etc.) unless the user manually pastes that information. Injecting a small, structured stats block into the system prompt — at the `<important_rules>` injection point — would ground the LLM in the developer's actual environment without any extra user effort.
+**Replaces:** original gap38 (chat stats), gap39 (agent stats), gap40 (plan stats), gap41 (debug stats) — unified under one service and one pass.
 
-#### **gap38_1: Collect runtime workspace stats**
+**Per-mode output contract:**
 
-- **Status:** ⏳ Pending
-- **Goal:** Gather the set of workspace stats that are most useful to the LLM at the time a prompt is built
-- **Reasoning:** The selected code (`return "<important_rules>\n" +`) in `SystemPromptService.cs` is where system-prompt content is assembled; stats must be ready before this string is composed
-- **Implementation Plan:**
-  - Read the active document path from the VS DTE service (`DTE2.ActiveDocument.FullName`) — fall back to `"none"` if no file is open
-  - Read the current git branch by calling `git rev-parse --abbrev-ref HEAD` in the solution directory — fall back to `"unknown"` on failure
-  - Read the solution file path from `IVsSolution` — available via MEF/VS service provider
-  - Read the active `ChatMode` enum value from the current session context
-  - Expose these as a simple `WorkspaceStats` record or struct so callers are not coupled to individual service calls
-- **Files to Modify:**
-  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
-  - `src/VSIXProject1/Core/Types/WorkspaceStats.cs` *(new)*
+| Mode | XML block tag | Fields |
+|------|--------------|--------|
+| Ask, Reason | `<workspace_context>` | `active_file`, `git_branch`, `solution_path`, `chat_mode` |
+| Agent | `<workspace_context>` + `<agent_context>` | base + `target_frameworks`, `git_remote`, `shell` |
+| Plan | `<workspace_context>` + `<plan_context>` | base + `target_frameworks`, `git_remote`, `completed_gaps` |
+| Debug | `<workspace_context>` + `<debug_context>` | base + `target_frameworks`, `git_remote`, `debug_mode`, `break_location` |
 
-#### **gap38_2: Inject stats block into the system prompt**
-
-- **Status:** ⏳ Pending
-- **Goal:** Append the collected stats as a structured XML-style block inside the string already returned at the `<important_rules>` site in `GetDefaultPromptForMode`
-- **Implementation Plan:**
-  - Build a `<workspace_context>` block containing `<active_file>`, `<git_branch>`, `<solution_path>`, and `<chat_mode>` child elements
-  - Concatenate this block into the return value at the `<important_rules>` section — after existing rules, before the closing tag — so downstream prompt consumers receive it automatically
-  - Keep the block short (single-line values only) to avoid token bloat
-- **Files to Modify:**
-  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
-
-#### **gap38_3: Test coverage**
-
-- **Status:** ⏳ Pending
-- **Goal:** Verify that the injected stats block is present and well-formed for each chat mode
-- **Implementation Plan:**
-  - Unit test: `GetPromptForMode_ContainsWorkspaceContextBlock` — assert `<workspace_context>` is present in the returned string for every `ChatMode` value
-  - Unit test: `WorkspaceStats_FallsBackGracefully` — when active file and git branch are unavailable, fallback strings (`"none"`, `"unknown"`) are used without throwing
-  - Mock `DTE2` and `IVsSolution` via existing test infrastructure rather than hitting the live VS process
-- **Files to Modify:**
-  - `src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs`
+Elements whose value is `"unknown"` or `"none"` are **omitted** from the block to avoid token noise.
 
 ---
 
-### gap39: agent mode stats that help LLM
-
-**Status:** ⏳ Pending | Type: Feature / Service  
-**Phase:** 3 (Core Feature Completion)  
-**Priority:** HIGH (Agent mode requires richer workspace grounding than chat mode; without it the LLM cannot reliably reason about project structure, targeting, or implementation state)
-
-**Problem:**  
-Agent mode operates autonomously across multiple steps and files. The LLM needs structured, runtime-derived context to make correct decisions: what framework is targeted, which gaps are already complete, which solution/project files exist, what shell is available, which file is active, and which branch is checked out. Currently none of this is injected automatically. The agent must either ask the user or guess, both of which produce errors. Gap39 adds an Agent-specific stats block — richer than the chat-mode block in gap38 — that is assembled at prompt-build time and injected into the Agent system prompt.
-
-#### **gap39_1: Collect agent-specific workspace stats**
+#### **gap38_1: Create `WorkspaceStats` record**
 
 - **Status:** ⏳ Pending
-- **Goal:** Gather the superset of workspace stats needed by the Agent LLM at prompt-build time
-- **Reasoning:** Agent mode reasons across files and steps; it needs project-target info, solution layout, shell type, active file, and git state that chat mode does not require
+- **Goal:** Single flat class holding all fields collected by `IWorkspaceStatsService`; modes consume what they need
+- **Reasoning:** One type avoids the `WorkspaceStats` / `AgentWorkspaceStats` / `PlanWorkspaceStats` / `DebugWorkspaceStats` quad that the original specs described — zero duplicate collection code, no type hierarchy to maintain
 - **Implementation Plan:**
-  - Resolve `.NET` target framework moniker(s) by reading `<TargetFramework>` / `<TargetFrameworks>` from each `.csproj` in the solution directory — fall back to `"unknown"` if unreadable
-  - Read the solution file path from `IVsSolution` (already available via VS service provider)
-  - Read the active document path from `DTE2.ActiveDocument.FullName` — fall back to `"none"`
-  - Read the current git branch via `git rev-parse --abbrev-ref HEAD` in the solution directory — fall back to `"unknown"`
-  - Read the git remote URL via `git remote get-url origin` — fall back to `"none"`
-  - Read the preferred shell from the VS user profile or environment (`COMSPEC` / `PSModulePath` heuristic) — default to `"powershell.exe"`
-  - Expose all fields as an `AgentWorkspaceStats` record (extends or composes `WorkspaceStats` from gap38)
+  - Create `src/VSIXProject1/Core/Types/WorkspaceStats.cs` as a plain `sealed class` (net472 has no `record` keyword)
+  - Fields: `ActiveFile` (default `"none"`), `GitBranch` (default `"unknown"`), `GitRemote` (default `"none"`), `SolutionPath` (default `"none"`), `TargetFrameworks` (comma-separated TFMs, default `"unknown"`), `Shell` (default `"powershell.exe"`), `ChatMode` (string name of current mode, default `"unknown"`), `DebugMode` (`"design"` / `"break"` / `"run"` / `"none"`, default `"none"`), `BreakLocation` (`"file:line"` in break mode, default `"none"`), `CompletedGaps` (comma-separated gap IDs, default `"none"`)
+- **Files to Create:**
+  - `src/VSIXProject1/Core/Types/WorkspaceStats.cs`
+
+---
+
+#### **gap38_2: Create `IWorkspaceStatsService` interface**
+
+- **Status:** ⏳ Pending
+- **Goal:** Define the contract for stats collection; decouples `SystemPromptService` from DTE2, git processes, and file I/O
+- **Reasoning:** `SystemPromptService.GetPromptForMode` is sync — stats must be returned synchronously from a pre-collected cache. The interface returns a cached `WorkspaceStats` immediately; background refresh is an implementation detail
+- **Implementation Plan:**
+  - Create `src/VSIXProject1/Services/Interfaces/IWorkspaceStatsService.cs`
+  - `WorkspaceStats GetStats()` — returns the most recently collected snapshot
+  - `void Refresh()` — triggers synchronous re-collection; called by `SystemPromptService` before assembling each prompt
+- **Files to Create:**
+  - `src/VSIXProject1/Services/Interfaces/IWorkspaceStatsService.cs`
+
+---
+
+#### **gap38_3: Implement `WorkspaceStatsService`**
+
+- **Status:** ⏳ Pending
+- **Goal:** Collect all `WorkspaceStats` fields from existing services (`IIdeService`, `IDebuggerService`) and system environment; cache result
+- **Reasoning:** All underlying sources already exist — `IIdeService.GetBranchAsync()`, `GetGitRootPathAsync()`, `GetRepoNameAsync()`; `IDebuggerService.GetCurrentStateAsync()`; `.csproj` XML scan; environment variables; `session-context.md` regex — only the aggregation is missing
+- **Implementation Plan:**
+  - Constructor: `WorkspaceStatsService(IIdeService ideService, IDebuggerService debuggerService)`
+  - `Refresh()` collects all fields synchronously (`.GetAwaiter().GetResult()` on background-safe call sites; never on UI thread):
+    - `ActiveFile` — `ideService.GetActiveDocumentPathAsync()` (fall back to `"none"`)
+    - `GitBranch` — `ideService.GetBranchAsync()` (fall back to `"unknown"`)
+    - `GitRemote` — `git remote get-url origin` via `Process` in git root dir (fall back to `"none"`)
+    - `SolutionPath` — scan git root for `*.slnx` / `*.sln` (fall back to `"none"`)
+    - `TargetFrameworks` — scan all `*.csproj` in solution dir for `<TargetFramework>` / `<TargetFrameworks>` XML nodes; comma-join unique values (fall back to `"unknown"`)
+    - `Shell` — `PSModulePath` env var present → `"powershell.exe"`; else `COMSPEC` → `"cmd.exe"`; default `"powershell.exe"`
+    - `DebugMode` + `BreakLocation` — `debuggerService.GetCurrentStateAsync()` → map `IsRunning` and `CallStack[0]` (fall back to `"none"`)
+    - `CompletedGaps` — read `session-context.md` from git root; regex `### (gap\S+).*✅`; comma-join IDs (fall back to `"none"`)
+  - `GetStats()` — returns cached `_stats`; calls `Refresh()` on first call if cache is null
+  - All collection steps individually wrapped in `try/catch`; failures fall back without throwing
+- **Files to Create:**
+  - `src/VSIXProject1/Services/Implementations/WorkspaceStatsService.cs`
+
+---
+
+#### **gap38_4: Add `GetActiveDocumentPathAsync()` to `IIdeService` and implement in `VsIdeService`**
+
+- **Status:** ⏳ Pending
+- **Goal:** Expose active document path from DTE2 through the existing `IIdeService` abstraction so `WorkspaceStatsService` is not coupled to `IDteProvider` directly
+- **Reasoning:** `IIdeService` already wraps all DTE2 access; adding one member keeps the abstraction boundary consistent and keeps `WorkspaceStatsService` testable without a VS process
+- **Implementation Plan:**
+  - Add `Task<string> GetActiveDocumentPathAsync()` to `IIdeService` — returns full path or `"none"`
+  - Implement in `VsIdeService`: call `ThreadHelper.JoinableTaskFactory.Run(() => dte.ActiveDocument?.FullName ?? "none")`
 - **Files to Modify:**
-  - `src/VSIXProject1/Core/Types/AgentWorkspaceStats.cs` *(new)*
+  - `src/VSIXProject1/Services/Interfaces/IIdeService.cs`
+  - `src/VSIXProject1/Services/Implementations/VsIdeService.cs`
+
+---
+
+#### **gap38_5: Inject `IWorkspaceStatsService` into `SystemPromptService` and emit context blocks**
+
+- **Status:** ⏳ Pending
+- **Goal:** Append mode-scoped XML context blocks to each `case` in `GetDefaultPromptForMode`
+- **Reasoning:** `SystemPromptService` is the single assembly point for all system prompts; no other file needs to change to add context
+- **Implementation Plan:**
+  - Add optional constructor parameter: `SystemPromptService(IWorkspaceStatsService? statsService = null)`
+  - Add private `BuildWorkspaceContextBlock(WorkspaceStats s)` → `<workspace_context>` with `active_file`, `git_branch`, `solution_path`, `chat_mode`
+  - Add private `BuildAgentContextBlock(WorkspaceStats s)` → `<agent_context>` with `target_frameworks`, `git_remote`, `shell`
+  - Add private `BuildPlanContextBlock(WorkspaceStats s)` → `<plan_context>` with `target_frameworks`, `git_remote`, `completed_gaps`
+  - Add private `BuildDebugContextBlock(WorkspaceStats s)` → `<debug_context>` with `target_frameworks`, `git_remote`, `debug_mode`, `break_location`
+  - In each `case`: call `_statsService?.Refresh()` then append the appropriate block(s) after the existing `</important_rules>` close tag
+  - All builder helpers omit elements whose value is `"unknown"` or `"none"`
+  - When `_statsService` is `null` (all existing tests), no block is appended — zero test changes required
+- **Files to Modify:**
   - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
 
-#### **gap39_2: Inject agent stats block into the Agent system prompt**
+---
+
+#### **gap38_6: Register `IWorkspaceStatsService` in `ServiceBootstrapper`**
 
 - **Status:** ⏳ Pending
-- **Goal:** Append a structured `<agent_context>` XML block to the Agent-mode system prompt so the LLM receives all runtime stats without user input
-- **Reasoning:** The `case "agent":` branch of `GetDefaultPromptForMode` in `SystemPromptService.cs` is the single injection point; adding the block there ensures every agent session receives it
+- **Goal:** Wire the new service into the DI container
 - **Implementation Plan:**
-  - Build an `<agent_context>` block containing:
-    - `<target_frameworks>` — comma-separated TFMs found in solution projects
-    - `<solution_path>` — absolute path to `.slnx` / `.sln`
-    - `<active_file>` — currently open document, or `"none"`
-    - `<git_branch>` — current branch name
-    - `<git_remote>` — origin URL
-    - `<shell>` — preferred terminal shell
-  - Concatenate the block into the Agent case return value after the existing rules text, before the closing tag
-  - Keep each element single-line; omit elements whose value is `"unknown"` or `"none"` to avoid noise
+  - `services.AddSingleton<IWorkspaceStatsService>(sp => new WorkspaceStatsService(sp.GetRequiredService<IIdeService>(), sp.GetRequiredService<IDebuggerService>()))`
+  - Update `SystemPromptService` registration to pass `IWorkspaceStatsService`
 - **Files to Modify:**
-  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs`
 
-#### **gap39_3: Test coverage**
+---
+
+#### **gap38_7: Tests**
 
 - **Status:** ⏳ Pending
-- **Goal:** Verify the agent stats block is present, well-formed, and mode-scoped (not injected into non-agent prompts)
+- **Goal:** Verify all four mode-specific context blocks emit correctly; verify graceful fallback when all sources are unavailable
 - **Implementation Plan:**
-  - Unit test: `GetPromptForMode_Agent_ContainsAgentContextBlock` — assert `<agent_context>` is present in the agent-mode returned string
-  - Unit test: `GetPromptForMode_Ask_DoesNotContainAgentContextBlock` — assert `<agent_context>` is absent from non-agent modes
-  - Unit test: `AgentWorkspaceStats_FallsBackGracefully` — when DTE, git, and project files are unavailable, fallback strings are used without throwing
-  - Mock `DTE2`, `IVsSolution`, and git process calls via existing test infrastructure
-- **Files to Modify:**
+  - `WorkspaceStatsServiceTests.cs` (new):
+    - `GetStats_ReturnsDefaults_WhenAllSourcesFail` — mock `IIdeService` + `IDebuggerService` throwing; assert all fields are fallback values, no exception thrown
+    - `GetStats_GitBranch_PopulatedFromIdeService` — mock `GetBranchAsync()` → `"main"`; assert `GitBranch == "main"`
+    - `GetStats_TargetFrameworks_ParsedFromCsproj` — write temp `.csproj` with `<TargetFramework>net472</TargetFramework>`; assert `TargetFrameworks == "net472"`
+    - `GetStats_CompletedGaps_ParsedFromSessionContext` — feed mock session-context content with `### gap1:` + `✅`; assert `CompletedGaps` contains `"gap1"`
+  - `SystemPromptServiceTests.cs` (extend):
+    - `GetPromptForMode_Ask_ContainsWorkspaceContextBlock` — mock `IWorkspaceStatsService`; assert `<workspace_context>` present
+    - `GetPromptForMode_Agent_ContainsAgentContextBlock` — assert `<agent_context>` present, `<plan_context>` absent
+    - `GetPromptForMode_Plan_ContainsPlanContextBlock` — assert `<plan_context>` present, `<agent_context>` absent
+    - `GetPromptForMode_Debug_ContainsDebugContextBlock` — assert `<debug_context>` present with `debug_mode`
+    - `GetPromptForMode_NullStatsService_NoContextBlock` — pass `null`; assert no XML block present
+    - `GetPromptForMode_OmitsElements_WhenValueIsNoneOrUnknown` — stats with `GitRemote = "none"`; assert `<git_remote>` tag absent
+- **Files to Create/Modify:**
+  - `src/VSIXProject1.Tests/Services/WorkspaceStatsServiceTests.cs` *(new)*
   - `src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs`
+
+---
 
 #### **Design Notes:**
-- `AgentWorkspaceStats` should compose rather than duplicate `WorkspaceStats` (gap38) — share the active-file and git-branch collection logic
-- Omitting unknown/none values keeps the injected block small; the LLM should not see empty tags
-- Shell detection matters for Agent mode because the LLM may generate terminal commands; knowing `powershell.exe` vs `cmd.exe` prevents shell-syntax errors
+- `WorkspaceStatsService` is a singleton — one cache per VS session; `Refresh()` per prompt-build is cheap (all sources are local/fast)
+- `GetPromptForMode` remains `string`-returning and sync — no async propagation up the call chain
+- The `null`-guard on `_statsService` is the compatibility bridge: every existing `new SystemPromptService()` call continues to work without modification, and no context block is emitted
+- Adding a new mode in future = one new `BuildXxxContextBlock` helper + one line in the new `case` — consistent with the gap44/45 "adding a mode = one entry" principle
+- `IIdeService` already has `GetBranchAsync()`, `GetGitRootPathAsync()` — reused directly; only `GetActiveDocumentPathAsync()` is new (gap38_4)
+- `IDebuggerService` already exists and wraps DTE2.Debugger — reused directly in gap38_3 for `DebugMode` + `BreakLocation`
 
 ---
 
-### gap40: planning mode stats that help LLM
-
-**Status:** ⏳ Pending | Type: Feature / Service  
-**Phase:** 3 (Core Feature Completion)  
-**Priority:** HIGH (Plan mode produces multi-step implementation plans; the LLM must know the project target, existing gap state, solution layout, and active file to generate steps that are correct and non-redundant)
-
-**Problem:**  
-Plan mode is used to generate ordered, atomic implementation roadmaps for ContinueVS (e.g., this very document). Without runtime workspace stats, the LLM cannot know which gaps are already complete, what framework is targeted, or which file is currently active — so it may propose steps that duplicate finished work or use the wrong API surface. Gap40 adds a Plan-mode-specific stats block that surfaces the live state of the implementation plan document, the project target, and the IDE environment so the LLM can produce accurate, non-redundant plans.
-
-#### **gap40_1: Collect planning-mode-specific workspace stats**
-
-- **Status:** ⏳ Pending
-- **Goal:** Gather the stats uniquely useful to Plan mode at prompt-build time — beyond the base set in gap38 — including project targeting and a summary of already-completed gaps
-- **Reasoning:** Plan mode reasons about *what to build next*; knowing completed gaps prevents the LLM from re-proposing finished work; knowing the TFM prevents API mismatches
-- **Implementation Plan:**
-  - Resolve target framework moniker(s) from `.csproj` files in the solution directory (e.g., `net472`) — fall back to `"unknown"`
-  - Read the solution file path from `IVsSolution`
-  - Read the active document path from `DTE2.ActiveDocument.FullName` — fall back to `"none"`
-  - Read the current git branch via `git rev-parse --abbrev-ref HEAD` — fall back to `"unknown"`
-  - Read the git remote URL via `git remote get-url origin` — fall back to `"none"`
-  - Scan `session-context.md` (or the active planning document) for gap headings marked `✅ Complete` and emit them as a comma-separated `<completed_gaps>` value — fall back to `"none"` if the file is not found
-  - Expose all fields in a `PlanWorkspaceStats` record (composes `WorkspaceStats` from gap38)
-- **Files to Modify:**
-  - `src/VSIXProject1/Core/Types/PlanWorkspaceStats.cs` *(new)*
-  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
-
-#### **gap40_2: Inject planning stats block into the Plan system prompt**
-
-- **Status:** ⏳ Pending
-- **Goal:** Append a structured `<plan_context>` XML block to the Plan-mode system prompt so the LLM receives runtime project state automatically
-- **Reasoning:** The `case "plan":` branch of `GetDefaultPromptForMode` in `SystemPromptService.cs` is the single injection point; scoping to Plan mode avoids polluting other modes
-- **Implementation Plan:**
-  - Build a `<plan_context>` block containing:
-    - `<target_frameworks>` — TFMs found across solution projects (e.g., `net472`)
-    - `<solution_path>` — absolute path to `.slnx` / `.sln`
-    - `<active_file>` — currently open document, or `"none"`
-    - `<git_branch>` — current branch name
-    - `<git_remote>` — origin URL
-    - `<completed_gaps>` — comma-separated list of gap IDs already marked complete in the planning doc
-  - Concatenate the block into the Plan case return value after existing prompt text
-  - Omit elements whose value is `"unknown"` or `"none"` to minimise token use
-- **Files to Modify:**
-  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
-
-#### **gap40_3: Test coverage**
-
-- **Status:** ⏳ Pending
-- **Goal:** Verify the plan stats block is present and well-formed for Plan mode, and absent from other modes
-- **Implementation Plan:**
-  - Unit test: `GetPromptForMode_Plan_ContainsPlanContextBlock` — assert `<plan_context>` is present in plan-mode output
-  - Unit test: `GetPromptForMode_Ask_DoesNotContainPlanContextBlock` — assert `<plan_context>` is absent from non-plan modes
-  - Unit test: `PlanWorkspaceStats_CompletedGaps_ParsedFromDocument` — feed a mock planning-doc string; assert correct gap IDs appear in `<completed_gaps>`
-  - Unit test: `PlanWorkspaceStats_FallsBackGracefully` — when DTE, git, and planning doc are unavailable, fallback strings used without throwing
-- **Files to Modify:**
-  - `src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs`
-
-#### **Design Notes:**
-- `PlanWorkspaceStats` composes `WorkspaceStats` (gap38) — share active-file and git-branch collection; add TFM scan and completed-gap scan on top
-- The completed-gap scan reads the planning document (`session-context.md`) at prompt-build time; it is intentionally lightweight (regex over headings) and must not block the UI thread
-- Known completed gaps at time of authoring: `gap1` (Ollama config predefinition), `gap2` (ChatPage DataContext binding), `gap5_5` (model selector)
-- Project target at time of authoring: `.NET Framework 4.7.2` (`net472`)
-
----
-
-### gap41: debug mode stats that help LLM
-
-**Status:** ⏳ Pending | Type: Feature / Service  
-**Phase:** 3 (Core Feature Completion)  
-**Priority:** HIGH (Debug mode must reason about the live VS debug session — breakpoints, active stack frame, exception state, and target project — none of which are currently injected into the system prompt)
-
-**Problem:**  
-Debug mode is used to investigate runtime failures, exceptions, and incorrect behaviour in the ContinueVS codebase. Without runtime stats the LLM cannot know which project is being debugged, what framework it targets, which file is active, what the current git branch is, or which gaps are already resolved — so it may suggest fixes that duplicate completed work or target the wrong API surface. Gap41 adds a Debug-mode-specific stats block that surfaces live VS debug session state alongside standard workspace context, so the LLM can produce accurate, targeted diagnostic suggestions.
-
-#### **gap41_1: Collect debug-mode-specific workspace stats**
-
-- **Status:** ⏳ Pending
-- **Goal:** Gather the stats uniquely useful to Debug mode at prompt-build time — VS debug session state on top of the base set from gap38
-- **Reasoning:** Debug mode reasons about *why something is broken at runtime*; knowing the active debug project, TFM, current file, and git branch prevents the LLM from suggesting fixes against the wrong target
-- **Implementation Plan:**
-  - Resolve target framework moniker(s) from `.csproj` files in the solution directory — fall back to `"unknown"`
-  - Read the solution file path from `IVsSolution`
-  - Read the active document path from `DTE2.ActiveDocument.FullName` — fall back to `"none"`
-  - Read the current git branch via `git rev-parse --abbrev-ref HEAD` — fall back to `"unknown"`
-  - Read the git remote URL via `git remote get-url origin` — fall back to `"none"`
-  - Read the VS debug mode state from `DTE2.Debugger.CurrentMode` — values: `dbgDesignMode`, `dbgBreakMode`, `dbgRunMode`; fall back to `"none"`
-  - Read the active stack frame file and line from `DTE2.Debugger.CurrentStackFrame` when in break mode — fall back to `"none"`
-  - Expose all fields in a `DebugWorkspaceStats` record (composes `WorkspaceStats` from gap38)
-- **Files to Modify:**
-  - `src/VSIXProject1/Core/Types/DebugWorkspaceStats.cs` *(new)*
-  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
-
-#### **gap41_2: Inject debug stats block into the Debug system prompt**
-
-- **Status:** ⏳ Pending
-- **Goal:** Append a structured `<debug_context>` XML block to the Debug-mode system prompt so the LLM receives live debug session state automatically
-- **Reasoning:** The `case "debug":` branch of `GetDefaultPromptForMode` in `SystemPromptService.cs` is the single injection point; scoping to Debug mode avoids polluting other modes
-- **Implementation Plan:**
-  - Build a `<debug_context>` block containing:
-    - `<target_frameworks>` — TFMs found across solution projects (e.g., `net472`)
-    - `<solution_path>` — absolute path to `.slnx` / `.sln`
-    - `<active_file>` — currently open document, or `"none"`
-    - `<git_branch>` — current branch name
-    - `<git_remote>` — origin URL
-    - `<debug_mode>` — VS debugger mode (`design`, `break`, `run`, or `none`)
-    - `<break_location>` — file path and line number of the active stack frame when in break mode, or `"none"`
-  - Concatenate the block into the Debug case return value after existing prompt text
-  - Omit elements whose value is `"unknown"` or `"none"` to minimise token use
-- **Files to Modify:**
-  - `src/VSIXProject1/Services/Implementations/SystemPromptService.cs`
-
-#### **gap41_3: Test coverage**
-
-- **Status:** ⏳ Pending
-- **Goal:** Verify the debug stats block is present and well-formed for Debug mode, and absent from other modes
-- **Implementation Plan:**
-  - Unit test: `GetPromptForMode_Debug_ContainsDebugContextBlock` — assert `<debug_context>` is present in debug-mode output
-  - Unit test: `GetPromptForMode_Ask_DoesNotContainDebugContextBlock` — assert `<debug_context>` is absent from non-debug modes
-  - Unit test: `DebugWorkspaceStats_BreakMode_IncludesBreakLocation` — mock `DTE2.Debugger` in break mode; assert `<break_location>` is populated
-  - Unit test: `DebugWorkspaceStats_FallsBackGracefully` — when DTE and git are unavailable, fallback strings used without throwing
-- **Files to Modify:**
-  - `src/VSIXProject1.Tests/Services/SystemPromptServiceTests.cs`
-
-#### **Design Notes:**
-- `DebugWorkspaceStats` composes `WorkspaceStats` (gap38) — share active-file and git-branch collection; add debugger-state fields on top
-- `DTE2.Debugger` is only available inside the VS process; tests must mock it via an `IIdeService` abstraction rather than calling DTE directly
-- Known completed gaps at time of authoring: `gap1`, `gap2`, `gap5_5`
-- Project target at time of authoring: `.NET Framework 4.7.2` (`net472`)
-- IDE at time of authoring: Microsoft Visual Studio Enterprise 2026 (18.8.3)
-
----
-
-### gap42: Multiline Paste Support in Chat Input
+### gap42:
 
 **Status:** ✅ Complete | Type: Chat Input UX Feature  
 **Phase:** 3 (Core Feature Completion)  
