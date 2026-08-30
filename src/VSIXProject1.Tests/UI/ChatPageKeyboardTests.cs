@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using Xunit;
@@ -14,8 +14,8 @@ namespace ContinueVS.Tests.UI
     /// <summary>
     /// gap35_1 / gap35_3: Unit tests verifying the SendMessageCommand CanExecute guard used by
     /// the InputTextBox_KeyDown handler. Tests are headless (no STA / WPF required).
-    /// gap35_1 covers: text present/not-streaming → true, empty text → false, streaming → false.
-    /// gap35_3 covers: IsPaused → false, ShowErrorBanner → false, whitespace-only input → false.
+    /// gap35_1 covers: text present/not-streaming ? true, empty text ? false, streaming ? false.
+    /// gap35_3 covers: IsPaused ? false, ShowErrorBanner ? false, whitespace-only input ? false.
     /// </summary>
     public class ChatPageKeyboardTests
     {
@@ -76,7 +76,7 @@ namespace ContinueVS.Tests.UI
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );
@@ -126,7 +126,7 @@ namespace ContinueVS.Tests.UI
         }
 
         /// <summary>
-        /// gap35_3: Additional CanExecute guard tests — IsPaused, ShowErrorBanner, whitespace-only input.
+        /// gap35_3: Additional CanExecute guard tests � IsPaused, ShowErrorBanner, whitespace-only input.
         /// Covers the composite predicate in CanSendMessage() that the InputTextBox_KeyDown handler
         /// respects before calling SendMessageCommand.Execute(null).
         /// </summary>

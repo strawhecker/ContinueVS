@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.ObjectModel;
@@ -93,7 +93,7 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );

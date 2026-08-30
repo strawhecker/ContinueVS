@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -18,10 +18,10 @@ using Xunit;
 namespace ContinueVS.Tests.Services
 {
     /// <summary>
-    /// Unit tests for DebugSessionService.
-    /// Tests orchestration flow: instruction load → phase generation → sequential phase execution → annotation.
+    /// Unit tests for InstructionExecutorService.
+    /// Tests orchestration flow: instruction load ? phase generation ? sequential phase execution ? annotation.
     /// </summary>
-    public class DebugSessionServiceTests
+    public class InstructionExecutorServiceTests
     {
         private readonly Mock<IInstructionProcessorService> _mockInstructionProcessor;
         private readonly Mock<IChangeStackService> _mockChangeStackService;
@@ -29,9 +29,9 @@ namespace ContinueVS.Tests.Services
         private readonly Mock<IInstrumentationService> _mockInstrumentationService;
         private readonly Mock<IInteractivePromptService> _mockPromptService;
         private readonly Mock<IBridgeLogger> _mockLogger;
-        private readonly DebugSessionService _service;
+        private readonly InstructionExecutorService _service;
 
-        public DebugSessionServiceTests()
+        public InstructionExecutorServiceTests()
         {
             _mockInstructionProcessor = new Mock<IInstructionProcessorService>();
             _mockChangeStackService = new Mock<IChangeStackService>();
@@ -46,7 +46,7 @@ namespace ContinueVS.Tests.Services
                 _mockInstrumentationService.Object,
                 _mockLogger.Object,
                 _mockPromptService.Object);
-            _service = new DebugSessionService(
+            _service = new InstructionExecutorService(
                 _mockInstructionProcessor.Object,
                 _mockChangeStackService.Object,
                 executorFactory,
@@ -57,7 +57,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_AllPhasesSucceed_AnnotatesAllPhases()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug issue with null reference" };
+            var instruction = new ExecutionInstruction { Text = "Debug issue with null reference" };
             var changeStack = new ChangeStack();
 
             _mockChangeStackService
@@ -111,7 +111,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_ZeroChangeObservationPhase_MarksCompleted()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Observe current state" };
+            var instruction = new ExecutionInstruction { Text = "Observe current state" };
             var changeStack = new ChangeStack();
 
             _mockChangeStackService
@@ -159,7 +159,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_MultiChangeInstrumentationPhase_TracksChangeCount()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Add instrumentation" };
+            var instruction = new ExecutionInstruction { Text = "Add instrumentation" };
             var changeStack = new ChangeStack();
 
             _mockChangeStackService
@@ -207,7 +207,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_PhaseFailure_StopsExecution()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug multi-phase workflow" };
+            var instruction = new ExecutionInstruction { Text = "Debug multi-phase workflow" };
             var changeStack = new ChangeStack();
 
             _mockChangeStackService
@@ -278,7 +278,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_PhaseSequencing_ExecutesInOrder()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Sequential phase execution test" };
+            var instruction = new ExecutionInstruction { Text = "Sequential phase execution test" };
             var changeStack = new ChangeStack();
             var executionOrder = new List<string>();
 
@@ -357,7 +357,7 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange
             var tempFile = Path.Combine(Path.GetTempPath(), $"instruction-{Guid.NewGuid()}.json");
-            var instruction = new DebugInstruction { Text = "Test instruction", Context = "Test context" };
+            var instruction = new ExecutionInstruction { Text = "Test instruction", Context = "Test context" };
             var json = Newtonsoft.Json.JsonConvert.SerializeObject(instruction);
 
             try
@@ -383,7 +383,7 @@ namespace ContinueVS.Tests.Services
         public async Task GetSessionState_AfterExecution_ReturnsPlan()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Session state test" };
+            var instruction = new ExecutionInstruction { Text = "Session state test" };
             var changeStack = new ChangeStack();
 
             _mockChangeStackService

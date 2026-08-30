@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -113,7 +113,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null);
 
@@ -166,7 +166,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null);
 

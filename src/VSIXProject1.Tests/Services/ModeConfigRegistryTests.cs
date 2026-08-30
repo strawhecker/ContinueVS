@@ -38,7 +38,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public void GetConfig_AgentMode_AllowsToolLoopAndWriteTools()
+        public void GetConfig_AgentMode_AllowsToolLoopWriteToolsAndPhaseExecution()
         {
             // Arrange
             var registry = CreateRegistry();
@@ -50,8 +50,9 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(ChatMode.Agent, cfg.Mode);
             Assert.True(cfg.AllowWriteTools);
             Assert.True(cfg.AllowToolLoop);
+            Assert.True(cfg.AllowPhaseExecution);
             Assert.False(cfg.RequiresDebuggerContext);
-            Assert.False(cfg.ExportsPlanFile);
+            Assert.True(cfg.ExportsPlanFile);
         }
 
         [Fact]
@@ -72,7 +73,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public void GetConfig_DebugMode_AllowsToolLoopWriteToolsAndDebuggerContext()
+        public void GetConfig_DebugMode_AllowsToolLoopWriteToolsPhaseExecutionAndDebuggerContext()
         {
             // Arrange
             var registry = CreateRegistry();
@@ -84,8 +85,9 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(ChatMode.Debug, cfg.Mode);
             Assert.True(cfg.AllowWriteTools);
             Assert.True(cfg.AllowToolLoop);
+            Assert.True(cfg.AllowPhaseExecution);
             Assert.True(cfg.RequiresDebuggerContext);
-            Assert.False(cfg.ExportsPlanFile);
+            Assert.True(cfg.ExportsPlanFile);
         }
 
         [Fact]
@@ -142,6 +144,44 @@ namespace ContinueVS.Tests.Services
             // Act & Assert
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 registry.GetConfig((ChatMode)999));
+        }
+
+        [Theory]
+        [InlineData(ChatMode.Ask,    false)]
+        [InlineData(ChatMode.Agent,  true)]
+        [InlineData(ChatMode.Plan,   false)]
+        [InlineData(ChatMode.Debug,  true)]
+        [InlineData(ChatMode.Reason, false)]
+        public void GetConfig_AllowPhaseExecution_TrueForAgentAndDebugOnly(
+            ChatMode mode, bool expected)
+        {
+            // Arrange
+            var registry = CreateRegistry();
+
+            // Act
+            var cfg = registry.GetConfig(mode);
+
+            // Assert
+            Assert.Equal(expected, cfg.AllowPhaseExecution);
+        }
+
+        [Theory]
+        [InlineData(ChatMode.Ask,    false)]
+        [InlineData(ChatMode.Agent,  true)]
+        [InlineData(ChatMode.Plan,   true)]
+        [InlineData(ChatMode.Debug,  true)]
+        [InlineData(ChatMode.Reason, false)]
+        public void GetConfig_ExportsPlanFile_TrueForAgentPlanAndDebug(
+            ChatMode mode, bool expected)
+        {
+            // Arrange
+            var registry = CreateRegistry();
+
+            // Act
+            var cfg = registry.GetConfig(mode);
+
+            // Assert
+            Assert.Equal(expected, cfg.ExportsPlanFile);
         }
     }
 }

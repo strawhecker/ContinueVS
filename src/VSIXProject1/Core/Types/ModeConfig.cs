@@ -38,6 +38,12 @@ namespace ContinueVS.Core.Types
         public bool AllowToolLoop { get; set; }
 
         /// <summary>
+        /// When true, phase execution is enabled after the tool loop completes.
+        /// Shared by Agent and Debug modes; false for Ask, Plan, and Reason.
+        /// </summary>
+        public bool AllowPhaseExecution { get; set; }
+
+        /// <summary>
         /// When true, debugger state (stack frames, locals, exceptions) is injected into the context block.
         /// True only for Debug mode.
         /// </summary>
@@ -45,7 +51,7 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// When true, the plan produced during this session is exported to a file via IPlanService on completion.
-        /// True only for Plan mode.
+        /// True for Agent, Plan, and Debug modes.
         /// </summary>
         public bool ExportsPlanFile { get; set; }
     }

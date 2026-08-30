@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
@@ -107,7 +107,7 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IDebugSessionService>().Object
+                new Mock<IInstructionExecutorService>().Object
             );
 
             // Assert: When not streaming, PauseCommand should be disabled
@@ -133,7 +133,7 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IDebugSessionService>().Object
+                new Mock<IInstructionExecutorService>().Object
             );
 
             // Act & Assert: Initial state - not paused, should show "Pause"
@@ -173,7 +173,7 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IDebugSessionService>().Object
+                new Mock<IInstructionExecutorService>().Object
             );
 
             // Simulate streaming state so PauseCommand is enabled

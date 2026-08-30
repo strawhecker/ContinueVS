@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using Xunit;
@@ -51,7 +51,7 @@ namespace ContinueVS.Tests.UI
             var uiStateMock = new Mock<IUIStateService>();
             uiStateMock.Setup(x => x.GetUIStateAsync()).ReturnsAsync(uiState);
 
-            var debugSessionMock = new Mock<IDebugSessionService>();
+            var debugSessionMock = new Mock<IInstructionExecutorService>();
 
             return new ChatPageViewModel(
                 llmMock.Object,

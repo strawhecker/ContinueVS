@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using Xunit;
@@ -74,7 +74,7 @@ namespace ContinueVS.Tests.UI
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );

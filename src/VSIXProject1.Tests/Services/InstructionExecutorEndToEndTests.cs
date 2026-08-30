@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -16,8 +16,8 @@ using Xunit;
 namespace ContinueVS.Tests.Services
 {
     /// <summary>
-    /// End-to-End Integration Tests for DebugSessionService.
-    /// Tests full workflow: instruction load → phases execute → changes applied → retry/rollback → annotation → save.
+    /// End-to-End Integration Tests for InstructionExecutorService.
+    /// Tests full workflow: instruction load ? phases execute ? changes applied ? retry/rollback ? annotation ? save.
     /// Scenarios: all phases pass, phase fails then succeeds, threshold bailout, user skip, resume from history.
     /// </summary>
     public class DebugModeEndToEndTests
@@ -30,7 +30,7 @@ namespace ContinueVS.Tests.Services
         private readonly Mock<ITestPlanExecutionRepository> _mockExecutionRepository;
         private readonly Mock<IBridgeLogger> _mockLogger;
         private readonly PhaseExecutorFactory _executorFactory;
-        private readonly DebugSessionService _service;
+        private readonly InstructionExecutorService _service;
 
         public DebugModeEndToEndTests()
         {
@@ -49,7 +49,7 @@ namespace ContinueVS.Tests.Services
                 _mockLogger.Object,
                 _mockPromptService.Object);
 
-            _service = new DebugSessionService(
+            _service = new InstructionExecutorService(
                 _mockInstructionProcessor.Object,
                 _mockChangeStackService.Object,
                 _executorFactory,
@@ -65,7 +65,7 @@ namespace ContinueVS.Tests.Services
         public async Task AllPhasesSucceed_ExecutesLinearFlow_VerifiesAllPhasesCompleted()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "All phases succeed without errors" };
+            var instruction = new ExecutionInstruction { Text = "All phases succeed without errors" };
             var changeStack = new ChangeStack();
 
             var testPlan = new TestPlan
@@ -133,7 +133,7 @@ namespace ContinueVS.Tests.Services
         public async Task PhaseExecution_InteractiveMode_VerifiesPhasesExecuted()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Phase execution in interactive mode" };
+            var instruction = new ExecutionInstruction { Text = "Phase execution in interactive mode" };
             var changeStack = new ChangeStack();
 
             var testPlan = new TestPlan
@@ -191,7 +191,7 @@ namespace ContinueVS.Tests.Services
         public async Task MultiPhaseExecution_AllPhasesSequenced_VerifiesCompletionOrder()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Multi-phase sequential execution" };
+            var instruction = new ExecutionInstruction { Text = "Multi-phase sequential execution" };
             var changeStack = new ChangeStack();
 
             var testPlan = new TestPlan
@@ -262,7 +262,7 @@ namespace ContinueVS.Tests.Services
         public async Task SessionState_AfterExecution_VerifiesStatePreserved()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Session state preservation" };
+            var instruction = new ExecutionInstruction { Text = "Session state preservation" };
             var changeStack = new ChangeStack();
 
             var testPlan = new TestPlan
@@ -357,7 +357,7 @@ namespace ContinueVS.Tests.Services
         public async Task ModeRouting_AutonomousMode_BypassesPrompts()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Autonomous mode routing" };
+            var instruction = new ExecutionInstruction { Text = "Autonomous mode routing" };
             var changeStack = new ChangeStack();
 
             var testPlan = new TestPlan

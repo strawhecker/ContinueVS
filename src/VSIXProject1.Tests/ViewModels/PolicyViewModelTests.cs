@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using System.Linq;
@@ -69,7 +69,7 @@ namespace ContinueVS.Tests.ViewModels
                 configMock.Object,
                 promptMock.Object,
                 uiStateMock.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 workflowService
             );

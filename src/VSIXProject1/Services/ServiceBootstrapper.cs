@@ -255,14 +255,14 @@ namespace ContinueVS.Services
                 return new InstructionProcessorService(llmService, logger);
             });
 
-            // Debug session service for orchestrating execution (gap29_8_4)
-            services.AddSingleton<IDebugSessionService>(sp =>
+            // Instruction executor service for orchestrating phase execution (gap29_8_4, gap45_2)
+            services.AddSingleton<IInstructionExecutorService>(sp =>
             {
                 var instructionProcessor = sp.GetRequiredService<IInstructionProcessorService>();
                 var changeStackService = sp.GetRequiredService<IChangeStackService>();
                 var executorFactory = sp.GetRequiredService<PhaseExecutorFactory>();
                 var logger = sp.GetRequiredService<IBridgeLogger>();
-                return new DebugSessionService(instructionProcessor, changeStackService, executorFactory, logger);
+                return new InstructionExecutorService(instructionProcessor, changeStackService, executorFactory, logger);
             });
 
             services.AddSingleton<IUIStateService>(sp =>

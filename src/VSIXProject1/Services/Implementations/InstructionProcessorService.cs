@@ -31,9 +31,9 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Generates ordered internal phases from a debug instruction via LLM interpretation.
+        /// Generates ordered internal phases from an execution instruction via LLM interpretation.
         /// </summary>
-        public async Task<TestPlan> GenerateInternalPhasesAsync(DebugInstruction instruction, CancellationToken cancellationToken = default)
+        public async Task<TestPlan> GenerateInternalPhasesAsync(ExecutionInstruction instruction, CancellationToken cancellationToken = default)
         {
             if (instruction == null)
                 throw new ArgumentNullException(nameof(instruction));
@@ -92,7 +92,7 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Builds the LLM prompt for phase generation.
         /// </summary>
-        private string BuildPrompt(DebugInstruction instruction)
+        private string BuildPrompt(ExecutionInstruction instruction)
         {
             var sb = new StringBuilder();
             sb.AppendLine("You are a debugging assistant. The user has provided a debug request.");

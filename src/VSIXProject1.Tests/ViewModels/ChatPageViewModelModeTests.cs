@@ -17,7 +17,7 @@ namespace ContinueVS.Tests.ViewModels
     /// </summary>
     public class ChatPageViewModelModeTests
     {
-        // ── Shared mock helpers (mirrors ChatPageViewModelAgentModeTests pattern) ────────
+        // -- Shared mock helpers (mirrors ChatPageViewModelAgentModeTests pattern) --------
 
         private static Mock<ILlmService> CreateLlmServiceMock()
         {
@@ -82,14 +82,14 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 systemPromptService.Object,
                 CreateUIStateServiceMock().Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null,
                 null,
                 registry ?? new ModeConfigRegistry(systemPromptService.Object));
         }
 
-        // ── Mode-switching tests ────────────────────────────────────────────────────────
+        // -- Mode-switching tests --------------------------------------------------------
 
         [Fact]
         public void CurrentMode_CanBeSetToAsk()
@@ -156,7 +156,7 @@ namespace ContinueVS.Tests.ViewModels
             Assert.Equal(ChatMode.Reason, vm.CurrentMode);
         }
 
-        // ── ModeConfig policy correctness via registry injection ──────────────────────
+        // -- ModeConfig policy correctness via registry injection ----------------------
 
         [Theory]
         [InlineData(ChatMode.Ask,    false, false)]
@@ -201,11 +201,11 @@ namespace ContinueVS.Tests.ViewModels
 
         [Theory]
         [InlineData(ChatMode.Ask,    false)]
-        [InlineData(ChatMode.Agent,  false)]
+        [InlineData(ChatMode.Agent,  true)]
         [InlineData(ChatMode.Plan,   true)]
-        [InlineData(ChatMode.Debug,  false)]
+        [InlineData(ChatMode.Debug,  true)]
         [InlineData(ChatMode.Reason, false)]
-        public void ModeConfig_ExportsPlanFile_TrueOnlyForPlan(
+        public void ModeConfig_ExportsPlanFile_TrueForAgentPlanDebug(
             ChatMode mode, bool expected)
         {
             // Arrange
@@ -219,7 +219,7 @@ namespace ContinueVS.Tests.ViewModels
             Assert.Equal(expected, cfg.ExportsPlanFile);
         }
 
-        // ── IsPolicyVisible regression ────────────────────────────────────────────────
+        // -- IsPolicyVisible regression ------------------------------------------------
 
         [Theory]
         [InlineData(ChatMode.Agent, true)]
@@ -235,6 +235,26 @@ namespace ContinueVS.Tests.ViewModels
 
             // Assert
             Assert.Equal(expected, vm.IsPolicyVisible);
+        }
+
+        [Theory]
+        [InlineData(ChatMode.Ask,    false)]
+        [InlineData(ChatMode.Agent,  true)]
+        [InlineData(ChatMode.Plan,   false)]
+        [InlineData(ChatMode.Debug,  true)]
+        [InlineData(ChatMode.Reason, false)]
+        public void ModeConfig_AllowPhaseExecution_TrueForAgentAndDebug(
+            ChatMode mode, bool expected)
+        {
+            // Arrange
+            var systemPromptService = CreateSystemPromptServiceMock();
+            IModeConfigRegistry registry = new ModeConfigRegistry(systemPromptService.Object);
+
+            // Act
+            var cfg = registry.GetConfig(mode);
+
+            // Assert
+            Assert.Equal(expected, cfg.AllowPhaseExecution);
         }
     }
 }

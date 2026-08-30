@@ -46,12 +46,16 @@ namespace ContinueVS.Services.Implementations
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
                         "write_file",
-                        "tool_loop"
+                        "tool_loop",
+                        "phase_execution",
+                        "plan_export",
+                        "backtrack"
                     },
                     AllowWriteTools = true,
                     AllowToolLoop  = true,
+                    AllowPhaseExecution = true,
                     RequiresDebuggerContext = false,
-                    ExportsPlanFile = false
+                    ExportsPlanFile = true
                 },
                 [ChatMode.Plan] = new ModeConfig
                 {
@@ -74,12 +78,16 @@ namespace ContinueVS.Services.Implementations
                     {
                         "write_file",
                         "tool_loop",
+                        "phase_execution",
+                        "plan_export",
+                        "backtrack",
                         "debugger_context"
                     },
                     AllowWriteTools = true,
                     AllowToolLoop  = true,
+                    AllowPhaseExecution = true,
                     RequiresDebuggerContext = true,
-                    ExportsPlanFile = false
+                    ExportsPlanFile = true
                 },
                 [ChatMode.Reason] = new ModeConfig
                 {

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -18,11 +18,11 @@ using Xunit;
 namespace ContinueVS.Tests.Services
 {
     /// <summary>
-    /// Integration tests for DebugSessionService in Interactive and Autonomous modes.
+    /// Integration tests for InstructionExecutorService in Interactive and Autonomous modes.
     /// Validates prompt behavior, user choice handling, and mode-dependent execution flow.
     /// (gap29_8_8)
     /// </summary>
-    public class DebugSessionServiceInteractiveModeTests
+    public class InstructionExecutorServiceInteractiveModeTests
     {
         private readonly Mock<IInstructionProcessorService> _mockInstructionProcessor;
         private readonly Mock<IChangeStackService> _mockChangeStackService;
@@ -30,10 +30,10 @@ namespace ContinueVS.Tests.Services
         private readonly Mock<IInstrumentationService> _mockInstrumentationService;
         private readonly Mock<IInteractivePromptService> _mockPromptService;
         private readonly Mock<IBridgeLogger> _mockLogger;
-        private readonly DebugSessionService _service;
+        private readonly InstructionExecutorService _service;
         private readonly ChangeStack _testChangeStack;
 
-        public DebugSessionServiceInteractiveModeTests()
+        public InstructionExecutorServiceInteractiveModeTests()
         {
             _mockInstructionProcessor = new Mock<IInstructionProcessorService>();
             _mockChangeStackService = new Mock<IChangeStackService>();
@@ -53,7 +53,7 @@ namespace ContinueVS.Tests.Services
                 _mockLogger.Object,
                 _mockPromptService.Object);
 
-            _service = new DebugSessionService(
+            _service = new InstructionExecutorService(
                 _mockInstructionProcessor.Object,
                 _mockChangeStackService.Object,
                 executorFactory,
@@ -64,7 +64,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_InteractiveMode_CallsPromptService()
         {
             // Arrange
-            var instruction = new DebugInstruction { Id = "instr-1", Text = "Debug SendMessage" };
+            var instruction = new ExecutionInstruction { Id = "instr-1", Text = "Debug SendMessage" };
             var phase = new InternalPhase { Id = "phase-1", Type = InternalPhaseType.Analysis, Description = "Analyze call stack" };
             var testPlan = new TestPlan { Id = "plan-1", Title = "Test Plan", Phases = new List<InternalPhase> { phase } };
 
@@ -88,7 +88,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_AutonomousMode_SkipsPrompts()
         {
             // Arrange
-            var instruction = new DebugInstruction { Id = "instr-3", Text = "Debug failure" };
+            var instruction = new ExecutionInstruction { Id = "instr-3", Text = "Debug failure" };
             var phase = new InternalPhase { Id = "phase-3", Type = InternalPhaseType.Observation, Description = "Observe state" };
             var testPlan = new TestPlan { Id = "plan-3", Phases = new List<InternalPhase> { phase } };
 
@@ -111,7 +111,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_DefaultMode_IsAutonomous()
         {
             // Arrange
-            var instruction = new DebugInstruction { Id = "instr-4", Text = "Test default" };
+            var instruction = new ExecutionInstruction { Id = "instr-4", Text = "Test default" };
             var phase = new InternalPhase { Id = "phase-4", Type = InternalPhaseType.Analysis };
             var testPlan = new TestPlan { Id = "plan-4", Phases = new List<InternalPhase> { phase } };
 
@@ -134,7 +134,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_WithMultiplePhases_ExecutesSequentially()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Multi-phase debug" };
+            var instruction = new ExecutionInstruction { Text = "Multi-phase debug" };
             var phase1 = new InternalPhase { Id = "phase-5", Type = InternalPhaseType.Analysis };
             var phase2 = new InternalPhase { Id = "phase-6", Type = InternalPhaseType.Observation };
             var testPlan = new TestPlan { Phases = new List<InternalPhase> { phase1, phase2 } };
@@ -158,7 +158,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_InteractiveMode_PassesModeToExecutors()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Mode passing test" };
+            var instruction = new ExecutionInstruction { Text = "Mode passing test" };
             var phase = new InternalPhase { Type = InternalPhaseType.Analysis };
             var testPlan = new TestPlan { Phases = new List<InternalPhase> { phase } };
 
@@ -190,7 +190,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_InvalidChangeStackId_ThrowsArgumentException()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Test" };
+            var instruction = new ExecutionInstruction { Text = "Test" };
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -201,7 +201,7 @@ namespace ContinueVS.Tests.Services
         public async Task ExecuteInstructionAsync_InvalidTargetDir_ThrowsArgumentException()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Test" };
+            var instruction = new ExecutionInstruction { Text = "Test" };
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(() =>

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -74,7 +74,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );
@@ -125,7 +125,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );
@@ -178,7 +178,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );
@@ -232,7 +232,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );
@@ -283,7 +283,7 @@ namespace ContinueVS.Tests.Services
                 _mockConfigService.Object,
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );

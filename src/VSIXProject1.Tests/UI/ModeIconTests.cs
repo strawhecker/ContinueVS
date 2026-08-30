@@ -60,7 +60,7 @@ namespace ContinueVS.Tests.UI
                 configMock.Object,
                 promptMock.Object,
                 uiStateMock.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null
             );

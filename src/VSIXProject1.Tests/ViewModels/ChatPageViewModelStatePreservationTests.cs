@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -82,7 +82,7 @@ namespace ContinueVS.Tests.ViewModels
             mockLlmService.Setup(x => x.GetStreamBuffer())
                 .Returns(new List<CompletionChunk>(chunks));
 
-            var mockDebugSessionService = new Mock<IDebugSessionService>();
+            var mockDebugSessionService = new Mock<IInstructionExecutorService>();
             PauseCheckpoint? capturedCheckpoint = null;
             mockDebugSessionService
                 .Setup(x => x.SetPauseCheckpointAsync(It.IsAny<PauseCheckpoint>()))
@@ -116,7 +116,7 @@ namespace ContinueVS.Tests.ViewModels
         public async Task PauseCheckpoint_CanBeRetrievedFromDebugSessionService()
         {
             // Arrange
-            var mockDebugSessionService = new Mock<IDebugSessionService>();
+            var mockDebugSessionService = new Mock<IInstructionExecutorService>();
             var checkpoint = new PauseCheckpoint
             {
                 StreamedText = "Test response",

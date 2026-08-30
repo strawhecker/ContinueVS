@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -32,7 +32,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_VagueInstruction_GeneratesAtLeastOnePhase()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug why SendMessage fails with null" };
+            var instruction = new ExecutionInstruction { Text = "Debug why SendMessage fails with null" };
             var llmResponse = @"
 - Analysis: Inspect the SendMessage method and understand the null reference source
 - Instrumentation: Add logging to track null values
@@ -52,7 +52,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_PhaseOrderingPreserved_AnalysisBeforeInstrumentation()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug performance issue" };
+            var instruction = new ExecutionInstruction { Text = "Debug performance issue" };
             var llmResponse = @"
 - Analysis: Profile the application to identify bottlenecks
 - Instrumentation: Add timing logs around hot paths
@@ -78,7 +78,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_WithContext_IncludesContextInPrompt()
         {
             // Arrange
-            var instruction = new DebugInstruction
+            var instruction = new ExecutionInstruction
             {
                 Text = "Debug null reference exception",
                 Context = "File: Service.cs, Line: 42, Exception: NullReferenceException at SendAsync()"
@@ -101,7 +101,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_NullInstruction_ThrowsArgumentNullException()
         {
             // Arrange
-            DebugInstruction nullInstruction = null!;
+            ExecutionInstruction nullInstruction = null!;
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -113,7 +113,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_EmptyInstructionText_ThrowsArgumentException()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "" };
+            var instruction = new ExecutionInstruction { Text = "" };
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -125,7 +125,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_LlmThrowsException_ThrowsInvalidOperationException()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug something" };
+            var instruction = new ExecutionInstruction { Text = "Debug something" };
             _mockLlmService
                 .Setup(x => x.StreamAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, It.IsAny<CancellationToken>()))
                 .Throws(new Exception("LLM service error"));
@@ -140,7 +140,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_LlmReturnsEmptyResponse_ThrowsInvalidOperationException()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug something" };
+            var instruction = new ExecutionInstruction { Text = "Debug something" };
             SetupLlmMock("");
 
             // Act & Assert
@@ -153,7 +153,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_LlmResponseNoValidPhases_ThrowsInvalidOperationException()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug something" };
+            var instruction = new ExecutionInstruction { Text = "Debug something" };
             var llmResponse = "This is not a valid phase format.";
             SetupLlmMock(llmResponse);
 
@@ -167,7 +167,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_MultipleValidPhases_ParsesAllTypes()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug comprehensive" };
+            var instruction = new ExecutionInstruction { Text = "Debug comprehensive" };
             var llmResponse = @"
 - Analysis: Understand the issue
 - Breakpoint: Set a breakpoint to inspect state
@@ -193,7 +193,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_CancellationRequested_StopsProcessing()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug something" };
+            var instruction = new ExecutionInstruction { Text = "Debug something" };
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
@@ -216,7 +216,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_ReturnsTestPlan_WithValidProperties()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug the system" };
+            var instruction = new ExecutionInstruction { Text = "Debug the system" };
             var llmResponse = @"
 - Analysis: Check the logs
 - Test: Verify the fix
@@ -239,7 +239,7 @@ namespace ContinueVS.Tests.Services
         public async Task GenerateInternalPhasesAsync_PhaseHasValidProperties()
         {
             // Arrange
-            var instruction = new DebugInstruction { Text = "Debug issue" };
+            var instruction = new ExecutionInstruction { Text = "Debug issue" };
             var llmResponse = @"
 - Analysis: Investigate root cause
 ";

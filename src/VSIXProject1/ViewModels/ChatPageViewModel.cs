@@ -51,7 +51,7 @@ namespace ContinueVS.ViewModels
                 private readonly IConfigService _configService;
                 private readonly ISystemPromptService _systemPromptService;
                 private readonly IUIStateService _uiStateService;
-                private readonly IDebugSessionService _debugSessionService;
+                private readonly IInstructionExecutorService _instructionExecutorService;
                 private IModeService? _modeService;
                 private IWorkflowService? _workflowService;
                 private readonly IIdeService? _ideService;
@@ -393,7 +393,7 @@ public string? InputText
             IConfigService configService,
             ISystemPromptService systemPromptService,
             IUIStateService uiStateService,
-            IDebugSessionService debugSessionService,
+            IInstructionExecutorService instructionExecutorService,
             IModeService? modeService = null,
             IWorkflowService? workflowService = null,
             IIdeService? ideService = null,
@@ -408,7 +408,7 @@ public string? InputText
             if (configService == null) throw new ArgumentNullException(nameof(configService));
             if (systemPromptService == null) throw new ArgumentNullException(nameof(systemPromptService));
             if (uiStateService == null) throw new ArgumentNullException(nameof(uiStateService));
-            if (debugSessionService == null) throw new ArgumentNullException(nameof(debugSessionService));
+            if (instructionExecutorService == null) throw new ArgumentNullException(nameof(instructionExecutorService));
 
             _llmService = llmService;
             _contextService = contextService;
@@ -418,7 +418,7 @@ public string? InputText
             _configService = configService;
             _systemPromptService = systemPromptService;
             _uiStateService = uiStateService;
-            _debugSessionService = debugSessionService;
+            _instructionExecutorService = instructionExecutorService;
             _modeService = modeService;
             _workflowService = workflowService;
             _ideService = ideService;
@@ -788,7 +788,7 @@ public string? InputText
 
                 // Clear buffers for fresh stream session (gap31_3)
                 _llmService.ClearStreamBuffer();
-                _debugSessionService.ClearPauseCheckpoint();
+                _instructionExecutorService.ClearPauseCheckpoint();
 
                 // Reset tool limit state for this action (gap23_4_4)
                 // Each user-initiated send action gets its own tool call budget
@@ -942,8 +942,8 @@ public string? InputText
                         assistantMessage.ToolCalls = new List<ToolCall>(_pendingToolCalls);
                     }
 
-                    // gap43_3: Persist plan output when streaming completes in Plan mode
-                    if (CurrentMode == ChatMode.Plan && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
+                    // gap43_3 / gap45_3: Persist plan output when ExportsPlanFile is true for this mode (Agent, Plan, Debug)
+                    if (modeConfig.ExportsPlanFile && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
                     {
                         var savedPath = await _planOutputService.SavePlanAsync(assistantMessage.Content, _streamingCts.Token);
                         System.Diagnostics.Debug.WriteLine($"[gap43_3] Plan saved to: {savedPath}");
@@ -985,8 +985,25 @@ public string? InputText
                     }
                     else
                     {
-                        // No tools or not in Agent mode, break the loop
+                        // No tools or not in a tool-loop mode — break the loop
                         System.Diagnostics.Debug.WriteLine($"[gap23_3-loop] No tools or not in Agent mode. Breaking loop.");
+
+                        // gap45_3: If phase execution is enabled for this mode, hand off to InstructionExecutorService
+                        if (modeConfig.AllowPhaseExecution && !string.IsNullOrWhiteSpace(assistantMessage.Content))
+                        {
+                            var changeStackId = Guid.NewGuid().ToString();
+                            var targetDir = _ideService != null
+                                ? await _ideService.GetGitRootPathAsync()
+                                : System.Environment.CurrentDirectory;
+                            var execInstruction = new ContinueVS.Core.Types.ExecutionInstruction
+                            {
+                                Text = assistantMessage.Content
+                            };
+                            System.Diagnostics.Debug.WriteLine($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
+                            await _instructionExecutorService.ExecuteInstructionAsync(
+                                execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
+                        }
+
                         break;
                     }
                 }
@@ -1207,7 +1224,7 @@ public string? InputText
                         SessionContextSnapshot = snapshot
                     };
 
-                    await _debugSessionService.SetPauseCheckpointAsync(checkpoint);
+                    await _instructionExecutorService.SetPauseCheckpointAsync(checkpoint);
                     System.Diagnostics.Debug.WriteLine(
                         $"[gap31_3-checkpoint] Captured pause checkpoint: {checkpoint.ChunkCount} chunks, {streamedText.Length} chars");
                 }

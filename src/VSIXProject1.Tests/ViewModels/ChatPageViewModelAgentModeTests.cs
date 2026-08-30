@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -321,7 +321,7 @@ namespace ContinueVS.Tests.ViewModels
 
         /// <summary>
         /// Integration Test 2: Multi-turn message conversation with tool context
-        /// Validates conversation structure for LLM→Tool→LLM pattern
+        /// Validates conversation structure for LLM?Tool?LLM pattern
         /// </summary>
         [Fact]
         public void ChatMessageSequence_SingleTurnToolPattern_FollowsCorrectStructure()
@@ -380,7 +380,7 @@ namespace ContinueVS.Tests.ViewModels
                 configService.Object,
                 systemPromptService.Object,
                 uiStateService.Object,
-                new Mock<IDebugSessionService>().Object,
+                new Mock<IInstructionExecutorService>().Object,
                 null,
                 null);
         }

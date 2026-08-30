@@ -126,8 +126,8 @@ namespace ContinueVS.UI.Pages
                     var uiState     = sp.GetRequiredService<IUIStateService>();
                     System.Diagnostics.Debug.WriteLine("[sv-chatpage-8] ✓ IUIStateService resolved");
 
-                    var debugSession = sp.GetRequiredService<IDebugSessionService>();
-                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-9] ✓ IDebugSessionService resolved");
+                    var instructionExecutor = sp.GetRequiredService<IInstructionExecutorService>();
+                    System.Diagnostics.Debug.WriteLine("[sv-chatpage-9] ✓ IInstructionExecutorService resolved");
 
                     var workflow    = sp.GetService<IWorkflowService>();
                     System.Diagnostics.Debug.WriteLine($"[sv-chatpage-10] IWorkflowService resolved={workflow != null} (optional)");
@@ -139,7 +139,7 @@ namespace ContinueVS.UI.Pages
                     System.Diagnostics.Debug.WriteLine($"[sv-chatpage-12] IPlanOutputService resolved={planOutput != null} (optional)");
 
                     // BP:sv-chatpage-dc — breakpoint here confirms all services resolved and DataContext is being assigned
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, debugSession, null, workflow, ideService, null, planOutput);
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, instructionExecutor, null, workflow, ideService, null, planOutput);
                     System.Diagnostics.Debug.WriteLine("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
                 }
                 else

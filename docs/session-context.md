@@ -5263,16 +5263,45 @@ The chat input TextBox cannot reliably handle multiline paste operations (e.g., 
 
 ### gap43: Plan Mode Output Not Persisted to ~/.continueVS/plans
 
-**Status:** ⏳ Pending | Type: Plan Persistence Feature  
-**Phase:** 3 (Core Feature Completion)  
-**Priority:** HIGH (Plan mode generates LLM responses but does not save them to disk; users cannot retrieve or review plans after session closes)
+**Status:** ✓ Complete | Type: Plan Mode Persistence
 
-**Problem:**  
-When a user operates in Plan mode (mode=2), the LLM generates a structured implementation plan in response to the user query. However, the generated plan text is not automatically persisted to the user's home directory under `~/.continueVS/plans/`. This means:
-- Plans exist only in memory during the session; lost when session ends
-- No persistent plan history or audit trail
-- Users cannot reference or re-run old plans
-- Inconsistent with Continue.js which exports plans to the file system
+**Implementation:**
+
+**gap43_1**: Created `IPlanOutputService` interface with `Task<string> SavePlanAsync(string content, CancellationToken)` and `string GetPlansDirectory()`.
+
+**gap43_2**: Created `PlanOutputService` implementing `IPlanOutputService`:
+- Resolves `~/.continueVS/plans/` (optional `continueDir` ctor param for test isolation)
+- Creates directory if missing via `Directory.CreateDirectory`
+- Writes `plan_{yyyyMMdd_HHmmss}.md` via `Task.Run(() => File.WriteAllText(...))`
+- Returns absolute file path of saved file
+
+**gap43_3**: Updated `ChatPageViewModel`:
+- Added `private readonly IPlanOutputService? _planOutputService` field
+- Added `IPlanOutputService? planOutputService = null` optional ctor param (after `modeConfigRegistry`)
+- After streaming `await foreach` completes and tool calls are finalized, added Plan mode persistence branch:
+  `if (CurrentMode == ChatMode.Plan && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))`
+  calls `await _planOutputService.SavePlanAsync(...)` before `AddMessageAsync`
+
+**gap43_4**: Created 6 xUnit tests in `PlanOutputServiceTests.cs`:
+- `SavePlanAsync_CreatesPlansDirectory_WhenNotExists`
+- `SavePlanAsync_WritesContentToFile`
+- `SavePlanAsync_ReturnsAbsoluteFilePath`
+- `SavePlanAsync_FileNameFollowsTimestampPattern`
+- `SavePlanAsync_ThrowsArgumentException_WhenContentIsNullOrWhitespace`
+- `GetPlansDirectory_ReturnsPathEndingWithPlans`
+
+**Files Modified:**
+- src/VSIXProject1/Services/Interfaces/IPlanOutputService.cs (new)
+- src/VSIXProject1/Services/Implementations/PlanOutputService.cs (new)
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs (field, ctor param, Plan mode save)
+- src/VSIXProject1/Services/ServiceBootstrapper.cs (IPlanOutputService/PlanOutputService singleton)
+- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs (resolve + pass planOutput to ChatPageViewModel)
+- src/VSIXProject1.Tests/Services/PlanOutputServiceTests.cs (new, 6 tests)
+
+**Testing:**
+- Build: Clean (0 warnings, 0 errors)
+- Unit Tests: 6/6 PlanOutputServiceTests pass; 1061 total tests discovered, all passing
+
 
 #### **gap43_1: Audit Current Plan Mode Output Behavior**
 
@@ -5378,8 +5407,10 @@ The LLM is the runtime orchestrator. C# enforces policy (which capabilities are 
 | `read_file` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `write_file` | — | ✓ | — | ✓ | — |
 | `tool_loop` | — | ✓ | — | ✓ | — |
+| `phase_execution` | — | ✓ | — | ✓ | — |
+| `plan_export` | — | ✓ | ✓ | ✓ | — |
+| `backtrack` | — | ✓ | — | ✓ | — |
 | `debugger_context` | — | — | — | ✓ | — |
-| `plan_export` | — | — | ✓ | — | — |
 | `codeblock_format` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `session_history` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `token_budget` | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -5478,6 +5509,120 @@ The LLM is the runtime orchestrator. C# enforces policy (which capabilities are 
 - Adding a sixth mode in the future = one new `ModeConfig` entry + one system prompt string; zero new C# orchestration
 - The LLM is trusted to apply the right behavior given the right policy + prompt; C# enforces guardrails only
 - Mode-switching mid-conversation is safe: the next `PackageMessages` call picks up the new `ModeConfig`
+
+---
+
+### gap45: One Pipeline, Five Configurations Part II — Tools Distinguish Agent and Debug
+
+**Status:** ✅ Completed | Type: Architectural Correction + Capability Parity  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** HIGH — `ModeConfigRegistry` currently encodes a false asymmetry between Agent and Debug. Both modes share the same pipeline (LLM-reactive planning, phase execution, plan export, backtracking, interactive prompting). The only true differentiator is `debugger_context` tools (breakpoints, step-through, watch). Everything else that belongs to one belongs to both.
+
+**Problem:**  
+gap44 correctly unified the chat-level `ExecuteSendMessage` pipeline. However, it produced an incorrect capability table and an incorrect `ModeConfigRegistry` by treating several Agent/Debug shared capabilities as Debug-exclusive. The consequence:
+
+- `ExportsPlanFile = false` on Agent — wrong. When Agent generates an internal plan that drives execution, that plan is exportable by the same logic as Debug or Plan mode
+- `phase_execution` absent from Agent — wrong. After code is changed by Agent, the remaining workflow (phase sequencing, retry on failure, backtracking, interactive prompting) is structurally identical to Debug
+- `PhaseExecutorFactory` is scoped as a Debug-only dependency inside `DebugSessionService` — wrong. It is a shared plan execution engine; its name misleads readers into treating it as Debug-exclusive
+- `backtrack` capability absent from both Agent and Debug in the registry — an omission
+- `DebugSessionService` is named for the mode that first used it, not for what it does — it is an instruction-to-phases executor and state tracker, not a "debug session"
+
+**Corrected Architectural Principle:**
+
+```
+Debug = Agent + { breakpoint_tool, step_tool, watch_tool, debugger_context }
+```
+
+Everything else — LLM-reactive planning, phase generation, phase execution, plan export, failure handling, backtracking, `IInteractivePromptService` retry/skip decisions, `InternalPhase.Status` state tracking — is shared.
+
+**Corrected Capability Registry:**
+
+| Capability | Ask | Agent | Plan | Debug | Reason |
+|---|---|---|---|---|---|
+| `read_file` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `write_file` | — | ✓ | — | ✓ | — |
+| `tool_loop` | — | ✓ | — | ✓ | — |
+| `phase_execution` | — | ✓ | — | ✓ | — |
+| `plan_export` | — | ✓ | ✓ | ✓ | — |
+| `backtrack` | — | ✓ | — | ✓ | — |
+| `debugger_context` | — | — | — | ✓ | — |
+| `codeblock_format` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `session_history` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `token_budget` | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+---
+
+#### **gap45_1: Correct ModeConfigRegistry for Agent**
+
+- **Status:** ✅ Completed
+- **Goal:** Align Agent's `ModeConfig` with its true capabilities
+- **Reasoning:** Agent and Debug share all pipeline capabilities except `debugger_context`; the registry must reflect this
+- **Implementation Plan:**
+  - Set `ExportsPlanFile = true` on Agent config
+  - Add `"phase_execution"` and `"backtrack"` to Agent `EnabledCapabilities`
+  - Add `"plan_export"` and `"backtrack"` to Debug `EnabledCapabilities` (currently missing `plan_export`)
+  - Add `AllowPhaseExecution = true` property to `ModeConfig` (new boolean, symmetric with `AllowToolLoop`)
+- **Files to Modify:**
+  - `src/VSIXProject1/Core/Types/ModeConfig.cs` (add `AllowPhaseExecution`)
+  - `src/VSIXProject1/Services/Implementations/ModeConfigRegistry.cs` (correct Agent + Debug entries)
+
+---
+
+#### **gap45_2: Rename DebugSessionService → InstructionExecutorService**
+
+- **Status:** ✅ Completed
+- **Goal:** Rename the service to reflect what it actually does rather than the mode that first used it
+- **Reasoning:** The service takes a `DebugInstruction`, generates `InternalPhases`, executes them via `PhaseExecutorFactory`, and tracks state in a `TestPlan`. None of that is Debug-exclusive. The name `DebugSessionService` misleads readers into treating it as a Debug-only dependency and has already caused gap44_4 to be misframed as "deferred until Debug is refactored" when the real issue is the service should be shared
+- **Implementation Plan:**
+  - Rename `IDebugSessionService` → `IInstructionExecutorService`
+  - Rename `DebugSessionService` → `InstructionExecutorService`
+  - Evaluate `DebugInstruction`: if the payload is Debug-specific keep the name; if it is a generic instruction + metadata, rename to `ExecutionInstruction`
+  - Update `ServiceBootstrapper` registration
+  - Update all call sites and test references
+- **Files to Modify:**
+  - `src/VSIXProject1/Services/Implementations/DebugSessionService.cs` → `InstructionExecutorService.cs`
+  - `src/VSIXProject1/Services/Interfaces/IDebugSessionService.cs` → `IInstructionExecutorService.cs`
+  - `src/VSIXProject1/Services/ServiceBootstrapper.cs`
+  - All test files referencing `IDebugSessionService` / `DebugSessionService`
+
+---
+
+#### **gap45_3: Wire Agent Mode to InstructionExecutorService**
+
+- **Status:** ✅ Completed
+- **Goal:** Agent mode uses the same phase execution path as Debug mode when a plan drives execution
+- **Reasoning:** After Agent makes code changes, the remaining work (observe, retry, backtrack) is the same pipeline Debug already has; duplicating it in the Agent tool loop is incorrect
+- **Implementation Plan:**
+  - In `ChatPageViewModel.ExecuteSendMessage()`, after the tool loop completes in Agent mode, check `modeConfig.AllowPhaseExecution`
+  - If true and a plan was produced, hand off to `IInstructionExecutorService.ExecuteInstructionAsync()`
+  - Plan export: if `modeConfig.ExportsPlanFile`, call `_planOutputService.SavePlanAsync()` for both Agent and Debug (currently Plan-mode-only)
+- **Files to Modify:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+
+---
+
+#### **gap45_4: Update gap44 Capability Table in Documentation**
+
+- **Status:** ✅ Completed
+- **Goal:** Correct the capability table recorded in gap44 to match the corrected registry
+- **Reasoning:** The gap44 table is the reference used by future implementers; leaving it wrong creates drift
+- **Files to Modify:**
+  - `docs/session-context.md` (gap44 capability table)
+
+---
+
+#### **gap45_5: Tests**
+
+- **Status:** ✅ Completed
+- **Goal:** Verify Agent and Debug produce identical pipeline behavior except for `debugger_context`
+- **Implementation Plan:**
+  - Update `ModeConfigRegistryTests`: Agent has `ExportsPlanFile=true`, `AllowPhaseExecution=true`; Debug same plus `RequiresDebuggerContext=true`
+  - Update `InstructionExecutorServiceTests` (renamed from `DebugSessionServiceTests`): no mode-specific assertions; tests apply to any mode using the executor
+  - Add `ChatPageViewModelModeTests` parity cases: Agent plan export fires; Agent phase execution path reached when plan present
+- **Files to Create/Modify:**
+  - `src/VSIXProject1.Tests/Services/InstructionExecutorServiceTests.cs` (renamed)
+  - `src/VSIXProject1.Tests/Services/ModeConfigRegistryTests.cs` (updated)
+  - `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelModeTests.cs` (extended)
 
 ---
 
@@ -6674,47 +6819,6 @@ Applied three key XAML attributes to both windows to prevent focus-stealing:
 **End of Implementation Plan**
 
 ---
-
-### gap43: Plan Mode Output Not Persisted to ~/.continueVS/plans
-
-**Status:** ✓ Complete | Type: Plan Mode Persistence
-
-**Implementation:**
-
-**gap43_1**: Created `IPlanOutputService` interface with `Task<string> SavePlanAsync(string content, CancellationToken)` and `string GetPlansDirectory()`.
-
-**gap43_2**: Created `PlanOutputService` implementing `IPlanOutputService`:
-- Resolves `~/.continueVS/plans/` (optional `continueDir` ctor param for test isolation)
-- Creates directory if missing via `Directory.CreateDirectory`
-- Writes `plan_{yyyyMMdd_HHmmss}.md` via `Task.Run(() => File.WriteAllText(...))`
-- Returns absolute file path of saved file
-
-**gap43_3**: Updated `ChatPageViewModel`:
-- Added `private readonly IPlanOutputService? _planOutputService` field
-- Added `IPlanOutputService? planOutputService = null` optional ctor param (after `modeConfigRegistry`)
-- After streaming `await foreach` completes and tool calls are finalized, added Plan mode persistence branch:
-  `if (CurrentMode == ChatMode.Plan && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))`
-  calls `await _planOutputService.SavePlanAsync(...)` before `AddMessageAsync`
-
-**gap43_4**: Created 6 xUnit tests in `PlanOutputServiceTests.cs`:
-- `SavePlanAsync_CreatesPlansDirectory_WhenNotExists`
-- `SavePlanAsync_WritesContentToFile`
-- `SavePlanAsync_ReturnsAbsoluteFilePath`
-- `SavePlanAsync_FileNameFollowsTimestampPattern`
-- `SavePlanAsync_ThrowsArgumentException_WhenContentIsNullOrWhitespace`
-- `GetPlansDirectory_ReturnsPathEndingWithPlans`
-
-**Files Modified:**
-- src/VSIXProject1/Services/Interfaces/IPlanOutputService.cs (new)
-- src/VSIXProject1/Services/Implementations/PlanOutputService.cs (new)
-- src/VSIXProject1/ViewModels/ChatPageViewModel.cs (field, ctor param, Plan mode save)
-- src/VSIXProject1/Services/ServiceBootstrapper.cs (IPlanOutputService/PlanOutputService singleton)
-- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs (resolve + pass planOutput to ChatPageViewModel)
-- src/VSIXProject1.Tests/Services/PlanOutputServiceTests.cs (new, 6 tests)
-
-**Testing:**
-- Build: Clean (0 warnings, 0 errors)
-- Unit Tests: 6/6 PlanOutputServiceTests pass; 1061 total tests discovered, all passing
 
 
 

@@ -4,10 +4,11 @@ using Newtonsoft.Json;
 namespace ContinueVS.Core.Types
 {
     /// <summary>
-    /// Represents a debug instruction provided by the user in Debug mode.
-    /// The instruction is free-text and may be vague (e.g., "Debug why SendMessage fails with null").
+    /// Represents an instruction provided by the user to drive phase execution.
+    /// The instruction is free-text and may be vague (e.g., "Fix why SendMessage fails with null").
+    /// Shared by Agent and Debug modes via IInstructionExecutorService.
     /// </summary>
-    public class DebugInstruction
+    public class ExecutionInstruction
     {
         /// <summary>
         /// Unique identifier for this instruction.
@@ -16,7 +17,7 @@ namespace ContinueVS.Core.Types
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
         /// <summary>
-        /// The user's debug request text.
+        /// The user's request text.
         /// </summary>
         [JsonProperty("text")]
         public string Text { get; set; } = string.Empty;
