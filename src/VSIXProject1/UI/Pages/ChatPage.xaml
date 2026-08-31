@@ -129,6 +129,11 @@
             <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
 
             <TextBlock Text="{Binding ToolCallCounterDisplay}" VerticalAlignment="Center" Margin="5,0,0,5" FontSize="11" Foreground="{Binding ToolCallCounterDisplay, Converter={StaticResource ToolCallCounterColorConverter}}" ToolTip="Shows cumulative tool calls in current session (resets per-action)"/>
+
+            <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
+
+            <!-- gap47: New Chat button starts a fresh session -->
+            <Button Command="{Binding NewChatCommand}" Content="➕ New Chat" Padding="8,4" Margin="5,0,0,0" Style="{DynamicResource ThemedButtonStyle}" ToolTip="Start a new chat session"/>
         </StackPanel>
 
         <!-- Mode Description Helper Text - gap27_6 -->

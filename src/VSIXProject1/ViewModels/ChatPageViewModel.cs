@@ -228,6 +228,7 @@ public string? InputText
                 {
                     SendMessageCommand.RaiseCanExecuteChanged();
                     CancelCommand.RaiseCanExecuteChanged();
+                    NewChatCommand.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -384,6 +385,12 @@ public string? InputText
         /// </summary>
         public RelayCommand PauseCommand { get; }
 
+        /// <summary>
+        /// Command to start a new chat session (gap47).
+        /// Disabled while a stream is in progress.
+        /// </summary>
+        public RelayCommand NewChatCommand { get; }
+
         public ChatPageViewModel(
             ILlmService llmService,
             IContextService contextService,
@@ -445,6 +452,7 @@ public string? InputText
             SetModeCommand = new RelayCommand<ChatMode>(mode => CurrentMode = mode);
             DeleteMessageCommand = new RelayCommand<string>(ExecuteDeleteMessage);
             PauseCommand = new RelayCommand(ExecutePause, () => IsStreaming);
+            NewChatCommand = new RelayCommand(() => _ = ExecuteNewChatAsync(), () => !IsStreaming);
 
             _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
@@ -1184,6 +1192,28 @@ public string? InputText
         private void ExecuteCancel()
         {
             _streamingCts?.Cancel();
+        }
+
+        /// <summary>
+        /// Starts a new chat session (gap47).
+        /// Calls CreateNewSessionAsync, then clears InputText and SelectedContext.
+        /// </summary>
+        private async Task ExecuteNewChatAsync()
+        {
+            try
+            {
+                await _sessionService.SaveCurrentSessionAsync();
+                await _sessionService.CreateNewSessionAsync();
+                Messages.Clear();
+                InputText = string.Empty;
+                SelectedContext.Clear();
+                System.Diagnostics.Debug.WriteLine("[gap47] New chat session started");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap47] ExecuteNewChatAsync failed: {ex.Message}");
+                _notificationService.ShowError($"Failed to start new chat: {ex.Message}");
+            }
         }
 
         /// <summary>

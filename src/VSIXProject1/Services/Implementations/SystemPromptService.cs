@@ -173,21 +173,21 @@ namespace ContinueVS.Services.Implementations
             const string BRIEF_LAZY_INSTRUCTIONS =
                 "For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'";
 
-            const string ECHO_RULES =
-                ""
-                + "<macro name=\"!echoall\">"
-                + "<action>"
-                + "<insert string=\""
-                + "<important_rules>${context.important_rules}</important_rules>\n"
-                + "<workspace_context>${context.workspace_context}</workspace_context>\n"
-                + "<agent_context>${context.agent_context}</agent_context>\n"
-                + "<agent_context>${context.agent_context}</agent_context>\n"
-                + "<plan_context>${context.plan_context}</plan_context>\n"
-                + "${context}\n"
-                + "\">"
-                + "</action>"
-                + "</macro>\n"
-                ;
+            //const string ECHO_RULES =
+            //    ""
+            //    + "<macro name=\"!echoall\">"
+            //    + "<action>"
+            //    + "<insert string=\""
+            //    + "<important_rules>${context.important_rules}</important_rules>\n"
+            //    + "<workspace_context>${context.workspace_context}</workspace_context>\n"
+            //    + "<agent_context>${context.agent_context}</agent_context>\n"
+            //    + "<agent_context>${context.agent_context}</agent_context>\n"
+            //    + "<plan_context>${context.plan_context}</plan_context>\n"
+            //    + "${context}\n"
+            //    + "\">"
+            //    + "</action>"
+            //    + "</macro>\n"
+            //    ;
 
             switch (mode.ToLowerInvariant())
             {
@@ -199,7 +199,6 @@ namespace ContinueVS.Services.Implementations
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
                            "</important_rules>" +
-                           ECHO_RULES +
                            GetContextSuffix("agent");
 
                 case "plan":
@@ -212,7 +211,6 @@ namespace ContinueVS.Services.Implementations
                            "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +
                            "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
                            "</important_rules>" +
-                           ECHO_RULES +
                            GetContextSuffix("plan");
 
                 case "debug":
@@ -223,7 +221,6 @@ namespace ContinueVS.Services.Implementations
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
                            "</important_rules>" +
-                           ECHO_RULES +
                            GetContextSuffix("debug");
 
                 case "reason":
@@ -235,7 +232,6 @@ namespace ContinueVS.Services.Implementations
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
                            "</important_rules>" +
-                           ECHO_RULES +
                            GetContextSuffix("reason");
 
                 default:  // chat/ask mode
@@ -245,11 +241,18 @@ namespace ContinueVS.Services.Implementations
                            "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
                            "</important_rules>" +
-                           ECHO_RULES +
                            GetContextSuffix("ask");
                     //EDIT_CODE_INSTRUCTIONS + "\n" +
             }
         }
+
+        //paste to see: echo <important_rules>${context.important_rules}</important_rules> <workspace_context>${context.workspace_context}</workspace_context> <agent_context>${context.agent_context}</agent_context> <agent_context>${context.agent_context}</agent_context> <plan_context>${context.plan_context}</plan_context>context
+        // echo <important_rules>${context.important_rules}</important_rules>
+        // echo <workspace_context>${context.workspace_context}</workspace_context>
+        // echo <agent_context>${context.agent_context}</agent_context>
+        // echo <agent_context>${context.agent_context}</agent_context>
+        // echo <plan_context>${context.plan_context}</plan_context>
+        // echocontext
 
         private string GetContextSuffix(string mode)
         {
@@ -261,6 +264,8 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
+                // Refresh stats to ensure latest workspace state is captured
+                _statsService.Refresh();
                 var s = _statsService.GetStats();
 
                 var sb = new StringBuilder();

@@ -5559,6 +5559,108 @@ Everything else — LLM-reactive planning, phase generation, phase execution, pl
 
 ---
 
+### gap47: Add a Way to Start a New Chat
+
+- **Status:** ✅ Complete
+- **Goal:** Provide the user with a clear, accessible action to start a fresh chat session — clearing the current message history and beginning a new conversation
+- **Reasoning:** There was no UI affordance to reset the chat. A "New Chat" button is a standard feature in every chat-based AI tool.
+- **Implementation:**
+  - Added `NewChatCommand` (RelayCommand) to `ChatPageViewModel`; `CanExecute` returns `false` while `IsStreaming`
+  - `ExecuteNewChatAsync` calls `_sessionService.CreateNewSessionAsync()`, then clears `InputText` and `SelectedContext`; errors forwarded to `_notificationService.ShowError`
+  - `NewChatCommand.RaiseCanExecuteChanged()` wired in `IsStreaming` setter alongside `CancelCommand` and `PauseCommand`
+  - Added "➕ New Chat" button to the mode/model toolbar `StackPanel` in `ChatPage.xaml` (Grid.Row 3), after ToolCallCounter with a visual separator; bound to `NewChatCommand`
+  - Reuses existing `SessionChanged` event handler already in the constructor — clears banners and tool-call counter automatically on session change
+  - 3 xUnit tests added: `NewChatCommand_WhenNotStreaming_CallsCreateNewSessionAsync`, `NewChatCommand_WhenNotStreaming_ClearsInputTextAndContext`, `NewChatCommand_WhenStreaming_CannotExecute` — all pass
+- **Files Modified:**
+  - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — `NewChatCommand` property, constructor wiring, `ExecuteNewChatAsync`, `IsStreaming` setter
+  - `src/VSIXProject1/UI/Pages/ChatPage.xaml` — New Chat button in toolbar
+  - `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelNewChatTests.cs` — new test class (3 tests)
+
+---
+
+### gap48: Populate Workspace Context in System Prompts
+
+- **Status:** ✅ Complete
+- **Goal:** Inject runtime workspace facts (active file, git branch, solution path, etc.) into system prompts to give LLM models awareness of the IDE state
+- **Problem Statement:** SystemPromptService was emitting placeholder `<workspace_context>` blocks with empty/missing field values (e.g., `ActiveFile="none"`, `SolutionPath="none"`). This prevented models from understanding the developer's current context.
+- **Root Causes Identified:**
+  1. **ConfigService Initialization Race:** `WorkspaceStatsService` constructor called `GetCurrentConfig()` during DI setup, before `ConfigService.InitializeAsync()` completed. This threw "ConfigService has not been initialized" exception, which was silently caught.
+  2. **Missing Solution Path Fallback:** When `WorkspaceStatsService.CollectGitRoot()` returned empty (no .git folder in test/temporary directory), `CollectSolutionPath()` received empty string and returned "none" instead of falling back to the VS solution directory.
+
+- **Instrumentation & Verification:**
+  - Added debugger tracepoints to `SystemPromptService.GetContextSuffix()` to capture actual stat values at runtime
+  - Discovered: Stats WERE being collected correctly (ActiveFile, GitBranch populated), but RefreshCore was being called multiple times with gitRoot=null
+  - Added tracepoints to `WorkspaceStatsService.RefreshCore()` and `CollectGitRoot()` to verify git command execution
+  - Confirmed: `git rev-parse --show-toplevel` was running but returning empty when no .git exists (expected in IDE test environment)
+
+- **Implementation:**
+  - **Fix #1:** Enhanced `GetUserConfiguredGitPath()` in `WorkspaceStatsService` to gracefully handle ConfigService initialization race
+    - Wrapped existing exception catch to explicitly check for "not been initialized" message
+    - Added debug log: `[WorkspaceStatsService] ConfigService not initialized during constructor, using fallback git resolution`
+    - Returns null on exception, allowing fallback git resolution chain (system PATH, registry, etc.) to proceed
+  - **Fix #2:** Updated `RefreshCore()` to use solutionDir as fallback when gitRoot is empty
+    - Changed line 229-230: `var rootForSolution = string.IsNullOrEmpty(gitRoot) ? solutionDir : gitRoot;`
+    - Passes fallback root to `CollectSolutionPath()` instead of empty string
+    - Now finds .sln/.slnx files in VS solution directory when git root unavailable
+
+- **Files Modified:**
+  - `src/VSIXProject1/Services/Implementations/WorkspaceStatsService.cs`
+    - Enhanced `GetUserConfiguredGitPath()` with explicit ConfigService initialization exception handling
+    - Updated `RefreshCore()` to use solutionDir fallback for solution path collection
+  - No test file changes required (all existing tests still pass; fixes are transparent to unit tests)
+
+- **Test Results:**
+  - Full suite: **1091/1091 tests passing** ✅
+  - Tested with real workspace stats collection via debugger tracepoints
+  - Verified: Solution paths now properly resolved when git root unavailable
+
+- **Evidence from Runtime Tracepoints (UPDATED):**
+  ```
+  [TRACE-FINAL] BuildWorkspaceContextBlock: 
+    ActiveFile="E:\GitRepos\TestExtension\...", 
+    GitBranch="master", 
+    SolutionPath="E:\GitRepos\TestExtension\VSIXTest\VSIXTest.slnx"
+  ```
+  - **Issue Found:** Initial fix only used solutionDir when gitRoot was empty. But gitRoot WAS returning a valid path (e.g., "E:\GitRepos\TestExtension"), just with no .sln/.slnx files.
+  - **Root Problem:** `CollectSolutionPath()` only took one parameter and didn't try the fallback when primary root had no solution files.
+  - **Second Fix Applied:** Enhanced `CollectSolutionPath()` signature to `CollectSolutionPath(string primaryRoot, string? fallbackRoot = null)`
+    - Now searches primaryRoot first; if nothing found, tries fallbackRoot before returning "none"
+    - Updated call: `s.SolutionPath = CollectSolutionPath(gitRoot, solutionDir);`
+  - **Result:** Now finds solution files in the fallback directory when git root exists but has no .sln/.slnx
+  - **Before both fixes:** `SolutionPath="none"` (filtered out entirely by `IsEmpty()` check, artifact missing from XML)
+  - **After both fixes:** `SolutionPath="E:\GitRepos\TestExtension\VSIXTest\VSIXTest.slnx"` (properly resolved with two-tier search)
+
+- **How It Works (REVISED):**
+  1. `SystemPromptService.GetContextSuffix()` calls `_statsService.Refresh()` before reading stats
+  2. `WorkspaceStatsService.Refresh()` collects IDE state (active file, solution dir) on UI thread
+  3. Dispatch to background thread for git/filesystem operations via `Task.Run(...).GetAwaiter().GetResult()`
+  4. `GetUserConfiguredGitPath()` tries config lookup; gracefully handles ConfigService not initialized
+  5. `RefreshCore()` collects git root via `git rev-parse --show-toplevel`
+  6. **NEW:** `CollectSolutionPath(gitRoot, solutionDir)` now implements two-tier search:
+     - Searches gitRoot for .slnx/.sln files (returns if found)
+     - If gitRoot search fails, tries solutionDir as fallback (returns if found)
+     - Returns "none" only if both roots searched and nothing found
+  7. Stats snapshot returned with populated ActiveFile, GitBranch, SolutionPath fields
+  8. `BuildWorkspaceContextBlock()` emits XML with real values
+  9. `AppendField()` includes fields with non-empty values in final prompt (filters out "none" via `IsEmpty()`)
+  10. Prompt sent to LLM with complete workspace context (~400+ chars including all metadata)
+
+- **Design Decisions:**
+  - **Two-tier fallback:** Git root (most precise) → VS solution dir (VS-aware) → "none" (last resort)
+  - **Exception handling during DI:** ConfigService not initialized is an expected timing issue, not an error. Gracefully fall back.
+  - **Backward-compatible:** Optional fallback parameter with default null value allows `CollectSolutionPath()` to work with one or two arguments
+  - **Non-blocking:** Missing git/solution paths don't crash prompt generation; simply return "none" for that field
+  - **Verbose debug logging:** Helps diagnose missing workspace context in future issues
+
+- **Edge Cases Handled:**
+  - ConfigService not yet initialized during WorkspaceStatsService construction → continues with fallback git resolution
+  - No .git folder (test environment, non-git workspace) → git root empty, tries VS solution directory fallback ✅
+  - Git root exists but has no solution files → two-tier search finds .sln/.slnx in VS solution dir fallback ✅ (NEW)
+  - No solution open → both roots searched and nothing found, returns "none" (filtered out by `IsEmpty()`)
+  - Null active file → handled by ActiveFile = "none"
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

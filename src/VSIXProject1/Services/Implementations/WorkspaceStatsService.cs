@@ -53,8 +53,17 @@ namespace ContinueVS.Services.Implementations
         {
             try
             {
+                // ConfigService.GetCurrentConfig() may throw if not initialized yet.
+                // This can happen during DI setup before ServiceInitializer runs.
+                // Return null to allow fallback resolution (system PATH, registry, etc.).
                 var cfg = _configService?.GetCurrentConfig();
                 return string.IsNullOrWhiteSpace(cfg?.GitPath) ? null : cfg!.GitPath;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not been initialized"))
+            {
+                // ConfigService not initialized yet; return null for fallback resolution
+                System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] ConfigService not initialized during constructor, using fallback git resolution: {ex.Message}");
+                return null;
             }
             catch { return null; }
         }
@@ -217,7 +226,8 @@ namespace ContinueVS.Services.Implementations
             var gitRoot = CollectGitRoot(workDir);
 
             s.GitRemote = CollectGitRemote(gitRoot);
-            s.SolutionPath = CollectSolutionPath(gitRoot);
+            // Try git root first for solution file; fall back to VS solution dir if not found
+            s.SolutionPath = CollectSolutionPath(gitRoot, solutionDir);
             s.TargetFrameworks = CollectTargetFrameworks(gitRoot);
             s.Shell = CollectShell();
             CollectDebugState(s);
@@ -359,18 +369,35 @@ namespace ContinueVS.Services.Implementations
             catch { return "none"; }
         }
 
-        private static string CollectSolutionPath(string gitRoot)
+        private static string CollectSolutionPath(string primaryRoot, string? fallbackRoot = null)
         {
-            if (string.IsNullOrWhiteSpace(gitRoot) || !Directory.Exists(gitRoot))
-                return "none";
-            try
+            // Try primary root first (git root or VS solution dir)
+            if (!string.IsNullOrWhiteSpace(primaryRoot) && Directory.Exists(primaryRoot))
             {
-                var slnx = Directory.GetFiles(gitRoot, "*.slnx", SearchOption.TopDirectoryOnly).FirstOrDefault();
-                if (slnx != null) return slnx;
-                var sln = Directory.GetFiles(gitRoot, "*.sln", SearchOption.TopDirectoryOnly).FirstOrDefault();
-                return sln ?? "none";
+                try
+                {
+                    var slnx = Directory.GetFiles(primaryRoot, "*.slnx", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                    if (slnx != null) return slnx;
+                    var sln = Directory.GetFiles(primaryRoot, "*.sln", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                    if (sln != null) return sln;
+                }
+                catch { /* continue to fallback */ }
             }
-            catch { return "none"; }
+
+            // If primary root found nothing, try fallback root (VS solution dir if git root was used)
+            if (!string.IsNullOrWhiteSpace(fallbackRoot) && fallbackRoot != primaryRoot && Directory.Exists(fallbackRoot))
+            {
+                try
+                {
+                    var slnx = Directory.GetFiles(fallbackRoot, "*.slnx", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                    if (slnx != null) return slnx;
+                    var sln = Directory.GetFiles(fallbackRoot, "*.sln", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                    if (sln != null) return sln;
+                }
+                catch { /* fallthrough */ }
+            }
+
+            return "none";
         }
 
         private static string CollectTargetFrameworks(string gitRoot)

@@ -55,14 +55,6 @@ namespace ContinueVS.Services
             services.AddSingleton<IPageNavigator, PageNavigator>();
             services.AddSingleton<IThemeService, ThemeService>();
 
-            // Workspace stats service: collects runtime fields for system prompt context injection (gap38)
-            System.Diagnostics.Debug.WriteLine("[sv-di] registering IWorkspaceStatsService (WorkspaceStatsService)");
-            services.AddSingleton<IWorkspaceStatsService>(sp => new WorkspaceStatsService(
-                sp.GetRequiredService<IIdeService>(),
-                sp.GetRequiredService<IDebuggerService>(),
-                sp.GetRequiredService<IConfigService>()));
-            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IWorkspaceStatsService registered");
-
             services.AddSingleton<ISystemPromptService>(sp =>
                 new SystemPromptService(sp.GetRequiredService<IWorkspaceStatsService>()));
             services.AddSingleton<IMarkdownService, MarkdownService>();
@@ -153,6 +145,15 @@ namespace ContinueVS.Services
                 var timeoutHelper = sp.GetRequiredService<ITimeoutHelper>();
                 return new DebuggerService(dteProvider, timeoutHelper);
             });
+
+            // Workspace stats service: collects runtime fields for system prompt context injection (gap38)
+            // MUST be after IDebuggerService registration (on which it depends)
+            System.Diagnostics.Debug.WriteLine("[sv-di] registering IWorkspaceStatsService (WorkspaceStatsService)");
+            services.AddSingleton<IWorkspaceStatsService>(sp => new WorkspaceStatsService(
+                sp.GetRequiredService<IIdeService>(),
+                sp.GetRequiredService<IDebuggerService>(),
+                sp.GetRequiredService<IConfigService>()));
+            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IWorkspaceStatsService registered");
 
             services.AddSingleton<INotificationService>(sp =>
             {
