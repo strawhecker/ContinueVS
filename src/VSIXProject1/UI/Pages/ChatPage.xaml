@@ -28,11 +28,11 @@
             </local:ChatMessageTemplateSelector.AssistantMessageTemplate>
             <local:ChatMessageTemplateSelector.ToolInvocationTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="{DynamicResource CodeBackground}">
+                    <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="#1E1E1E">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <TextBlock Text="Tool: " FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
-                                <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                                <TextBlock Text="Tool: " FontWeight="Bold" Foreground="#FFA500"/>
+                                <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="#FFA500"/>
                                 <TextBlock Margin="8,0,0,0">
                                     <TextBlock.Text>
                                         <MultiBinding StringFormat="{}[{0}]">
@@ -41,19 +41,192 @@
                                     </TextBlock.Text>
                                 </TextBlock>
                             </StackPanel>
-                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC"/>
                         </StackPanel>
                     </Border>
                 </DataTemplate>
             </local:ChatMessageTemplateSelector.ToolInvocationTemplate>
             <local:ChatMessageTemplateSelector.SystemMessageTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="2" Margin="5" Padding="5" Background="{DynamicResource PanelBackground}">
-                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="2" Margin="5" Padding="5" Background="#252526">
+                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#A0A0A0" FontSize="11"/>
                     </Border>
                 </DataTemplate>
             </local:ChatMessageTemplateSelector.SystemMessageTemplate>
-        </local:ChatMessageTemplateSelector>
+            </local:ChatMessageTemplateSelector>
+            <!-- Dark Mode ComboBox Style -->
+            <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+                <Setter Property="Background" Value="#0D0D0D"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="#3E3E42"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="4,2"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBox">
+                            <Border x:Name="Border" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Name="ContentSite" Grid.Column="0" IsHitTestVisible="False" 
+                                        Content="{TemplateBinding SelectionBoxItem}"
+                                        ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                        ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                        Margin="3,3,3,3"
+                                        VerticalAlignment="Center"/>
+                                    <ToggleButton Grid.Column="1" 
+                                        Foreground="White"
+                                        IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                        ClickMode="Press"
+                                        Background="#0D0D0D"
+                                        BorderBrush="Transparent"
+                                        BorderThickness="0"
+                                        Padding="2"
+                                        Margin="0">
+                                        ▼
+                                    </ToggleButton>
+                                    <TextBox x:Name="PART_EditableTextBox" Visibility="Hidden" 
+                                        Background="#0D0D0D" Foreground="White"
+                                        IsReadOnly="{TemplateBinding IsReadOnly}"/>
+                                    <Popup Name="Popup" Placement="Bottom" 
+                                        IsOpen="{TemplateBinding IsDropDownOpen}"
+                                        AllowsTransparency="True" Focusable="False"
+                                        PopupAnimation="Slide">
+                                        <Border Name="DropDownBorder" 
+                                            Background="#0D0D0D"
+                                            BorderBrush="#3E3E42"
+                                            BorderThickness="1">
+                                            <ScrollViewer SnapsToDevicePixels="True">
+                                                <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Border" Property="BorderBrush" Value="#5A7A7A"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value>
+                        <Style TargetType="ComboBoxItem">
+                            <Setter Property="Background" Value="#0D0D0D"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="Padding" Value="3,2"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ComboBoxItem">
+                                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsHighlighted" Value="True">
+                                                <Setter Property="Background" Value="#3E3E42"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#3E3E42"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <!-- Dark Mode Action Button Styles -->
+            <Style x:Key="DarkActionButtonStyle" TargetType="Button">
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Border" Background="{TemplateBinding Background}" 
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="2"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="#5A7A2A"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="#2A4015"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <!-- Green Action Button -->
+            <Style x:Key="GreenActionButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#3D5A1F"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="#4A6F27"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Border" Background="{TemplateBinding Background}" 
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="2"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="#4A6F27"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="#2A4015"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <!-- Red Action Button -->
+            <Style x:Key="RedActionButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#6B2C2F"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="#8B3A3E"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Border" Background="{TemplateBinding Background}" 
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="2"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="#8B3A3E"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="#4B1A1D"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
     <Grid>
@@ -91,7 +264,7 @@
         </Border>
 
         <!-- Context Panel -->
-        <Expander Grid.Row="2" Header="Context" IsExpanded="False" Margin="5" Style="{DynamicResource ThemedExpanderStyle}" Foreground="{DynamicResource PrimaryTextBrush}">
+        <Expander Grid.Row="2" Visibility="Collapsed" Header="Context" IsExpanded="False" Margin="5" Foreground="#CCCCCC">
             <ItemsControl ItemsSource="{Binding SelectedContext}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -103,54 +276,54 @@
 
         <!-- Mode Selector - gap27_1/27_6/27_7 -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
-            <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,5,0" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <ComboBox ItemsSource="{Binding AvailableModes}" SelectedItem="{Binding SelectedMode, Mode=TwoWay}" Width="120" Margin="0,0,5,0" Style="{DynamicResource ThemedComboBoxStyle}">
+            <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,5,0" Foreground="#CCCCCC"/>
+            <ComboBox ItemsSource="{Binding AvailableModes}" SelectedItem="{Binding SelectedMode, Mode=TwoWay}" Width="70" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Icon}" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="14"/>
-                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Icon}" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="14" Foreground="White"/>
+                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBlock Text="?" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" FontWeight="Bold" ToolTip="{Binding SelectedMode.Description, StringFormat='Mode: {0}'}"/>
+            <TextBlock Visibility="Collapsed" Text="?" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="#A0A0A0" FontSize="12" FontWeight="Bold" ToolTip="{Binding SelectedMode.Description, StringFormat='Mode: {0}'}"/>
 
-            <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
+            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
 
-            <TextBlock Text="Policy:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="{DynamicResource PrimaryTextBrush}" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-            <ComboBox ItemsSource="{Binding ContinuationPolicies}" SelectedItem="{Binding SelectedPolicy, Mode=TwoWay}" DisplayMemberPath="Name" Width="160" Height="28" Margin="0,0,5,0" Style="{DynamicResource ThemedComboBoxStyle}" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <TextBlock Text="Policy:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <ComboBox ItemsSource="{Binding ContinuationPolicies}" SelectedItem="{Binding SelectedPolicy, Mode=TwoWay}" DisplayMemberPath="Name" Width="160" Height="28" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-            <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
+            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
 
-            <TextBlock Text="Model:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="200" Margin="0,0,5,0" Foreground="White" Background="#2D2D30" Style="{DynamicResource ThemedComboBoxStyle}"/>
+            <TextBlock Text="Model:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC"/>
+            <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="200" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}"/>
 
-            <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
+            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
 
             <TextBlock Text="{Binding ToolCallCounterDisplay}" VerticalAlignment="Center" Margin="5,0,0,5" FontSize="11" Foreground="{Binding ToolCallCounterDisplay, Converter={StaticResource ToolCallCounterColorConverter}}" ToolTip="Shows cumulative tool calls in current session (resets per-action)"/>
 
-            <Separator Width="1" Margin="10,0" Background="{DynamicResource BorderBrush}"/>
+            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
 
             <!-- gap47: New Chat button starts a fresh session -->
-            <Button Command="{Binding NewChatCommand}" Content="➕ New Chat" Padding="8,4" Margin="5,0,0,0" Style="{DynamicResource ThemedButtonStyle}" ToolTip="Start a new chat session"/>
+            <Button Command="{Binding NewChatCommand}" Content="+" Padding="6,4" Margin="5,0,0,0" Foreground="White" Background="#0D0D0D" BorderBrush="#3E3E42" BorderThickness="1" Width="28" Height="24" ToolTip="Start a new chat session" FontSize="14" FontWeight="Bold"/>
         </StackPanel>
 
         <!-- Mode Description Helper Text - gap27_6 -->
-        <TextBlock Grid.Row="3" Text="{Binding SelectedMode.Description}" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" FontStyle="Italic" Margin="5,25,5,0" VerticalAlignment="Top"/>
-        <Border Grid.Row="4" Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="5" Padding="15" VerticalAlignment="Top" Visibility="{Binding OnboardingCardVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <TextBlock Grid.Row="3" Text="{Binding SelectedMode.Description}" TextWrapping="Wrap" Foreground="#A0A0A0" FontSize="10" FontStyle="Italic" Margin="5,25,5,0" VerticalAlignment="Top"/>
+        <Border Grid.Row="4" Background="#252526" BorderBrush="#3E3E42" BorderThickness="1" Margin="5" Padding="15" VerticalAlignment="Top" Visibility="{Binding OnboardingCardVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel>
-                <TextBlock Text="🎯 Getting Started" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,10"/>
-                <TextBlock Text="Welcome to Continue VS! Here's how to get started:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"/>
+                <TextBlock Text="🎯 Getting Started" FontSize="16" FontWeight="Bold" Foreground="#CCCCCC" Margin="0,0,0,10"/>
+                <TextBlock Text="Welcome to Continue VS! Here's how to get started:" Foreground="#A0A0A0" Margin="0,0,0,8"/>
 
                 <StackPanel Margin="0,0,0,8">
-                    <TextBlock Text="• Select a mode (Ask, Agent, or Plan) above" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="• Choose a model from the dropdown" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="• Enter your prompt or question below" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="• Click Send to start the conversation" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="• Select a mode (Ask, Agent, or Plan) above" Foreground="#A0A0A0" Margin="0,0,0,4"/>
+                    <TextBlock Text="• Choose a model from the dropdown" Foreground="#A0A0A0" Margin="0,0,0,4"/>
+                    <TextBlock Text="• Enter your prompt or question below" Foreground="#A0A0A0" Margin="0,0,0,4"/>
+                    <TextBlock Text="• Click Send to start the conversation" Foreground="#A0A0A0" Margin="0,0,0,4"/>
                 </StackPanel>
 
-                <TextBlock Text="💡 Tip: Switch to Agent mode to let Continue autonomously analyze and edit your code." Foreground="{DynamicResource SecondaryTextBrush}" FontStyle="Italic"/>
+                <TextBlock Text="💡 Tip: Switch to Agent mode to let Continue autonomously analyze and edit your code." Foreground="#A0A0A0" FontStyle="Italic"/>
             </StackPanel>
         </Border>
 
@@ -178,7 +351,7 @@
             <TextBox x:Name="InputTextBox" Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
                      TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="False" 
                      MinHeight="80" MaxHeight="200" VerticalScrollBarVisibility="Auto"
-                     Margin="0,0,0,5" Style="{StaticResource DefaultTextBoxStyle}"
+                     Margin="0,0,0,5" Foreground="White" Background="#1E1E1E" BorderBrush="#3E3E42"
                      PreviewKeyDown="InputTextBox_KeyDown"/>
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
@@ -190,14 +363,15 @@
                 </Grid.ColumnDefinitions>
 
                 <Button Grid.Column="1" Command="{Binding SendMessageCommand}" 
-                        Content="Send" Padding="10" Margin="5,0" Background="{DynamicResource ButtonPrimaryBrush}" Style="{DynamicResource ThemedButtonStyle}"/>
+                        Content="▶" Style="{StaticResource GreenActionButtonStyle}" Width="32" Height="24" ToolTipService.ToolTip="Send Message"/>
                 <Button Grid.Column="2" Command="{Binding CancelCommand}" 
-                        Content="Cancel" Padding="10" Margin="5,0" Background="{DynamicResource ErrorBrush}" Style="{DynamicResource ThemedButtonStyle}"/>
+                        Content="✕" Style="{StaticResource RedActionButtonStyle}" Width="32" Height="24" ToolTipService.ToolTip="Cancel"/>
                 <Button Grid.Column="3" Command="{Binding PauseCommand}" 
-                        Content="{Binding IsPausedDisplay}" Padding="10" Margin="5,0" Background="{DynamicResource ErrorBrush}" 
-                        IsEnabled="{Binding IsStreaming}" Style="{DynamicResource ThemedButtonStyle}"/>
-                <Button Grid.Column="4" Content="Apply" Padding="10" Margin="5,0" Background="{DynamicResource SuccessBrush}"
-                        Visibility="{Binding CurrentMode, Converter={StaticResource ChatModeToVisibilityConverter}}" Style="{DynamicResource ThemedButtonStyle}"/>
+                        Content="{Binding IsPausedDisplayIcon}" Style="{StaticResource RedActionButtonStyle}" Width="32" Height="24"
+                        IsEnabled="{Binding IsStreaming}" ToolTipService.ToolTip="Pause/Resume"/>
+                <Button Grid.Column="4" Content="✔" Padding="10" Margin="5,0" Background="#28A745"
+                        Visibility="Collapsed"
+                        ToolTipService.ToolTip="Apply Changes"/>
             </Grid>
         </Grid>
     </Grid>

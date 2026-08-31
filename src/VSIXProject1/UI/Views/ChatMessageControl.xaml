@@ -20,22 +20,25 @@
                     <renderers:MarkdownBlockRenderer Content="{Binding Content}" />
                 </Border>
 
-                <!-- Copy All button (appears on hover for assistant messages, positioned upper left) -->
-                <Button x:Name="CopyAllButton"
-                        Height="22"
-                        Padding="8,2,8,2"
-                        Visibility="{Binding Role, Converter={StaticResource RoleToVisibilityConverter}}"
+                <!-- Copy/Apply Dropdown (gap49) - replaces separate Copy All button -->
+                <ComboBox x:Name="CodeActionDropdown"
+                        Height="28"
+                        Width="120"
                         Background="#46464646"
                         Foreground="White"
                         BorderThickness="0"
                         FontSize="11"
-                        ToolTip="Copy all"
+                        SelectedIndex="0"
+                        SelectedValuePath="Content"
+                        Visibility="{Binding Role, Converter={StaticResource RoleToVisibilityConverter}}"
+                        ToolTip="Copy or Apply code block"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Margin="-4,-4,0,0"
                         Cursor="Hand">
-                    <TextBlock Text="Copy All" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                </Button>
+                    <ComboBoxItem Content="📋 Copy" IsSelected="True"/>
+                    <ComboBoxItem Content="✔ Apply" IsEnabled="{Binding Path=DataContext.CurrentResponseHasFilePath, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+                </ComboBox>
 
                 <!-- Delete button (appears on hover, positioned upper right) -->
                 <Button x:Name="DeleteButton"

@@ -42,23 +42,23 @@ namespace ContinueVS.ViewModels
     }
 
     public class ChatPageViewModel : ViewModelBase
-        {
-            private readonly ILlmService _llmService;
-                private readonly IContextService _contextService;
-                private readonly IToolService _toolService;
-                private readonly ISessionService _sessionService;
-                private readonly INotificationService _notificationService;
-                private readonly IConfigService _configService;
-                private readonly ISystemPromptService _systemPromptService;
-                private readonly IUIStateService _uiStateService;
-                private readonly IInstructionExecutorService _instructionExecutorService;
-                private IModeService? _modeService;
-                private IWorkflowService? _workflowService;
-                private readonly IIdeService? _ideService;
-                // gap43_3: Optional plan output service for persisting Plan mode responses
-                private readonly IPlanOutputService? _planOutputService;
-            private IModeConfigRegistry _modeConfigRegistry;
-            private UIState? _cachedUIState;
+    {
+        private readonly ILlmService _llmService;
+        private readonly IContextService _contextService;
+        private readonly IToolService _toolService;
+        private readonly ISessionService _sessionService;
+        private readonly INotificationService _notificationService;
+        private readonly IConfigService _configService;
+        private readonly ISystemPromptService _systemPromptService;
+        private readonly IUIStateService _uiStateService;
+        private readonly IInstructionExecutorService _instructionExecutorService;
+        private IModeService? _modeService;
+        private IWorkflowService? _workflowService;
+        private readonly IIdeService? _ideService;
+        // gap43_3: Optional plan output service for persisting Plan mode responses
+        private readonly IPlanOutputService? _planOutputService;
+        private IModeConfigRegistry _modeConfigRegistry;
+        private UIState? _cachedUIState;
 
         private string? _inputText;
         private bool _isStreaming;
@@ -137,6 +137,18 @@ namespace ContinueVS.ViewModels
         /// When true, execution is paused; when false, execution can proceed.
         /// </summary>
         private bool _isPaused = false;
+
+        /// <summary>
+        /// Flag to track if the latest assistant response contains a file path (gap49).
+        /// Used to enable/disable the Apply button in the Copy/Apply dropdown.
+        /// </summary>
+        private bool _currentResponseHasFilePath = false;
+
+        /// <summary>
+        /// Enum for code action selection (gap49).
+        /// Tracks whether user selected Copy or Apply from the dropdown.
+        /// </summary>
+        private int _selectedCodeAction = 0; // 0=Copy, 1=Apply
 
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
@@ -369,6 +381,32 @@ public string? InputText
         /// </summary>
         public string IsPausedDisplay => _isPaused ? "Resume" : "Pause";
 
+        /// <summary>
+        /// Gets the icon display for the pause button (gap49 polish).
+        /// Returns "⏸" (pause icon) when not paused, "▶" (play/resume icon) when paused.
+        /// </summary>
+        public string IsPausedDisplayIcon => _isPaused ? "▶" : "⏸";
+
+        /// <summary>
+        /// Gets or sets whether the latest assistant response contains a file path (gap49).
+        /// Used to enable/disable the Apply button in the Copy/Apply dropdown.
+        /// </summary>
+        public bool CurrentResponseHasFilePath
+        {
+            get => _currentResponseHasFilePath;
+            set => Set(ref _currentResponseHasFilePath, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the currently selected code action (gap49).
+        /// 0=Copy: copy code to clipboard; 1=Apply: apply code to file (if path detected).
+        /// </summary>
+        public int SelectedCodeAction
+        {
+            get => _selectedCodeAction;
+            set => Set(ref _selectedCodeAction, value);
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -390,6 +428,19 @@ public string? InputText
         /// Disabled while a stream is in progress.
         /// </summary>
         public RelayCommand NewChatCommand { get; }
+
+        /// <summary>
+        /// Command to copy the selected code block to clipboard (gap49).
+        /// Placeholder for codeblock template wiring.
+        /// </summary>
+        public RelayCommand<string> CopyCodeBlockCommand { get; }
+
+        /// <summary>
+        /// Command to apply the selected code block to the file (gap49).
+        /// Enabled only when CurrentResponseHasFilePath is true.
+        /// Placeholder for codeblock template wiring.
+        /// </summary>
+        public RelayCommand<string> ApplyCodeBlockCommand { get; }
 
         public ChatPageViewModel(
             ILlmService llmService,
@@ -453,6 +504,12 @@ public string? InputText
             DeleteMessageCommand = new RelayCommand<string>(ExecuteDeleteMessage);
             PauseCommand = new RelayCommand(ExecutePause, () => IsStreaming);
             NewChatCommand = new RelayCommand(() => _ = ExecuteNewChatAsync(), () => !IsStreaming);
+            CopyCodeBlockCommand = new RelayCommand<string>(ExecuteCopyCodeBlock);
+            ApplyCodeBlockCommand = new RelayCommand<string>(codeContent =>
+            {
+                if (CanApplyCodeBlock())
+                    ExecuteApplyCodeBlock(codeContent);
+            });
 
             _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
@@ -475,7 +532,7 @@ public string? InputText
                 // gap27_5: Restore mode from session when loading (CurrentMode set in event)
                 if (e.CurrentMode.HasValue)
                 {
-                    var restoredMode = Services.Utilities.ModeValidator.CoerceToValidMode(e.CurrentMode.Value);
+                    var restoredMode = ContinueVS.Services.Utilities.ModeValidator.CoerceToValidMode(e.CurrentMode.Value);
                     System.Diagnostics.Debug.WriteLine($"[gap27_5-restore] Session loaded with mode {e.CurrentMode.Value}, coerced to {restoredMode}");
                     CurrentMode = (ChatMode)restoredMode;
                 }
@@ -527,7 +584,7 @@ public string? InputText
             try
             {
                 var defaultMode = await _configService.GetDefaultModeAsync();
-                var coercedMode = Services.Utilities.ModeValidator.CoerceToValidMode(defaultMode);
+                var coercedMode = ContinueVS.Services.Utilities.ModeValidator.CoerceToValidMode(defaultMode);
                 System.Diagnostics.Debug.WriteLine($"[gap27_5-init] Loaded default mode from config: {defaultMode}, coerced to {coercedMode}");
 
                 // Update CurrentMode and sync SelectedMode
@@ -604,11 +661,55 @@ public string? InputText
         /// <summary>
         /// Handles Messages collection changes to sync onboarding card visibility (gap25_6).
         /// Card is visible only when chat is empty (Messages.Count == 0).
+        /// Also detects file paths in the latest assistant message (gap49).
         /// </summary>
         private void OnMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             OnboardingCardVisible = Messages.Count == 0;
             System.Diagnostics.Debug.WriteLine($"[gap25_6-sync] Onboarding card visibility updated: {OnboardingCardVisible} (Messages.Count={Messages.Count})");
+
+            // gap49: Detect file path in latest assistant message
+            if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems?.Count > 0)
+            {
+                var latestMessage = e.NewItems[0] as ChatMessage;
+                if (latestMessage?.Role == ChatMessageRole.Assistant && latestMessage.Content != null)
+                {
+                    CurrentResponseHasFilePath = DetectFilePathInResponse(latestMessage.Content);
+                    System.Diagnostics.Debug.WriteLine($"[gap49-detect] File path detected in response: {CurrentResponseHasFilePath}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Detects if a response string contains file path markers (gap49).
+        /// Regex scans for patterns: "path":", path:, file:, filepath:, filename:, /path/to/file, C:\path\to\file
+        /// Returns true if any pattern is found, false otherwise.
+        /// </summary>
+        private bool DetectFilePathInResponse(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return false;
+
+            var patterns = new[]
+            {
+                @"""path""\s*:\s*""[^""]*""",  // JSON: "path": "..."
+                @"path\s*:\s*[^\s,]+",          // path: /some/path
+                @"file\s*:\s*[^\s,]+",          // file: /some/file
+                @"filepath\s*:\s*[^\s,]+",      // filepath: /some/path
+                @"filename\s*:\s*[^\s,]+",      // filename: something.txt
+                @"[A-Za-z]:\\[^\s]+",           // Windows path: C:\path\to\file
+                @"/[^\s]+"                      // Unix path: /path/to/file
+            };
+
+            foreach (var pattern in patterns)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(content, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -1228,6 +1329,7 @@ public string? InputText
         {
             IsPaused = !IsPaused;
             RaisePropertyChanged(nameof(IsPausedDisplay));
+            RaisePropertyChanged(nameof(IsPausedDisplayIcon));
 
             // gap31_2: Cancel active stream if pause activated and streaming is in progress
             if (IsPaused && IsStreaming && _streamingCts != null && !_streamingCts.Token.IsCancellationRequested)
@@ -1352,6 +1454,67 @@ public string? InputText
                     $"Could not delete message: {ex.Message}", NotificationType.Error);
                 System.Diagnostics.Debug.WriteLine($"[delete-error] Service deletion failed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Executes copy command for code blocks (gap49).
+        /// Copies the code block content to clipboard.
+        /// </summary>
+        private void ExecuteCopyCodeBlock(string? codeContent)
+        {
+            if (string.IsNullOrWhiteSpace(codeContent))
+            {
+                System.Diagnostics.Debug.WriteLine("[gap49-copy] Code content is empty");
+                return;
+            }
+
+            try
+            {
+                System.Windows.Forms.Clipboard.SetText(codeContent);
+                System.Diagnostics.Debug.WriteLine("[gap49-copy] Code copied to clipboard");
+                _ = _notificationService.ShowNotificationAsync("Copied", "Code block copied to clipboard", NotificationType.Success);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap49-copy-error] Failed to copy: {ex.Message}");
+                _ = _notificationService.ShowNotificationAsync("Copy Failed", $"Could not copy code: {ex.Message}", NotificationType.Error);
+            }
+        }
+
+        /// <summary>
+        /// Determines if Apply button should be enabled (gap49).
+        /// Returns true only if CurrentResponseHasFilePath is true.
+        /// </summary>
+        private bool CanApplyCodeBlock()
+        {
+            return CurrentResponseHasFilePath;
+        }
+
+        /// <summary>
+        /// Executes apply command for code blocks (gap49).
+        /// Applies the code block to the detected file path.
+        /// Disabled if no file path is detected in the response.
+        /// </summary>
+        private void ExecuteApplyCodeBlock(string? codeContent)
+        {
+            if (string.IsNullOrWhiteSpace(codeContent))
+            {
+                System.Diagnostics.Debug.WriteLine("[gap49-apply] Code content is empty");
+                return;
+            }
+
+            if (!CurrentResponseHasFilePath)
+            {
+                _ = _notificationService.ShowNotificationAsync("Warning", 
+                    "No file path detected in response. Unable to apply changes.", NotificationType.Warning);
+                System.Diagnostics.Debug.WriteLine("[gap49-apply] No file path detected");
+                return;
+            }
+
+            // Placeholder: Actual apply logic will be implemented when gap49_advanced is tackled
+            _ = _notificationService.ShowNotificationAsync("Apply", 
+                "Apply feature coming soon. File path detected and ready.", NotificationType.Success);
+            System.Diagnostics.Debug.WriteLine("[gap49-apply] Apply placeholder executed");
         }
     }
 }

@@ -13,7 +13,7 @@ namespace ContinueVS.UI
         public ContinueToolWindowPane() : base(null)
         {
             // Set the window title
-            this.Caption = "Continue";
+            this.Caption = "ContinueVS";
 
             try
             {
