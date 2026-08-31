@@ -7,6 +7,7 @@
     <UserControl.Resources>
         <local:RoleToAlignmentConverter x:Key="RoleToAlignmentConverter"/>
         <local:RoleToColorConverter x:Key="RoleToColorConverter"/>
+        <local:RoleToVisibilityConverter x:Key="RoleToVisibilityConverter"/>
     </UserControl.Resources>
     <Grid x:Name="MessageGrid">
         <Grid.ColumnDefinitions>
@@ -18,6 +19,23 @@
                 <Border Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
                     <renderers:MarkdownBlockRenderer Content="{Binding Content}" />
                 </Border>
+
+                <!-- Copy All button (appears on hover for assistant messages, positioned upper left) -->
+                <Button x:Name="CopyAllButton"
+                        Height="22"
+                        Padding="8,2,8,2"
+                        Visibility="{Binding Role, Converter={StaticResource RoleToVisibilityConverter}}"
+                        Background="#46464646"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="11"
+                        ToolTip="Copy all"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="-4,-4,0,0"
+                        Cursor="Hand">
+                    <TextBlock Text="Copy All" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </Button>
 
                 <!-- Delete button (appears on hover, positioned upper right) -->
                 <Button x:Name="DeleteButton"

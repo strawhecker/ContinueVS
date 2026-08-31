@@ -43,6 +43,8 @@ namespace ContinueVS.Tests.Services
                 return ActiveFilepath;
             }
 
+            public string GetSolutionDirectory() => string.Empty;
+
             public Selection? GetCursorSelection() => null;
         }
 

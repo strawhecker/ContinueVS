@@ -5540,6 +5540,25 @@ Everything else — LLM-reactive planning, phase generation, phase execution, pl
 
 ---
 
+### gap46: Add "Copy All" Button to the Top of Every Response
+
+- **Status:** ✅ Implemented
+- **Goal:** Add a "Copy All" button at the top of every response panel that copies the full raw response verbatim — including all paragraphs, code blocks, and intermixed content — to the clipboard in a single action
+- **Reasoning:** When a response contains more than one paragraph or intermixed paragraphs and code blocks, there is no way to copy the entire response at once. The per-block copy buttons only capture individual sections, forcing the user to manually reassemble multi-part responses
+- **Implementation:**
+  - `RoleToVisibilityConverter` — new converter: `Assistant → Visible`, all others → `Collapsed`
+  - `ChatMessageControl.xaml` — `CopyAllButton` overlay at top-left of bubble, bound visibility to `RoleToVisibilityConverter`; mirrors `DeleteButton` hover pattern
+  - `ChatMessageControl.xaml.cs` — `MouseEnter`/`MouseLeave` show/hide `CopyAllButton` (only if not `Collapsed`); `CopyAllButton.Click` copies `ChatMessage.Content` to clipboard
+  - `ConverterTests.cs` — 4 new tests: `AssistantRole_ReturnsVisible`, `NonAssistantRole_ReturnsCollapsed` (theory: User/System/Tool), `NullValue_ReturnsCollapsed`, `ConvertBack_ReturnsUnsetValue`
+- **Files Modified:**
+  - `src/VSIXProject1/ViewModels/Converters/RoleToVisibilityConverter.cs` *(new)*
+  - `src/VSIXProject1/UI/Views/ChatMessageControl.xaml`
+  - `src/VSIXProject1/UI/Views/ChatMessageControl.xaml.cs`
+  - `src/VSIXProject1.Tests/UI/ConverterTests.cs`
+- **Tests:** 47/47 passing (ConverterTests)
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

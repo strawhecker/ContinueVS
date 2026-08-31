@@ -347,5 +347,60 @@ namespace ContinueVS.Tests.UI
             Assert.NotNull(brush);
             Assert.Equal(Color.FromRgb(96, 96, 96), brush.Color); // Gray: 606060
         }
+
+        [Fact]
+        public void RoleToVisibilityConverter_AssistantRole_ReturnsVisible()
+        {
+            // Arrange
+            var converter = new RoleToVisibilityConverter();
+
+            // Act
+            var result = converter.Convert(ChatMessageRole.Assistant, typeof(Visibility), null, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(Visibility.Visible, result);
+        }
+
+        [Theory]
+        [InlineData(ChatMessageRole.User)]
+        [InlineData(ChatMessageRole.System)]
+        [InlineData(ChatMessageRole.Tool)]
+        public void RoleToVisibilityConverter_NonAssistantRole_ReturnsCollapsed(ChatMessageRole role)
+        {
+            // Arrange
+            var converter = new RoleToVisibilityConverter();
+
+            // Act
+            var result = converter.Convert(role, typeof(Visibility), null, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(Visibility.Collapsed, result);
+        }
+
+        [Fact]
+        public void RoleToVisibilityConverter_NullValue_ReturnsCollapsed()
+        {
+            // Arrange
+            var converter = new RoleToVisibilityConverter();
+
+            // Act
+            var result = converter.Convert(null, typeof(Visibility), null, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(Visibility.Collapsed, result);
+        }
+
+        [Fact]
+        public void RoleToVisibilityConverter_ConvertBack_ReturnsUnsetValue()
+        {
+            // Arrange
+            var converter = new RoleToVisibilityConverter();
+
+            // Act
+            var result = converter.ConvertBack(Visibility.Visible, typeof(ChatMessageRole), null, CultureInfo.InvariantCulture);
+
+            // Assert
+            Assert.Equal(DependencyProperty.UnsetValue, result);
+        }
     }
 }

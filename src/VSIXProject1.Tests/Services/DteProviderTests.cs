@@ -24,6 +24,7 @@ namespace ContinueVS.Tests.Services
             public string GetActiveDocumentContent() => ActiveDocumentContent;
             public List<string> GetRecentFiles(int maxCount) => new List<string>(RecentFilesData.GetRange(0, System.Math.Min(maxCount, RecentFilesData.Count)));
             public string GetActiveFilepath() => ActiveFilepath;
+            public string GetSolutionDirectory() => string.Empty;
             public Selection? GetCursorSelection() => null;
         }
 

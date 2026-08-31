@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using ContinueVS.Services.Interfaces;
 using Microsoft.VisualStudio.Shell;
@@ -97,10 +98,40 @@ namespace ContinueVS.Services.Implementations
             {
                 ThreadHelper.ThrowIfNotOnUIThread();
                 var activeDoc = _dte.ActiveDocument;
-                if (activeDoc == null)
-                    return string.Empty;
+                if (activeDoc != null)
+                    return activeDoc.FullName ?? string.Empty;
 
-                return activeDoc.FullName ?? string.Empty;
+                // Tool window has focus — ActiveDocument is null. Try the active window's document first.
+                var winDoc = _dte.ActiveWindow?.Document;
+                if (winDoc != null && !string.IsNullOrWhiteSpace(winDoc.FullName))
+                    return winDoc.FullName;
+
+                // Fall back to the first open document in the Documents collection.
+                var docs = _dte.Documents;
+                if (docs != null && docs.Count > 0)
+                {
+                    var first = docs.Item(1);
+                    if (first != null && !string.IsNullOrWhiteSpace(first.FullName))
+                        return first.FullName;
+                }
+
+                return string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        public string GetSolutionDirectory()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var solutionPath = _dte.Solution?.FullName;
+                if (string.IsNullOrWhiteSpace(solutionPath))
+                    return string.Empty;
+                return Path.GetDirectoryName(solutionPath) ?? string.Empty;
             }
             catch
             {

@@ -41,6 +41,7 @@ namespace ContinueVS.Services.Tests
             public Task<IEnumerable<Diagnostic>> GetProblemsAsync(string filepath) => Task.FromResult<IEnumerable<Diagnostic>>(Array.Empty<Diagnostic>());
             public Task<(string stdout, string stderr)> RunSubprocessAsync(string command, string cwd) => Task.FromResult((string.Empty, string.Empty));
             public string? GetActiveFilepath() => null;
+            public string? GetSolutionDirectory() => null;
             public string? GetSelectedText() => null;
             public Selection? GetCursorSelection() => null;
             public bool FileExists(string filepath) => File.Exists(filepath);

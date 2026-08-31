@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -192,24 +193,25 @@ namespace ContinueVS.Services.Implementations
         /// <inheritdoc/>
         public void Refresh()
         {
-            // Collect the DTE-dependent active file path on the calling (UI) thread before
-            // dispatching to a thread-pool thread, where ThreadHelper.ThrowIfNotOnUIThread() would throw.
+            // Collect DTE-dependent values on the calling (UI) thread before
+            // dispatching to a thread-pool thread.
             string activeFile = CollectActiveFile();
+            string? solutionDir = CollectSolutionDir();
 
             // Dispatch remaining (git/filesystem/blocking) work to a thread-pool thread so the
             // inner .GetAwaiter().GetResult() calls never block the VS UI thread.
 #pragma warning disable VSTHRD002
-            Task.Run(() => RefreshCore(activeFile)).GetAwaiter().GetResult();
+            Task.Run(() => RefreshCore(activeFile, solutionDir)).GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
         }
 
-        private void RefreshCore(string activeFile)
+        private void RefreshCore(string activeFile, string? solutionDir)
         {
             var s = new WorkspaceStats();
 
             s.ActiveFile = activeFile;
 
-            var workDir = ResolveWorkDirFromFile(activeFile);
+            var workDir = ResolveWorkDirFromFile(activeFile, solutionDir);
             s.GitBranch = CollectGitBranch(workDir);
 
             var gitRoot = CollectGitRoot(workDir);
@@ -225,14 +227,44 @@ namespace ContinueVS.Services.Implementations
             System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] Refresh complete: ActiveFile={s.ActiveFile}, GitBranch={s.GitBranch}, SolutionPath={s.SolutionPath}");
         }
 
-        private static string? ResolveWorkDirFromFile(string activeFile)
+        private static string? ResolveWorkDirFromFile(string activeFile, string? solutionDir)
         {
             if (!string.IsNullOrWhiteSpace(activeFile) && activeFile != "none")
             {
                 var dir = Path.GetDirectoryName(activeFile);
                 if (dir != null && Directory.Exists(dir)) return dir;
             }
-            return Directory.GetCurrentDirectory();
+
+            // Active file unavailable (tool window focused) — fall back to solution directory.
+            // _dte.Solution.FullName is always populated when a solution is open.
+            if (!string.IsNullOrWhiteSpace(solutionDir) && Directory.Exists(solutionDir))
+                return solutionDir;
+
+            return FindGitRootFromAssembly() ?? Directory.GetCurrentDirectory();
+        }
+
+        /// <summary>
+        /// Walks up the directory tree starting from the executing assembly location,
+        /// returning the first directory that contains a <c>.git</c> folder.
+        /// Returns <c>null</c> if no git root is found.
+        /// </summary>
+        private static string? FindGitRootFromAssembly()
+        {
+            try
+            {
+                var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+                var dir = Path.GetDirectoryName(assemblyLocation);
+                while (!string.IsNullOrEmpty(dir))
+                {
+                    if (Directory.Exists(Path.Combine(dir, ".git")))
+                        return dir;
+                    var parent = Path.GetDirectoryName(dir);
+                    if (parent == dir) break; // reached filesystem root
+                    dir = parent;
+                }
+            }
+            catch { }
+            return null;
         }
 
         private string CollectActiveFile()
@@ -245,6 +277,12 @@ namespace ContinueVS.Services.Implementations
                 return string.IsNullOrWhiteSpace(path) ? "none" : path;
             }
             catch { return "none"; }
+        }
+
+        private string? CollectSolutionDir()
+        {
+            try { return _ideService.GetSolutionDirectory(); }
+            catch { return null; }
         }
 
         private string CollectGitBranch(string? workDir)

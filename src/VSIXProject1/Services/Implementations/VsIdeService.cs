@@ -202,6 +202,8 @@ namespace ContinueVS.Services.Implementations
 
         public string? GetActiveFilepath() => _dteProvider.GetActiveFilepath();
 
+        public string? GetSolutionDirectory() => _dteProvider.GetSolutionDirectory();
+
         public string? GetSelectedText()
         {
             Debug.WriteLine("[gap33-getselected] VsIdeService.GetSelectedText delegating to DteProvider");

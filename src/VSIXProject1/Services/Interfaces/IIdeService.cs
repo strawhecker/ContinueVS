@@ -243,6 +243,12 @@ namespace ContinueVS.Services.Interfaces
         string? GetActiveFilepath();
 
         /// <summary>
+        /// Gets the directory of the currently open solution.
+        /// </summary>
+        /// <returns>The solution directory path, or null if no solution is open.</returns>
+        string? GetSolutionDirectory();
+
+        /// <summary>
         /// Gets the currently selected text in the editor.
         /// </summary>
         /// <returns>The selected text, or null if nothing is selected.</returns>

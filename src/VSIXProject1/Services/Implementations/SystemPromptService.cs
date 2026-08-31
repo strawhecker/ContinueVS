@@ -1,11 +1,14 @@
-﻿using System;
+﻿using ContinueVS.Core.Types;
+using ContinueVS.Services.Interfaces;
+using EnvDTE;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Remoting.Contexts;
 using System.Text;
 using System.Threading.Tasks;
-using ContinueVS.Core.Types;
-using ContinueVS.Services.Interfaces;
-using Newtonsoft.Json;
+using System.Xml.Linq;
 
 namespace ContinueVS.Services.Implementations
 {
@@ -170,6 +173,22 @@ namespace ContinueVS.Services.Implementations
             const string BRIEF_LAZY_INSTRUCTIONS =
                 "For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'";
 
+            const string ECHO_RULES =
+                ""
+                + "<macro name=\"!echoall\">"
+                + "<action>"
+                + "<insert string=\""
+                + "<important_rules>${context.important_rules}</important_rules>\n"
+                + "<workspace_context>${context.workspace_context}</workspace_context>\n"
+                + "<agent_context>${context.agent_context}</agent_context>\n"
+                + "<agent_context>${context.agent_context}</agent_context>\n"
+                + "<plan_context>${context.plan_context}</plan_context>\n"
+                + "${context}\n"
+                + "\">"
+                + "</action>"
+                + "</macro>\n"
+                ;
+
             switch (mode.ToLowerInvariant())
             {
                 case "agent":
@@ -179,7 +198,9 @@ namespace ContinueVS.Services.Implementations
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
-                           "</important_rules>" + GetContextSuffix("agent");
+                           "</important_rules>" +
+                           ECHO_RULES +
+                           GetContextSuffix("agent");
 
                 case "plan":
                     return "<important_rules>\n" +
@@ -190,7 +211,9 @@ namespace ContinueVS.Services.Implementations
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +
                            "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
-                           "</important_rules>" + GetContextSuffix("plan");
+                           "</important_rules>" +
+                           ECHO_RULES +
+                           GetContextSuffix("plan");
 
                 case "debug":
                     return "<important_rules>\n" +
@@ -199,7 +222,9 @@ namespace ContinueVS.Services.Implementations
                            "You operate as in agent mode so all tools are available. prompt user for changes, on accept, make the changes.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
-                           "</important_rules>" + GetContextSuffix("debug");
+                           "</important_rules>" +
+                           ECHO_RULES +
+                           GetContextSuffix("debug");
 
                 case "reason":
                     return "<important_rules>\n" +
@@ -209,7 +234,9 @@ namespace ContinueVS.Services.Implementations
                            "Only use read-only tools. If the user wants changes implemented, suggest switching to Agent mode.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
-                           "</important_rules>" + GetContextSuffix("reason");
+                           "</important_rules>" +
+                           ECHO_RULES +
+                           GetContextSuffix("reason");
 
                 default:  // chat/ask mode
                     return "<important_rules>\n" +
@@ -217,7 +244,9 @@ namespace ContinueVS.Services.Implementations
                            "If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.\n" +
                            "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
-                           "</important_rules>" + GetContextSuffix("ask");
+                           "</important_rules>" +
+                           ECHO_RULES +
+                           GetContextSuffix("ask");
                     //EDIT_CODE_INSTRUCTIONS + "\n" +
             }
         }

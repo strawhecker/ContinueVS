@@ -29,6 +29,11 @@ namespace ContinueVS.Services.Interfaces
         string GetActiveFilepath();
 
         /// <summary>
+        /// Get the directory of the currently open solution, or empty string if none.
+        /// </summary>
+        string GetSolutionDirectory();
+
+        /// <summary>
         /// Get the current cursor selection from the active document, or null if unavailable.
         /// </summary>
         Selection? GetCursorSelection();

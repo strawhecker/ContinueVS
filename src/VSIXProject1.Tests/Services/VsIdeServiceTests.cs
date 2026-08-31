@@ -21,6 +21,7 @@ namespace ContinueVS.Tests.Services
             public Selection? CursorSelection { get; set; }
 
             public string GetActiveFilepath() => ActiveFilepath;
+            public string GetSolutionDirectory() => string.Empty;
             public string GetSelectedText() => SelectedText;
             public string GetActiveDocumentContent() => string.Empty;
             public List<string> GetRecentFiles(int maxCount) => new List<string>();
