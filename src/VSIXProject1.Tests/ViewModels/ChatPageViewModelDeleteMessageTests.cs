@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -115,8 +115,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
 
             // Add 3 messages to the collection
             var msg1 = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Message 1" };
@@ -162,8 +162,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
 
             var messageId = "test-message-id";
             var msg = new ChatMessage { Id = messageId, Role = ChatMessageRole.User, Content = "Test" };
@@ -206,8 +206,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
 
             var messageId = "test-message-id";
             var msg = new ChatMessage { Id = messageId, Role = ChatMessageRole.User, Content = "Test" };
@@ -255,8 +255,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);
@@ -297,8 +297,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);

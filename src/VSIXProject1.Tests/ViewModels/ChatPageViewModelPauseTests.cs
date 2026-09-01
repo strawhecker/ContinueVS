@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -97,6 +97,18 @@ namespace ContinueVS.Tests.ViewModels
             return mock;
         }
 
+        private Mock<IChangeStackService> CreateMockChangeStackService()
+        {
+            var mock = new Mock<IChangeStackService>();
+            mock.Setup(x => x.CreateChangeStack()).Returns(Guid.NewGuid().ToString());
+            return mock;
+        }
+
+        private Mock<IMarkdownService> CreateMockMarkdownService()
+        {
+            return new Mock<IMarkdownService>();
+        }
+
         [Fact(DisplayName = "gap31_2: Pause toggles IsPaused flag")]
         public void Pause_TogglesIsPausedFlag()
         {
@@ -110,7 +122,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             // Simulate streaming state
@@ -145,7 +159,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             viewModel.IsStreaming = true;
@@ -173,7 +189,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             viewModel.InputText = "test message";
@@ -207,7 +225,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             viewModel.IsStreaming = true;
@@ -230,7 +250,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             // Assert: Initially not streaming, so pause disabled
@@ -262,7 +284,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             viewModel.IsStreaming = true;
@@ -291,7 +315,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             viewModel.IsStreaming = true;
@@ -322,7 +348,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             viewModel.InputText = "test message";
@@ -361,7 +389,9 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object,
+                CreateMockMarkdownService().Object
             );
 
             viewModel.IsStreaming = true;

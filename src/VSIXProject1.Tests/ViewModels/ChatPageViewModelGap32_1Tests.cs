@@ -1,4 +1,4 @@
-#nullable enable
+ï»¿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -111,6 +111,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
                 CreateDebugSessionServiceMock().Object,
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object,
                 null,
                 null,
                 ideService);
@@ -179,7 +181,7 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             _ = CreateViewModel(ideService.Object);
 
-            // Assert — active file is only queried at send time, not at construction
+            // Assert â€” active file is only queried at send time, not at construction
             ideService.Verify(x => x.GetActiveFilepath(), Times.Never);
         }
 
@@ -198,7 +200,7 @@ namespace ContinueVS.Tests.ViewModels
             };
             viewModel.SelectedContext.Add(manualItem);
 
-            // Assert — collection has exactly the one manually added item; no implicit duplication at rest
+            // Assert â€” collection has exactly the one manually added item; no implicit duplication at rest
             Assert.Single(viewModel.SelectedContext);
             Assert.Equal(path, viewModel.SelectedContext[0].FilePath);
             Assert.Equal("manual", viewModel.SelectedContext[0].Source);

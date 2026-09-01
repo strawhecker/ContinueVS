@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -75,8 +75,8 @@ namespace ContinueVS.Tests.Services
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object
             );
 
             // Act - Trigger the check via reflection to set banner state
@@ -126,8 +126,8 @@ namespace ContinueVS.Tests.Services
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object
             );
 
             // Act - Trigger the check
@@ -179,8 +179,8 @@ namespace ContinueVS.Tests.Services
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object
             );
 
             // First show the warning
@@ -233,8 +233,8 @@ namespace ContinueVS.Tests.Services
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object
             );
 
             // Act
@@ -284,8 +284,8 @@ namespace ContinueVS.Tests.Services
                 _mockSystemPromptService.Object,
                 _mockUIStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object
             );
             viewModel.InputText = "test message";
 

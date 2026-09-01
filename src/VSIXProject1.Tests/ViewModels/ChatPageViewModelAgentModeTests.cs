@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -381,8 +381,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
         }
 
         /// <summary>

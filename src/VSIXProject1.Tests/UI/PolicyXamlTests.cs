@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System.Collections.Generic;
 using Xunit;
@@ -52,6 +52,8 @@ namespace ContinueVS.Tests.UI
             uiStateMock.Setup(x => x.GetUIStateAsync()).ReturnsAsync(uiState);
 
             var debugSessionMock = new Mock<IInstructionExecutorService>();
+            var changeStackMock = new Mock<IChangeStackService>();
+            var markdownMock = new Mock<IMarkdownService>();
 
             return new ChatPageViewModel(
                 llmMock.Object,
@@ -63,8 +65,8 @@ namespace ContinueVS.Tests.UI
                 promptMock.Object,
                 uiStateMock.Object,
                 debugSessionMock.Object,
-                null,
-                null);
+                changeStackMock.Object,
+                markdownMock.Object);
         }
 
         [Fact]

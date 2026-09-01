@@ -1685,8 +1685,9 @@ public string? InputText
                 return;
             }
 
-            // Fire-and-forget the async apply operation with proper error handling
-            _ = ExecuteApplyCodeBlockAsync(codeContent);
+            // Fire-and-forget the async apply operation with proper error handling.
+            // At this point codeContent is guaranteed non-null by the check above.
+            _ = ExecuteApplyCodeBlockAsync(codeContent!);
         }
 
         /// <summary>
@@ -1708,8 +1709,8 @@ public string? InputText
                 var latestMessage = Messages[Messages.Count - 1];
 
                 // Extract file path from the latest message content
-                var filePath = ExtractFilePathFromResponse(latestMessage.Content);
-                if (string.IsNullOrWhiteSpace(filePath))
+                string? extractedPath = ExtractFilePathFromResponse(latestMessage.Content);
+                if (string.IsNullOrWhiteSpace(extractedPath))
                 {
                     _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] Could not extract file path from message");
                     _notificationService.ShowError("Could not extract file path from response.");
@@ -1719,10 +1720,10 @@ public string? InputText
                 // Extract code content from markdown if needed
                 var actualCode = ExtractCodeContentFromMarkdown(codeContent) ?? codeContent;
 
-                _ = LoggerService.Current.WriteDebugAsync($"[gap49-apply] Applying code to file: {filePath}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap49-apply] Applying code to file: {extractedPath}");
 
-                // Apply the code change
-                await ApplyCodeChangeAsync(filePath, actualCode);
+                // Apply the code change (extractedPath is now guaranteed non-null by the check above)
+                await ApplyCodeChangeAsync(extractedPath!, actualCode);
             }
             catch (Exception ex)
             {

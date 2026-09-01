@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System.Collections.Generic;
 using Xunit;
@@ -77,8 +77,8 @@ namespace ContinueVS.Tests.UI
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object
             );
         }
 
@@ -126,7 +126,7 @@ namespace ContinueVS.Tests.UI
         }
 
         /// <summary>
-        /// gap35_3: Additional CanExecute guard tests � IsPaused, ShowErrorBanner, whitespace-only input.
+        /// gap35_3: Additional CanExecute guard tests — IsPaused, ShowErrorBanner, whitespace-only input.
         /// Covers the composite predicate in CanSendMessage() that the InputTextBox_KeyDown handler
         /// respects before calling SendMessageCommand.Execute(null).
         /// </summary>
