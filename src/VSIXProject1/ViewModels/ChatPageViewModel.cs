@@ -53,6 +53,7 @@ namespace ContinueVS.ViewModels
         private readonly ISystemPromptService _systemPromptService;
         private readonly IUIStateService _uiStateService;
         private readonly IInstructionExecutorService _instructionExecutorService;
+        private readonly IChangeStackService _changeStackService;
         private IModeService? _modeService;
         private IWorkflowService? _workflowService;
         private readonly IIdeService? _ideService;
@@ -454,6 +455,7 @@ public string? InputText
             ISystemPromptService systemPromptService,
             IUIStateService uiStateService,
             IInstructionExecutorService instructionExecutorService,
+            IChangeStackService changeStackService,
             IModeService? modeService = null,
             IWorkflowService? workflowService = null,
             IIdeService? ideService = null,
@@ -469,6 +471,7 @@ public string? InputText
             if (systemPromptService == null) throw new ArgumentNullException(nameof(systemPromptService));
             if (uiStateService == null) throw new ArgumentNullException(nameof(uiStateService));
             if (instructionExecutorService == null) throw new ArgumentNullException(nameof(instructionExecutorService));
+            if (changeStackService == null) throw new ArgumentNullException(nameof(changeStackService));
 
             _llmService = llmService;
             _contextService = contextService;
@@ -479,6 +482,7 @@ public string? InputText
             _systemPromptService = systemPromptService;
             _uiStateService = uiStateService;
             _instructionExecutorService = instructionExecutorService;
+            _changeStackService = changeStackService;
             _modeService = modeService;
             _workflowService = workflowService;
             _ideService = ideService;
@@ -1131,7 +1135,7 @@ public string? InputText
                         // gap45_3: If phase execution is enabled for this mode, hand off to InstructionExecutorService
                         if (modeConfig.AllowPhaseExecution && !string.IsNullOrWhiteSpace(assistantMessage.Content))
                         {
-                            var changeStackId = Guid.NewGuid().ToString();
+                            var changeStackId = _changeStackService.CreateChangeStack();
                             var targetDir = System.Environment.CurrentDirectory;
                             if (_ideService != null)
                             {

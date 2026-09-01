@@ -254,7 +254,8 @@ namespace ContinueVS.Services.Implementations
             var endpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/api/chat";
             var json = JsonConvert.SerializeObject(ollamaRequest);
             _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Endpoint: {endpoint}");
-            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Request JSON: {json.Substring(0, Math.Min(200, json.Length))}...");
+            //_ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Request JSON: {json.Substring(0, Math.Min(200, json.Length))}...");
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Request JSON: {json}");
 
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 

@@ -87,6 +87,13 @@ namespace ContinueVS.Tests.ViewModels
             return new Mock<IInstructionExecutorService>();
         }
 
+        private static Mock<IChangeStackService> CreateChangeStackServiceMock()
+        {
+            var mock = new Mock<IChangeStackService>();
+            mock.Setup(x => x.CreateChangeStack()).Returns(System.Guid.NewGuid().ToString());
+            return mock;
+        }
+
         /// <summary>
         /// Test: DetectFilePathInResponse returns true when response contains JSON path field
         /// </summary>
@@ -103,7 +110,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             var responseWithJsonPath = @"{ ""path"": ""/home/user/myfile.txt"", ""content"": ""code here"" }";
 
@@ -133,7 +141,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             var responseWithFilePath = "The changes should be applied to file: /src/myfile.cs";
 
@@ -162,7 +171,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             var responseWithUnixPath = "Modify /home/user/project/src/main.cpp";
 
@@ -191,7 +201,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             var responseWithoutPath = "This is just a generic response with no file paths mentioned.";
 
@@ -220,7 +231,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             // Act
             var method = typeof(ChatPageViewModel).GetMethod("DetectFilePathInResponse",
@@ -247,7 +259,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             // Act
             viewModel.CurrentResponseHasFilePath = true;
@@ -272,7 +285,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             // Act
             viewModel.SelectedCodeAction = 1; // Apply
@@ -297,7 +311,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateConfigServiceMock().Object,
                 CreateSystemPromptServiceMock().Object,
                 CreateUIStateServiceMock().Object,
-                CreateInstructionExecutorServiceMock().Object);
+                CreateInstructionExecutorServiceMock().Object,
+                CreateChangeStackServiceMock().Object);
 
             // Assert
             Assert.Equal(0, viewModel.SelectedCodeAction); // 0 = Copy

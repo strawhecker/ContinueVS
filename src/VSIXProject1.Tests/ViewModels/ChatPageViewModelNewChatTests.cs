@@ -98,6 +98,13 @@ namespace ContinueVS.Tests.ViewModels
             return mock;
         }
 
+        private Mock<IChangeStackService> CreateMockChangeStackService()
+        {
+            var mock = new Mock<IChangeStackService>();
+            mock.Setup(x => x.CreateChangeStack()).Returns(Guid.NewGuid().ToString());
+            return mock;
+        }
+
         [Fact(DisplayName = "gap47: NewChatCommand calls CreateNewSessionAsync when not streaming")]
         public async Task NewChatCommand_WhenNotStreaming_CallsCreateNewSessionAsync()
         {
@@ -112,7 +119,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object
             );
 
             // Act
@@ -136,7 +144,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object
             );
             viewModel.InputText = "some prior message";
             viewModel.SelectedContext.Add(new ContextItem { Type = ContextItemType.File, FilePath = "foo.cs" });
@@ -165,7 +174,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockConfigService().Object,
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
-                new Mock<IInstructionExecutorService>().Object
+                new Mock<IInstructionExecutorService>().Object,
+                CreateMockChangeStackService().Object
             );
 
             // Act
