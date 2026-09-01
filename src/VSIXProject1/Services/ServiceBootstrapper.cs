@@ -31,9 +31,9 @@ namespace ContinueVS.Services
             System.Diagnostics.Debug.WriteLine("[sv-di] ConfigureServices START");
 
             // --- IBridgeLogger: must be first — many factory lambdas below require it ---
-            System.Diagnostics.Debug.WriteLine("[sv-di] registering IBridgeLogger (DebugBridgeLogger)");
-            services.AddSingleton<IBridgeLogger, DebugBridgeLogger>();
-            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IBridgeLogger registered");
+            System.Diagnostics.Debug.WriteLine("[sv-di] registering IBridgeLogger (FileLogger)");
+            services.AddSingleton<IBridgeLogger, FileLogger>();
+            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IBridgeLogger registered (logs to ~/.continueVS/logs/)");
 
             // --- IDteProvider: required by DebuggerService factory ---
             System.Diagnostics.Debug.WriteLine("[sv-di] registering IDteProvider (DteProvider)");

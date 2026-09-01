@@ -382,6 +382,69 @@
 
 ---
 
+### gap_logging_migration: Diagnostic Output → File-Based Persistent Logging
+
+**Status:** ✅ Complete | Type: Logging Infrastructure Refactor
+
+**Motivation:**
+- All diagnostic output was routed through `DebugBridgeLogger` to Visual Studio diagnostic output only (ephemeral, context-lost on scroll/close)
+- LLM response debugging and agent-mode failure diagnosis required persistent, copy-paste-friendly logs
+- User requested full raw JSON preservation without timestamp prefix (reduce token overhead when pasting to chat)
+
+**Design (queue-based async batching):**
+- New `FileLogger : IBridgeLogger` implementation with `ConcurrentQueue<string>` for thread-safe enqueueing
+- Dedicated background writer thread waking every ~1s to flush queued messages
+- Append-only file writes to `~/.continueVS/logs/continue-vs-{date}.log` (one file per day)
+- No log prefix in entries (full raw JSON preserved); debug calls include all context inline
+- Automatic log rotation: keeps last 10 log files, deletes older files on logger init
+- Graceful shutdown: `Dispose()` stops writer thread, waits up to 5s, flushes remaining queue
+
+**Implementation:**
+- Created `src/VSIXProject1/Services/Implementations/FileLogger.cs`
+  - Implements all `IBridgeLogger` methods: `WriteDebugAsync`, `WriteInfoAsync`, `WriteWarningAsync`, `WriteErrorAsync`, `FlushAsync`
+  - Background thread (IsBackground=true, BelowNormal priority) sleeps 1s, calls `FlushQueue()`
+  - `FlushQueue()` dequeues all messages, appends to log file with `File.AppendAllLines()`
+  - `RotateOldLogs()` called on init; sorts files by creation time, deletes oldest if > 10 files
+  - All I/O errors caught and logged to `System.Diagnostics.Debug` (fallback path)
+
+- Modified `src/VSIXProject1/Services/ServiceBootstrapper.cs`
+  - Changed `IBridgeLogger` registration from `DebugBridgeLogger` to `FileLogger`
+  - Updated debug output: `[sv-di] registering IBridgeLogger (FileLogger)` + `✓ IBridgeLogger registered (logs to ~/.continueVS/logs/)`
+
+**Log Path:**
+- Windows: `C:\Users\{username}\.continueVS\logs\continue-vs-{YYYY-MM-DD}.log`
+- Linux/Mac: `~/.continueVS/logs/continue-vs-{YYYY-MM-DD}.log`
+
+**Usage:**
+- All `IBridgeLogger` calls from `InstructionProcessorService`, `ChatPageViewModel`, and other services now write to file
+- Raw LLM responses logged in full without truncation (no prefix or timestamp clutter)
+- Logs can be shared directly in chat for debugging (token-efficient, full context preserved)
+
+**Files Created:**
+- src/VSIXProject1/Services/Implementations/FileLogger.cs (206 lines)
+
+**Files Modified:**
+- src/VSIXProject1/Services/ServiceBootstrapper.cs (registration swap)
+
+**How It Works:**
+1. FileLogger constructor creates `~/.continueVS/logs/` directory (if not exists)
+2. Rotates old logs (keeps 10, deletes oldest)
+3. Starts background writer thread (IsBackground, BelowNormal priority)
+4. Services inject `IBridgeLogger` and call async write methods
+5. Each write enqueues message to `ConcurrentQueue<string>` (non-blocking)
+6. Background thread wakes every 1s, dequeues all messages, batch-appends to today's log file
+7. On app shutdown, `Dispose()` stops thread, flushes final messages
+8. Log files persist indefinitely under `~/.continueVS/logs/`; rotation keeps disk footprint bounded
+
+**Testing:**
+- Build verified: FileLogger compiles with no errors/warnings
+- DI registration verified: `ServiceBootstrapper` resolves FileLogger as singleton
+- Background thread design validated: queue doesn't block, append-only writes are safe, rotation is deterministic
+
+**Blocking Resolved:** All diagnostic logs now persistent, copy-paste friendly, and token-efficient; LLM responses and agent-mode failures can be debugged offline
+
+---
+
 ### Async/Threading Best Practices Cleanup (Final Pass)
 **Status:** âœ… Complete | Type: Code Quality & VSTHRD Analyzer Compliance  
 **Implementation:**
