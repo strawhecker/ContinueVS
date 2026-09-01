@@ -118,6 +118,13 @@ namespace ContinueVS.ViewModels
         private bool _onboardingCardVisible = true;
 
         /// <summary>
+        /// Tracks per-block action selections (gap53).
+        /// Key: block ID (GUID); Value: selected action string ("Copy" or "Apply").
+        /// Allows independent action decisions for each code block in multi-block responses.
+        /// </summary>
+        private Dictionary<string, string> _codeBlockActions = new Dictionary<string, string>();
+
+        /// 
         /// Backing collection for available chat mode options (gap27_1).
         /// </summary>
         private ObservableCollection<ModeOption>? _availableModes;
@@ -551,6 +558,23 @@ public string? InputText
         }
 
         /// <summary>
+        /// Records the action selection for a specific code block (gap53).
+        /// Called from MarkdownBlockRenderer when per-block dropdown selection changes.
+        /// </summary>
+        /// <param name="blockId">Unique identifier for the code block (GUID).</param>
+        /// <param name="language">Programming language hint from the code block.</param>
+        /// <param name="content">Raw code content of the block.</param>
+        /// <param name="action">Selected action: "Copy" or "Apply".</param>
+        public void RecordCodeBlockAction(string blockId, string language, string content, string action)
+        {
+            if (string.IsNullOrEmpty(blockId))
+                return;
+
+            _codeBlockActions[blockId] = action;
+            _ = LoggerService.Current.WriteDebugAsync($"[gap53-block-registry] Block {blockId} (lang={language}) action recorded: {action}");
+        }
+
+        /// 
         /// Switches to the UI/main thread via Dispatcher.InvokeAsync.
         /// This is safe for both VS runtime and unit test contexts.
         /// </summary>

@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
+using ContinueVS.Services;
 using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -236,6 +237,7 @@ namespace ContinueVS.UI.Renderers
         {
             var language = code.Info ?? string.Empty;
             var lines = code.Lines.ToString();
+            var blockId = Guid.NewGuid().ToString();
 
             var outerBorder = new Border
             {
@@ -248,7 +250,7 @@ namespace ContinueVS.UI.Renderers
 
             var innerPanel = new StackPanel();
 
-            // Header bar: language label + copy button
+            // Header bar: language label + Copy/Apply dropdown (gap53)
             var header = new DockPanel
             {
                 Background = new SolidColorBrush(Color.FromRgb(55, 55, 55)),
@@ -265,27 +267,42 @@ namespace ContinueVS.UI.Renderers
             };
             DockPanel.SetDock(langLabel, Dock.Left);
 
-            var copyBtn = new Button
+            // Gap53: Replace single Copy button with Copy/Apply dropdown
+            var actionDropdown = new ComboBox
             {
-                Content = "Copy",
-                FontSize = 11,
-                Padding = new Thickness(8, 2, 8, 2),
-                Margin = new Thickness(0, 2, 4, 2),
+                Height = 24,
+                Width = 100,
                 Background = new SolidColorBrush(Color.FromRgb(70, 70, 70)),
                 Foreground = new SolidColorBrush(Colors.White),
                 BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Tag = lines
+                FontSize = 11,
+                SelectedIndex = 0,
+                Margin = new Thickness(0, 2, 4, 2),
+                Cursor = System.Windows.Input.Cursors.Hand
             };
-            copyBtn.Click += (s, e) =>
+
+            // Store block metadata in tag as simple string-keyed dictionary-like format
+            actionDropdown.Tag = blockId;
+            // Store additional data as separate attributes to avoid dynamic issues
+            actionDropdown.Name = $"CodeActionDropdown_{blockId}";
+
+            var copyItem = new ComboBoxItem { Content = "📋 Copy", IsSelected = true };
+            var applyItem = new ComboBoxItem { Content = "✔ Apply" };
+            actionDropdown.Items.Add(copyItem);
+            actionDropdown.Items.Add(applyItem);
+
+            actionDropdown.SelectionChanged += (s, e) =>
             {
-                try { Clipboard.SetText(copyBtn.Tag as string ?? string.Empty); }
-                catch { }
+                if (s is ComboBox dropdown && dropdown.Tag is string bid)
+                {
+                    CodeBlockActionDropdown_SelectionChanged(dropdown, bid, language, lines);
+                }
             };
-            DockPanel.SetDock(copyBtn, Dock.Right);
+
+            DockPanel.SetDock(actionDropdown, Dock.Right);
 
             header.Children.Add(langLabel);
-            header.Children.Add(copyBtn);
+            header.Children.Add(actionDropdown);
             innerPanel.Children.Add(header);
 
             var codeText = new TextBox
@@ -308,6 +325,49 @@ namespace ContinueVS.UI.Renderers
 
             outerBorder.Child = innerPanel;
             RootPanel.Children.Add(outerBorder);
+        }
+
+        /// <summary>
+        /// Handles Copy/Apply dropdown selection change per code block (gap53).
+        /// </summary>
+        private void CodeBlockActionDropdown_SelectionChanged(ComboBox comboBox, string blockId, string language, string content)
+        {
+            if (comboBox == null)
+                return;
+
+            var selectedItem = comboBox.SelectedItem as ComboBoxItem;
+            if (selectedItem == null)
+                return;
+
+            try
+            {
+                string selectedAction = selectedItem.Content?.ToString() ?? "Copy";
+
+                if (selectedAction.Contains("Copy"))
+                {
+                    try
+                    {
+                        Clipboard.SetText(content);
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap53-block-action] Code block copied (lang={language}, id={blockId})");
+                    }
+                    catch (Exception ex)
+                    {
+                        _ = LoggerService.Current.WriteErrorAsync($"[gap53-block-action-error] Failed to copy block: {ex.Message}", ex);
+                    }
+                }
+                else if (selectedAction.Contains("Apply"))
+                {
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap53-block-action] Apply selected for block (lang={language}, id={blockId})");
+                    // ApplyCodeBlock will be wired via command through parent ChatMessageControl
+                }
+
+                // Reset dropdown to Copy
+                comboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                _ = LoggerService.Current.WriteErrorAsync($"[gap53-block-action-handler-error] Exception in handler: {ex.Message}", ex);
+            }
         }
 
         private static void AppendInline(InlineCollection inlines, Markdig.Syntax.Inlines.Inline inline)

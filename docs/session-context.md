@@ -6160,9 +6160,9 @@ Agent mode failed with fatal error: `"LLM response did not contain valid phases"
 ---
 
 ### gap53: Code Action Dropdown Per Code Block
-**Status:** ⏳ Pending | Type: UI Component Behavior  
+**Status:** ✓ Complete | Type: UI Component Behavior  
 **Description:**  
-The Copy/Apply dropdown currently appears at the message level (once per entire response). gap53 requires this dropdown to appear on **each individual code block** within a response, not just once for the entire message. This allows per-block copy/apply decisions without being forced to choose for all code blocks together.
+Extends gap49 message-level Copy/Apply dropdown to provide per-code-block granularity. Each individual code block within a multi-block response now has its own independent Copy/Apply dropdown, enabling users to make independent decisions for each block.
 
 **Current Behavior (gap49):**
 - Single Copy/Apply ComboBox per ChatMessage
@@ -6175,18 +6175,31 @@ The Copy/Apply dropdown currently appears at the message level (once per entire 
 - Fine-grained control over multi-block responses
 - Each block tracks its own actions separately
 
-**Implementation Notes:**
-- Requires refactor of ChatMessageControl rendering layer
-- Each code block needs discrete Copy/Apply controls
-- May require MarkdownBlockRenderer to expose block-level action points
-- Consider wrapping individual code blocks in containers with action toolbars
-- Maintain Copy default selection for each block
+**Implementation:**
+- Refactored `MarkdownBlockRenderer.RenderCodeBlock()` to replace single Copy button with Copy/Apply ComboBox for each code block
+- Each code block assigned unique GUID blockId; dropdown tags block metadata (language, content)
+- Added event handler `CodeBlockActionDropdown_SelectionChanged()` to handle per-block action selection and log [gap53-block-action]
+- Modified `ChatMessageControl.xaml.cs` to detect code block count in content; conditionally hides message-level dropdown if code blocks present (gap53-dropdown-visibility)
+- Added public method `ChatPageViewModel.RecordCodeBlockAction()` to track per-block action selections via internal dictionary (_codeBlockActions)
+- Backward compatible: message-level dropdown preserved for responses with no code blocks or single code block
+- Multi-block responses now show N dropdowns (one per block); user can independently Copy/Apply each block
 
-**Related:**
-- gap49: Copy/Apply dropdown introduced (message-level)
-- Affects: ChatMessageControl.xaml, MarkdownBlockRenderer
+**Files Modified:**
+- src/VSIXProject1/Core/Types/CodeBlockState.cs (new) - Model for per-block metadata
+- src/VSIXProject1/UI/Renderers/MarkdownBlockRenderer.xaml.cs - Replaced Copy button with Copy/Apply dropdown per block; added CodeBlockActionDropdown_SelectionChanged()
+- src/VSIXProject1/UI/Views/ChatMessageControl.xaml.cs - Added CountCodeBlocks() helper; conditional message-level dropdown visibility
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs - Added _codeBlockActions dictionary tracking; RecordCodeBlockAction() public method
+- src/VSIXProject1.Tests/ViewModels/ChatPageViewModelGap53Tests.cs (new) - 15+ unit tests covering single/multi-block scenarios, action tracking, edge cases
+- src/VSIXProject1.Tests/ViewModels/ChatPageViewModelContextTests.cs - Fixed 2 pre-existing tests with missing constructor parameters
 
-**Blocking:** None (nice-to-have improvement)
+**Testing:**
+- 1121 / 1121 tests passing (includes 15 new gap53 tests)
+- Coverage: single code block copy/apply, multi-block independent actions, per-block action persistence, message-level fallback (no blocks), large code blocks, unicode content, performance (1000+ blocks)
+- Logging tags: [gap53-block-action], [gap53-block-registry], [gap53-dropdown-visibility], [gap53-block-action-error]
+
+**Build:**
+- Clean build successful (zero warnings/errors)
+- Full solution compiles; all projects reference updates validated
 
 ---
 

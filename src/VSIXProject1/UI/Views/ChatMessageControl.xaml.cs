@@ -3,11 +3,16 @@ using System.Windows;
 using System.Windows.Controls;
 using ContinueVS.Core.Types;
 using ContinueVS.Services;
+using Markdig;
+using Markdig.Syntax;
 
 namespace ContinueVS.UI.Views
 {
     public partial class ChatMessageControl : UserControl
     {
+        private static readonly MarkdownPipeline _pipeline =
+            new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
         public ChatMessageControl()
         {
             InitializeComponent();
@@ -27,10 +32,23 @@ namespace ContinueVS.UI.Views
             }
 
             // Wire up dropdown if it exists in the visual tree
+            // Gap53: Conditionally show message-level dropdown only if no code blocks present
             var comboBox = FindName("CodeActionDropdown") as ComboBox;
             if (comboBox != null)
             {
                 comboBox.SelectionChanged += CodeActionDropdown_SelectionChanged;
+
+                // Detect if content has code blocks; if it does, hide message-level dropdown (gap53)
+                var message = DataContext as ChatMessage;
+                if (message != null && !string.IsNullOrEmpty(message.Content))
+                {
+                    int codeBlockCount = CountCodeBlocks(message.Content);
+                    if (codeBlockCount > 0)
+                    {
+                        comboBox.Visibility = Visibility.Collapsed;
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap53-dropdown-visibility] Message has {codeBlockCount} code block(s); message-level dropdown hidden");
+                    }
+                }
             }
         }
 
@@ -118,6 +136,28 @@ namespace ContinueVS.UI.Views
 
             // Reset selection to Copy after handling
             comboBox.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// Counts the number of code blocks in markdown content (gap53).
+        /// </summary>
+        private int CountCodeBlocks(string content)
+        {
+            try
+            {
+                var doc = Markdown.Parse(content, _pipeline);
+                int count = 0;
+                foreach (var block in doc)
+                {
+                    if (block is FencedCodeBlock)
+                        count++;
+                }
+                return count;
+            }
+            catch
+            {
+                return 0;
+            }
         }
     }
 }

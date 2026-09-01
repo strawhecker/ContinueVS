@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -114,8 +114,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
 
             // Assert
             var selectedModel = configService.Object.GetSelectedModel();
@@ -167,8 +167,8 @@ namespace ContinueVS.Tests.ViewModels
                 systemPromptService.Object,
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
-                null,
-                null);
+                new Mock<IChangeStackService>().Object,
+                new Mock<IMarkdownService>().Object);
 
             // Assert - the pruning method should be available
             Assert.NotNull(sessionService.Object);
