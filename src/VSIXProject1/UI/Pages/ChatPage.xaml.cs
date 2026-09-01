@@ -133,6 +133,9 @@ namespace ContinueVS.UI.Pages
                     var changeStackService = sp.GetRequiredService<IChangeStackService>();
                     _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9b] ✓ IChangeStackService resolved");
 
+                    var markdownService = sp.GetRequiredService<IMarkdownService>();
+                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9c] ✓ IMarkdownService resolved");
+
                     var workflow    = sp.GetService<IWorkflowService>();
                     _ = LoggerService.Current.WriteDebugAsync($"[sv-chatpage-10] IWorkflowService resolved={workflow != null} (optional)");
 
@@ -143,7 +146,7 @@ namespace ContinueVS.UI.Pages
                     _ = LoggerService.Current.WriteDebugAsync($"[sv-chatpage-12] IPlanOutputService resolved={planOutput != null} (optional)");
 
                     // BP:sv-chatpage-dc — breakpoint here confirms all services resolved and DataContext is being assigned
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, instructionExecutor, changeStackService, null, workflow, ideService, null, planOutput);
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, instructionExecutor, changeStackService, markdownService, null, workflow, ideService, null, planOutput);
                     _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
                 }
                 else

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -54,6 +55,7 @@ namespace ContinueVS.ViewModels
         private readonly IUIStateService _uiStateService;
         private readonly IInstructionExecutorService _instructionExecutorService;
         private readonly IChangeStackService _changeStackService;
+        private readonly IMarkdownService _markdownService;
         private IModeService? _modeService;
         private IWorkflowService? _workflowService;
         private readonly IIdeService? _ideService;
@@ -456,6 +458,7 @@ public string? InputText
             IUIStateService uiStateService,
             IInstructionExecutorService instructionExecutorService,
             IChangeStackService changeStackService,
+            IMarkdownService markdownService,
             IModeService? modeService = null,
             IWorkflowService? workflowService = null,
             IIdeService? ideService = null,
@@ -472,6 +475,7 @@ public string? InputText
             if (uiStateService == null) throw new ArgumentNullException(nameof(uiStateService));
             if (instructionExecutorService == null) throw new ArgumentNullException(nameof(instructionExecutorService));
             if (changeStackService == null) throw new ArgumentNullException(nameof(changeStackService));
+            if (markdownService == null) throw new ArgumentNullException(nameof(markdownService));
 
             _llmService = llmService;
             _contextService = contextService;
@@ -483,6 +487,7 @@ public string? InputText
             _uiStateService = uiStateService;
             _instructionExecutorService = instructionExecutorService;
             _changeStackService = changeStackService;
+            _markdownService = markdownService;
             _modeService = modeService;
             _workflowService = workflowService;
             _ideService = ideService;
@@ -720,6 +725,140 @@ public string? InputText
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Extracts the first file path found in the response content using regex patterns (gap49_advanced).
+        /// Matches: JSON path, path:, file:, filepath:, filename:, Windows paths, Unix paths.
+        /// Returns null if no path is found.
+        /// </summary>
+        private string? ExtractFilePathFromResponse(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return null;
+
+            var patterns = new[]
+            {
+                // JSON: "path": "..." or "file": "..." patterns
+                new { pattern = @"""(path|file|filepath|filename)""\s*:\s*""([^""]+)""", groupIndex = 2 },
+                // path: /some/path or file: /some/file patterns
+                new { pattern = @"(?:path|file|filepath|filename)\s*:\s*([^\s,;]+)", groupIndex = 1 },
+                // Windows path: C:\path\to\file
+                new { pattern = @"([A-Za-z]:\\[^\s;,""']+)", groupIndex = 1 },
+                // Unix path: /path/to/file (but not single / or root-like paths to avoid false positives)
+                new { pattern = @"(/[a-zA-Z0-9._\-/]+(?:\.\w+)?)", groupIndex = 1 }
+            };
+
+            foreach (var patternObj in patterns)
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    content,
+                    patternObj.pattern,
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (match.Success && match.Groups.Count > patternObj.groupIndex)
+                {
+                    var filePath = match.Groups[patternObj.groupIndex].Value;
+                    if (!string.IsNullOrWhiteSpace(filePath))
+                    {
+                        return filePath;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts the first code block content from markdown response (gap49_advanced).
+        /// Looks for fenced code blocks (```language ... ```).
+        /// Returns null if no code block is found.
+        /// </summary>
+        private string? ExtractCodeContentFromMarkdown(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return null;
+
+            // Match fenced code blocks: ```language\ncode\n```
+            var codeBlockPattern = @"```[\w]*\n([\s\S]*?)\n```";
+            var match = System.Text.RegularExpressions.Regex.Match(content, codeBlockPattern);
+
+            if (match.Success && match.Groups.Count > 1)
+            {
+                var codeContent = match.Groups[1].Value;
+                if (!string.IsNullOrWhiteSpace(codeContent))
+                {
+                    return codeContent;
+                }
+            }
+
+            // Fallback: if no matched groups, return the entire content between ``` markers
+            codeBlockPattern = @"```[\s\S]*?\n([\s\S]*?)\n```";
+            match = System.Text.RegularExpressions.Regex.Match(content, codeBlockPattern);
+            if (match.Success && match.Groups.Count > 1)
+            {
+                return match.Groups[1].Value;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Applies a code change by writing it to disk via ChangeStackService (gap49_advanced).
+        /// Creates a temporary change stack for isolation, applies the change, and shows notifications.
+        /// Logs success or error based on the outcome.
+        /// </summary>
+        private async Task ApplyCodeChangeAsync(string filePath, string codeContent)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filePath))
+                    throw new ArgumentNullException(nameof(filePath));
+                if (string.IsNullOrWhiteSpace(codeContent))
+                    throw new ArgumentNullException(nameof(codeContent));
+
+                // Create a temporary change stack for this apply operation (isolated per-apply)
+                var tempStackId = _changeStackService.CreateChangeStack();
+
+                // Create the CodeChange object
+                var existingContent = string.Empty;
+                try
+                {
+                    if (File.Exists(filePath))
+                    {
+                        existingContent = File.ReadAllText(filePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // File may not exist yet, which is fine for new files
+                    System.Diagnostics.Debug.WriteLine($"[gap49-apply] Could not read existing file: {ex.Message}");
+                }
+
+                var change = new CodeChange
+                {
+                    FilePath = filePath,
+                    OldContent = existingContent,
+                    NewContent = codeContent
+                };
+
+                // Apply the change via ChangeStackService
+                await _changeStackService.ApplyChangeAsync(tempStackId, change, filePath);
+
+                // Show success notification
+                await _notificationService.ShowNotificationAsync(
+                    "Apply Successful",
+                    $"File created/updated: {Path.GetFileName(filePath)}",
+                    NotificationType.Success);
+
+                System.Diagnostics.Debug.WriteLine($"[gap49-apply] ✓ File written successfully: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[gap49-apply] ✗ Error applying code change: {ex.Message}");
+                _notificationService.ShowError(
+                    $"Failed to apply changes: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1546,10 +1685,51 @@ public string? InputText
                 return;
             }
 
-            // Placeholder: Actual apply logic will be implemented when gap49_advanced is tackled
-            _ = _notificationService.ShowNotificationAsync("Apply", 
-                "Apply feature coming soon. File path detected and ready.", NotificationType.Success);
-            _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] Apply placeholder executed");
+            // Fire-and-forget the async apply operation with proper error handling
+            _ = ExecuteApplyCodeBlockAsync(codeContent);
+        }
+
+        /// <summary>
+        /// Async implementation for applying code block to file (gap49_advanced).
+        /// Extracts file path and code content, then writes to disk using ChangeStackService.
+        /// </summary>
+        private async Task ExecuteApplyCodeBlockAsync(string codeContent)
+        {
+            try
+            {
+                // Get the latest message to extract file path from
+                if (Messages.Count == 0)
+                {
+                    _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] No messages available to extract file path from");
+                    _notificationService.ShowError("No context available for file path extraction.");
+                    return;
+                }
+
+                var latestMessage = Messages[Messages.Count - 1];
+
+                // Extract file path from the latest message content
+                var filePath = ExtractFilePathFromResponse(latestMessage.Content);
+                if (string.IsNullOrWhiteSpace(filePath))
+                {
+                    _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] Could not extract file path from message");
+                    _notificationService.ShowError("Could not extract file path from response.");
+                    return;
+                }
+
+                // Extract code content from markdown if needed
+                var actualCode = ExtractCodeContentFromMarkdown(codeContent) ?? codeContent;
+
+                _ = LoggerService.Current.WriteDebugAsync($"[gap49-apply] Applying code to file: {filePath}");
+
+                // Apply the code change
+                await ApplyCodeChangeAsync(filePath, actualCode);
+            }
+            catch (Exception ex)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[gap49-apply] Unhandled exception: {ex.Message}");
+                _notificationService.ShowError(
+                    $"Apply operation failed: {ex.Message}");
+            }
         }
     }
 }

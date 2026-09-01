@@ -120,7 +120,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
                 new Mock<IInstructionExecutorService>().Object,
-                CreateMockChangeStackService().Object
+                CreateMockChangeStackService().Object,
+                new Mock<IMarkdownService>().Object
             );
 
             // Act
@@ -145,7 +146,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
                 new Mock<IInstructionExecutorService>().Object,
-                CreateMockChangeStackService().Object
+                CreateMockChangeStackService().Object,
+                new Mock<IMarkdownService>().Object
             );
             viewModel.InputText = "some prior message";
             viewModel.SelectedContext.Add(new ContextItem { Type = ContextItemType.File, FilePath = "foo.cs" });
@@ -175,7 +177,8 @@ namespace ContinueVS.Tests.ViewModels
                 CreateMockSystemPromptService().Object,
                 CreateMockUIStateService().Object,
                 new Mock<IInstructionExecutorService>().Object,
-                CreateMockChangeStackService().Object
+                CreateMockChangeStackService().Object,
+                new Mock<IMarkdownService>().Object
             );
 
             // Act
