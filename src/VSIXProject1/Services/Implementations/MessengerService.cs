@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -10,6 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Exceptions;
 using Newtonsoft.Json;
@@ -103,57 +105,57 @@ namespace ContinueVS.Services.Implementations
                 options = new StreamOptions();
 
             // Resolve active model from config
-            System.Diagnostics.Debug.WriteLine("[MessengerService.ProcessLlmStreamAsync] Attempting to get selected model...");
+            _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Attempting to get selected model...");
             var model = _configService.GetSelectedModel();
 
             if (model == null)
             {
-                System.Diagnostics.Debug.WriteLine("[MessengerService.ProcessLlmStreamAsync] ERROR: model is null - No model selected in configuration");
+                _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] ERROR: model is null - No model selected in configuration");
                 throw new LlmException("No model selected in configuration");
             }
 
-            System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] Model selected: {model.Name} (Id:{model.Id}, Provider:{model.Provider}, BaseUrl:{model.BaseUrl})");
+            _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Model selected: {model.Name} (Id:{model.Id}, Provider:{model.Provider}, BaseUrl:{model.BaseUrl})");
 
             if (string.IsNullOrWhiteSpace(model.BaseUrl))
             {
-                System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] ERROR: Model '{model.Name}' has no baseUrl configured");
+                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] ERROR: Model '{model.Name}' has no baseUrl configured");
                 throw new LlmException($"Model '{model.Name}' has no baseUrl configured");
             }
 
             if (string.IsNullOrWhiteSpace(model.Provider))
             {
-                System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] ERROR: Model '{model.Name}' has no provider configured");
+                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] ERROR: Model '{model.Name}' has no provider configured");
                 throw new LlmException($"Model '{model.Name}' has no provider configured");
             }
 
             // Currently only support Ollama
             if (model.Provider != "ollama")
             {
-                System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] ERROR: Provider '{model.Provider}' is not yet supported");
+                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] ERROR: Provider '{model.Provider}' is not yet supported");
                 throw new LlmException($"Provider '{model.Provider}' is not yet supported");
             }
 
-             System.Diagnostics.Debug.WriteLine("[MessengerService.ProcessLlmStreamAsync] Starting Ollama stream...");
+             _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Starting Ollama stream...");
 
             // Query Ollama for available models (for diagnostics)
             try
             {
                 var tagsEndpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/api/tags";
-                System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] Querying Ollama models from {tagsEndpoint}...");
+                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Querying Ollama models from {tagsEndpoint}...");
                 var tagsResponse = await _httpClient.GetAsync(tagsEndpoint, ct);
                 if (tagsResponse.IsSuccessStatusCode)
                 {
                     var tagsJson = await tagsResponse.Content.ReadAsStringAsync();
-                    System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] Available Ollama models: {tagsJson}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Available Ollama models: {tagsJson}");
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] Failed to query models: HTTP {(int)tagsResponse.StatusCode}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Failed to query models: HTTP {(int)tagsResponse.StatusCode}");
                 }
             }
             catch (Exception diagEx)
             {
-                System.Diagnostics.Debug.WriteLine($"[MessengerService.ProcessLlmStreamAsync] Error querying models: {diagEx.Message}");
+                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Error querying models: {diagEx.Message}");
             }
 
             await foreach (var chunk in ProcessOllamaStreamAsync<TChunk>(model, options, ct))
@@ -204,17 +206,17 @@ namespace ContinueVS.Services.Implementations
                 });
             }
 
-            System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Message count: {ollamaMessages.Count}");
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Message count: {ollamaMessages.Count}");
             foreach (var msg in ollamaMessages)
             {
                 var contentPreview = msg.Content?.Substring(0, Math.Min(50, msg.Content?.Length ?? 0)) ?? "[null content]";
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync]   - Role: {msg.Role}, Content: {contentPreview}...");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync]   - Role: {msg.Role}, Content: {contentPreview}...");
             }
 
             // Build Ollama request
             // Use OllamaModelId if available (actual Ollama model identifier), otherwise fall back to Name
             var ollamaModelId = !string.IsNullOrEmpty(model.OllamaModelId) ? model.OllamaModelId : model.Name;
-            System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Model name: {model.Name}, OllamaModelId: {model.OllamaModelId}, Using: {ollamaModelId}");
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Model name: {model.Name}, OllamaModelId: {model.OllamaModelId}, Using: {ollamaModelId}");
 
             var ollamaRequest = new OllamaRequest
             {
@@ -229,7 +231,7 @@ namespace ContinueVS.Services.Implementations
                 }
             };
 
-            System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Building request - Model: {ollamaRequest.Model}, Stream: {ollamaRequest.Stream}, Temperature: {ollamaRequest.Options.Temperature}");
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Building request - Model: {ollamaRequest.Model}, Stream: {ollamaRequest.Stream}, Temperature: {ollamaRequest.Options.Temperature}");
 
             // Dump context before sending if debug flag is enabled
             if (options.Messages != null)
@@ -241,8 +243,8 @@ namespace ContinueVS.Services.Implementations
             // POST to Ollama chat endpoint
             var endpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/api/chat";
             var json = JsonConvert.SerializeObject(ollamaRequest);
-            System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Endpoint: {endpoint}");
-            System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Request JSON: {json.Substring(0, Math.Min(200, json.Length))}...");
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Endpoint: {endpoint}");
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Request JSON: {json.Substring(0, Math.Min(200, json.Length))}...");
 
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -251,12 +253,12 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Sending HTTP POST request to {endpoint}...");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Sending HTTP POST request to {endpoint}...");
                 // ResponseHeadersRead prevents HttpClient from buffering the entire response body before returning.
                 // Without it, PostAsync waits until all NDJSON chunks are received, defeating streaming.
                 var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
                 response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Response status code: {response.StatusCode}");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Response status code: {response.StatusCode}");
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -268,23 +270,23 @@ namespace ContinueVS.Services.Implementations
                     }
                     catch (Exception readEx)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Failed to read error response body: {readEx.Message}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Failed to read error response body: {readEx.Message}");
                     }
 
-                    System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
                     throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {responseBodyText}");
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Status code confirmed successful");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Status code confirmed successful");
             }
             catch (HttpRequestException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] HttpRequestException: {ex.Message}");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] HttpRequestException: {ex.Message}");
                 throw new LlmException($"HTTP request to Ollama failed: {ex.Message}", ex);
             }
             catch (TaskCanceledException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] TaskCanceledException: {ex.Message}");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] TaskCanceledException: {ex.Message}");
                 throw new LlmException(
                     $"Ollama request timeout or was cancelled. " +
                     $"Ensure Ollama is running at {model.BaseUrl}/api/chat and the model '{model.Name}' is loaded. " +
@@ -292,13 +294,13 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
                 throw new LlmException($"Unexpected error during Ollama streaming: {ex.Message}", ex);
             }
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Starting to read response stream...");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Starting to read response stream...");
 
                 // Read response stream line-by-line (NDJSON format)
                 using (var stream = await response.Content.ReadAsStreamAsync())
@@ -315,7 +317,7 @@ namespace ContinueVS.Services.Implementations
                             continue;
 
                         lineCount++;
-                        System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Received line {lineCount}: {line.Substring(0, Math.Min(100, line.Length))}...");
+                        _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Received line {lineCount}: {line}");
 
                         // Parse JSON line to OllamaResponse
                         OllamaResponse? ollamaResponse = null;
@@ -325,7 +327,7 @@ namespace ContinueVS.Services.Implementations
                         }
                         catch (JsonException jsonEx)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[ProcessOllamaStreamAsync] Failed to parse NDJSON line {lineCount}: {jsonEx.Message}");
+                            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Failed to parse NDJSON line {lineCount}: {jsonEx.Message}");
                             if (_logger != null)
                                 await _logger.WriteDebugAsync($"Failed to parse NDJSON line: {line}. Error: {jsonEx.Message}");
                             // Continue on parse errors (malformed chunk)

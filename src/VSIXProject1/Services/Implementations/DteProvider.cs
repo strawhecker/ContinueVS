@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using Microsoft.VisualStudio.Shell;
 
@@ -147,14 +148,14 @@ namespace ContinueVS.Services.Implementations
                 var activeDoc = _dte.ActiveDocument;
                 if (activeDoc == null)
                 {
-                    Debug.WriteLine("[gap33-dte-cursor-nodoc] No active document");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap33-dte-cursor-nodoc] No active document");
                     return null;
                 }
 
                 var selection = activeDoc.Selection as TextSelection;
                 if (selection == null)
                 {
-                    Debug.WriteLine("[gap33-dte-cursor-nosel] Active document has no TextSelection");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap33-dte-cursor-nosel] Active document has no TextSelection");
                     return null;
                 }
 
@@ -164,7 +165,7 @@ namespace ContinueVS.Services.Implementations
                 var endLine = selection.ActivePoint.Line;
                 var endCol = selection.ActivePoint.DisplayColumn;
 
-                Debug.WriteLine($"[gap33-dte-cursor] file={filePath} start={startLine}:{startCol} end={endLine}:{endCol}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap33-dte-cursor] file={filePath} start={startLine}:{startCol} end={endLine}:{endCol}");
 
                 return new Selection
                 {
@@ -174,7 +175,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap33-dte-cursor-error] {ex.Message}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap33-dte-cursor-error] {ex.Message}");
                 return null;
             }
         }

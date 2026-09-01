@@ -63,7 +63,7 @@ namespace ContinueVS.Services.Implementations
             lock (_registryLock)
             {
                 var allTools = _builtInToolRegistry.Values.Concat(_mcpToolRegistry.Values).ToList();
-                Debug.WriteLine($"[gap8_1-toolsvc-available] GetAvailableTools: {_builtInToolRegistry.Count} built-in, {_mcpToolRegistry.Count} mcp, total={allTools.Count}");
+                _ = _logger?.WriteDebugAsync($"[gap8_1-toolsvc-available] GetAvailableTools: {_builtInToolRegistry.Count} built-in, {_mcpToolRegistry.Count} mcp, total={allTools.Count}");
 
                 // Apply overrides from configuration
                 var overrideConfig = _configService.GetToolOverrideConfig();
@@ -76,8 +76,6 @@ namespace ContinueVS.Services.Implementations
                         $"[WARNING-gap8_1] GetAvailableTools returned ZERO tools. " +
                         $"Built-in: {_builtInToolRegistry.Count}, MCP: {_mcpToolRegistry.Count}. " +
                         $"The AI system will have no tools available for this request.";
-                    Debug.WriteLine(warningMessage);
-                    // Fire-and-forget async logging (don't await in synchronous context)
                     _ = _logger?.WriteWarningAsync(warningMessage);
                 }
 
@@ -136,7 +134,7 @@ namespace ContinueVS.Services.Implementations
                             if (config != null && session.ToolCallsExecuted >= config.MaxToolCallsPerSession)
                             {
                                 var limitMessage = $"Max tool calls ({config.MaxToolCallsPerSession}) reached. Start a new session to continue.";
-                                Debug.WriteLine($"[gap23_4_3-limit] {limitMessage}");
+                                _ = _logger?.WriteWarningAsync($"[gap23_4_3-limit] {limitMessage}");
                                 throw new InvalidOperationException(limitMessage);
                             }
                         }
@@ -632,12 +630,12 @@ namespace ContinueVS.Services.Implementations
         {
             lock (_registryLock)
             {
-                Debug.WriteLine("[gap8_1-toolsvc-init-start] InitializeToolRegistry called");
+                _ = _logger?.WriteDebugAsync("[gap8_1-toolsvc-init-start] InitializeToolRegistry called");
                 _builtInToolRegistry.Clear();
 
                 // Load enabled tools from configuration
                 var enabledTools = _configService.GetEnabledTools().ToList();
-                Debug.WriteLine($"[gap8_1-toolsvc-load-config] Loaded {enabledTools.Count} enabled tools from config");
+                _ = _logger?.WriteDebugAsync($"[gap8_1-toolsvc-load-config] Loaded {enabledTools.Count} enabled tools from config");
                 foreach (var tool in enabledTools)
                 {
                     if (!string.IsNullOrEmpty(tool.Name))
@@ -657,7 +655,7 @@ namespace ContinueVS.Services.Implementations
                 EnsureBuiltInToolDefaults();
 
                 int totalTools = _builtInToolRegistry.Count + _mcpToolRegistry.Count;
-                Debug.WriteLine($"[gap8_1-toolsvc-init-end] InitializeToolRegistry complete: {_builtInToolRegistry.Count} built-in tools registered");
+                _ = _logger?.WriteDebugAsync($"[gap8_1-toolsvc-init-end] InitializeToolRegistry complete: {_builtInToolRegistry.Count} built-in tools registered");
 
                 // Fail-fast diagnostic check for zero tools
                 if (totalTools == 0)
@@ -670,7 +668,6 @@ namespace ContinueVS.Services.Implementations
                         "(2) ConfigService.GetEnabledTools() is not corrupted, " +
                         "(3) Configuration file is valid.";
 
-                    Debug.WriteLine(diagnosticMessage);
                     // Fire-and-forget async logging (don't await in synchronous constructor context)
                     _ = _logger?.WriteErrorAsync(diagnosticMessage);
 
@@ -688,7 +685,7 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private void EnsureBuiltInToolDefaults()
         {
-            Debug.WriteLine("[gap8_1-toolsvc-defaults-start] EnsureBuiltInToolDefaults called");
+            _ = _logger?.WriteDebugAsync("[gap8_1-toolsvc-defaults-start] EnsureBuiltInToolDefaults called");
             var defaultTools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
             int addedCount = 0;
 
@@ -700,7 +697,7 @@ namespace ContinueVS.Services.Implementations
                     addedCount++;
                 }
             }
-            Debug.WriteLine($"[gap8_1-toolsvc-defaults-end] EnsureBuiltInToolDefaults: {defaultTools.Count} defaults checked, {addedCount} added");
+            _ = _logger?.WriteDebugAsync($"[gap8_1-toolsvc-defaults-end] EnsureBuiltInToolDefaults: {defaultTools.Count} defaults checked, {addedCount} added");
         }
 
         /// <summary>

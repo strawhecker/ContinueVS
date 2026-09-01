@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 
 namespace ContinueVS.Services.Implementations
@@ -22,6 +23,7 @@ namespace ContinueVS.Services.Implementations
         private readonly IIdeService _ideService;
         private readonly IDebuggerService _debuggerService;
         private readonly IConfigService? _configService;
+        private readonly IBridgeLogger? _logger;
 
         // Optional test seam: when non-null, used as git root instead of running git rev-parse
         private readonly string? _testGitRoot;
@@ -37,16 +39,18 @@ namespace ContinueVS.Services.Implementations
             IIdeService ideService,
             IDebuggerService debuggerService,
             IConfigService? configService = null,
+            IBridgeLogger? logger = null,
             string? testGitRoot = null,
             string? testGitBranch = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _debuggerService = debuggerService ?? throw new ArgumentNullException(nameof(debuggerService));
             _configService = configService;
+            _logger = logger;
             _testGitRoot = testGitRoot;
             _testGitBranch = testGitBranch;
             _gitExe = ResolveGitExe(GetUserConfiguredGitPath());
-            System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git resolved to: {_gitExe}");
+            _ = _logger?.WriteDebugAsync($"[WorkspaceStatsService] git resolved to: {_gitExe}");
         }
 
         private string? GetUserConfiguredGitPath()
@@ -62,7 +66,7 @@ namespace ContinueVS.Services.Implementations
             catch (InvalidOperationException ex) when (ex.Message.Contains("not been initialized"))
             {
                 // ConfigService not initialized yet; return null for fallback resolution
-                System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] ConfigService not initialized during constructor, using fallback git resolution: {ex.Message}");
+                _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] ConfigService not initialized during constructor, using fallback git resolution: {ex.Message}");
                 return null;
             }
             catch { return null; }
@@ -83,7 +87,7 @@ namespace ContinueVS.Services.Implementations
             // 1. User override
             if (!string.IsNullOrWhiteSpace(userPath) && File.Exists(userPath))
             {
-                System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: using user config path: {userPath}");
+                _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] git: using user config path: {userPath}");
                 return userPath!;
             }
 
@@ -102,7 +106,7 @@ namespace ContinueVS.Services.Implementations
                     var full = Path.GetFullPath(vsBundled);
                     if (File.Exists(full))
                     {
-                        System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: using VS-bundled git: {full}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] git: using VS-bundled git: {full}");
                         return full;
                     }
                 }
@@ -123,7 +127,7 @@ namespace ContinueVS.Services.Implementations
                             var candidate = Path.Combine(installPath, rel);
                             if (File.Exists(candidate))
                             {
-                                System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] git: registry hit: {candidate}");
+                                _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] git: registry hit: {candidate}");
                                 return candidate;
                             }
                         }
@@ -234,7 +238,7 @@ namespace ContinueVS.Services.Implementations
             s.CompletedGaps = CollectCompletedGaps(gitRoot);
 
             _stats = s;
-            System.Diagnostics.Debug.WriteLine($"[WorkspaceStatsService] Refresh complete: ActiveFile={s.ActiveFile}, GitBranch={s.GitBranch}, SolutionPath={s.SolutionPath}");
+            _ = _logger?.WriteDebugAsync($"[WorkspaceStatsService] Refresh complete: ActiveFile={s.ActiveFile}, GitBranch={s.GitBranch}, SolutionPath={s.SolutionPath}");
         }
 
         private static string? ResolveWorkDirFromFile(string activeFile, string? solutionDir)

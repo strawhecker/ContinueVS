@@ -240,7 +240,7 @@ namespace ContinueVS.Tests.Services
             // Arrange
             var stats = new ContinueVS.Core.Types.WorkspaceStats { GitBranch = "main" };
             var stubStats = new StubWorkspaceStatsService(stats);
-            var svc = new SystemPromptService(stubStats);
+            var svc = new SystemPromptService(statsService: stubStats);
 
             // Act
             var prompt = svc.GetPromptForMode("ask");
@@ -260,7 +260,7 @@ namespace ContinueVS.Tests.Services
                 TargetFrameworks = "net472",
                 Shell = "powershell.exe"
             };
-            var svc = new SystemPromptService(new StubWorkspaceStatsService(stats));
+            var svc = new SystemPromptService(statsService: new StubWorkspaceStatsService(stats));
 
             // Act
             var prompt = svc.GetPromptForMode("agent");

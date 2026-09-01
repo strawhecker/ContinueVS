@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 
 namespace ContinueVS.ViewModels.Converters
 {
@@ -22,11 +23,11 @@ namespace ContinueVS.ViewModels.Converters
                     ChatMessageRole.Thinking => TryGetResourceBrush("InfoBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                     _ => new SolidColorBrush(Colors.White)
                 };
-                System.Diagnostics.Debug.WriteLine($"[a6-converter] RoleToColorConverter.Convert: Role={role}");
+                _ = LoggerService.Current.WriteDebugAsync($"[a6-converter] RoleToColorConverter.Convert: Role={role}");
                 return brush;
             }
 
-            System.Diagnostics.Debug.WriteLine("[a6-converter] RoleToColorConverter.Convert: value is null, returning White");
+            _ = LoggerService.Current.WriteDebugAsync("[a6-converter] RoleToColorConverter.Convert: value is null, returning White");
             return new SolidColorBrush(Colors.White);
         }
 

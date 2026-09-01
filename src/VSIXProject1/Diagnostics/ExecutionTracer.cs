@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using ContinueVS.Services;
 
 namespace ContinueVS.Diagnostics
 {
@@ -10,8 +11,8 @@ namespace ContinueVS.Diagnostics
     /// Thread-safe implementation of IExecutionTracer.
     /// 
     /// Records step tokens (t1, t1.1, ..., t45) with timestamps, durations, and metadata.
-    /// Outputs completed traces to Debug.WriteLine in JSON format (one per line) for consumption
-    /// by VS Output Window and external trace processors.
+    /// Outputs completed traces to LoggerService.Current and Debug.WriteLine in JSON format 
+    /// (one per line) for consumption by VS Output Window and external trace processors.
     /// </summary>
     public sealed class ExecutionTracer : IExecutionTracer
     {
@@ -32,7 +33,7 @@ namespace ContinueVS.Diagnostics
         }
 
         /// <summary>
-        /// Records a single trace point immediately and outputs to Debug.WriteLine.
+        /// Records a single trace point immediately and outputs to LoggerService and Debug.WriteLine.
         /// </summary>
         public void RecordTracePoint(
             string token,
@@ -48,8 +49,11 @@ namespace ContinueVS.Diagnostics
                 _tracePoints.Add(tracePoint);
             }
 
-            // Output to Debug.WriteLine immediately for real-time visibility in Output pane
-            System.Diagnostics.Debug.WriteLine($"[TRACE] {tracePoint}");
+            var traceJson = $"[TRACE] {tracePoint}";
+            // Output to LoggerService for file persistence
+            _ = LoggerService.Current.WriteDebugAsync(traceJson);
+            // Also output to Debug.WriteLine for real-time visibility in Output pane
+            _ = LoggerService.Current.WriteDebugAsync(traceJson);
         }
 
         /// <summary>
@@ -80,8 +84,11 @@ namespace ContinueVS.Diagnostics
                 _tracePoints.Add(tracePoint);
             }
 
-            // Output to Debug.WriteLine for Output pane consumption
-            System.Diagnostics.Debug.WriteLine($"[TRACE] {tracePoint}");
+            var traceJson = $"[TRACE] {tracePoint}";
+            // Output to LoggerService for file persistence
+            _ = LoggerService.Current.WriteDebugAsync(traceJson);
+            // Also output to Debug.WriteLine for Output pane consumption
+            _ = LoggerService.Current.WriteDebugAsync(traceJson);
         }
 
         /// <summary>

@@ -62,13 +62,13 @@ namespace ContinueVS.ViewModels
                         if (ModelCatalog.TryGetModel(SelectedProvider.Provider, value ?? string.Empty, out var catalogEntry))
                         {
                             ContextWindow = catalogEntry!.ContextWindow.ToString();
-                            Debug.WriteLine($"[gap19-addmodelvm-selected-model-catalog] Auto-populated ContextWindow={ContextWindow} from catalog for {value}");
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap19-addmodelvm-selected-model-catalog] Auto-populated ContextWindow={ContextWindow} from catalog for {value}");
                         }
                         else
                         {
                             int defaultContextWindow = ModelCatalog.GetDefaultContextWindow(SelectedProvider.Provider);
                             ContextWindow = defaultContextWindow.ToString();
-                            Debug.WriteLine($"[gap19-addmodelvm-selected-model-default] Auto-populated ContextWindow={ContextWindow} from provider defaults for {value}");
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap19-addmodelvm-selected-model-default] Auto-populated ContextWindow={ContextWindow} from provider defaults for {value}");
                         }
                     }
                 }
@@ -152,11 +152,11 @@ namespace ContinueVS.ViewModels
                         Providers.Add(metadata);
                     }
                 }
-                Debug.WriteLine($"[gap12_3-addmodelvm-providers-init] Initialized {Providers.Count} providers");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-providers-init] Initialized {Providers.Count} providers");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap12_3-addmodelvm-providers-error] Error initializing providers: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap12_3-addmodelvm-providers-error] Error initializing providers: {ex.Message}", ex);
             }
         }
 
@@ -170,7 +170,7 @@ namespace ContinueVS.ViewModels
             {
                 try
                 {
-                    Debug.WriteLine($"[gap12_3-addmodelvm-load-models] Loading models for provider: {provider}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-load-models] Loading models for provider: {provider}");
 
                     // First, load default models from the catalog
                     var metadata = SelectedProvider;
@@ -179,7 +179,7 @@ namespace ContinueVS.ViewModels
                     if (metadata?.DefaultModels != null)
                     {
                         models.AddRange(metadata.DefaultModels);
-                        Debug.WriteLine($"[gap12_3-addmodelvm-catalog] Loaded {models.Count} default models from catalog");
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-catalog] Loaded {models.Count} default models from catalog");
                     }
 
                     // If provider supports autodetect and API key is provided, try discovery
@@ -191,12 +191,12 @@ namespace ContinueVS.ViewModels
                             if (discoveredModels != null && discoveredModels.Any())
                             {
                                 models = discoveredModels.ToList();
-                                Debug.WriteLine($"[gap12_3-addmodelvm-discovery] Discovered {models.Count} models via API");
+                                _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-discovery] Discovered {models.Count} models via API");
                             }
                         }
                         catch (Exception ex)
                         {
-                            Debug.WriteLine($"[gap12_3-addmodelvm-discovery-error] Error during discovery: {ex.Message}, using defaults");
+                            _ = LoggerService.Current.WriteErrorAsync($"[gap12_3-addmodelvm-discovery-error] Error during discovery: {ex.Message}, using defaults", ex);
                         }
                     }
 
@@ -212,7 +212,7 @@ namespace ContinueVS.ViewModels
                             {
                                 AvailableModels.Add(model);
                             }
-                            Debug.WriteLine($"[gap12_3-addmodelvm-loaded] Loaded {AvailableModels.Count} models total");
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-loaded] Loaded {AvailableModels.Count} models total");
                         });
 #pragma warning restore VSTHRD001
                     }
@@ -224,12 +224,12 @@ namespace ContinueVS.ViewModels
                         {
                             AvailableModels.Add(model);
                         }
-                        Debug.WriteLine($"[gap12_3-addmodelvm-loaded] Loaded {AvailableModels.Count} models total (no dispatcher)");
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-loaded] Loaded {AvailableModels.Count} models total (no dispatcher)");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[gap12_3-addmodelvm-load-error] Error loading models: {ex.Message}");
+                    _ = LoggerService.Current.WriteErrorAsync($"[gap12_3-addmodelvm-load-error] Error loading models: {ex.Message}", ex);
                 }
             });
         }
@@ -263,7 +263,7 @@ namespace ContinueVS.ViewModels
                 {
                     try
                     {
-                        Debug.WriteLine($"[gap8_4-addmodelvm-validate-start] Validating connection for model: {SelectedModel}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap8_4-addmodelvm-validate-start] Validating connection for model: {SelectedModel}");
 
                         var model = new ModelInfo
                         {
@@ -279,14 +279,14 @@ namespace ContinueVS.ViewModels
                             model.ContextWindow = catalogEntry!.ContextWindow;
                             model.SupportsFunctionCalling = catalogEntry.SupportsFunctionCalling;
                             model.SupportedToolFormats = catalogEntry.SupportedToolFormats ?? new List<string>();
-                            Debug.WriteLine($"[gap18-addmodelvm-validate-catalog] Loaded from catalog: ContextWindow={model.ContextWindow}");
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap18-addmodelvm-validate-catalog] Loaded from catalog: ContextWindow={model.ContextWindow}");
                         }
                         else if (SelectedProvider != null)
                         {
                             model.ContextWindow = ModelCatalog.GetDefaultContextWindow(SelectedProvider.Provider);
                             model.SupportsFunctionCalling = ModelCatalog.GetDefaultToolSupport(SelectedProvider.Provider);
                             model.SupportedToolFormats = ModelCatalog.GetDefaultToolFormats(SelectedProvider.Provider);
-                            Debug.WriteLine($"[gap18-addmodelvm-validate-fallback] Using defaults: ContextWindow={model.ContextWindow}");
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap18-addmodelvm-validate-fallback] Using defaults: ContextWindow={model.ContextWindow}");
                         }
                         else
                         {
@@ -300,18 +300,18 @@ namespace ContinueVS.ViewModels
                         {
                             ValidationError = null;
                             CurrentStep = 4;
-                            Debug.WriteLine($"[gap8_4-addmodelvm-validate-success] Connection validated");
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap8_4-addmodelvm-validate-success] Connection validated");
                         }
                         else
                         {
                             ValidationError = "Connection validation failed. Please check your API key and settings.";
-                            Debug.WriteLine($"[gap8_4-addmodelvm-validate-failed] Connection failed");
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap8_4-addmodelvm-validate-failed] Connection failed");
                         }
                     }
                     catch (Exception ex)
                     {
                         ValidationError = $"Error validating connection: {ex.Message}";
-                        Debug.WriteLine($"[gap8_4-addmodelvm-validate-error] {ex.Message}");
+                        _ = LoggerService.Current.WriteErrorAsync($"[gap8_4-addmodelvm-validate-error] {ex.Message}", ex);
                     }
                     finally
                     {
@@ -325,7 +325,7 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                Debug.WriteLine($"[gap12_3-addmodelvm-save-start] Saving model: {SelectedModel}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-save-start] Saving model: {SelectedModel}");
 
                 var model = new ModelInfo
                 {
@@ -340,7 +340,7 @@ namespace ContinueVS.ViewModels
                 if (!isValidContextWindow)
                 {
                     ValidationError = "Context Window must be empty or a positive integer (e.g., 8192, 128000).";
-                    Debug.WriteLine($"[gap19-addmodelvm-save-validation-error] Invalid context window: {ContextWindow}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap19-addmodelvm-save-validation-error] Invalid context window: {ContextWindow}");
                     return;
                 }
 
@@ -348,7 +348,7 @@ namespace ContinueVS.ViewModels
                 if (userContextWindow.HasValue)
                 {
                     model.ContextWindow = userContextWindow.Value;
-                    Debug.WriteLine($"[gap19-addmodelvm-save-user-input] Using user-provided ContextWindow={model.ContextWindow}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap19-addmodelvm-save-user-input] Using user-provided ContextWindow={model.ContextWindow}");
                 }
                 else if (SelectedProvider != null && ModelCatalog.TryGetModel(SelectedProvider.Provider, SelectedModel ?? string.Empty, out var catalogEntry))
                 {
@@ -356,21 +356,21 @@ namespace ContinueVS.ViewModels
                     model.SupportsFunctionCalling = catalogEntry.SupportsFunctionCalling;
                     model.SupportedToolFormats = catalogEntry.SupportedToolFormats ?? new List<string>();
                     model.OllamaModelId = catalogEntry.OllamaModelId;
-                    Debug.WriteLine($"[gap18-addmodelvm-save-catalog-found] Loaded model metadata from catalog: ContextWindow={model.ContextWindow}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap18-addmodelvm-save-catalog-found] Loaded model metadata from catalog: ContextWindow={model.ContextWindow}");
                 }
                 else if (SelectedProvider != null)
                 {
                     model.ContextWindow = ModelCatalog.GetDefaultContextWindow(SelectedProvider.Provider);
                     model.SupportsFunctionCalling = ModelCatalog.GetDefaultToolSupport(SelectedProvider.Provider);
                     model.SupportedToolFormats = ModelCatalog.GetDefaultToolFormats(SelectedProvider.Provider);
-                    Debug.WriteLine($"[gap18-addmodelvm-save-catalog-fallback] Using provider defaults: ContextWindow={model.ContextWindow}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap18-addmodelvm-save-catalog-fallback] Using provider defaults: ContextWindow={model.ContextWindow}");
                 }
                 else
                 {
                     model.ContextWindow = 4096;
                     model.SupportsFunctionCalling = false;
                     model.SupportedToolFormats = new List<string>();
-                    Debug.WriteLine($"[gap18-addmodelvm-save-no-provider] No provider selected; using hardcoded defaults");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap18-addmodelvm-save-no-provider] No provider selected; using hardcoded defaults");
                 }
 
                 var config = _configService.GetCurrentConfig();
@@ -383,7 +383,7 @@ namespace ContinueVS.ViewModels
             catch (Exception ex)
             {
                 ValidationError = $"Error saving model: {ex.Message}";
-                Debug.WriteLine($"[gap12_3-addmodelvm-save-error] {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap12_3-addmodelvm-save-error] {ex.Message}", ex);
             }
         }
 
@@ -392,13 +392,13 @@ namespace ContinueVS.ViewModels
             try
             {
                 await _configService.SaveConfigAsync();
-                Debug.WriteLine("[gap8_4-addmodelvm-save-success] Model saved successfully");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_4-addmodelvm-save-success] Model saved successfully");
                 CurrentStep = 0;
                 _onSaveCompleted?.Invoke();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap8_4-addmodelvm-save-failed] Failed to save: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap8_4-addmodelvm-save-failed] Failed to save: {ex.Message}", ex);
                 ValidationError = $"Failed to save model: {ex.Message}";
             }
         }
@@ -425,12 +425,12 @@ namespace ContinueVS.ViewModels
             if (Providers.Count > 0)
             {
                 SelectedProvider = Providers[0];
-                Debug.WriteLine($"[gap12_3-addmodelvm-reset] Form reset; auto-selected first provider: {Providers[0].Name}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap12_3-addmodelvm-reset] Form reset; auto-selected first provider: {Providers[0].Name}");
             }
             else
             {
                 SelectedProvider = null;
-                Debug.WriteLine("[gap12_3-addmodelvm-reset] Form reset; no providers available");
+                _ = LoggerService.Current.WriteDebugAsync("[gap12_3-addmodelvm-reset] Form reset; no providers available");
             }
 
             // Raise property changed for form fields

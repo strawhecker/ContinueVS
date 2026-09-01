@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 
 namespace ContinueVS.ViewModels.Converters
 {
@@ -17,16 +18,16 @@ namespace ContinueVS.ViewModels.Converters
         /// </summary>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            System.Diagnostics.Debug.WriteLine($"[gap10-converter-enter] value={value}, targetType={targetType.Name}");
+            _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-enter] value={value}, targetType={targetType.Name}");
             if (value is ChatMode mode)
             {
                 bool isAsk = mode == ChatMode.Ask;
-                System.Diagnostics.Debug.WriteLine($"[gap10-converter-logic] ChatMode={mode}, isAsk={isAsk}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-logic] ChatMode={mode}, isAsk={isAsk}");
                 Visibility result = isAsk ? Visibility.Visible : Visibility.Collapsed;
-                System.Diagnostics.Debug.WriteLine($"[gap10-converter-result] Returning {result}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-result] Returning {result}");
                 return result;
             }
-            System.Diagnostics.Debug.WriteLine($"[gap10-converter-invalid-type] value is not ChatMode, type={value?.GetType().Name ?? "null"}");
+            _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-invalid-type] value is not ChatMode, type={value?.GetType().Name ?? "null"}");
             return Visibility.Collapsed;
         }
 
@@ -35,7 +36,7 @@ namespace ContinueVS.ViewModels.Converters
         /// </summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            System.Diagnostics.Debug.WriteLine($"[gap10-converter-convertback] Unexpected ConvertBack called with value={value}");
+            _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-convertback] Unexpected ConvertBack called with value={value}");
             throw new NotSupportedException("ChatModeToVisibilityConverter does not support ConvertBack.");
         }
     }

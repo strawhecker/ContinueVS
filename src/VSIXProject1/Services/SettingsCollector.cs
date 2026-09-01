@@ -43,14 +43,14 @@ namespace ContinueVS.Services
         {
             // [b16-CONFIG-READ] Entry point
             var configReadStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            System.Diagnostics.Debug.WriteLine($"[b16-CONFIG-READ] ReadSettingsAsync entry");
+            _ = LoggerService.Current.WriteDebugAsync($"[b16-CONFIG-READ] ReadSettingsAsync entry");
 
             lock (s_cacheLock)
             {
                 if (s_cachedSettings != null && !s_cachedSettings.IsExpired)
                 {
                     configReadStopwatch.Stop();
-                    System.Diagnostics.Debug.WriteLine($"[b16-CONFIG-READ] Cache hit, elapsed={configReadStopwatch.ElapsedMilliseconds}ms");
+                    _ = LoggerService.Current.WriteDebugAsync($"[b16-CONFIG-READ] Cache hit, elapsed={configReadStopwatch.ElapsedMilliseconds}ms");
                     return new Dictionary<string, object>(s_cachedSettings.Settings);
                 }
             }
@@ -69,7 +69,7 @@ namespace ContinueVS.Services
             }
 
             configReadStopwatch.Stop();
-            System.Diagnostics.Debug.WriteLine($"[b16-CONFIG-READ] File read completed, elapsed={configReadStopwatch.ElapsedMilliseconds}ms, settingCount={settings?.Count ?? 0}");
+            _ = LoggerService.Current.WriteDebugAsync($"[b16-CONFIG-READ] File read completed, elapsed={configReadStopwatch.ElapsedMilliseconds}ms, settingCount={settings?.Count ?? 0}");
             return new Dictionary<string, object>(settings ?? new Dictionary<string, object>());
         }
 
@@ -80,7 +80,7 @@ namespace ContinueVS.Services
         public static void ClearCache()
         {
             // [b19-CACHE-INVALIDATE] Model selection cache invalidation
-            System.Diagnostics.Debug.WriteLine("[b19-CACHE-INVALIDATE] Settings cache cleared");
+            _ = LoggerService.Current.WriteDebugAsync("[b19-CACHE-INVALIDATE] Settings cache cleared");
             lock (s_cacheLock)
             {
                 s_cachedSettings = null;

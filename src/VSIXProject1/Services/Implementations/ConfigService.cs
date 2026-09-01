@@ -64,13 +64,14 @@ namespace ContinueVS.Services.Implementations
         public async Task InitializeAsync()
         {
             if (_logger != null)
-                await _logger.WriteDebugAsync("ConfigService.InitializeAsync (start)");
+                await _logger.WriteDebugAsync("[ConfigService.InitializeAsync] Starting");
 
             lock (_lock)
             {
                 if (_initialized)
                 {
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Already initialized, returning");
+                    if (_logger != null)
+                        _ = _logger.WriteDebugAsync("[ConfigService.InitializeAsync] Already initialized, returning");
                     return;
                 }
             }
@@ -79,20 +80,20 @@ namespace ContinueVS.Services.Implementations
             {
                 try
                 {
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Starting config load...");
+                    await (_logger?.WriteDebugAsync("[ConfigService.InitializeAsync] Starting config load...") ?? Task.CompletedTask);
 
                     // Ensure directory exists
                     Directory.CreateDirectory(ContinueDir);
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config dir: {ContinueDir}");
+                    await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Config dir: {ContinueDir}") ?? Task.CompletedTask);
 
                     // Load or create default configuration
                     if (File.Exists(ConfigFilePath))
                     {
-                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config file exists: {ConfigFilePath}");
+                        await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Config file exists: {ConfigFilePath}") ?? Task.CompletedTask);
                         var json = File.ReadAllText(ConfigFilePath);
                         _currentConfig = JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(json) 
                             ?? (await CreateDefaultConfigAsync());
-                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Loaded from file. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
+                        await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Loaded from file. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}") ?? Task.CompletedTask);
 
                         // Apply schema migrations for CustomSettings (v0→v1, etc.)
                         CoreTypes.SettingsMigration.MigrateCustomSettings(_currentConfig);
@@ -102,7 +103,7 @@ namespace ContinueVS.Services.Implementations
                         // Migrate/upgrade: seed default Ollama model when config has no models at all
                         if (_currentConfig.Models == null || _currentConfig.Models.Count == 0)
                         {
-                            System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Config has no models — seeding default Ollama model");
+                            await (_logger?.WriteDebugAsync("[ConfigService.InitializeAsync] Config has no models — seeding default Ollama model") ?? Task.CompletedTask);
                             _currentConfig.Models = new List<CoreTypes.ModelInfo>
                             {
                                 new CoreTypes.ModelInfo
@@ -127,7 +128,7 @@ namespace ContinueVS.Services.Implementations
                         {
                             if (string.IsNullOrEmpty(model.OllamaModelId) && model.Provider == "ollama" && model.Name == "Llama 3.1 8B Instruct")
                             {
-                                System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Migrating model '{model.Name}': setting OllamaModelId");
+                                await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Migrating model '{model.Name}': setting OllamaModelId") ?? Task.CompletedTask);
                                 model.OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M";
                                 needsSave = true;
                             }
@@ -135,7 +136,7 @@ namespace ContinueVS.Services.Implementations
 
                         if (needsSave)
                         {
-                            System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Config was migrated, saving updated version");
+                            await (_logger?.WriteDebugAsync("[ConfigService.InitializeAsync] Config was migrated, saving updated version") ?? Task.CompletedTask);
                             SaveConfigSync();
                         }
 
@@ -144,26 +145,26 @@ namespace ContinueVS.Services.Implementations
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Config file does not exist, creating default: {ConfigFilePath}");
+                        await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Config file does not exist, creating default: {ConfigFilePath}") ?? Task.CompletedTask);
                         _currentConfig = await CreateDefaultConfigAsync();
-                        System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Created default config. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
+                        await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Created default config. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}") ?? Task.CompletedTask);
                         SaveConfigSync();
-                        System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Saved default config to disk");
+                        await (_logger?.WriteDebugAsync("[ConfigService.InitializeAsync] Saved default config to disk") ?? Task.CompletedTask);
                     }
 
                     _currentConfig.ConfigFilePath = ConfigFilePath;
                     _currentConfig.LastModified = DateTime.UtcNow;
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] Final state - SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}, Models: {string.Join(", ", _currentConfig.Models.Select(m => m.Name))}");
+                    await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Final state - SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}, Models: {string.Join(", ", _currentConfig.Models.Select(m => m.Name))}") ?? Task.CompletedTask);
 
                     lock (_lock)
                     {
                         _initialized = true;
                     }
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.InitializeAsync] Initialization complete");
+                    await (_logger?.WriteDebugAsync("[ConfigService.InitializeAsync] Initialization complete") ?? Task.CompletedTask);
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.InitializeAsync] ERROR: {ex.Message}, StackTrace: {ex.StackTrace}");
+                    await (_logger?.WriteErrorAsync($"[ConfigService.InitializeAsync] ERROR: {ex.Message}", ex) ?? Task.CompletedTask);
                     throw;
                 }
             });
@@ -270,34 +271,34 @@ namespace ContinueVS.Services.Implementations
             lock (_lock)
             {
                 ThrowIfNotInitialized();
-                System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
-                System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Available models: {string.Join(", ", _currentConfig.Models.Select(m => $"{m.Name}(Id:{m.Id})"))}");
+                _ = _logger?.WriteDebugAsync($"[ConfigService.GetSelectedModel] SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}");
+                _ = _logger?.WriteDebugAsync($"[ConfigService.GetSelectedModel] Available models: {string.Join(", ", _currentConfig.Models.Select(m => $"{m.Name}(Id:{m.Id})"))};");
 
                 if (string.IsNullOrEmpty(_currentConfig.SelectedModelId))
                 {
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetSelectedModel] SelectedModelId is null/empty");
+                    _ = _logger?.WriteDebugAsync("[ConfigService.GetSelectedModel] SelectedModelId is null/empty");
 
                     // Auto-select first model if none selected but models exist
                     if (_currentConfig.Models.Count > 0)
                     {
                         var firstModel = _currentConfig.Models.First();
-                        System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Auto-selecting first model: {firstModel.Name} (Id:{firstModel.Id})");
+                        _ = _logger?.WriteDebugAsync($"[ConfigService.GetSelectedModel] Auto-selecting first model: {firstModel.Name} (Id:{firstModel.Id})");
                         _currentConfig.SelectedModelId = firstModel.Id;
                         return firstModel;
                     }
 
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetSelectedModel] No models available, returning null");
+                    _ = _logger?.WriteDebugAsync("[ConfigService.GetSelectedModel] No models available, returning null");
                     return null;
                 }
 
                 var selected = _currentConfig.Models.FirstOrDefault(m => m.Id == _currentConfig.SelectedModelId);
                 if (selected != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Found model: {selected.Name} (Id:{selected.Id})");
+                    _ = _logger?.WriteDebugAsync($"[ConfigService.GetSelectedModel] Found model: {selected.Name} (Id:{selected.Id})");
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.GetSelectedModel] Model not found for SelectedModelId: {_currentConfig.SelectedModelId}");
+                    _ = _logger?.WriteDebugAsync($"[ConfigService.GetSelectedModel] Model not found for SelectedModelId: {_currentConfig.SelectedModelId}");
                 }
                 return selected;
             }
@@ -312,7 +313,7 @@ namespace ContinueVS.Services.Implementations
             {
                 ThrowIfNotInitialized();
                 var enabledTools = _currentConfig.Tools.Where(t => t.IsEnabled).ToList();
-                Debug.WriteLine($"[gap8_1-configsvc-enabled] GetEnabledTools: {enabledTools.Count} enabled out of {_currentConfig.Tools.Count} total");
+                _ = _logger?.WriteDebugAsync($"[gap8_1-configsvc-enabled] GetEnabledTools: {enabledTools.Count} enabled out of {_currentConfig.Tools.Count} total");
                 return enabledTools;
             }
         }
@@ -452,7 +453,7 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private async Task<CoreTypes.ContinueConfig> CreateDefaultConfigAsync()
         {
-            System.Diagnostics.Debug.WriteLine("[ConfigService.CreateDefaultConfig] Creating default config...");
+            await (_logger?.WriteDebugAsync("[ConfigService.CreateDefaultConfig] Creating default config...") ?? Task.CompletedTask);
 
             var models = new List<CoreTypes.ModelInfo>
             {
@@ -484,7 +485,7 @@ namespace ContinueVS.Services.Implementations
             // Load tools from resource
             await MergeToolsWithResourceAsync(config);
 
-            System.Diagnostics.Debug.WriteLine($"[ConfigService.CreateDefaultConfig] Created config with SelectedModelId: {config.SelectedModelId}, Model: {models[0].Name} (Id: {models[0].Id}), Tools: {config.Tools.Count}");
+            await (_logger?.WriteDebugAsync($"[ConfigService.CreateDefaultConfig] Created config with SelectedModelId: {config.SelectedModelId}, Model: {models[0].Name} (Id: {models[0].Id}), Tools: {config.Tools.Count}") ?? Task.CompletedTask);
             return config;
         }
 
@@ -494,11 +495,11 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private async Task MergeToolsWithResourceAsync(CoreTypes.ContinueConfig config)
         {
-            Debug.WriteLine("[gap8_1-configsvc-merge-tools] MergeToolsWithResourceAsync starting");
+            await (_logger?.WriteDebugAsync("[gap8_1-configsvc-merge-tools] MergeToolsWithResourceAsync starting") ?? Task.CompletedTask);
 
             // Load all defaults from resource
             var defaultTools = await ToolsResourceLoader.LoadDefaultToolsAsync();
-            Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Loaded {defaultTools.Count()} tools from resource");
+            await (_logger?.WriteDebugAsync($"[gap8_1-configsvc-merge-tools] Loaded {defaultTools.Count()} tools from resource") ?? Task.CompletedTask);
 
             if (config.ToolOverrides == null)
                 config.ToolOverrides = new List<CoreTypes.ToolOverride>();
@@ -528,12 +529,12 @@ namespace ContinueVS.Services.Implementations
                 // Apply override if exists
                 if (overridesByName.TryGetValue(defaultTool.Name, out var overrideTool))
                 {
-                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Applying override for tool: {defaultTool.Name}, IsEnabled: {overrideTool.IsEnabled}");
+                    await (_logger?.WriteDebugAsync($"[gap8_1-configsvc-merge-tools] Applying override for tool: {defaultTool.Name}, IsEnabled: {overrideTool.IsEnabled}") ?? Task.CompletedTask);
                     toolCopy.IsEnabled = overrideTool.IsEnabled;
                 }
                 else
                 {
-                    Debug.WriteLine($"[gap8_1-configsvc-merge-tools] Using resource default for tool: {defaultTool.Name}, IsEnabled: {defaultTool.IsEnabled}");
+                    await (_logger?.WriteDebugAsync($"[gap8_1-configsvc-merge-tools] Using resource default for tool: {defaultTool.Name}, IsEnabled: {defaultTool.IsEnabled}") ?? Task.CompletedTask);
                 }
 
                 mergedTools.Add(toolCopy);
@@ -541,7 +542,7 @@ namespace ContinueVS.Services.Implementations
 
             // Assign merged tools back to config
             config.Tools = mergedTools;
-            Debug.WriteLine($"[gap8_1-configsvc-merge-tools] MergeToolsWithResourceAsync complete: {config.Tools.Count} tools in config");
+            await (_logger?.WriteDebugAsync($"[gap8_1-configsvc-merge-tools] MergeToolsWithResourceAsync complete: {config.Tools.Count} tools in config") ?? Task.CompletedTask);
         }
 
         /// <summary>
@@ -550,7 +551,7 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private List<CoreTypes.ToolOverride> FilterToolsByDelta(List<CoreTypes.ToolDefinition> tools)
         {
-            Debug.WriteLine("[gap8_1-configsvc-filter-start] FilterToolsByDelta: start filtering");
+            _ = _logger?.WriteDebugAsync("[gap8_1-configsvc-filter-start] FilterToolsByDelta: start filtering");
 
             // Get all default tools from registry
             var defaultTools = CoreTypes.BuiltInToolsRegistry.GetAllBuiltInTools()
@@ -567,7 +568,7 @@ namespace ContinueVS.Services.Implementations
                     // Compare IsEnabled; only include if different from default
                     if (tool.IsEnabled != defaultTool.IsEnabled)
                     {
-                        Debug.WriteLine($"[gap8_1-configsvc-filter-keep] Tool '{tool.Name}': IsEnabled={tool.IsEnabled} (differs from default={defaultTool.IsEnabled}), KEEPING in JSON");
+                        _ = _logger?.WriteDebugAsync($"[gap8_1-configsvc-filter-keep] Tool '{tool.Name}': IsEnabled={tool.IsEnabled} (differs from default={defaultTool.IsEnabled}), KEEPING in JSON");
                         overrides.Add(new CoreTypes.ToolOverride 
                         { 
                             Name = tool.Name, 
@@ -577,14 +578,14 @@ namespace ContinueVS.Services.Implementations
                     }
                     else
                     {
-                        Debug.WriteLine($"[gap8_1-configsvc-filter-exclude] Tool '{tool.Name}': IsEnabled={tool.IsEnabled} (matches default), EXCLUDING from JSON");
+                        _ = _logger?.WriteDebugAsync($"[gap8_1-configsvc-filter-exclude] Tool '{tool.Name}': IsEnabled={tool.IsEnabled} (matches default), EXCLUDING from JSON");
                         excludedCount++;
                     }
                 }
                 else
                 {
                     // Custom (non-built-in) tool; always include with all properties
-                    Debug.WriteLine($"[gap8_1-configsvc-filter-custom] Tool '{tool.Name}': custom tool, KEEPING in JSON");
+                    _ = _logger?.WriteDebugAsync($"[gap8_1-configsvc-filter-custom] Tool '{tool.Name}': custom tool, KEEPING in JSON");
                     overrides.Add(new CoreTypes.ToolOverride 
                     { 
                         Name = tool.Name, 
@@ -594,7 +595,7 @@ namespace ContinueVS.Services.Implementations
                 }
             }
 
-            Debug.WriteLine($"[gap8_1-configsvc-filter-end] FilterToolsByDelta: input={tools.Count}, excluded={excludedCount}, kept={includedCount}");
+            _ = _logger?.WriteDebugAsync($"[gap8_1-configsvc-filter-end] FilterToolsByDelta: input={tools.Count}, excluded={excludedCount}, kept={includedCount}");
             return overrides;
         }
 
@@ -612,16 +613,16 @@ namespace ContinueVS.Services.Implementations
                 var toolOverrides = FilterToolsByDelta(_currentConfig.Tools);
                 _currentConfig.ToolOverrides = toolOverrides;
 
-                Debug.WriteLine($"[gap8_1-configsvc-save] SaveConfigSync: Persisting {toolOverrides.Count} tool overrides (from {_currentConfig.Tools.Count} full tools)");
+                _ = _logger?.WriteDebugAsync($"[gap8_1-configsvc-save] SaveConfigSync: Persisting {toolOverrides.Count} tool overrides (from {_currentConfig.Tools.Count} full tools)");
 
                 var json = JsonConvert.SerializeObject(_currentConfig, Formatting.Indented);
                 File.WriteAllText(ConfigFilePath, json);
 
-                Debug.WriteLine($"[gap8_1-configsvc-save] SaveConfigSync: Config persisted successfully");
+                _ = _logger?.WriteDebugAsync($"[gap8_1-configsvc-save] SaveConfigSync: Config persisted successfully");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ConfigService] Error saving config: {ex.Message}");
+                _ = _logger?.WriteErrorAsync($"[ConfigService] Error saving config: {ex.Message}", ex);
             }
         }
 
@@ -673,24 +674,24 @@ namespace ContinueVS.Services.Implementations
                                 var uiState = JsonConvert.DeserializeObject<CoreTypes.UIState>(jsonString);
                                 if (uiState != null)
                                 {
-                                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetUIStateAsync] Loaded UIState from JSON string");
+                                    _ = _logger?.WriteDebugAsync("[ConfigService.GetUIStateAsync] Loaded UIState from JSON string");
                                     return uiState;
                                 }
                             }
                             else if (uiStateObj is CoreTypes.UIState uiState)
                             {
-                                System.Diagnostics.Debug.WriteLine("[ConfigService.GetUIStateAsync] UIState already deserialized");
+                                _ = _logger?.WriteDebugAsync("[ConfigService.GetUIStateAsync] UIState already deserialized");
                                 return uiState;
                             }
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[ConfigService.GetUIStateAsync] Error deserializing UIState: {ex.Message}");
+                            _ = _logger?.WriteDebugAsync($"[ConfigService.GetUIStateAsync] Error deserializing UIState: {ex.Message}");
                         }
                     }
 
                     // Return empty UIState if key missing or deserialization failed
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetUIStateAsync] Returning empty UIState");
+                    _ = _logger?.WriteDebugAsync("[ConfigService.GetUIStateAsync] Returning empty UIState");
                     return new CoreTypes.UIState();
                 }
             });
@@ -719,7 +720,7 @@ namespace ContinueVS.Services.Implementations
                     _currentConfig.CustomSettings[uiStateKey] = jsonString;
                     _currentConfig.LastModified = DateTime.UtcNow;
 
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.SaveUIStateAsync] Saved UIState to CustomSettings[\"{uiStateKey}\"]");
+                    _ = _logger?.WriteDebugAsync($"[ConfigService.SaveUIStateAsync] Saved UIState to CustomSettings[\"{uiStateKey}\"]");
                 }
             });
 
@@ -744,7 +745,7 @@ namespace ContinueVS.Services.Implementations
                     _currentConfig.CustomSettings[defaultModeKey] = mode.ToString();
                     _currentConfig.LastModified = DateTime.UtcNow;
 
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.SaveDefaultModeAsync] Saved default mode {mode} to CustomSettings[\"{defaultModeKey}\"]");
+                    _ = _logger?.WriteDebugAsync($"[ConfigService.SaveDefaultModeAsync] Saved default mode {mode} to CustomSettings[\"{defaultModeKey}\"]");
                 }
             });
 
@@ -771,12 +772,12 @@ namespace ContinueVS.Services.Implementations
                         var modeValue = _currentConfig.CustomSettings[defaultModeKey]?.ToString();
                         if (!string.IsNullOrEmpty(modeValue) && int.TryParse(modeValue, out var mode))
                         {
-                            System.Diagnostics.Debug.WriteLine($"[ConfigService.GetDefaultModeAsync] Retrieved default mode: {mode}");
+                            _ = _logger?.WriteDebugAsync($"[ConfigService.GetDefaultModeAsync] Retrieved default mode: {mode}");
                             return mode;
                         }
                     }
 
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetDefaultModeAsync] No default mode configured, returning Ask (0)");
+                    _ = _logger?.WriteDebugAsync("[ConfigService.GetDefaultModeAsync] No default mode configured, returning Ask (0)");
                     return 0; // Default to Ask
                 }
             });
@@ -799,7 +800,7 @@ namespace ContinueVS.Services.Implementations
                     _currentConfig.CustomSettings[defaultPolicyKey] = policy.ToString();
                     _currentConfig.LastModified = DateTime.UtcNow;
 
-                    System.Diagnostics.Debug.WriteLine($"[ConfigService.SaveDefaultPolicyAsync] Saved default policy {policy} to CustomSettings[\"{defaultPolicyKey}\"]");
+                    _ = _logger?.WriteDebugAsync($"[ConfigService.SaveDefaultPolicyAsync] Saved default policy {policy} to CustomSettings[\"{defaultPolicyKey}\"]");
                 }
             });
 
@@ -826,12 +827,12 @@ namespace ContinueVS.Services.Implementations
                         var policyValue = _currentConfig.CustomSettings[defaultPolicyKey]?.ToString();
                         if (!string.IsNullOrEmpty(policyValue) && Enum.TryParse<ContinuationPolicy>(policyValue, out var policy))
                         {
-                            System.Diagnostics.Debug.WriteLine($"[ConfigService.GetDefaultPolicyAsync] Retrieved default policy: {policy}");
+                            _ = _logger?.WriteDebugAsync($"[ConfigService.GetDefaultPolicyAsync] Retrieved default policy: {policy}");
                             return policy;
                         }
                     }
 
-                    System.Diagnostics.Debug.WriteLine("[ConfigService.GetDefaultPolicyAsync] No default policy configured, returning Interactive");
+                    _ = _logger?.WriteDebugAsync("[ConfigService.GetDefaultPolicyAsync] No default policy configured, returning Interactive");
                     return ContinuationPolicy.Interactive; // Default to Interactive (safe)
                 }
             });

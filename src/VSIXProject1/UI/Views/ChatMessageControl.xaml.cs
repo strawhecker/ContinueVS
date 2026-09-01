@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 
 namespace ContinueVS.UI.Views
 {
@@ -70,11 +71,11 @@ namespace ContinueVS.UI.Views
                 try
                 {
                     Clipboard.SetText(content);
-                    System.Diagnostics.Debug.WriteLine("[gap49-copy-all] Entire response copied to clipboard");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap49-copy-all] Entire response copied to clipboard");
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[gap49-copy-all-error] Failed to copy: {ex.Message}");
+                    _ = LoggerService.Current.WriteErrorAsync($"[gap49-copy-all-error] Failed to copy: {ex.Message}", ex);
                 }
             }
         }
@@ -101,17 +102,17 @@ namespace ContinueVS.UI.Views
                 try
                 {
                     Clipboard.SetText(content);
-                    System.Diagnostics.Debug.WriteLine("[gap49-dropdown-copy] Code copied to clipboard");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap49-dropdown-copy] Code copied to clipboard");
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[gap49-dropdown-copy-error] Failed to copy: {ex.Message}");
+                    _ = LoggerService.Current.WriteErrorAsync($"[gap49-dropdown-copy-error] Failed to copy: {ex.Message}", ex);
                 }
             }
             else if (selectedItem.Content.ToString().Contains("Apply"))
             {
                 // Execute apply via command
-                System.Diagnostics.Debug.WriteLine("[gap49-dropdown-apply] Apply selected from dropdown");
+                _ = LoggerService.Current.WriteDebugAsync("[gap49-dropdown-apply] Apply selected from dropdown");
                 // Command will be wired to ApplyCodeBlockCommand via XAML if needed
             }
 

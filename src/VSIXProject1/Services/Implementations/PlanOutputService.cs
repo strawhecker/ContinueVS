@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 
 namespace ContinueVS.Services.Implementations
@@ -51,7 +52,7 @@ namespace ContinueVS.Services.Implementations
 
             await Task.Run(() => File.WriteAllText(filePath, content), cancellationToken);
 
-            System.Diagnostics.Debug.WriteLine($"[gap43_2] Plan persisted: {filePath}");
+            await LoggerService.Current.WriteDebugAsync($"[gap43_2] Plan persisted: {filePath}");
             return filePath;
         }
     }

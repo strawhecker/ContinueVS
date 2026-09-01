@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
-using ContinueVS.ViewModels;
 using System.Diagnostics;
+using ContinueVS.Services;
+using ContinueVS.ViewModels;
 
 namespace ContinueVS.UI.Pages
 {
@@ -21,7 +22,7 @@ namespace ContinueVS.UI.Pages
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SettingsControl-ctor] Error: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[SettingsControl-ctor] Error: {ex.Message}", ex);
             }
         }
 

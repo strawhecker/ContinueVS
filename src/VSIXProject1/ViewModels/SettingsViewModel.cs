@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using GalaSoft.MvvmLight;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 
 namespace ContinueVS.ViewModels
@@ -190,7 +191,7 @@ namespace ContinueVS.ViewModels
         {
             if (configService == null) throw new ArgumentNullException(nameof(configService));
 
-            Debug.WriteLine("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR CALLED");
+            _ = LoggerService.Current.WriteDebugAsync("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR CALLED");
 
             _configService = configService;
 
@@ -199,11 +200,11 @@ namespace ContinueVS.ViewModels
             {
                 _syncService = new Services.Implementations.SettingsSyncService(configService);
                 _syncService.PropertyChanged += OnSyncServicePropertyChanged;
-                Debug.WriteLine("[SettingsViewModel-ctor] SettingsSyncService initialized");
+                _ = LoggerService.Current.WriteDebugAsync("[SettingsViewModel-ctor] SettingsSyncService initialized");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SettingsViewModel-ctor] Failed to initialize SettingsSyncService: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[SettingsViewModel-ctor] Failed to initialize SettingsSyncService: {ex.Message}", ex);
             }
 
             // Initialize all settings to defaults
@@ -233,7 +234,7 @@ namespace ContinueVS.ViewModels
 
             _maxToolCallsPerSession = GetInt(UserSettings.Agent_MaxToolCallsPerSession, defaults);
 
-            Debug.WriteLine("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR COMPLETE");
+            _ = LoggerService.Current.WriteDebugAsync("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR COMPLETE");
         }
 
         /// <summary>
@@ -244,12 +245,12 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                Debug.WriteLine("[SettingsViewModel.LoadSettings] Starting load...");
+                _ = LoggerService.Current.WriteDebugAsync("[SettingsViewModel.LoadSettings] Starting load...");
 
                 var config = _configService.GetCurrentConfig();
                 if (config?.CustomSettings == null)
                 {
-                    Debug.WriteLine("[SettingsViewModel.LoadSettings] Config or CustomSettings is null");
+                    _ = LoggerService.Current.WriteDebugAsync("[SettingsViewModel.LoadSettings] Config or CustomSettings is null");
                     return;
                 }
 
@@ -282,11 +283,11 @@ namespace ContinueVS.ViewModels
                 // Load Agent/Tool settings
                 MaxToolCallsPerSession = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerSession, config.CustomSettings);
 
-                Debug.WriteLine("[SettingsViewModel.LoadSettings] Settings loaded successfully");
+                _ = LoggerService.Current.WriteDebugAsync("[SettingsViewModel.LoadSettings] Settings loaded successfully");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SettingsViewModel.LoadSettings] Error: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[SettingsViewModel.LoadSettings] Error: {ex.Message}", ex);
             }
         }
 
@@ -299,12 +300,12 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                Debug.WriteLine("[SettingsViewModel.SaveSettingsAsync] Starting save...");
+                await LoggerService.Current.WriteDebugAsync("[SettingsViewModel.SaveSettingsAsync] Starting save...");
 
                 var config = _configService.GetCurrentConfig();
                 if (config?.CustomSettings == null)
                 {
-                    Debug.WriteLine("[SettingsViewModel.SaveSettingsAsync] Config or CustomSettings is null");
+                    await LoggerService.Current.WriteDebugAsync("[SettingsViewModel.SaveSettingsAsync] Config or CustomSettings is null");
                     return;
                 }
 
@@ -315,12 +316,12 @@ namespace ContinueVS.ViewModels
                     if (Equals(value, defaultValue))
                     {
                         config.CustomSettings.Remove(key);
-                        Debug.WriteLine($"[SettingsViewModel.SaveSettingsAsync] Removed {key} (equals default)");
+                        _ = LoggerService.Current.WriteDebugAsync($"[SettingsViewModel.SaveSettingsAsync] Removed {key} (equals default)");
                     }
                     else
                     {
                         config.CustomSettings[key] = value;
-                        Debug.WriteLine($"[SettingsViewModel.SaveSettingsAsync] Saved {key} = {value}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[SettingsViewModel.SaveSettingsAsync] Saved {key} = {value}");
                     }
                 };
 
@@ -355,11 +356,11 @@ namespace ContinueVS.ViewModels
 
                 // Persist to disk
                 await _configService.SaveConfigAsync();
-                Debug.WriteLine("[SettingsViewModel.SaveSettingsAsync] Settings saved successfully (delta-based)");
+                await LoggerService.Current.WriteDebugAsync("[SettingsViewModel.SaveSettingsAsync] Settings saved successfully (delta-based)");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SettingsViewModel.SaveSettingsAsync] Error: {ex.Message}");
+                await LoggerService.Current.WriteErrorAsync($"[SettingsViewModel.SaveSettingsAsync] Error: {ex.Message}", ex);
             }
         }
 
@@ -439,13 +440,13 @@ namespace ContinueVS.ViewModels
                     {
                         _fontSize = _syncService.FontSize;
                         RaisePropertyChanged(nameof(FontSize));
-                        Debug.WriteLine($"[SettingsViewModel] FontSize synced from file to {_fontSize}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[SettingsViewModel] FontSize synced from file to {_fontSize}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[SettingsViewModel] Error handling sync service property change: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[SettingsViewModel] Error handling sync service property change: {ex.Message}", ex);
             }
         }
     }

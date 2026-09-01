@@ -55,109 +55,110 @@ namespace ContinueVS
             IProgress<ServiceProgressData> progress)
         {
             // BREAKPOINT: t1 - Set breakpoint here to inspect InitializeAsync entry
-            System.Diagnostics.Debug.WriteLine("[CV-ENTRY] InitializeAsync called - EXTENSION IS LOADED");
+            await LoggerService.Current.WriteDebugAsync("[CV-ENTRY] InitializeAsync called - EXTENSION IS LOADED");
             var tracer = new ExecutionTracer();
             ExecutionTracer = tracer;
-            System.Diagnostics.Debug.WriteLine("╔════════════════════════════════════════════════╗");
-            System.Diagnostics.Debug.WriteLine("║  [ContinueVS] InitializeAsync START            ║");
-            System.Diagnostics.Debug.WriteLine("╚════════════════════════════════════════════════╝");
+            await LoggerService.Current.WriteDebugAsync("╔════════════════════════════════════════════════╗");
+            await LoggerService.Current.WriteDebugAsync("║  [ContinueVS] InitializeAsync START            ║");
+            await LoggerService.Current.WriteDebugAsync("╚════════════════════════════════════════════════╝");
 
             try
             {
                 // BREAKPOINT: t1.1 - Thread switch verification
-                System.Diagnostics.Debug.WriteLine("[CV] Step 1: Switching to main thread...");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 1: Switching to main thread...");
                 using (tracer.BeginScope("t1.1", "ContinueVSPackage"))
                 {
                     await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
                 }
-                System.Diagnostics.Debug.WriteLine("[CV] ✓ Main thread switch complete");
+                await LoggerService.Current.WriteDebugAsync("[CV] ✓ Main thread switch complete");
 
                 // BREAKPOINT: t1.2 - Instance setup
-                System.Diagnostics.Debug.WriteLine("[CV] Step 2: Setting Instance...");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 2: Setting Instance...");
                 using (tracer.BeginScope("t1.2", "ContinueVSPackage"))
                 {
                     Instance = this;
                 }
-                System.Diagnostics.Debug.WriteLine("[CV] ✓ Instance set");
+                await LoggerService.Current.WriteDebugAsync("[CV] ✓ Instance set");
 
                 // BREAKPOINT: t1.3 - Service creation phase
-                System.Diagnostics.Debug.WriteLine("[CV] Step 3: Creating VersionSelectorService...");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 3: Creating VersionSelectorService...");
                 using (tracer.BeginScope("t1.3.1", "ContinueVSPackage"))
                 {
                     var versionSelector = new VersionSelectorService();
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ VersionSelectorService created");
+                    await LoggerService.Current.WriteDebugAsync("[CV] ✓ VersionSelectorService created");
 
-                    System.Diagnostics.Debug.WriteLine("[CV] Step 4: Creating VersionManager...");
+                    await LoggerService.Current.WriteDebugAsync("[CV] Step 4: Creating VersionManager...");
                     using (tracer.BeginScope("t1.3.2", "ContinueVSPackage"))
                     {
                         VersionManager = new VersionManager(versionSelector);
                     }
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ VersionManager created");
+                    await LoggerService.Current.WriteDebugAsync("[CV] ✓ VersionManager created");
 
-                    System.Diagnostics.Debug.WriteLine("[CV] Step 5: Creating DowngradeWarningService...");
+                    await LoggerService.Current.WriteDebugAsync("[CV] Step 5: Creating DowngradeWarningService...");
                     using (tracer.BeginScope("t1.3.3", "ContinueVSPackage"))
                     {
                         DowngradeWarningService = new Services.DowngradeWarningService();
                     }
-                    System.Diagnostics.Debug.WriteLine("[CV] ✓ DowngradeWarningService created");
+                    await LoggerService.Current.WriteDebugAsync("[CV] ✓ DowngradeWarningService created");
                 }
 
                 // Options page has been removed; skip configuration dialog setup
-                System.Diagnostics.Debug.WriteLine("[CV] Step 8: Skipping options page access (removed)");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 8: Skipping options page access (removed)");
 
                 // Tool window creation is deferred
-                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Tool window creation deferred (will initialize on-demand)");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 11: Tool window creation deferred (will initialize on-demand)");
 
                 // DI Container Initialization
-                System.Diagnostics.Debug.WriteLine("[CV] Step 10: Initializing DI container via ServiceBootstrapper...");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 10: Initializing DI container via ServiceBootstrapper...");
                 using (tracer.BeginScope("t1.4.4", "ContinueVSPackage"))
                 {
                     try
                     {
                         ServiceProvider = ServiceBootstrapper.ConfigureServices();
-                        System.Diagnostics.Debug.WriteLine("[CV] ✓ DI container initialized; ServiceProvider ready");
+                        Logger = ServiceProvider.GetService(typeof(IBridgeLogger)) as IBridgeLogger;
+                        await LoggerService.Current.WriteDebugAsync("[CV] ✓ DI container initialized; ServiceProvider ready");
                     }
                     catch (Exception diEx)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[CV] ✗ DI initialization failed: {diEx.Message}");
+                        await LoggerService.Current.WriteErrorAsync($"[CV] ✗ DI initialization failed: {diEx.Message}", diEx);
                         throw;
                     }
                 }
 
                 // Service initialization (Step 98 - critical for config service)
-                System.Diagnostics.Debug.WriteLine("[CV] Step 11: Initializing services via ServiceInitializer...");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 11: Initializing services via ServiceInitializer...");
                 using (tracer.BeginScope("t1.4.5", "ContinueVSPackage"))
                 {
                     try
                     {
                         await ServiceInitializer.InitializeAsync(ServiceProvider);
-                        System.Diagnostics.Debug.WriteLine("[CV] ✓ Services initialized successfully");
+                        await LoggerService.Current.WriteDebugAsync("[CV] ✓ Services initialized successfully");
                     }
                     catch (Exception siEx)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[CV] ✗ Service initialization failed: {siEx.Message}");
+                        await LoggerService.Current.WriteErrorAsync($"[CV] ✗ Service initialization failed: {siEx.Message}", siEx);
                         throw;
                     }
                 }
 
                 // Setup ViewModelLocator for XAML binding (Step 98)
-                System.Diagnostics.Debug.WriteLine("[CV] Step 12: Setting up ViewModelLocator...");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 12: Setting up ViewModelLocator...");
                 using (tracer.BeginScope("t1.4.6", "ContinueVSPackage"))
                 {
                     try
                     {
                         ViewModelLocator.ServiceProvider = ServiceProvider;
-                        System.Diagnostics.Debug.WriteLine("[CV] ✓ ViewModelLocator.ServiceProvider set");
+                        await LoggerService.Current.WriteDebugAsync("[CV] ✓ ViewModelLocator.ServiceProvider set");
                     }
                     catch (Exception vmEx)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[CV] ✗ ViewModelLocator setup failed: {vmEx.Message}");
+                        await LoggerService.Current.WriteErrorAsync($"[CV] ✗ ViewModelLocator setup failed: {vmEx.Message}", vmEx);
                         throw;
                     }
                 }
 
                 // Register Ctrl+Shift+J command handler with VS OleMenuCommandService
-                System.Diagnostics.Debug.WriteLine("[CV] Step 14: Registering ShowContinuePanel command...");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 14: Registering ShowContinuePanel command...");
                 using (tracer.BeginScope("t1.4.8", "ContinueVSPackage"))
                 {
                     var cmdService = await GetServiceAsync(typeof(IMenuCommandService)) as IMenuCommandService;
@@ -165,36 +166,38 @@ namespace ContinueVS
                     {
                         var cmdId = new CommandID(ContinueGuids.CmdSetGuid, ContinueCommandIds.ShowContinuePanel);
                         cmdService.AddCommand(new MenuCommand((s, e) => ShowContinueToolWindowCommand.Execute(), cmdId));
-                        System.Diagnostics.Debug.WriteLine("[CV] ✓ ShowContinuePanel command registered");
+                        await LoggerService.Current.WriteDebugAsync("[CV] ✓ ShowContinuePanel command registered");
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("[CV] ✗ OleMenuCommandService not available");
+                        await LoggerService.Current.WriteErrorAsync("[CV] ✗ OleMenuCommandService not available", null);
                     }
                 }
 
                 // Tool window is shown on-demand (Ctrl+Shift+J) — do NOT call FindToolWindow here,
                 // as VS cannot create a window frame while the package is still loading (COMException 0x80049283).
-                System.Diagnostics.Debug.WriteLine("[CV] Step 13: Tool window deferred to on-demand (Ctrl+Shift+J).");
+                await LoggerService.Current.WriteDebugAsync("[CV] Step 13: Tool window deferred to on-demand (Ctrl+Shift+J).");
 
-                System.Diagnostics.Debug.WriteLine("╔════════════════════════════════════════════════╗");
-                System.Diagnostics.Debug.WriteLine("║  [ContinueVS] InitializeAsync END - SUCCESS ✓  ║");
-                System.Diagnostics.Debug.WriteLine("╚════════════════════════════════════════════════╝");
+                await LoggerService.Current.WriteDebugAsync("╔════════════════════════════════════════════════╗");
+                await LoggerService.Current.WriteDebugAsync("║  [ContinueVS] InitializeAsync END - SUCCESS ✓  ║");
+                await LoggerService.Current.WriteDebugAsync("╚════════════════════════════════════════════════╝");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("╔════════════════════════════════════════════════╗");
-                System.Diagnostics.Debug.WriteLine("║  [ContinueVS] InitializeAsync FAILED ✗         ║");
+                await LoggerService.Current.WriteErrorAsync("║  [ContinueVS] InitializeAsync FAILED ✗         ║", ex);
                 System.Diagnostics.Debug.WriteLine("╚════════════════════════════════════════════════╝");
-                System.Diagnostics.Debug.WriteLine($"[CV] Exception Type: {ex.GetType().FullName}");
-                System.Diagnostics.Debug.WriteLine($"[CV] Exception Message: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[CV] Stack Trace: {ex.StackTrace}");
+                await LoggerService.Current.WriteErrorAsync($"[CV] Exception Type: {ex.GetType().FullName}", ex);
+                await LoggerService.Current.WriteErrorAsync($"[CV] Exception Message: {ex.Message}", ex);
+                await LoggerService.Current.WriteErrorAsync($"[CV] Stack Trace: {ex.StackTrace}", ex);
 
                 if (ex.InnerException != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[CV] Inner Exception Type: {ex.InnerException.GetType().FullName}");
-                    System.Diagnostics.Debug.WriteLine($"[CV] Inner Exception Message: {ex.InnerException.Message}");
+                    await LoggerService.Current.WriteErrorAsync($"[CV] Inner Exception Type: {ex.InnerException.GetType().FullName}", ex);
+                    await LoggerService.Current.WriteErrorAsync($"[CV] Inner Exception Message: {ex.InnerException.Message}", ex);
                 }
+
+                await LoggerService.Current.WriteErrorAsync($"[CV] InitializeAsync failed: {ex.GetType().FullName}: {ex.Message}", ex);
 
                 throw;
             }
@@ -207,33 +210,31 @@ namespace ContinueVS
         private async Task CreateToolWindowPaneAsync(CancellationToken cancellationToken)
         {
             // BREAKPOINT: t3 - Set breakpoint here to inspect tool window pane creation
-            System.Diagnostics.Debug.WriteLine("[CV] Step 13: Creating tool window pane...");
+            await LoggerService.Current.WriteDebugAsync("[CV] Step 13: Creating tool window pane...");
 
             var tracer = ExecutionTracer;
             IDisposable? scope = tracer?.BeginScope("t3", "ContinueVSPackage.CreateToolWindowPaneAsync");
             try
             {
                 // Find or create the tool window pane (ContinueToolWindowPane creates its own WPF control)
-                System.Diagnostics.Debug.WriteLine("[CV-t3] Finding/creating ContinueToolWindowPane...");
+                await LoggerService.Current.WriteDebugAsync("[CV-t3] Finding/creating ContinueToolWindowPane...");
                 var windowPane = FindToolWindow(typeof(ContinueToolWindowPane), 0, create: true) as ToolWindowPane;
                 if (windowPane != null)
                 {
-                    System.Diagnostics.Debug.WriteLine("[CV-t3] ✓ Tool window pane found/created");
+                    await LoggerService.Current.WriteDebugAsync("[CV-t3] ✓ Tool window pane found/created");
 
                     // Show the tool window
                     await this.ShowToolWindowAsync(typeof(ContinueToolWindowPane), 0, create: true, cancellationToken: cancellationToken);
-                    System.Diagnostics.Debug.WriteLine("[CV-t3] ✓ Tool window shown");
+                    await LoggerService.Current.WriteDebugAsync("[CV-t3] ✓ Tool window shown");
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("[CV-t3] ✗ Tool window pane not found");
+                    await LoggerService.Current.WriteDebugAsync("[CV-t3] ✗ Tool window pane not found");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[CV-t3] ✗ Exception during tool window creation: {ex.GetType().Name}");
-                System.Diagnostics.Debug.WriteLine($"[CV-t3] Message: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[CV-t3] Stack trace: {ex.StackTrace}");
+                await LoggerService.Current.WriteErrorAsync($"[CV-t3] ✗ Exception during tool window creation: {ex.GetType().Name}: {ex.Message}", ex);
                 throw;
             }
             finally

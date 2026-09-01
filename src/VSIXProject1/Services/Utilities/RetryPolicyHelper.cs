@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using ContinueVS.Services;
 
 namespace ContinueVS.Services.Utilities
 {
@@ -47,7 +48,7 @@ namespace ContinueVS.Services.Utilities
                 {
                     retryCount++;
                     int delayMs = (int)(InitialDelayMs * Math.Pow(BackoffMultiplier, retryCount - 1));
-                    Debug.WriteLine($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
 
                     try
                     {
@@ -97,7 +98,7 @@ namespace ContinueVS.Services.Utilities
                 {
                     retryCount++;
                     int delayMs = (int)(InitialDelayMs * Math.Pow(BackoffMultiplier, retryCount - 1));
-                    Debug.WriteLine($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
 
                     try
                     {

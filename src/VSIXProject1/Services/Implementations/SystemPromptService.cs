@@ -25,13 +25,15 @@ namespace ContinueVS.Services.Implementations
         private static readonly string ConfigFilePath = Path.Combine(ConfigDirectory, "system-prompts.json");
 
         private readonly IWorkspaceStatsService? _statsService;
+        private readonly IBridgeLogger? _logger;
 
         private SystemPromptConfig? _config;
         private bool _isLoaded;
 
         /// <summary>Initializes with optional workspace stats service for runtime context injection.</summary>
-        public SystemPromptService(IWorkspaceStatsService? statsService = null)
+        public SystemPromptService(IBridgeLogger? logger = null, IWorkspaceStatsService? statsService = null)
         {
+            _logger = logger;
             _statsService = statsService;
         }
 
@@ -56,7 +58,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SystemPromptService.LoadAsync] Error loading config: {ex.Message}. Using defaults.");
+                await (_logger?.WriteErrorAsync($"[SystemPromptService.LoadAsync] Error loading config: {ex.Message}. Using defaults.", ex) ?? Task.CompletedTask);
                 _config = new SystemPromptConfig();
                 _isLoaded = true;
             }
@@ -66,7 +68,7 @@ namespace ContinueVS.Services.Implementations
         {
             if (!_isLoaded)
             {
-                System.Diagnostics.Debug.WriteLine("[SystemPromptService.GetPromptForMode] Config not loaded yet. Please call LoadAsync() first.");
+                _ = _logger?.WriteDebugAsync("[SystemPromptService.GetPromptForMode] Config not loaded yet. Please call LoadAsync() first.");
             }
 
             if (_config?.SystemPrompts.TryGetValue(mode.ToLowerInvariant(), out var item) == true)
@@ -133,7 +135,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SystemPromptService.EnsureConfigFileExistsAsync] Error: {ex.Message}");
+                await (_logger?.WriteErrorAsync($"[SystemPromptService.EnsureConfigFileExistsAsync] Error: {ex.Message}", ex) ?? Task.CompletedTask);
             }
         }
 
@@ -258,7 +260,7 @@ namespace ContinueVS.Services.Implementations
         {
             if (_statsService == null)
             {
-                System.Diagnostics.Debug.WriteLine("[SystemPromptService] GetContextSuffix: _statsService is NULL — workspace context will not be injected");
+                _ = _logger?.WriteDebugAsync("[SystemPromptService] GetContextSuffix: _statsService is NULL — workspace context will not be injected");
                 return string.Empty;
             }
 
@@ -288,12 +290,12 @@ namespace ContinueVS.Services.Implementations
                 }
 
                 var suffix = sb.ToString();
-                System.Diagnostics.Debug.WriteLine($"[SystemPromptService] GetContextSuffix({mode}) produced {suffix.Length} chars");
+                _ = _logger?.WriteDebugAsync($"[SystemPromptService] GetContextSuffix({mode}) produced {suffix.Length} chars");
                 return suffix;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SystemPromptService] GetContextSuffix failed: {ex.Message}");
+                _ = _logger?.WriteErrorAsync($"[SystemPromptService] GetContextSuffix failed: {ex.Message}", ex);
                 return string.Empty;
             }
         }

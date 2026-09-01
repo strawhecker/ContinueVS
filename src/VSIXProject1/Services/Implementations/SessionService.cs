@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using Newtonsoft.Json;
@@ -507,7 +509,7 @@ namespace ContinueVS.Services.Implementations
             }
 
             int totalEstimated = systemTokens + historyTokens + newUserTokens;
-            System.Diagnostics.Debug.WriteLine(
+            _ = LoggerService.Current.WriteDebugAsync(
                 $"[gap34-package] sending {1 + fittingHistory.Count + 1} messages, est. tokens: {totalEstimated}, model context: {contextWindow}");
 
             var result = new List<ChatMessage>();

@@ -1,4 +1,5 @@
 ﻿using System;
+using ContinueVS.Services;
 using ContinueVS.ViewModels;
 using Microsoft.VisualStudio.Shell;
 
@@ -21,31 +22,29 @@ namespace ContinueVS.UI
                 // This handles both early startup (deferred) and on-demand scenarios
                 if (ContinueVSPackage.ServiceProvider != null && ViewModelLocator.ServiceProvider == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Setting ViewModelLocator.ServiceProvider...");
+                    _ = LoggerService.Current.WriteDebugAsync("[ContinueToolWindowPane] Setting ViewModelLocator.ServiceProvider...");
                     try
                     {
                         ViewModelLocator.ServiceProvider = ContinueVSPackage.ServiceProvider;
-                        System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] ✓ ViewModelLocator.ServiceProvider set");
+                        _ = LoggerService.Current.WriteDebugAsync("[ContinueToolWindowPane] ✓ ViewModelLocator.ServiceProvider set");
                     }
                     catch (ArgumentNullException)
                     {
                         // Already set by another pane instance; ignore
-                        System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Note: ViewModelLocator.ServiceProvider already set");
+                        _ = LoggerService.Current.WriteDebugAsync("[ContinueToolWindowPane] Note: ViewModelLocator.ServiceProvider already set");
                     }
                 }
 
                 // Create and host the WPF UserControl inside this tool window pane
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] Creating ContinueToolWindowControl...");
+                _ = LoggerService.Current.WriteDebugAsync("[ContinueToolWindowPane] Creating ContinueToolWindowControl...");
                 var control = new ContinueToolWindowControl();
                 this.Content = control;
 
-                System.Diagnostics.Debug.WriteLine("[ContinueToolWindowPane] ✓ Tool window pane created and control hosted");
+                _ = LoggerService.Current.WriteDebugAsync("[ContinueToolWindowPane] ✓ Tool window pane created and control hosted");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowPane] ✗ Error during initialization: {ex.GetType().Name}");
-                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowPane] Message: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[ContinueToolWindowPane] Stack: {ex.StackTrace}");
+                _ = LoggerService.Current.WriteErrorAsync($"[ContinueToolWindowPane] ✗ Error during initialization: {ex.GetType().Name}: {ex.Message}", ex);
                 throw;
             }
         }

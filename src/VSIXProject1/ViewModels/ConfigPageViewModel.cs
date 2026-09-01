@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
@@ -41,7 +42,7 @@ namespace ContinueVS.ViewModels
                 {
                     // Populate editing field from the model's saved context window value
                     EditingContextWindow = value?.ContextWindow > 0 ? value.ContextWindow : (int?)null;
-                    Debug.WriteLine($"[gap19-configvm-selectedmodel] SelectedModel changed to '{value?.Name}'; EditingContextWindow={EditingContextWindow}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap19-configvm-selectedmodel] SelectedModel changed to '{value?.Name}'; EditingContextWindow={EditingContextWindow}");
                 }
             }
         }
@@ -104,7 +105,7 @@ namespace ContinueVS.ViewModels
             if (ideService == null) throw new ArgumentNullException(nameof(ideService));
             if (modelDiscoveryService == null) throw new ArgumentNullException(nameof(modelDiscoveryService));
 
-            Debug.WriteLine("[gap8_1-configvm-ctor-start] ConfigPageViewModel CONSTRUCTOR CALLED");
+            _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-ctor-start] ConfigPageViewModel CONSTRUCTOR CALLED");
 
             _configService = configService;
             _indexingService = indexingService;
@@ -116,7 +117,7 @@ namespace ContinueVS.ViewModels
             Profiles = new ObservableCollection<ProfileInfo>();
             _filteredModels = new ObservableCollection<ModelInfo>();
 
-            Debug.WriteLine("[gap8_1-configvm-ctor-cmds] Initializing commands");
+            _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-ctor-cmds] Initializing commands");
             AddModelCommand = new RelayCommand(ExecuteAddModel);
             RemoveModelCommand = new RelayCommand(ExecuteRemoveModel);
             SaveConfigCommand = new RelayCommand(ExecuteSaveConfig);
@@ -125,10 +126,10 @@ namespace ContinueVS.ViewModels
             ToggleToolCommand = new RelayCommand<ToolDefinition>(ExecuteToggleTool);
             UpdateContextWindowCommand = new RelayCommand(ExecuteUpdateContextWindow);
 
-            Debug.WriteLine("[gap8_1-configvm-ctor-load] Calling LoadConfiguration()");
+            _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-ctor-load] Calling LoadConfiguration()");
             LoadConfiguration();
 
-            Debug.WriteLine("[gap8_1-configvm-ctor-settings] Creating SettingsViewModel");
+            _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-ctor-settings] Creating SettingsViewModel");
             _settingsViewModel = new SettingsViewModel(_configService);
             _settingsViewModel.LoadSettings();
             RaisePropertyChanged(nameof(SettingsViewModel));
@@ -141,22 +142,22 @@ namespace ContinueVS.ViewModels
                 onCanceled: () => SelectedTabIndex = 0
             );
             AddModelViewModel = _addModelViewModel;
-            Debug.WriteLine("[gap12_3-configvm-ctor-addmodel-eager] AddModelViewModel created eagerly in constructor");
+            _ = LoggerService.Current.WriteDebugAsync("[gap12_3-configvm-ctor-addmodel-eager] AddModelViewModel created eagerly in constructor");
 
             // Subscribe to config changes to refresh filtered models
             _configService.ConfigChanged += (s, e) =>
             {
-                Debug.WriteLine("[gap12_1-configvm] ConfigChanged event received, refreshing filtered models");
+                _ = LoggerService.Current.WriteDebugAsync("[gap12_1-configvm] ConfigChanged event received, refreshing filtered models");
                 LoadConfiguration();
                 UpdateFilteredModels();
             };
 
-            Debug.WriteLine("[gap8_1-configvm-ctor-end] ConfigPageViewModel CONSTRUCTOR COMPLETE");
+            _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-ctor-end] ConfigPageViewModel CONSTRUCTOR COMPLETE");
         }
 
         private void UpdateFilteredModels()
         {
-            Debug.WriteLine($"[gap12_1-configvm-filter] UpdateFilteredModels called with SearchText='{SearchText}'");
+            _ = LoggerService.Current.WriteDebugAsync($"[gap12_1-configvm-filter] UpdateFilteredModels called with SearchText='{SearchText}'");
             _filteredModels.Clear();
 
             if (string.IsNullOrWhiteSpace(SearchText))
@@ -166,7 +167,7 @@ namespace ContinueVS.ViewModels
                 {
                     _filteredModels.Add(model);
                 }
-                Debug.WriteLine($"[gap12_1-configvm-filter-all] Showing all {_filteredModels.Count} models");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap12_1-configvm-filter-all] Showing all {_filteredModels.Count} models");
             }
             else
             {
@@ -180,7 +181,7 @@ namespace ContinueVS.ViewModels
                         _filteredModels.Add(model);
                     }
                 }
-                Debug.WriteLine($"[gap12_1-configvm-filter-results] Found {_filteredModels.Count} models matching '{SearchText}'");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap12_1-configvm-filter-results] Found {_filteredModels.Count} models matching '{SearchText}'");
             }
 
             RaisePropertyChanged(nameof(FilteredModels));
@@ -190,25 +191,25 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                Debug.WriteLine("[gap8_1-configvm-load-start] LoadConfiguration called");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-load-start] LoadConfiguration called");
                 var config = _configService.GetCurrentConfig();
-                Debug.WriteLine($"[gap8_1-configvm-load-config] GetCurrentConfig returned: {(config == null ? "NULL" : "OK")}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-configvm-load-config] GetCurrentConfig returned: {(config == null ? "NULL" : "OK")}");
 
                 AvailableModels.Clear();
                 if (config?.Models != null)
                 {
-                    Debug.WriteLine($"[gap8_1-configvm-load-models-detail] Models count from config: {config.Models.Count}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-configvm-load-models-detail] Models count from config: {config.Models.Count}");
                     foreach (var model in config.Models)
                     {
                         AvailableModels.Add(model);
                     }
                 }
-                Debug.WriteLine($"[gap8_1-configvm-models] Loaded {AvailableModels.Count} models into ObservableCollection");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-configvm-models] Loaded {AvailableModels.Count} models into ObservableCollection");
 
                 // Load ALL tools (enabled and disabled), not just enabled
                 // This way disabled tools remain visible in the UI but show as unchecked
                 AvailableTools.Clear();
-                Debug.WriteLine("[gap8_1-configvm-load-tools-start] About to load ALL tools from config");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-load-tools-start] About to load ALL tools from config");
 
                 if (config?.Tools != null)
                 {
@@ -217,29 +218,28 @@ namespace ContinueVS.ViewModels
                     {
                         if (tool.IsEnabled)
                             enabledCount++;
-                        Debug.WriteLine($"[gap8_1-configvm-adding-tool] Adding tool: {tool.Name} (enabled={tool.IsEnabled})");
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-configvm-adding-tool] Adding tool: {tool.Name} (enabled={tool.IsEnabled})");
                         AvailableTools.Add(tool);
                     }
-                    Debug.WriteLine($"[gap8_1-configvm-tools] Loaded {AvailableTools.Count} total tools ({enabledCount} enabled) into ObservableCollection");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-configvm-tools] Loaded {AvailableTools.Count} total tools ({enabledCount} enabled) into ObservableCollection");
                 }
                 else
                 {
-                    Debug.WriteLine("[gap8_1-configvm-tools-null] Config tools is null");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-tools-null] Config tools is null");
                 }
 
                 var selectedModel = _configService.GetSelectedModel();
                 if (selectedModel != null)
                 {
                     SelectedModel = selectedModel;
-                    Debug.WriteLine($"[gap8_1-configvm-selected-model] Selected model set: {selectedModel.Name}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-configvm-selected-model] Selected model set: {selectedModel.Name}");
                 }
 
-                Debug.WriteLine("[gap8_1-configvm-load-end] LoadConfiguration complete");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-load-end] LoadConfiguration complete");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap8_1-configvm-error] LoadConfiguration error: {ex.Message}");
-                Debug.WriteLine($"[gap8_1-configvm-error-stack] {ex.StackTrace}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap8_1-configvm-error] LoadConfiguration error: {ex.Message}", ex);
             }
         }
 
@@ -251,7 +251,7 @@ namespace ContinueVS.ViewModels
         {
             try
             {
-                Debug.WriteLine("[gap11-refresh-start] RefreshAvailableTools called");
+                _ = LoggerService.Current.WriteDebugAsync("[gap11-refresh-start] RefreshAvailableTools called");
 
                 int oldCount = AvailableTools.Count;
                 AvailableTools.Clear();
@@ -266,19 +266,18 @@ namespace ContinueVS.ViewModels
                     {
                         if (tool.IsEnabled)
                             enabledCount++;
-                        Debug.WriteLine($"[gap11-refresh-adding] Adding tool: {tool.Name} (IsEnabled={tool.IsEnabled})");
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap11-refresh-adding] Adding tool: {tool.Name} (IsEnabled={tool.IsEnabled})");
                         AvailableTools.Add(tool);
                     }
-                    Debug.WriteLine($"[gap11-refresh-counts] Total: {config.Tools.Count}, Enabled: {enabledCount}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap11-refresh-counts] Total: {config.Tools.Count}, Enabled: {enabledCount}");
                 }
 
                 int newCount = AvailableTools.Count;
-                Debug.WriteLine($"[gap11-refresh-end] Refreshed tools: {oldCount} → {newCount} total tools");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap11-refresh-end] Refreshed tools: {oldCount} → {newCount} total tools");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap11-refresh-error] RefreshAvailableTools error: {ex.Message}");
-                Debug.WriteLine($"[gap11-refresh-error-stack] {ex.StackTrace}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap11-refresh-error] RefreshAvailableTools error: {ex.Message}", ex);
             }
         }
 
@@ -294,26 +293,26 @@ namespace ContinueVS.ViewModels
 
             try
             {
-                Debug.WriteLine($"[gap11-toggle-start] Tool '{tool.Name}' toggled: IsEnabled before = {tool.IsEnabled}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap11-toggle-start] Tool '{tool.Name}' toggled: IsEnabled before = {tool.IsEnabled}");
 
                 // Fire-and-forget: persist the change; exceptions are caught inside the lambda
                 _ = _configService.SaveConfigAsync().ContinueWith(t =>
                 {
                     if (t.Exception != null)
-                        Debug.WriteLine($"[gap11-toggle-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}");
+                        _ = LoggerService.Current.WriteErrorAsync($"[gap11-toggle-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}", t.Exception.GetBaseException());
                     else
-                        Debug.WriteLine($"[gap11-toggle-saved] Config persisted with tool state: IsEnabled = {tool.IsEnabled}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[gap11-toggle-saved] Config persisted with tool state: IsEnabled = {tool.IsEnabled}");
                 }, TaskScheduler.Default);
 
                 // Refresh the collection to reflect the new enabled count
                 RefreshAvailableTools();
 
-                Debug.WriteLine($"[gap11-toggle-complete] Tool '{tool.Name}' toggle complete. Enabled tool count now: {AvailableTools.Count}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap11-toggle-complete] Tool '{tool.Name}' toggle complete. Enabled tool count now: {AvailableTools.Count}");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap11-toggle-error] Error toggling tool '{tool.Name}': {ex.Message}");
-                Debug.WriteLine($"[gap11-toggle-error-stack] {ex.StackTrace}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap11-toggle-error] Error toggling tool '{tool.Name}': {ex.Message}", ex);
+                _ = LoggerService.Current.WriteErrorAsync($"[gap11-toggle-error-stack] {ex.StackTrace}", ex);
             }
         }
 
@@ -321,7 +320,7 @@ private void ExecuteAddModel()
 {
     try
     {
-        Debug.WriteLine("[gap12_2-configvm-addmodel-start] ExecuteAddModel called");
+        _ = LoggerService.Current.WriteDebugAsync("[gap12_2-configvm-addmodel-start] ExecuteAddModel called");
 
         // Initialize viewmodel if somehow not created (defensive)
         if (_addModelViewModel == null)
@@ -334,7 +333,7 @@ private void ExecuteAddModel()
                 onCanceled: () => SelectedTabIndex = 0
             );
             AddModelViewModel = _addModelViewModel;
-            Debug.WriteLine("[gap12_2-configvm-addmodel-vm-created] AddModelViewModel instantiated");
+            _ = LoggerService.Current.WriteDebugAsync("[gap12_2-configvm-addmodel-vm-created] AddModelViewModel instantiated");
         }
 
         // Reset the viewmodel state for a fresh form
@@ -342,11 +341,11 @@ private void ExecuteAddModel()
 
         // Switch to the Add Model tab (tab index 3)
         SelectedTabIndex = 3;
-        Debug.WriteLine("[gap12_2-configvm-addmodel-complete] Switched to Add Model tab");
+        _ = LoggerService.Current.WriteDebugAsync("[gap12_2-configvm-addmodel-complete] Switched to Add Model tab");
     }
     catch (Exception ex)
     {
-        Debug.WriteLine($"[gap12_2-configvm-addmodel-error] Error in ExecuteAddModel: {ex.Message}");
+        _ = LoggerService.Current.WriteErrorAsync($"[gap12_2-configvm-addmodel-error] Error in ExecuteAddModel: {ex.Message}", ex);
     }
 }
 
@@ -373,17 +372,17 @@ private void ExecuteAddModel()
                 // Save settings first
                 if (_settingsViewModel != null)
                 {
-                    Debug.WriteLine("[gap8_1-configvm-save-settings] Saving settings via SettingsViewModel");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-save-settings] Saving settings via SettingsViewModel");
                     await _settingsViewModel.SaveSettingsAsync();
                 }
 
                 // Save config (includes tools and models)
                 await _configService.SaveConfigAsync();
-                Debug.WriteLine("[gap8_1-configvm-save-complete] Configuration and settings saved");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_1-configvm-save-complete] Configuration and settings saved");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap8_1-configvm-save-error] Error saving config: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap8_1-configvm-save-error] Error saving config: {ex.Message}", ex);
             }
         }
 
@@ -393,25 +392,25 @@ private void ExecuteAddModel()
         {
             try
             {
-                Debug.WriteLine("[gap8_3-configvm-editconfig-start] EditConfig command executed");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_3-configvm-editconfig-start] EditConfig command executed");
 
                 var config = _configService.GetCurrentConfig();
                 if (config?.ConfigFilePath == null)
                 {
-                    Debug.WriteLine("[gap8_3-configvm-editconfig-nopath] Config file path is null");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap8_3-configvm-editconfig-nopath] Config file path is null");
                     return;
                 }
 
-                Debug.WriteLine($"[gap8_3-configvm-editconfig-path] Opening config file: {config.ConfigFilePath}");
-                Debug.WriteLine("[gap8_3-configvm-editconfig-calling-ideservice] Calling IIdeService.OpenFileInEditorAsync");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap8_3-configvm-editconfig-path] Opening config file: {config.ConfigFilePath}");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_3-configvm-editconfig-calling-ideservice] Calling IIdeService.OpenFileInEditorAsync");
 
                 await _ideService.OpenFileInEditorAsync(config.ConfigFilePath);
 
-                Debug.WriteLine("[gap8_3-configvm-editconfig-complete] Config file opened in editor");
+                _ = LoggerService.Current.WriteDebugAsync("[gap8_3-configvm-editconfig-complete] Config file opened in editor");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap8_3-configvm-editconfig-error] Error opening config editor: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap8_3-configvm-editconfig-error] Error opening config editor: {ex.Message}", ex);
             }
         }
 
@@ -435,7 +434,7 @@ private void ExecuteAddModel()
             {
                 if (SelectedModel == null)
                 {
-                    Debug.WriteLine("[gap12_1-configvm-context-window-nomodel] No model selected");
+                    _ = LoggerService.Current.WriteDebugAsync("[gap12_1-configvm-context-window-nomodel] No model selected");
                     return;
                 }
 
@@ -443,22 +442,22 @@ private void ExecuteAddModel()
                 {
                     // Use default if invalid
                     EditingContextWindow = DefaultContextWindow;
-                    Debug.WriteLine($"[gap12_1-configvm-context-window-default] Setting default context window: {DefaultContextWindow}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap12_1-configvm-context-window-default] Setting default context window: {DefaultContextWindow}");
                 }
 
                 SelectedModel.ContextWindow = EditingContextWindow.Value;
-                Debug.WriteLine($"[gap12_1-configvm-context-window-updated] Model '{SelectedModel.Name}' context window updated to {EditingContextWindow}");
+                _ = LoggerService.Current.WriteDebugAsync($"[gap12_1-configvm-context-window-updated] Model '{SelectedModel.Name}' context window updated to {EditingContextWindow}");
 
                 // Save immediately to config.json (fire-and-forget)
                 _ = _configService.SaveConfigAsync().ContinueWith(t =>
                 {
                     if (t.Exception != null)
                     {
-                        Debug.WriteLine($"[gap12_1-configvm-context-window-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}");
+                        _ = LoggerService.Current.WriteErrorAsync($"[gap12_1-configvm-context-window-save-error] SaveConfigAsync failed: {t.Exception.GetBaseException().Message}", t.Exception.GetBaseException());
                     }
                     else
                     {
-                        Debug.WriteLine("[gap12_1-configvm-context-window-saved] Context window change saved to config.json");
+                        _ = LoggerService.Current.WriteDebugAsync("[gap12_1-configvm-context-window-saved] Context window change saved to config.json");
                     }
                 }, TaskScheduler.Default);
 
@@ -468,7 +467,7 @@ private void ExecuteAddModel()
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[gap12_1-configvm-context-window-error] Error updating context window: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[gap12_1-configvm-context-window-error] Error updating context window: {ex.Message}", ex);
             }
         }
     }

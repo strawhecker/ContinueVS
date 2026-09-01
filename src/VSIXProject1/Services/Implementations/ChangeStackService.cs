@@ -74,7 +74,7 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 // Log error but continue; baseline may be empty if file doesn't exist yet
-                System.Diagnostics.Debug.WriteLine($"Error reading file for baseline: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"Error reading file for baseline: {ex.Message}", ex);
             }
 
             // Create and attach baseline to the change

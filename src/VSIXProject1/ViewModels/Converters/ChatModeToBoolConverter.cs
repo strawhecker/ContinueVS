@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Windows.Data;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 
 namespace ContinueVS.ViewModels.Converters
 {
@@ -31,18 +32,18 @@ namespace ContinueVS.ViewModels.Converters
         /// </summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            System.Diagnostics.Debug.WriteLine($"[a9-converter-entry] ConvertBack: value={value}, parameter={parameter}");
+            _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-entry] ConvertBack: value={value}, parameter={parameter}");
             if (value is bool isChecked && isChecked && parameter is string paramStr)
             {
-                System.Diagnostics.Debug.WriteLine($"[a9-converter-parse] Starting Enum.TryParse for paramStr='{paramStr}'");
+                _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-parse] Starting Enum.TryParse for paramStr='{paramStr}'");
                 if (Enum.TryParse<ChatMode>(paramStr, ignoreCase: true, out var paramMode))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[a9-converter-success] Parsed successfully: paramMode={paramMode}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-success] Parsed successfully: paramMode={paramMode}");
                     return paramMode;
                 }
-                System.Diagnostics.Debug.WriteLine($"[a9-converter-fail] Enum.TryParse failed for paramStr='{paramStr}'");
+                _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-fail] Enum.TryParse failed for paramStr='{paramStr}'");
             }
-            System.Diagnostics.Debug.WriteLine($"[a9-converter-fallback] Returning ChatMode.Ask (value={value}, isChecked={value is bool && (bool)value}, paramStr check failed)");
+            _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-fallback] Returning ChatMode.Ask (value={value}, isChecked={value is bool && (bool)value}, paramStr check failed)");
             return ChatMode.Ask;
         }
     }

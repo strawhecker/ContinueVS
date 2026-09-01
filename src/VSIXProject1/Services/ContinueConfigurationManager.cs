@@ -165,7 +165,7 @@ namespace ContinueVS.Services
             }
 
             // [b19-CONFIG-UPDATE-START] Model selection persistence entry point
-            System.Diagnostics.Debug.WriteLine($"[b19-CONFIG-UPDATE-START] WriteConfigAsync entry");
+            _ = LoggerService.Current.WriteDebugAsync($"[b19-CONFIG-UPDATE-START] WriteConfigAsync entry");
 
             ValidateSchema(config);
 
@@ -199,7 +199,7 @@ namespace ContinueVS.Services
                 }
 
                 // [b19-CONFIG-UPDATE-PERSIST] Confirm config written to disk
-                System.Diagnostics.Debug.WriteLine($"[b19-CONFIG-UPDATE-PERSIST] Config persisted to {configPath}");
+                _ = LoggerService.Current.WriteDebugAsync($"[b19-CONFIG-UPDATE-PERSIST] Config persisted to {configPath}");
             }
             catch (IOException ex)
             {

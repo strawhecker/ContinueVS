@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,6 +21,48 @@ namespace ContinueVS.Services.Implementations
         private volatile bool _running = true;
         private Thread _writerThread;
 
+        /// <summary>
+        /// Gets the logs directory path (~/.continueVS/logs)
+        /// </summary>
+        public static string GetLogsDirectory()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".continueVS",
+                "logs"
+            );
+        }
+
+        /// <summary>
+        /// Gets today's log file path
+        /// </summary>
+        public static string GetTodayLogPath()
+        {
+            return Path.Combine(GetLogsDirectory(), $"continue-vs-{DateTime.Now:yyyy-MM-dd}.log");
+        }
+
+        /// <summary>
+        /// Reads recent log entries for debugging (agent mode, error reports, etc.)
+        /// </summary>
+        public static string[] ReadRecentLogs(int lineCount = 100)
+        {
+            try
+            {
+                if (!File.Exists(GetTodayLogPath()))
+                    return Array.Empty<string>();
+
+                var allLines = File.ReadAllLines(GetTodayLogPath());
+                return allLines.Length > lineCount
+                    ? allLines.Skip(allLines.Length - lineCount).ToArray()
+                    : allLines;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[FileLogger] Failed to read logs: {ex.Message}");
+                return Array.Empty<string>();
+            }
+        }
+
         public FileLogger()
         {
             _logsDirectory = Path.Combine(
@@ -34,7 +78,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[FileLogger] Failed to create logs directory: {ex.Message}");
+                Debug.WriteLine($"[FileLogger] Failed to create logs directory: {ex.Message}");
             }
 
             // Rotate old logs (keep last 10 files)
@@ -106,7 +150,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[FileLogger] Writer thread error: {ex.Message}");
+                Debug.WriteLine($"[FileLogger] Writer thread error: {ex.Message}");
             }
         }
 
@@ -155,13 +199,13 @@ namespace ContinueVS.Services.Implementations
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[FileLogger] Failed to delete old log: {ex.Message}");
+                        Debug.WriteLine($"[FileLogger] Failed to delete old log: {ex.Message}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[FileLogger] Failed to rotate logs: {ex.Message}");
+                Debug.WriteLine($"[FileLogger] Failed to rotate logs: {ex.Message}");
             }
         }
 
@@ -174,7 +218,7 @@ namespace ContinueVS.Services.Implementations
             {
                 if (!_writerThread.Join(5000))
                 {
-                    System.Diagnostics.Debug.WriteLine("[FileLogger] Writer thread did not exit within timeout");
+                    Debug.WriteLine("[FileLogger] Writer thread did not exit within timeout");
                 }
             }
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -63,9 +64,9 @@ namespace ContinueVS.Services.Implementations
                     if (!dumpEnabled)
                         return;
 
-                    Debug.WriteLine("================================================================================");
-                    Debug.WriteLine("[CONTEXT_DUMP] === LLM REQUEST CONTEXT BEFORE SEND ===");
-                    Debug.WriteLine("================================================================================");
+                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
+                    _ = LoggerService.Current.WriteDebugAsync("[CONTEXT_DUMP] === LLM REQUEST CONTEXT BEFORE SEND ===");
+                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
 
                     // Dump each message separately
                     var totalTokens = 0;
@@ -75,41 +76,41 @@ namespace ContinueVS.Services.Implementations
                         var tokens = EstimateTokenCount(msg.Content ?? "");
                         totalTokens += tokens;
 
-                        Debug.WriteLine($"\n[MESSAGE {i}] Role: {msg.Role}");
-                        Debug.WriteLine($"  Token Estimate: {tokens} tokens");
-                        Debug.WriteLine($"  Content Length: {(msg.Content?.Length ?? 0)} characters");
-                        Debug.WriteLine($"  Content:\n{msg.Content ?? "[empty]"}");
-                        Debug.WriteLine("--- END MESSAGE ---");
+                        _ = LoggerService.Current.WriteDebugAsync($"\n[MESSAGE {i}] Role: {msg.Role}");
+                        _ = LoggerService.Current.WriteDebugAsync($"  Token Estimate: {tokens} tokens");
+                        _ = LoggerService.Current.WriteDebugAsync($"  Content Length: {(msg.Content?.Length ?? 0)} characters");
+                        _ = LoggerService.Current.WriteDebugAsync($"  Content:\n{msg.Content ?? "[empty]"}");
+                        _ = LoggerService.Current.WriteDebugAsync("--- END MESSAGE ---");
                     }
 
                     // Dump selected context if provided
                     if (selectedContext?.Count > 0)
                     {
-                        Debug.WriteLine($"\n[CONTEXT_ITEMS] Count: {selectedContext.Count}");
+                        _ = LoggerService.Current.WriteDebugAsync($"\n[CONTEXT_ITEMS] Count: {selectedContext.Count}");
                         for (int i = 0; i < selectedContext.Count; i++)
                         {
                             var ctx = selectedContext[i];
                             var tokens = EstimateTokenCount(ctx.Content ?? "");
                             totalTokens += tokens;
-                            Debug.WriteLine($"\n[CONTEXT_ITEM {i}] {ctx.FilePath ?? "[unnamed]"}");
-                            Debug.WriteLine($"  Token Estimate: {tokens} tokens");
-                            Debug.WriteLine($"  Content Length: {(ctx.Content?.Length ?? 0)} characters");
-                            Debug.WriteLine($"  Content:\n{ctx.Content ?? "[empty]"}");
-                            Debug.WriteLine("--- END CONTEXT_ITEM ---");
+                            _ = LoggerService.Current.WriteDebugAsync($"\n[CONTEXT_ITEM {i}] {ctx.FilePath ?? "[unnamed]"}");
+                            _ = LoggerService.Current.WriteDebugAsync($"  Token Estimate: {tokens} tokens");
+                            _ = LoggerService.Current.WriteDebugAsync($"  Content Length: {(ctx.Content?.Length ?? 0)} characters");
+                            _ = LoggerService.Current.WriteDebugAsync($"  Content:\n{ctx.Content ?? "[empty]"}");
+                            _ = LoggerService.Current.WriteDebugAsync("--- END CONTEXT_ITEM ---");
                         }
                     }
 
                     // Summary
-                    Debug.WriteLine($"\n[SUMMARY]");
-                    Debug.WriteLine($"  Total Messages: {messages.Count}");
-                    Debug.WriteLine($"  Total Context Items: {selectedContext?.Count ?? 0}");
-                    Debug.WriteLine($"  Estimated Total Tokens: {totalTokens}");
-                    Debug.WriteLine("================================================================================\n");
+                    _ = LoggerService.Current.WriteDebugAsync($"\n[SUMMARY]");
+                    _ = LoggerService.Current.WriteDebugAsync($"  Total Messages: {messages.Count}");
+                    _ = LoggerService.Current.WriteDebugAsync($"  Total Context Items: {selectedContext?.Count ?? 0}");
+                    _ = LoggerService.Current.WriteDebugAsync($"  Estimated Total Tokens: {totalTokens}");
+                    _ = LoggerService.Current.WriteDebugAsync("================================================================================\n");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[ERROR] ContextDumpService.DumpContextBeforeSendAsync failed: {ex.Message}");
-                    Debug.WriteLine($"  Stack: {ex.StackTrace}");
+                    _ = LoggerService.Current.WriteErrorAsync($"[ERROR] ContextDumpService.DumpContextBeforeSendAsync failed: {ex.Message}", ex);
+                    _ = LoggerService.Current.WriteErrorAsync($"  Stack: {ex.StackTrace}", ex);
                 }
             });
         }
@@ -136,18 +137,18 @@ namespace ContinueVS.Services.Implementations
 
                     var tokens = EstimateTokenCount(responseContent);
 
-                    Debug.WriteLine("================================================================================");
-                    Debug.WriteLine("[CONTEXT_DUMP] === LLM RESPONSE RECEIVED ===");
-                    Debug.WriteLine("================================================================================");
-                    Debug.WriteLine($"  Response Length: {responseContent?.Length ?? 0} characters");
-                    Debug.WriteLine($"  Estimated Tokens: {tokens}");
-                    Debug.WriteLine($"  Content:\n{responseContent ?? "[empty]"}");
-                    Debug.WriteLine("================================================================================\n");
+                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
+                    _ = LoggerService.Current.WriteDebugAsync("[CONTEXT_DUMP] === LLM RESPONSE RECEIVED ===");
+                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
+                    _ = LoggerService.Current.WriteDebugAsync($"  Response Length: {responseContent?.Length ?? 0} characters");
+                    _ = LoggerService.Current.WriteDebugAsync($"  Estimated Tokens: {tokens}");
+                    _ = LoggerService.Current.WriteDebugAsync($"  Content:\n{responseContent ?? "[empty]"}");
+                    _ = LoggerService.Current.WriteDebugAsync("================================================================================\n");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[ERROR] ContextDumpService.DumpResponseAfterReceiveAsync failed: {ex.Message}");
-                    Debug.WriteLine($"  Stack: {ex.StackTrace}");
+                    _ = LoggerService.Current.WriteErrorAsync($"[ERROR] ContextDumpService.DumpResponseAfterReceiveAsync failed: {ex.Message}", ex);
+                    _ = LoggerService.Current.WriteErrorAsync($"  Stack: {ex.StackTrace}", ex);
                 }
             });
         }

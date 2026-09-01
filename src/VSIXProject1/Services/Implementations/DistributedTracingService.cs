@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
+using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 
 namespace ContinueVS.Services.Implementations
@@ -59,7 +60,7 @@ namespace ContinueVS.Services.Implementations
                     format: "W3C"
                 );
 
-                Debug.WriteLine($"[TRACING] Parsed W3C trace context: {context}");
+                _ = LoggerService.Current.WriteDebugAsync($"[TRACING] Parsed W3C trace context: {context}");
                 return Task.FromResult(TraceParseResult.CreateSuccess(context));
             }
 
@@ -84,13 +85,13 @@ namespace ContinueVS.Services.Implementations
                             format: "OpenTelemetry"
                         );
 
-                        Debug.WriteLine($"[TRACING] Parsed OpenTelemetry trace context: {context}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[TRACING] Parsed OpenTelemetry trace context: {context}");
                         return Task.FromResult(TraceParseResult.CreateSuccess(context));
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[TRACING] OpenTelemetry format parse failed: {ex.Message}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[TRACING] OpenTelemetry format parse failed: {ex.Message}");
                 }
             }
 
@@ -115,7 +116,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentNullException(nameof(eventName));
 
             var parentInfo = string.IsNullOrWhiteSpace(parentSpanId) ? "(root)" : parentSpanId;
-            Debug.WriteLine($"[DISTRIBUTED_TRACE] {traceId} | {spanId} | {parentInfo} | {eventName}");
+            _ = LoggerService.Current.WriteDebugAsync($"[DISTRIBUTED_TRACE] {traceId} | {spanId} | {parentInfo} | {eventName}");
 
             return Task.CompletedTask;
         }
@@ -129,7 +130,7 @@ namespace ContinueVS.Services.Implementations
             _currentContext.Value = context;
             if (context != null)
             {
-                Debug.WriteLine($"[TRACING] Set current context: {context}");
+                _ = LoggerService.Current.WriteDebugAsync($"[TRACING] Set current context: {context}");
             }
         }
 

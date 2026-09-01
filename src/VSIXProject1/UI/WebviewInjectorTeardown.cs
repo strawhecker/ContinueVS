@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using ContinueVS.Services;
 
 namespace ContinueVS.UI
 {
@@ -58,38 +59,38 @@ namespace ContinueVS.UI
         {
             try
             {
-                Debug.WriteLine("[b15-TEARDOWN-START] Bridge teardown starting");
+                _ = LoggerService.Current.WriteDebugAsync("[b15-TEARDOWN-START] Bridge teardown starting");
 
                 if (coreWebView2 == null)
                 {
-                    Debug.WriteLine("[b15-TEARDOWN-ERROR] CoreWebView2 is null");
+                    _ = LoggerService.Current.WriteDebugAsync("[b15-TEARDOWN-ERROR] CoreWebView2 is null");
                     return null;
                 }
 
-                Debug.WriteLine("[b15-SCRIPT-INJECT] Executing teardown script");
+                _ = LoggerService.Current.WriteDebugAsync("[b15-SCRIPT-INJECT] Executing teardown script");
                 var stopwatch = Stopwatch.StartNew();
 
                 string result = await coreWebView2.ExecuteScriptAsync(TeardownScript);
                 stopwatch.Stop();
 
-                Debug.WriteLine($"[b15-SCRIPT-RESULT] Teardown script executed in {stopwatch.ElapsedMilliseconds}ms");
-                Debug.WriteLine($"[b15-UNDEFINED-VERIFY] Result: {result}");
+                _ = LoggerService.Current.WriteDebugAsync($"[b15-SCRIPT-RESULT] Teardown script executed in {stopwatch.ElapsedMilliseconds}ms");
+                _ = LoggerService.Current.WriteDebugAsync($"[b15-UNDEFINED-VERIFY] Result: {result}");
 
                 return result;
             }
             catch (OperationCanceledException)
             {
-                Debug.WriteLine("[b15-TEARDOWN-ERROR] Teardown was cancelled");
+                _ = LoggerService.Current.WriteDebugAsync("[b15-TEARDOWN-ERROR] Teardown was cancelled");
                 return null;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[b15-TEARDOWN-ERROR] Exception: {ex.GetType().Name} - {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[b15-TEARDOWN-ERROR] Exception: {ex.GetType().Name} - {ex.Message}", ex);
                 return null;
             }
             finally
             {
-                Debug.WriteLine("[b15-COMPLETION] Bridge teardown operation completed");
+                _ = LoggerService.Current.WriteDebugAsync("[b15-COMPLETION] Bridge teardown operation completed");
             }
         }
     }

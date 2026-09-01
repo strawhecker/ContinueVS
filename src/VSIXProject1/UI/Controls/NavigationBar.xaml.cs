@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using ContinueVS.Services;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
@@ -26,7 +27,7 @@ namespace ContinueVS.UI.Controls
                 if (_toolCount != value)
                 {
                     _toolCount = value;
-                    System.Diagnostics.Debug.WriteLine($"[g7-nav-b1] ToolCount changed: {value}");
+                    _ = LoggerService.Current.WriteDebugAsync($"[g7-nav-b1] ToolCount changed: {value}");
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ToolCount)));
                 }
             }
@@ -42,10 +43,10 @@ namespace ContinueVS.UI.Controls
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[g7-nav-b1-err] InitializeComponent failed: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[g7-nav-b1-err] InitializeComponent failed: {ex.Message}", ex);
                 // Continue without XAML initialization; this can happen if the XAML file isn't in the project
             }
-            System.Diagnostics.Debug.WriteLine("[g7-nav-b1] NavigationBar() parameterless constructor called");
+            _ = LoggerService.Current.WriteDebugAsync("[g7-nav-b1] NavigationBar() parameterless constructor called");
 
             // Wire up service from DI after XAML init
             Loaded += NavigationBar_Loaded;
@@ -53,20 +54,20 @@ namespace ContinueVS.UI.Controls
 
         private void NavigationBar_Loaded(object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("[g7-nav-b1-loaded] NavigationBar Loaded event fired");
+            _ = LoggerService.Current.WriteDebugAsync("[g7-nav-b1-loaded] NavigationBar Loaded event fired");
             try
             {
                 var sp = ViewModelLocator.ServiceProvider;
                 if (sp == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("[g7-nav-b1-loaded] ViewModelLocator.ServiceProvider is null, ToolCount stays 0");
+                    _ = LoggerService.Current.WriteDebugAsync("[g7-nav-b1-loaded] ViewModelLocator.ServiceProvider is null, ToolCount stays 0");
                     return;
                 }
 
                 var configSvc = sp.GetService(typeof(IConfigService)) as IConfigService;
                 if (configSvc == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("[g7-nav-b1-loaded] IConfigService not found in DI, ToolCount stays 0");
+                    _ = LoggerService.Current.WriteDebugAsync("[g7-nav-b1-loaded] IConfigService not found in DI, ToolCount stays 0");
                     return;
                 }
 
@@ -80,25 +81,25 @@ namespace ContinueVS.UI.Controls
                 configSvc.ConfigChanged += OnConfigChanged;
 
                 RefreshToolCount(configSvc);
-                System.Diagnostics.Debug.WriteLine($"[g7-nav-b1-loaded] ToolCount initialized to {ToolCount}");
+                _ = LoggerService.Current.WriteDebugAsync($"[g7-nav-b1-loaded] ToolCount initialized to {ToolCount}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[g7-nav-b1-loaded-err] Error: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[g7-nav-b1-loaded-err] Error: {ex.Message}", ex);
             }
         }
 
         public NavigationBar(IConfigService configService) : this()
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
-            System.Diagnostics.Debug.WriteLine("[g7-nav-b2] NavigationBar(IConfigService) constructor called");
+            _ = LoggerService.Current.WriteDebugAsync("[g7-nav-b2] NavigationBar(IConfigService) constructor called");
             RefreshToolCount();
             _configService.ConfigChanged += OnConfigChanged;
         }
 
         private void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("[g7-nav-b3] ConfigChanged event received, refreshing tool count");
+            _ = LoggerService.Current.WriteDebugAsync("[g7-nav-b3] ConfigChanged event received, refreshing tool count");
             RefreshToolCount(_configServiceLive ?? _configService);
         }
 
@@ -108,12 +109,12 @@ namespace ContinueVS.UI.Controls
             {
                 var effective = svc ?? _configServiceLive ?? _configService;
                 var count = effective?.GetEnabledTools()?.Count() ?? 0;
-                System.Diagnostics.Debug.WriteLine($"[g7-nav-b4] RefreshToolCount: {count} tools enabled");
+                _ = LoggerService.Current.WriteDebugAsync($"[g7-nav-b4] RefreshToolCount: {count} tools enabled");
                 ToolCount = count;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[g7-nav-b5] RefreshToolCount error: {ex.Message}");
+                _ = LoggerService.Current.WriteErrorAsync($"[g7-nav-b5] RefreshToolCount error: {ex.Message}", ex);
                 ToolCount = 0;
             }
         }

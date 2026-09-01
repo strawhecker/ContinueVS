@@ -28,35 +28,37 @@ namespace ContinueVS.Services
             var services = new ServiceCollection();
 
             // BP:sv-di-build — breakpoint at BuildServiceProvider() below confirms all registrations succeeded
-            System.Diagnostics.Debug.WriteLine("[sv-di] ConfigureServices START");
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] ConfigureServices START");
 
             // --- IBridgeLogger: must be first — many factory lambdas below require it ---
-            System.Diagnostics.Debug.WriteLine("[sv-di] registering IBridgeLogger (FileLogger)");
-            services.AddSingleton<IBridgeLogger, FileLogger>();
-            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IBridgeLogger registered (logs to ~/.continueVS/logs/)");
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] registering IBridgeLogger (FileLogger)");
+            services.AddSingleton<IBridgeLogger>(LoggerService.Current);
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] ✓ IBridgeLogger registered (logs to ~/.continueVS/logs/)");
 
             // --- IDteProvider: required by DebuggerService factory ---
-            System.Diagnostics.Debug.WriteLine("[sv-di] registering IDteProvider (DteProvider)");
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] registering IDteProvider (DteProvider)");
             services.AddSingleton<IDteProvider>(sp =>
             {
                 ThreadHelper.ThrowIfNotOnUIThread();
                 var dte = Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE.DTE;
-                System.Diagnostics.Debug.WriteLine($"[sv-di] IDteProvider: DTE resolved={dte != null}");
+                _ = LoggerService.Current.WriteDebugAsync($"[sv-di] IDteProvider: DTE resolved={dte != null}");
                 if (dte == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("[sv-di] ⚠ DTE is null — IDteProvider will throw on use; VS may not be fully loaded yet");
+                    _ = LoggerService.Current.WriteDebugAsync("[sv-di] ⚠ DTE is null — IDteProvider will throw on use; VS may not be fully loaded yet");
                     throw new InvalidOperationException("[sv-di] Cannot resolve EnvDTE.DTE from Package.GetGlobalService. Ensure ServiceBootstrapper is called after VS package initialization.");
                 }
                 return new DteProvider(dte);
             });
-            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IDteProvider registered");
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] ✓ IDteProvider registered");
 
             // Register UI/Navigation services
             services.AddSingleton<IPageNavigator, PageNavigator>();
             services.AddSingleton<IThemeService, ThemeService>();
 
             services.AddSingleton<ISystemPromptService>(sp =>
-                new SystemPromptService(sp.GetRequiredService<IWorkspaceStatsService>()));
+                new SystemPromptService(
+                    sp.GetRequiredService<IBridgeLogger>(),
+                    sp.GetRequiredService<IWorkspaceStatsService>()));
             services.AddSingleton<IMarkdownService, MarkdownService>();
             // gap44_2: ModeConfigRegistry is the single source of truth for mode policy
             services.AddSingleton<IModeConfigRegistry>(sp =>
@@ -148,12 +150,13 @@ namespace ContinueVS.Services
 
             // Workspace stats service: collects runtime fields for system prompt context injection (gap38)
             // MUST be after IDebuggerService registration (on which it depends)
-            System.Diagnostics.Debug.WriteLine("[sv-di] registering IWorkspaceStatsService (WorkspaceStatsService)");
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] registering IWorkspaceStatsService (WorkspaceStatsService)");
             services.AddSingleton<IWorkspaceStatsService>(sp => new WorkspaceStatsService(
                 sp.GetRequiredService<IIdeService>(),
                 sp.GetRequiredService<IDebuggerService>(),
-                sp.GetRequiredService<IConfigService>()));
-            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ IWorkspaceStatsService registered");
+                sp.GetRequiredService<IConfigService>(),
+                sp.GetRequiredService<IBridgeLogger>()));
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] ✓ IWorkspaceStatsService registered");
 
             services.AddSingleton<INotificationService>(sp =>
             {
@@ -298,9 +301,9 @@ namespace ContinueVS.Services
 
             // Build and return
             // BP:sv-di-build — if execution reaches here, all registrations succeeded
-            System.Diagnostics.Debug.WriteLine("[sv-di] All registrations complete — calling BuildServiceProvider()");
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] All registrations complete — calling BuildServiceProvider()");
             var provider = services.BuildServiceProvider();
-            System.Diagnostics.Debug.WriteLine("[sv-di] ✓ ServiceProvider built successfully");
+            _ = LoggerService.Current.WriteDebugAsync("[sv-di] ✓ ServiceProvider built successfully");
             return provider;
         }
     }

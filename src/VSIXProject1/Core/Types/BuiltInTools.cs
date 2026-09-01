@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using ContinueVS.Services;
 
 namespace ContinueVS.Core.Types
 {
@@ -23,7 +24,7 @@ namespace ContinueVS.Core.Types
             bool isEnabled = true,
             string invokePerm = "Automatic")
         {
-            Debug.WriteLine($"[gap8_1-factory-create] CreateToolDefinition: {name}, params={parameters.Count}, enabled={isEnabled}");
+            _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-factory-create] CreateToolDefinition: {name}, params={parameters.Count}, enabled={isEnabled}");
             return new ToolDefinition
             {
                 Name = name,
@@ -622,7 +623,7 @@ namespace ContinueVS.Core.Types
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
-            Debug.WriteLine("[gap8_1-factory-all-start] GetAllBuiltInTools called");
+            _ = LoggerService.Current.WriteDebugAsync("[gap8_1-factory-all-start] GetAllBuiltInTools called");
             var tools = new List<ToolDefinition>
             {
                 GetReadFileTool(),
@@ -648,7 +649,7 @@ namespace ContinueVS.Core.Types
                 GetGrepSearchTool(),
                 GetSingleFindAndReplaceTool()
             };
-            Debug.WriteLine($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
+            _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;
         }
     }
