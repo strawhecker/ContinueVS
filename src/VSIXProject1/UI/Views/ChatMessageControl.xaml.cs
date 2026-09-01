@@ -18,6 +18,13 @@ namespace ContinueVS.UI.Views
             MessageGrid.MouseEnter += MessageGrid_MouseEnter;
             MessageGrid.MouseLeave += MessageGrid_MouseLeave;
 
+            // Wire up Copy All button if it exists in the visual tree
+            var copyAllButton = FindName("CopyAllButton") as Button;
+            if (copyAllButton != null)
+            {
+                copyAllButton.Click += CopyAllButton_Click;
+            }
+
             // Wire up dropdown if it exists in the visual tree
             var comboBox = FindName("CodeActionDropdown") as ComboBox;
             if (comboBox != null)
@@ -30,6 +37,10 @@ namespace ContinueVS.UI.Views
         {
             DeleteButton.Visibility = System.Windows.Visibility.Visible;
 
+            var copyAllButton = FindName("CopyAllButton") as Button;
+            if (copyAllButton != null && copyAllButton.Visibility != System.Windows.Visibility.Collapsed)
+                copyAllButton.Visibility = System.Windows.Visibility.Visible;
+
             var comboBox = FindName("CodeActionDropdown") as ComboBox;
             if (comboBox != null && comboBox.Visibility != System.Windows.Visibility.Collapsed)
                 comboBox.Visibility = System.Windows.Visibility.Visible;
@@ -39,9 +50,33 @@ namespace ContinueVS.UI.Views
         {
             DeleteButton.Visibility = System.Windows.Visibility.Hidden;
 
+            var copyAllButton = FindName("CopyAllButton") as Button;
+            if (copyAllButton != null && copyAllButton.Visibility != System.Windows.Visibility.Collapsed)
+                copyAllButton.Visibility = System.Windows.Visibility.Hidden;
+
             var comboBox = FindName("CodeActionDropdown") as ComboBox;
             if (comboBox != null && comboBox.Visibility != System.Windows.Visibility.Collapsed)
                 comboBox.Visibility = System.Windows.Visibility.Hidden;
+        }
+
+        /// <summary>
+        /// Handles Copy All button click to copy the entire response message.
+        /// </summary>
+        private void CopyAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            var content = (DataContext as ChatMessage)?.Content ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                try
+                {
+                    Clipboard.SetText(content);
+                    System.Diagnostics.Debug.WriteLine("[gap49-copy-all] Entire response copied to clipboard");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[gap49-copy-all-error] Failed to copy: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>

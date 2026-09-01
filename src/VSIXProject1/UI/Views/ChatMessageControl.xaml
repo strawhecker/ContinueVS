@@ -15,6 +15,24 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel Grid.Column="0" Orientation="Vertical" HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}" Margin="10,0">
+            <!-- Copy All button at response level (only for Assistant messages) -->
+            <Button x:Name="CopyAllButton"
+                    Height="28"
+                    Width="100"
+                    Padding="4,2"
+                    Background="#3E3E42"
+                    Foreground="White"
+                    BorderThickness="1"
+                    BorderBrush="#5A5A5A"
+                    FontSize="11"
+                    Content="📋 Copy All"
+                    Visibility="{Binding Role, Converter={StaticResource RoleToVisibilityConverter}}"
+                    ToolTip="Copy entire response"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="0,0,0,5"
+                    Cursor="Hand"/>
+
             <Grid>
                 <Border Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
                     <renderers:MarkdownBlockRenderer Content="{Binding Content}" />

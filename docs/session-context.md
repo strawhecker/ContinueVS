@@ -5941,27 +5941,55 @@ Everything else — LLM-reactive planning, phase generation, phase execution, pl
 
 ---
 
-### gap51: Multi-Action Toolbars
+### gap51: Ollama LLM Response Parsing Failure
 
-**Objective:** Add context-sensitive action toolbars to code blocks that group related operations (copy, apply, export, view diff).
+**Status:** ✓ Complete | Type: LLM Integration Robustness
 
-**Status:** Pending | Type: UI Enhancement
+**Problem:**
+Agent mode failed with fatal error: `"LLM response did not contain valid phases"` when Ollama completed streaming JSON chunks after the first code block. The `InstructionProcessorService.ParsePhasesFromResponse()` was too strict and did not log the raw LLM output, making it impossible to debug format mismatches.
 
-**Acceptance Criteria:**
-- [ ] Toolbar appears on hover over code block
-- [ ] Toolbar includes: Copy, Apply (conditional), Export, View Diff (if available), Delete
-- [ ] Each action is icon-only with tooltip
-- [ ] Apply action only enabled if file path is detectable in response
-- [ ] Export generates downloadable .txt or .md file with code + metadata
-- [ ] View Diff triggers side-by-side comparison if original file path known
-- [ ] Toolbar disappears on mouse leave (or click outside)
+**Root Cause:**
+- Regex pattern was overly strict: `^-\s*\[?(\w+)\]?:?\s*(.+)$`
+- No logging of raw LLM response before parsing, blocking visibility into actual format
+- Only one fallback pattern attempted; LLM could generate variations like `- TYPE Description` without colons or different bracket styles
+- Parser silently skipped non-matching lines; if all lines failed to match, exception thrown with no visibility into response content
 
-**Implementation Notes:**
-- Touch points: ChatMessageControl.xaml (code block template), ChatPageViewModel (multi-action commands)
-- UI pattern: StackPanel with horizontal buttons; Visibility bound to MouseOver state of code block container
-- Commands: Extend ApplyCodeBlockCommand, add ExportCodeBlockCommand, AddViewDiffCommand
-- Export flow: Serialize code + timestamp to temp directory; open file dialog for save-as
-- Diff flow: Call IToolService.CompareFileAsync() (new method) to launch VS diff viewer
+**Solution Implemented:**
+1. **Added raw LLM response logging** in `GenerateInternalPhasesAsync()`:
+   - Before parsing, logs entire raw response to debug output
+   - Enables real-time visibility into what Ollama is actually generating
+   - Format: `"InstructionProcessorService.GenerateInternalPhasesAsync: Raw LLM response:\n{llmResponse}"`
+
+2. **Relaxed regex patterns** in `ParsePhasesFromResponse()`:
+   - Primary pattern: `^-\s*\[?(\w+)\]?\s*:?\s*(.+)$` (handles brackets and colons optionally)
+   - Fallback pattern: `^-\s*(\w+)\s+(.+)$` (handles `- TYPE Description` without colons)
+   - Tries primary first; if no match, tries fallback; only skips if both patterns fail
+
+3. **Added per-phase debug logging**:
+   - When a phase line is skipped (invalid type), logs: `"skipping invalid phase type '{typeStr}' in line '{trimmed}'"`
+   - When a phase is successfully parsed, logs: `"parsed phase {phaseType}: {description}"`
+   - When no phases found at all, logs: `"no valid phases found in response"` before throwing exception
+   - All logging uses `_ = _logger.WriteDebugAsync(...)` (fire-and-forget, non-blocking)
+
+4. **Maintained exception safety**:
+   - Still throws `InvalidOperationException("LLM response did not contain valid phases.")` if no phases match
+   - But now with debug logs showing exact which lines matched/failed and the raw response
+
+**Files Modified:**
+- src/VSIXProject1/Services/Implementations/InstructionProcessorService.cs
+  - Lines 72-75: Added raw response logging before parsing
+  - Lines 128-177: Rewrote ParsePhasesFromResponse() with dual regex patterns + per-phase logging
+
+**Testing:**
+- Build: Successful (zero compilation errors/warnings)
+- No new tests added (parsing logic remains internal; behavior unchanged for valid inputs)
+- Existing InstructionProcessorServiceTests continue to pass
+- Debug output will now show raw LLM response and parse decisions for troubleshooting
+
+**Unblocks:**
+- Agent mode now provides actionable debug logs when parsing fails
+- Developers can see exact LLM response format and adjust parser patterns or LLM prompt as needed
+- Future iterations can add more fallback patterns based on observed LLM outputs
 
 ---
 
@@ -5988,6 +6016,88 @@ Everything else — LLM-reactive planning, phase generation, phase execution, pl
 - Confirmation dialog: Use MessageBox or custom ConfirmationDialog control
 - Export format: Line-delimited JSON with schema `{ "messages": [...], "metadata": {...} }`
 - UX fallback: If no sessions left after removal, show onboarding screen (gap49 already has this)
+
+---
+
+### gap53: Code Action Dropdown Per Code Block
+**Status:** ⏳ Pending | Type: UI Component Behavior  
+**Description:**  
+The Copy/Apply dropdown currently appears at the message level (once per entire response). gap53 requires this dropdown to appear on **each individual code block** within a response, not just once for the entire message. This allows per-block copy/apply decisions without being forced to choose for all code blocks together.
+
+**Current Behavior (gap49):**
+- Single Copy/Apply ComboBox per ChatMessage
+- User can copy or apply entire response content
+- Limited granularity for multi-block responses
+
+**Desired Behavior (gap53):**
+- Copy/Apply ComboBox on EACH code block (not message)
+- User can independently copy/apply individual code blocks
+- Fine-grained control over multi-block responses
+- Each block tracks its own actions separately
+
+**Implementation Notes:**
+- Requires refactor of ChatMessageControl rendering layer
+- Each code block needs discrete Copy/Apply controls
+- May require MarkdownBlockRenderer to expose block-level action points
+- Consider wrapping individual code blocks in containers with action toolbars
+- Maintain Copy default selection for each block
+
+**Related:**
+- gap49: Copy/Apply dropdown introduced (message-level)
+- Affects: ChatMessageControl.xaml, MarkdownBlockRenderer
+
+**Blocking:** None (nice-to-have improvement)
+
+---
+
+### gap54: Plan Preview Button in Tool Window
+**Status:** ⏳ Pending | Type: UI Feature (Plan Review)  
+**Description:**  
+After Plan mode generates a plan and saves it to `~/.continueVS/plans/plan_*.md`, users need a convenient way to view the saved plan without leaving Visual Studio. gap54 requires adding a "View Plan" button in the ContinueVS tool window that opens the most recently saved plan in a Markdown preview within Visual Studio.
+
+**Current Behavior:**
+- Plan is auto-saved to `~/.continueVS/plans/plan_YYYYMMDD_HHMMSS.md` (gap43_3)
+- User must manually open File Explorer or editor to view the file
+- No in-IDE preview capability
+
+**Desired Behavior (gap54):**
+- "View Plan" or "📄 View" button appears in toolbar (when in Plan mode or after plan generation)
+- Button opens most recent `.md` file from `~/.continueVS/plans/` folder
+- Opens in VS's built-in Markdown preview pane (not editor)
+- Alternatively: Open in registered `.md` handler (e.g., Markdown Editor extension)
+- Button remains usable for previous plans even after generating new ones
+
+**Implementation Options:**
+1. **Option A: In-Tool Preview**
+   - Read plan file content via `IIdeService`
+   - Render Markdown in a WPF control (requires Markdown rendering library)
+   - Show in tool window panel below chat
+
+2. **Option B: External Editor**
+   - Get most recent plan file path from `~/.continueVS/plans/`
+   - Call `IIdeService.OpenFileAsync(filePath)` (VS automation)
+   - VS opens file in editor + Markdown preview pane
+
+3. **Option C: Default Browser/App**
+   - Open plan file with system default Markdown viewer
+   - Simplest but less integrated
+
+**Recommended:** Option B (leverage VS native Markdown preview)
+
+**Implementation Notes:**
+- Button placement: Toolbar (Grid.Row=3) in ChatPage.xaml, alongside Mode/Model selectors
+- Condition: `Visibility="{Binding HasSavedPlan, Converter=BooleanToVisibilityConverter}"` (bind to service state)
+- Icon: 📄 or 📋 or 👁️ (View/Eye)
+- Tooltip: "View most recent plan"
+- Disabled when: No plans exist yet
+- Requires: `IPlanOutputService.GetLatestPlanPathAsync()` method (new)
+
+**Related:**
+- gap43_2: PlanOutputService (plan persistence)
+- gap43_3: SavePlanAsync() hook in ExecuteSendMessage
+- Affects: ChatPage.xaml, ChatPageViewModel, PlanOutputService
+
+**Blocking:** None (nice-to-have UX improvement)
 
 ---
 

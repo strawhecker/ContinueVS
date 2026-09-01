@@ -73,6 +73,10 @@ namespace ContinueVS.Services.Implementations
             if (string.IsNullOrWhiteSpace(llmResponse))
                 throw new InvalidOperationException("LLM returned empty response.");
 
+            // Log raw LLM response for debugging
+            if (_logger != null)
+                await _logger.WriteDebugAsync($"InstructionProcessorService.GenerateInternalPhasesAsync: Raw LLM response:\n{llmResponse}");
+
             // Parse the LLM response into phases
             var phases = ParsePhasesFromResponse(llmResponse);
 
@@ -123,7 +127,7 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Parses phase descriptions from the LLM response.
-        /// Expects format: "- [TYPE]: [Description]"
+        /// Expects format: "- [TYPE]: [Description]" but handles variations.
         /// </summary>
         private List<InternalPhase> ParsePhasesFromResponse(string response)
         {
@@ -137,17 +141,26 @@ namespace ContinueVS.Services.Implementations
                 if (!trimmed.StartsWith("-"))
                     continue;
 
-                // Pattern: "- [TYPE]: [Description]"
-                var match = Regex.Match(trimmed, @"^-\s*\[?(\w+)\]?:?\s*(.+)$", RegexOptions.IgnoreCase);
+                // Try primary pattern: "- [TYPE]: Description" or "- TYPE: Description"
+                var match = Regex.Match(trimmed, @"^-\s*\[?(\w+)\]?\s*:?\s*(.+)$", RegexOptions.IgnoreCase);
                 if (!match.Success)
-                    continue;
+                {
+                    // Try fallback pattern for variations like "- TYPE – Description" or "- TYPE Description"
+                    match = Regex.Match(trimmed, @"^-\s*(\w+)\s+(.+)$", RegexOptions.IgnoreCase);
+                    if (!match.Success)
+                        continue;
+                }
 
                 var typeStr = match.Groups[1].Value.Trim();
                 var description = match.Groups[2].Value.Trim();
 
                 // Try to parse the phase type
                 if (!Enum.TryParse<InternalPhaseType>(typeStr, ignoreCase: true, out var phaseType))
+                {
+                    if (_logger != null)
+                        _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: skipping invalid phase type '{typeStr}' in line '{trimmed}'");
                     continue; // Skip invalid phase types
+                }
 
                 var phase = new InternalPhase
                 {
@@ -156,10 +169,17 @@ namespace ContinueVS.Services.Implementations
                 };
 
                 phases.Add(phase);
+
+                if (_logger != null)
+                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: parsed phase {phaseType}: {description}");
             }
 
             if (phases.Count == 0)
+            {
+                if (_logger != null)
+                    _ = _logger.WriteDebugAsync("InstructionProcessorService.ParsePhasesFromResponse: no valid phases found in response");
                 throw new InvalidOperationException("LLM response did not contain valid phases.");
+            }
 
             return phases;
         }
