@@ -106,7 +106,17 @@ namespace ContinueVS.Services.Implementations
 
             // Resolve active model from config
             _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Attempting to get selected model...");
-            var model = _configService.GetSelectedModel();
+
+            ModelInfo? model = null;
+            try
+            {
+                model = _configService.GetSelectedModel();
+            }
+            catch (InvalidOperationException configEx)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] ERROR: ConfigService not initialized: {configEx.Message}");
+                throw new LlmException("ConfigService has not been initialized. Ensure ServiceInitializer.InitializeAsync() is called during plugin startup.", configEx);
+            }
 
             if (model == null)
             {

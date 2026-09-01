@@ -127,38 +127,59 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Parses phase descriptions from the LLM response.
-        /// Expects format: "- [TYPE]: [Description]" but handles variations.
+        /// Expects format: "- [TYPE]: [Description]" but handles variations including markdown bold.
         /// </summary>
         private List<InternalPhase> ParsePhasesFromResponse(string response)
         {
             var phases = new List<InternalPhase>();
 
+            // Log parsing start for instrumentation
+            if (_logger != null)
+                _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: starting parse of {response.Length} character response");
+
             // Match lines starting with "- " followed by a phase type and description
             var lines = response.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (_logger != null)
+                _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: found {lines.Length} total lines to process");
+
             foreach (var line in lines)
             {
                 var trimmed = line.Trim();
                 if (!trimmed.StartsWith("-"))
                     continue;
 
-                // Try primary pattern: "- [TYPE]: Description" or "- TYPE: Description"
-                var match = Regex.Match(trimmed, @"^-\s*\[?(\w+)\]?\s*:?\s*(.+)$", RegexOptions.IgnoreCase);
+                if (_logger != null)
+                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: evaluating line '{trimmed.Substring(0, Math.Min(80, trimmed.Length))}'");
+
+                // Try primary pattern: "- [TYPE]: Description" or "- TYPE: Description" or "- **TYPE**: Description"
+                var match = Regex.Match(trimmed, @"^-\s*\*{0,2}(\w+)\*{0,2}\s*:?\s*(.+)$", RegexOptions.IgnoreCase);
                 if (!match.Success)
                 {
                     // Try fallback pattern for variations like "- TYPE – Description" or "- TYPE Description"
                     match = Regex.Match(trimmed, @"^-\s*(\w+)\s+(.+)$", RegexOptions.IgnoreCase);
                     if (!match.Success)
+                    {
+                        if (_logger != null)
+                            _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: line does not match any pattern, skipping");
                         continue;
+                    }
                 }
 
                 var typeStr = match.Groups[1].Value.Trim();
                 var description = match.Groups[2].Value.Trim();
 
+                // Remove trailing markdown formatting from description (e.g., "Description**:")
+                description = Regex.Replace(description, @"\*{1,2}\s*:\s*$", ":").Trim();
+
+                if (_logger != null)
+                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: extracted type='{typeStr}', description='{description.Substring(0, Math.Min(80, description.Length))}'");
+
                 // Try to parse the phase type
                 if (!Enum.TryParse<InternalPhaseType>(typeStr, ignoreCase: true, out var phaseType))
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: skipping invalid phase type '{typeStr}' in line '{trimmed}'");
+                        _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: '{typeStr}' is not a valid phase type (valid types: {string.Join(", ", Enum.GetNames(typeof(InternalPhaseType)))})");
                     continue; // Skip invalid phase types
                 }
 
@@ -171,8 +192,11 @@ namespace ContinueVS.Services.Implementations
                 phases.Add(phase);
 
                 if (_logger != null)
-                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: parsed phase {phaseType}: {description}");
+                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: successfully parsed phase {phaseType}");
             }
+
+            if (_logger != null)
+                _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: parsing complete - found {phases.Count} valid phases");
 
             if (phases.Count == 0)
             {

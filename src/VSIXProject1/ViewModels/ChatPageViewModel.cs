@@ -68,6 +68,7 @@ namespace ContinueVS.ViewModels
         private ChatMode _currentMode = ChatMode.Ask;
         private ModelInfo? _selectedModel;
         private List<ToolCall> _pendingToolCalls = new List<ToolCall>();
+        private bool _isInitialized = false;
         private const int MaxToolCallIterations = 10;
         private int _toolCallIterationCount = 0;
 
@@ -619,6 +620,10 @@ public string? InputText
                 _ = LoggerService.Current.WriteErrorAsync($"[gap27_16-init-error] Failed to load default policy: {ex.Message}", ex);
                 // Default to Interactive (already set in field initialization)
             }
+
+            // Mark initialization as complete
+            _isInitialized = true;
+            _ = LoggerService.Current.WriteDebugAsync("[ChatPageViewModel.InitializeAsync] Initialization complete");
         }
 
         private async Task LoadModelsAsync()
@@ -891,6 +896,31 @@ public string? InputText
         {
             try
             {
+                // Guard 1: Ensure ChatPageViewModel initialization is complete
+                if (!_isInitialized)
+                {
+                    await _notificationService.ShowNotificationAsync(
+                        "ContinueVS Initializing",
+                        "The chat interface is still loading. Please wait a moment and try again.",
+                        NotificationType.Warning);
+                    return;
+                }
+
+                // Guard 2: Ensure ConfigService is properly initialized before proceeding
+                try
+                {
+                    var guardModel = _configService.GetSelectedModel();
+                    // If we can successfully get past this line, ConfigService is ready
+                }
+                catch (InvalidOperationException configEx)
+                {
+                    await _notificationService.ShowNotificationAsync(
+                        "ContinueVS Not Ready",
+                        $"The plugin is still initializing. Please wait a moment and try again. Error: {configEx.Message}",
+                        NotificationType.Error);
+                    return;
+                }
+
                 IsStreaming = true;
                 _streamingCts = new CancellationTokenSource();
                 _pendingToolCalls.Clear();
