@@ -6310,44 +6310,598 @@ After Plan mode generates a plan and saves it to `~/.continueVS/plans/plan_*.md`
 
 ---
 
-## GAP55: Ollama Support - System and Tools Field Handling
+### gap55: Ollama Support - System and Tools Field Handling
 
-**Problem**: 
-Ollama API is deficient in natively supporting `system` and `tools` fields in standard request/response structures. The ContinueVS implementation must manually construct and parse these fields to enable tool calling with Ollama models.
+**Status:** ⏳ Pending | Type: LLM Integration (Tool Calling)  
+**Description:**  
+Ollama API lacks native support for `system` and `tools` fields in standard request/response structures. ContinueVS must manually construct and parse these fields to enable tool calling with Ollama models, bridging the gap between Ollama's limitations and the existing ToolService infrastructure.
 
-**Solution**:
+**Current Behavior:**
+- OllamaRequest supports only `model`, `messages`, `stream`, and `options`
+- OllamaMessage has only `role` and `content` properties (no tool support)
+- OllamaResponse parses only `message.content`, `done`, and `done_reason`
+- ProcessOllamaStreamAsync() yields only text content; ignores tool_calls
+- No mechanism to serialize available tools to Ollama or parse tool invocations from responses
 
-**API Endpoint & Message Structure**:
-- Use Ollama chat endpoint: `http://ip:11434/api/chat`
-- Manually construct messages with: `system`, `user`, `tools`, and `stream` fields
-- Parse response fields beyond just `message.content`: also parse `message.tool_calls`, `done`, `done_reason`
-- Handle case where `message.content` is empty but contains tool information
+**Desired Behavior (GAP55):**
+- OllamaRequest includes a `tools` field with full JSON Schema tool descriptions
+- OllamaMessage supports `tool_calls` field in responses (extended Ollama format)
+- ProcessOllamaStreamAsync() separately accumulates text and tool_calls
+- Tool calls from Ollama are routed through ToolService.InvokeAsync()
+- Tool results are added back to conversation context for multi-turn loops
+- Each mode (Ask/Code/Agent) restricts available tools based on permissions
 
-**Tool Support by Category**:
-- **Read Tools**: `list_files`, `read_file`, `search_code`, partial `run_command` support
-- **Write Tools**: `write_files`, `delete_file`, `run_command`
-- **Other Tools**: `run_tests`
-- **Rule**: Only include tools that the current mode allows
+**Related:**
+- gap8: Ask Mode UI + mode selector
+- gap9: Agent Mode (tool calling)
+- gap23_4_3: Tool call execution limits
+- gap43_3: Plan persistence
+- gap56: vLLM support (comparison/compatibility)
 
-**Message Parsing Strategy**:
-- Accumulate separately: assistant text, tool-call name, tool-call arguments
-- Do not assume all content is in `message.content` field
-- Check for structured tool information in response
+**Blocking:** None (no dependencies)
 
-**Tool Execution Flow**:
-1. Read the function name from tool_calls
-2. Deserialize the arguments (JSON → object)
-3. Validate the arguments against function signature
-4. Execute the matching C# function
-5. Capture the result or error
-6. Add the tool result to the conversation context
-7. Send the updated conversation back to Ollama for continued processing
-
-**Status**: Documented approach for Ollama integration with tool calling support
+**Implementation Notes:**
+- Touch points: MessengerService.ProcessOllamaStreamAsync(), CompletionChunk, ChatPageViewModel message handling
+- Data flow: ToolService.GetAvailableTools() → OllamaRequest.Tools → Ollama API → OllamaResponse.ToolCalls → ToolService.InvokeAsync() → tool results back to context
+- Tool filtering: Ask mode excludes write tools; Code mode allows read + write; Agent mode has all tools
+- Multi-turn loop: Tool result messages added to session context, then re-invoke Ollama with updated conversation
+- Safety: Max 5 iterations per invocation, 30-second timeout per tool call, user can interrupt
 
 ---
 
-### GAP56: vLLM Support - OpenAI-Compatible Intranet Endpoint
+#### gap55_1: Extend OllamaRequest and OllamaMessage with Tools Field
+
+**Status:** ⏳ Pending | Type: Data Model Extension  
+
+**Objective:**
+Extend `OllamaRequest` and `OllamaMessage` classes to support a `tools` field that describes available tools to Ollama. Tools must use JSON Schema format compatible with OpenAI function calling schema so Ollama understands tool signatures and parameters.
+
+**Implementation Details:**
+
+1. **Create new type: `Core/Types/ToolSchema.cs`**
+   - Represents a tool in OpenAI-compatible JSON Schema format
+   - Properties:
+     - `[JsonProperty("type")] public string Type = "function"`
+     - `[JsonProperty("function")] public ToolFunctionSchema? Function { get; set; }`
+
+2. **Create new type: `Core/Types/ToolFunctionSchema.cs`**
+   - Properties:
+     - `[JsonProperty("name")] public string Name { get; set; }` - alphanumeric + underscore
+     - `[JsonProperty("description")] public string? Description { get; set; }`
+     - `[JsonProperty("parameters")] public ParametersSchema? Parameters { get; set; }`
+
+3. **Create new type: `Core/Types/ParametersSchema.cs`**
+   - Properties:
+     - `[JsonProperty("type")] public string Type = "object"`
+     - `[JsonProperty("properties")] public Dictionary<string, ParameterDefinition>? Properties { get; set; }`
+     - `[JsonProperty("required")] public List<string>? Required { get; set; }`
+
+4. **Create new type: `Core/Types/ToolCallSchema.cs`**
+   - Represents tool invocation from Ollama response
+   - Properties:
+     - `[JsonProperty("id")] public string? Id { get; set; }`
+     - `[JsonProperty("type")] public string Type = "function"`
+     - `[JsonProperty("function")] public ToolCallFunction? Function { get; set; }`
+
+5. **Create new type: `Core/Types/ToolCallFunction.cs`**
+   - Properties:
+     - `[JsonProperty("name")] public string Name { get; set; }`
+     - `[JsonProperty("arguments")] public string? Arguments { get; set; }` - JSON string, not object
+
+6. **Extend `OllamaRequest.cs`:**
+   - Add property: `[JsonProperty("tools")] public List<ToolSchema>? Tools { get; set; }`
+   - Tools field populated from `ToolService.GetAvailableTools()` filtered by mode
+   - Serialized as JSON array when posting to Ollama
+
+7. **Extend `OllamaMessage.cs`:**
+   - Add property: `[JsonProperty("tool_calls")] public List<ToolCallSchema>? ToolCalls { get; set; }`
+   - Used when parsing Ollama responses that invoke tools
+
+8. **Add helper in MessengerService:**
+   - `private List<ToolSchema> ConvertToolDefinitionsToSchema(IEnumerable<ToolDefinition> tools)`
+   - Converts ToolDefinition objects to OpenAI-compatible ToolSchema format
+   - Preserves name, description, parameters
+
+**Testing:**
+- Unit test: OllamaRequest serializes with `"tools": [...]` when tools available
+- Unit test: ConvertToolDefinitionsToSchema() produces valid ToolSchema objects
+- Unit test: ToolSchema JSON matches OpenAI function calling format
+- Unit test: Empty tools list serializes as `"tools": []`
+- Unit test: Tool names match regex `[a-z_][a-z0-9_]*`
+
+**Acceptance Criteria:**
+- ✓ ToolSchema, ToolFunctionSchema, ParametersSchema, ToolCallSchema types created
+- ✓ OllamaRequest.Tools serializes correctly in JSON
+- ✓ OllamaMessage.ToolCalls deserializes from Ollama responses
+- ✓ ConvertToolDefinitionsToSchema() helper implemented
+- ✓ No breaking changes to existing OllamaRequest/Response serialization
+- ✓ All 1121 existing tests still pass
+
+---
+
+#### gap55_2: Extend OllamaResponse to Parse Tool Calls
+
+**Status:** ⏳ Pending | Type: Response Parsing Enhancement  
+
+**Objective:**
+Enhance `OllamaResponse` and `OllamaMessage` to capture and parse tool call information from Ollama responses. Ollama may return tool_calls alongside or instead of content. Parser must handle both separately and preserve tool data for downstream execution.
+
+**Implementation Details:**
+
+1. **Extend `OllamaMessage.cs`:**
+   - Add property: `[JsonProperty("tool_calls")] public List<ToolCallSchema>? ToolCalls { get; set; }`
+   - Allows OllamaMessage to deserialize tool invocations from Ollama
+
+2. **Ensure `OllamaResponse.cs` properties:**
+   - `[JsonProperty("done")] public bool Done { get; set; }` - already exists
+   - `[JsonProperty("done_reason")] public string? DoneReason { get; set; }` - already exists, document it
+   - `[JsonProperty("message")] public OllamaMessage? Message { get; set; }` - already exists
+   - DoneReason values: `"stop"`, `"length"`, `"tool_calls"`, other reasons
+
+3. **Validation in `ProcessOllamaStreamAsync()`:**
+   At line 585 after deserialization:
+```
+   ollamaResponse = JsonConvert.DeserializeObject<OllamaResponse>(line);
+   if (ollamaResponse?.Message != null)
+   {
+       bool hasContent = !string.IsNullOrEmpty(ollamaResponse.Message.Content);
+       bool hasToolCalls = ollamaResponse.Message.ToolCalls?.Count > 0;
+
+       if (!hasContent && !hasToolCalls)
+       {
+           // Skip empty messages without content or tools
+           continue;
+       }
+   }
+```
+
+4. **Handle response types:**
+- **Text Response:** `{ message: { role: "assistant", content: "..." } }`
+- **Tool Call Response:** `{ message: { role: "assistant", tool_calls: [{...}] } }`
+- **Hybrid Response:** `{ message: { role: "assistant", content: "...", tool_calls: [{...}] } }`
+
+**Testing:**
+- Unit test: Deserialize OllamaResponse with tool_calls field (mock JSON)
+- Unit test: ToolCallSchema fields populated correctly
+- Unit test: Hybrid response (both content and tool_calls)
+- Unit test: Response with empty content but tool_calls present (not skipped)
+- Unit test: done_reason="tool_calls" detected
+- Unit test: Backwards compatible with text-only responses
+
+**Acceptance Criteria:**
+- ✓ OllamaResponse deserializes tool_calls correctly from JSON
+- ✓ OllamaMessage.ToolCalls property populated when present
+- ✓ Hybrid responses handled without data loss
+- ✓ Empty content with tool_calls not skipped
+- ✓ No regressions in existing text-only response parsing
+- ✓ All 1121 existing tests still pass
+
+---
+
+#### gap55_3: Enhance ProcessOllamaStreamAsync() to Accumulate and Yield Tool Calls
+
+**Status:** ⏳ Pending | Type: Streaming Logic Enhancement  
+
+**Objective:**
+Modify `ProcessOllamaStreamAsync()` to detect, accumulate, and yield tool call information from Ollama NDJSON streams. Currently only text is yielded. Must now handle both text and tool_calls, accumulate across multiple chunks, and signal completion with done_reason.
+
+**Implementation Details:**
+
+1. **Extend `CompletionChunk.cs` type:**
+- Add property: `public List<ToolCallSchema>? ToolCalls { get; set; }`
+- Add property: `public string? DoneReason { get; set; }`
+- Allows chunks to carry tool call data alongside text content
+
+2. **Add stream accumulators in ProcessOllamaStreamAsync() (before line 570):**
+```
+   var accumulatedContent = new StringBuilder();
+   var toolCalls = new List<ToolCallSchema>();
+   var finalDoneReason = string.Empty;
+```
+
+3. **Replace lines 596-612 response parsing logic:**
+```
+   if (ollamaResponse?.Message != null)
+   {
+       // Accumulate text content if present
+       if (!string.IsNullOrEmpty(ollamaResponse.Message.Content))
+       {
+           accumulatedContent.Append(ollamaResponse.Message.Content);
+       }
+
+       // Capture tool calls if present
+       if (ollamaResponse.Message.ToolCalls != null && ollamaResponse.Message.ToolCalls.Count > 0)
+       {
+           toolCalls.AddRange(ollamaResponse.Message.ToolCalls);
+       }
+
+       // Yield text content incrementally for UI streaming
+       if (!string.IsNullOrEmpty(ollamaResponse.Message.Content))
+       {
+           var chunk = new CompletionChunk
+           {
+               Type = ChunkType.Text,
+               Content = ollamaResponse.Message.Content,
+               Role = ChatMessageRole.Assistant,
+               IsDone = false,
+               Timestamp = DateTime.UtcNow
+           };
+           if (typeof(TChunk) == typeof(CompletionChunk))
+           {
+               yield return (TChunk)(object)chunk;
+           }
+       }
+
+       // Capture final done_reason
+       if (!string.IsNullOrEmpty(ollamaResponse.DoneReason))
+       {
+           finalDoneReason = ollamaResponse.DoneReason;
+       }
+   }
+```
+
+4. **Replace break logic (line 615-618) to handle tool calls:**
+```
+   if (ollamaResponse?.Done ?? false)
+   {
+       // Construct final chunk with all accumulated data
+       var finalChunk = new CompletionChunk
+       {
+           Type = toolCalls.Count > 0 ? ChunkType.ToolCall : ChunkType.Text,
+           Content = accumulatedContent.ToString(),
+           Role = ChatMessageRole.Assistant,
+           IsDone = true,
+           DoneReason = finalDoneReason,
+           ToolCalls = toolCalls.Count > 0 ? toolCalls : null,
+           Timestamp = DateTime.UtcNow
+       };
+
+       if (typeof(TChunk) == typeof(CompletionChunk))
+       {
+           yield return (TChunk)(object)finalChunk;
+       }
+
+       _ = LoggerService.Current.WriteDebugAsync(
+           $"[gap55_3-completion] Done with reason={finalDoneReason}, toolCalls={toolCalls.Count}");
+
+       break;
+   }
+```
+
+5. **Add logging:**
+- Log `[gap55_3-tool-call-detected] Received {toolCalls.Count} tool calls from Ollama`
+- Log each: `[gap55_3-tool-details] Tool={toolCall.Function.Name}, Args={toolCall.Function.Arguments.Substring(0,100)}...`
+- Log completion: `[gap55_3-completion] Done with reason={finalDoneReason}, toolCalls={toolCalls.Count}`
+
+**Testing:**
+- Unit test: Stream with text only (backwards compat)
+- Unit test: Stream with tool_calls only
+- Unit test: Stream with text and tool_calls (both accumulated)
+- Unit test: Tool calls across 3+ NDJSON chunks (all accumulated)
+- Unit test: done_reason captured correctly
+- Unit test: Final chunk has IsDone=true, complete tool_calls list
+
+**Acceptance Criteria:**
+- ✓ Text-only responses streamed unchanged
+- ✓ Tool calls accumulated and yielded in final chunk
+- ✓ Hybrid responses: both content and tool_calls available
+- ✓ No data loss across multi-chunk accumulation
+- ✓ Logging tags [gap55_3-*] present
+- ✓ No regressions in existing completion chunk handling
+- ✓ All 1121 existing tests still pass
+
+---
+
+#### gap55_4: Wire Tool Call Routing and Execution Flow
+
+**Status:** ⏳ Pending | Type: Integration & Control Flow  
+
+**Objective:**
+Integrate Ollama tool call responses into the ToolService execution pipeline. When ProcessOllamaStreamAsync() yields CompletionChunk with tool_calls, the chat flow must route to ToolService.InvokeAsync(), capture results, add them to context, and optionally re-invoke Ollama for multi-turn loops.
+
+**Implementation Details:**
+
+1. **Modify ChatPageViewModel message reception (ExecuteSendMessage flow):**
+   After receiving stream chunks, enhance the message handling:
+```csharp
+   var assistantContent = new StringBuilder();
+   var toolCallsInResponse = new List<ToolCallSchema>();
+
+   await foreach (var chunk in _messengerService.StreamLlmAsync<CompletionChunk>(
+       _currentModel, streamOptions, ct))
+   {
+       if (chunk.IsDone && chunk.ToolCalls?.Count > 0)
+       {
+           // Tool call detected - don't add to chat yet, execute tools first
+           toolCallsInResponse = chunk.ToolCalls;
+           assistantContent.Append(chunk.Content ?? "");
+
+           // Execute tool calls
+           var toolResults = await ExecuteToolCallsFromOllamaAsync(
+               toolCallsInResponse, ct);
+
+           // Add assistant message with tool call info
+           var assistantMsg = new ChatMessage
+           {
+               Id = Guid.NewGuid().ToString(),
+               Role = ChatMessageRole.Assistant,
+               Content = assistantContent.ToString(),
+               ToolCalls = toolCallsInResponse
+           };
+           _sessionService.AddMessageToCurrentSession(assistantMsg);
+
+           // Add tool result messages
+           foreach (var result in toolResults)
+           {
+               var resultMsg = new ChatMessage
+               {
+                   Id = Guid.NewGuid().ToString(),
+                   Role = ChatMessageRole.Tool,
+                   Content = result.Output,
+                   ToolCallId = result.ToolCallId
+               };
+               _sessionService.AddMessageToCurrentSession(resultMsg);
+           }
+
+           // Continue conversation with updated context
+           await ContinueConversationWithOllamaAsync(ct);
+       }
+       else if (chunk.IsDone)
+       {
+           // Regular text completion
+           assistantContent.Append(chunk.Content ?? "");
+           var assistantMsg = new ChatMessage
+           {
+               Id = Guid.NewGuid().ToString(),
+               Role = ChatMessageRole.Assistant,
+               Content = assistantContent.ToString()
+           };
+           _sessionService.AddMessageToCurrentSession(assistantMsg);
+           break;
+       }
+       else
+       {
+           // Streaming text chunk
+           assistantContent.Append(chunk.Content ?? "");
+           // Update UI in real-time
+       }
+   }
+```
+
+2. **Implement tool execution routine:**
+```csharp
+   private async Task<List<ToolResult>> ExecuteToolCallsFromOllamaAsync(
+       List<ToolCallSchema> toolCalls,
+       CancellationToken ct)
+   {
+       var toolResults = new List<ToolResult>();
+       var maxIterations = 5;
+       var iteration = 0;
+
+       foreach (var toolCall in toolCalls)
+       {
+           if (++iteration > maxIterations)
+           {
+               _ = _logger?.WriteWarningAsync(
+                   $"[gap55_4-limit] Max tool calls ({maxIterations}) reached in single invocation");
+               break;
+           }
+
+           try
+           {
+               _ = _logger?.WriteDebugAsync(
+                   $"[gap55_4-tool-execution] Executing tool={toolCall.Function.Name}, id={toolCall.Id}");
+
+               // Parse tool arguments (JSON string to dict)
+               var args = new Dictionary<string, object>();
+               if (!string.IsNullOrEmpty(toolCall.Function.Arguments))
+               {
+                   args = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                       toolCall.Function.Arguments) ?? new Dictionary<string, object>();
+               }
+
+               // Invoke tool with timeout
+               using (var timeoutCts = new CancellationTokenSource(
+                   TimeSpan.FromSeconds(30)))
+               using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                   ct, timeoutCts.Token))
+               {
+                   var result = await _toolService.InvokeAsync(
+                       toolCall.Function.Name,
+                       args,
+                       linkedCts.Token);
+
+                   result.ToolCallId = toolCall.Id;
+                   toolResults.Add(result);
+
+                   _ = _logger?.WriteDebugAsync(
+                       $"[gap55_4-tool-success] Tool {toolCall.Function.Name} completed: " +
+                       $"{result.Output.Substring(0, Math.Min(100, result.Output.Length))}...");
+               }
+           }
+           catch (OperationCanceledException)
+           {
+               _ = _logger?.WriteWarningAsync(
+                   $"[gap55_4-tool-timeout] Tool {toolCall.Function.Name} timed out (30s)");
+               toolResults.Add(new ToolResult
+               {
+                   ToolName = toolCall.Function.Name,
+                   ToolCallId = toolCall.Id,
+                   Output = "Error: Tool execution timed out (30 seconds)"
+               });
+           }
+           catch (Exception ex)
+           {
+               _ = _logger?.WriteErrorAsync(
+                   $"[gap55_4-tool-error] Tool {toolCall.Function.Name} failed: {ex.Message}");
+               toolResults.Add(new ToolResult
+               {
+                   ToolName = toolCall.Function.Name,
+                   ToolCallId = toolCall.Id,
+                   Output = $"Error: {ex.Message}"
+               });
+           }
+       }
+
+       return toolResults;
+   }
+```
+
+3. **Implement continuation with updated context:**
+```csharp
+   private async Task ContinueConversationWithOllamaAsync(CancellationToken ct)
+   {
+       try
+       {
+           _ = _logger?.WriteDebugAsync(
+               $"[gap55_4-continuation] Re-invoking Ollama with tool results in context");
+
+           // Get updated session with all messages including tool results
+           var currentSession = _sessionService.GetCurrentSession();
+           if (currentSession?.Turns.Count == 0)
+               return;
+
+           // Reconstruct message list with all context
+           var allMessages = new List<ChatMessage>();
+           foreach (var turn in currentSession.Turns)
+           {
+               if (turn.UserMessage != null)
+                   allMessages.Add(turn.UserMessage);
+               if (turn.AssistantMessage != null)
+                   allMessages.Add(turn.AssistantMessage);
+               if (turn.ToolResults != null)
+                   allMessages.AddRange(turn.ToolResults);
+           }
+
+           // Filter tools based on mode
+           var availableTools = GetAvailableToolsForCurrentMode();
+
+           // Reconstruct stream options
+           var continuationOptions = new StreamOptions
+           {
+               Messages = allMessages,
+               Temperature = _currentTemperature,
+               MaxTokens = _currentMaxTokens,
+               TopP = _currentTopP
+           };
+
+           // Re-invoke Ollama with full context and tool results already present
+           var continuation = new StringBuilder();
+           await foreach (var chunk in _messengerService.StreamLlmAsync<CompletionChunk>(
+               _currentModel, continuationOptions, ct))
+           {
+               if (chunk.IsDone && chunk.ToolCalls?.Count > 0)
+               {
+                   // Another round of tool calls - recurse
+                   var moreResults = await ExecuteToolCallsFromOllamaAsync(
+                       chunk.ToolCalls, ct);
+
+                   // Add results and recurse
+                   foreach (var result in moreResults)
+                   {
+                       var resultMsg = new ChatMessage
+                       {
+                           Id = Guid.NewGuid().ToString(),
+                           Role = ChatMessageRole.Tool,
+                           Content = result.Output,
+                           ToolCallId = result.ToolCallId
+                       };
+                       _sessionService.AddMessageToCurrentSession(resultMsg);
+                   }
+
+                   // Continue again
+                   await ContinueConversationWithOllamaAsync(ct);
+               }
+               else if (chunk.IsDone)
+               {
+                   // Final response
+                   continuation.Append(chunk.Content ?? "");
+                   var finalMsg = new ChatMessage
+                   {
+                       Id = Guid.NewGuid().ToString(),
+                       Role = ChatMessageRole.Assistant,
+                       Content = continuation.ToString()
+                   };
+                   _sessionService.AddMessageToCurrentSession(finalMsg);
+                   break;
+               }
+               else
+               {
+                   continuation.Append(chunk.Content ?? "");
+                   // Update UI streaming
+               }
+           }
+       }
+       catch (Exception ex)
+       {
+           _ = _logger?.WriteErrorAsync(
+               $"[gap55_4-continuation-error] Failed to continue conversation: {ex.Message}");
+       }
+   }
+```
+
+4. **Tool filtering by mode:**
+```csharp
+   private List<ToolDefinition> GetAvailableToolsForCurrentMode()
+   {
+       var allTools = _toolService.GetAvailableTools().ToList();
+
+       return _currentMode switch
+       {
+           ChatMode.Ask =>
+               allTools.Where(t => !IsWriteTool(t.Name) && IsReadTool(t.Name)).ToList(),
+           ChatMode.Code =>
+               allTools.Where(t => !IsWriteTool(t.Name)).ToList(),
+           ChatMode.Agent =>
+               allTools,  // All tools allowed
+           _ => new List<ToolDefinition>()
+       };
+   }
+
+   private bool IsWriteTool(string name) =>
+       name is "write_files" or "delete_file" or "run_command";
+
+   private bool IsReadTool(string name) =>
+       name is "read_file" or "list_files" or "search_code";
+```
+
+5. **Add session model extensions:**
+- Extend ChatMessage to store `ToolCallId` for linking results to calls
+- Extend Session.Turn to include `ToolResults` collection
+- Ensure tool messages (role=Tool) are persisted and recalled
+
+6. **Add UI indicators:**
+- Tool execution badge: "🔧 Executing read_file..."
+- Tool result message block with distinct styling
+- Cancel button for long-running tool calls
+
+**Testing:**
+- Unit test: Tool call detection in CompletionChunk
+- Unit test: Tool argument deserialization and validation
+- Unit test: ToolService.InvokeAsync() routing
+- Unit test: Tool result conversion to ChatMessage
+- Unit test: Mode-based tool filtering (Ask excludes write tools)
+- Integration test: End-to-end Ollama → Tool → Result → Ollama loop
+- Integration test: Multi-turn with 2+ sequential tool calls
+- Integration test: Tool execution timeout (30s) and error recovery
+- Integration test: Max iteration limit (5 per invocation)
+
+**Acceptance Criteria:**
+- ✓ Tool calls from Ollama routed to ToolService.InvokeAsync()
+- ✓ Tool results added to session context as Tool role messages
+- ✓ Continuation conversation includes all previous tool results
+- ✓ Mode-based tool filtering enforced before posting to Ollama
+- ✓ Multi-turn tool loops working (tool call → execution → result → next call)
+- ✓ Timeout protection (30s per tool, skip on timeout)
+- ✓ Error handling: failed tool doesn't break loop
+- ✓ Logging tags [gap55_4-*] present throughout
+- ✓ All 1121 existing tests still pass
+- ✓ No infinite loops (max 5 iterations safeguard)
+
+---
+
+### gap56: vLLM Support - OpenAI-Compatible Intranet Endpoint
+✅ Implementation Complete
 
 **Problem**: 
 Users want to use local/intranet vLLM instances instead of cloud-hosted OpenAI, but vLLM requires configuration as an OpenAI-compatible provider variant with custom BaseUrl pointing to intranet IP.
