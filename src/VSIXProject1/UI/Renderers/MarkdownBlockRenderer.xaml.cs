@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -103,9 +104,21 @@ namespace ContinueVS.UI.Renderers
 
                 case CodeBlock indentedCode:
                     // Indented (non-fenced) code block
+                    var indentedLinesList = new List<string>();
+                    if (indentedCode.Lines.Lines != null)
+                    {
+                        foreach (var line in indentedCode.Lines.Lines)
+                        {
+                            if (line.Slice.Text != null)
+                            {
+                                indentedLinesList.Add(line.Slice.ToString());
+                            }
+                        }
+                    }
+                    var indentedText = string.Join(Environment.NewLine, indentedLinesList);
                     RootPanel.Children.Add(new TextBox
                     {
-                        Text = indentedCode.Lines.ToString(),
+                        Text = indentedText,
                         FontFamily = new FontFamily("Consolas,Courier New,monospace"),
                         FontSize = 12,
                         TextWrapping = TextWrapping.NoWrap,
@@ -236,7 +249,20 @@ namespace ContinueVS.UI.Renderers
         private void RenderCodeBlock(FencedCodeBlock code)
         {
             var language = code.Info ?? string.Empty;
-            var lines = code.Lines.ToString();
+            // Extract code content properly from Markdig FencedCodeBlock
+            // Use the Lines collection to rebuild the code text
+            var linesList = new List<string>();
+            if (code.Lines.Lines != null)
+            {
+                foreach (var line in code.Lines.Lines)
+                {
+                    if (line.Slice.Text != null)
+                    {
+                        linesList.Add(line.Slice.ToString());
+                    }
+                }
+            }
+            var lines = string.Join(Environment.NewLine, linesList);
             var blockId = Guid.NewGuid().ToString();
 
             var outerBorder = new Border

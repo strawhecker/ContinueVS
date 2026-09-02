@@ -23,8 +23,7 @@
                 BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
                 Background="Transparent"
                 Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding Path=DataContext.NavigateCommand,
-                    RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
+                Command="{Binding NavigateCommand}"
                 CommandParameter="chat"/>
 
         <!-- Config Button -->
@@ -36,8 +35,7 @@
                 BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
                 Background="Transparent"
                 Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding Path=DataContext.NavigateCommand,
-                    RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
+                Command="{Binding NavigateCommand}"
                 CommandParameter="config"/>
 
         <!-- History Button -->
@@ -49,8 +47,7 @@
                 BorderBrush="{DynamicResource VsBrush.CommandBarBorder}"
                 Background="Transparent"
                 Foreground="{DynamicResource VsBrush.WindowText}"
-                Command="{Binding Path=DataContext.NavigateCommand,
-                    RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}}"
+                Command="{Binding NavigateCommand}"
                 CommandParameter="history"/>
 
         <!-- Spacer -->

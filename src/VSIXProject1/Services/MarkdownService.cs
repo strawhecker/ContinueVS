@@ -129,9 +129,17 @@ namespace ContinueVS.Services
         {
             var language = ExtractLanguageFromFence(codeBlock.Info ?? string.Empty);
 
-            // Markdig FencedCodeBlock stores content in trailing and the inner text
-            // Simply use the block's ToString() representation
-            var content = codeBlock.ToString() ?? string.Empty;
+            // Extract code content properly from Markdig FencedCodeBlock
+            // Use the Lines collection to rebuild the code text
+            var linesList = new List<string>();
+            foreach (var line in codeBlock.Lines.Lines)
+            {
+                if (line.Slice.Text != null)
+                {
+                    linesList.Add(line.Slice.ToString());
+                }
+            }
+            var content = string.Join(Environment.NewLine, linesList);
 
             return MarkdownNode.CodeBlock(content, language);
         }

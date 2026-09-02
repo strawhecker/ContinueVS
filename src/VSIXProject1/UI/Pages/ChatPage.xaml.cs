@@ -39,8 +39,19 @@ namespace ContinueVS.UI.Pages
         /// </summary>
         public DataTemplate? SystemMessageTemplate { get; set; }
 
+        /// <summary>
+        /// DataTemplate for LLM question messages with answer controls.
+        /// </summary>
+        public DataTemplate? QuestionMessageTemplate { get; set; }
+
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
+            // Check for LLMQuestionMessage first (derived from ChatMessage)
+            if (item is Core.Types.LLMQuestionMessage)
+            {
+                return QuestionMessageTemplate ?? SystemMessageTemplate ?? base.SelectTemplate(item, container);
+            }
+
             if (item is ChatMessage msg)
             {
                 return msg.Role switch
@@ -136,6 +147,9 @@ namespace ContinueVS.UI.Pages
                     var markdownService = sp.GetRequiredService<IMarkdownService>();
                     _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9c] ✓ IMarkdownService resolved");
 
+                    var llmQuestionService = sp.GetService<ILlmQuestionService>();
+                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9d] ✓ ILlmQuestionService resolved");
+
                     var workflow    = sp.GetService<IWorkflowService>();
                     _ = LoggerService.Current.WriteDebugAsync($"[sv-chatpage-10] IWorkflowService resolved={workflow != null} (optional)");
 
@@ -146,7 +160,7 @@ namespace ContinueVS.UI.Pages
                     _ = LoggerService.Current.WriteDebugAsync($"[sv-chatpage-12] IPlanOutputService resolved={planOutput != null} (optional)");
 
                     // BP:sv-chatpage-dc — breakpoint here confirms all services resolved and DataContext is being assigned
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, instructionExecutor, changeStackService, markdownService, null, workflow, ideService, null, planOutput);
+                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, instructionExecutor, changeStackService, markdownService, llmQuestionService, null, workflow, ideService, null, planOutput);
                     _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
                 }
                 else
@@ -182,6 +196,9 @@ namespace ContinueVS.UI.Pages
                 if (this.DataContext is ChatPageViewModel vm && vm.Messages is ObservableCollection<ChatMessage> messages)
                 {
                     messages.CollectionChanged += Messages_CollectionChanged;
+
+                    // Initialize the ViewModel asynchronously
+                    _ = vm.InitializeAsync();
                 }
             }
             catch (Exception ex)
@@ -329,6 +346,69 @@ namespace ContinueVS.UI.Pages
                         vm.SendMessageCommand.Execute(null);
                 }
             }
+        }
+
+        /// <summary>
+        /// Handles the Send button click on a question message.
+        /// Retrieves the answer from the TextBox and invokes the question's OnAnswerAsync callback.
+        /// </summary>
+        private void QuestionAnswerButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not ChatPageViewModel vm || sender is not Button btn)
+                return;
+
+            // Get the LLMQuestionMessage from the button's DataContext
+            if (btn.DataContext is not Core.Types.LLMQuestionMessage question)
+                return;
+
+            // Find the answer TextBox in the visual tree
+            var grid = btn.Parent as Panel;
+            var border = grid?.Parent as Border;
+            var stackPanel = border?.Child as StackPanel;
+
+            TextBox? answerTextBox = null;
+            if (stackPanel != null)
+            {
+                foreach (var child in stackPanel.Children)
+                {
+                    if (child is TextBox tb && tb.Name == "AnswerInput")
+                    {
+                        answerTextBox = tb;
+                        break;
+                    }
+                }
+            }
+
+            if (answerTextBox == null || string.IsNullOrWhiteSpace(answerTextBox.Text))
+            {
+                _ = LoggerService.Current.WriteDebugAsync("[gap54-question] No answer provided");
+                return;
+            }
+
+            var answer = answerTextBox.Text;
+            _ = LoggerService.Current.WriteDebugAsync($"[gap54-question] Answer provided: {answer}");
+
+            // Fire the OnAnswerAsync callback
+            _ = question.OnAnswerAsync?.Invoke(answer);
+        }
+
+        /// <summary>
+        /// Handles the Cancel button click on a question message.
+        /// Invokes the question's OnCancelAsync callback to dismiss the question.
+        /// </summary>
+        private void QuestionCancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn)
+                return;
+
+            // Get the LLMQuestionMessage from the button's DataContext
+            if (btn.DataContext is not Core.Types.LLMQuestionMessage question)
+                return;
+
+            _ = LoggerService.Current.WriteDebugAsync("[gap54-question] Question cancelled");
+
+            // Fire the OnCancelAsync callback
+            _ = question.OnCancelAsync?.Invoke();
         }
     }
 }

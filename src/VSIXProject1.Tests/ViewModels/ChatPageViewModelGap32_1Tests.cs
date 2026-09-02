@@ -113,9 +113,10 @@ namespace ContinueVS.Tests.ViewModels
                 CreateDebugSessionServiceMock().Object,
                 new Mock<IChangeStackService>().Object,
                 new Mock<IMarkdownService>().Object,
-                null,
-                null,
-                ideService);
+                null,  // llmQuestionService
+                null,  // modeService
+                null,  // workflowService
+                ideService);  // ideService
         }
 
         [Fact]

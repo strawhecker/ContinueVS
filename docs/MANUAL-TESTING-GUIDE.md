@@ -1169,7 +1169,203 @@ See [RELEASE-READINESS-CHECKLIST.md](./RELEASE-READINESS-CHECKLIST.md) for forma
 
 ## Quick Reference Appendix
 
+### Model Provider Configuration Guide
+
+#### Ollama (Local/Intranet)
+
+**Setup**: Download and run Ollama locally or on intranet host.
+
+```bash
+# Terminal 1: Start Ollama server
+ollama serve
+
+# Terminal 2: Pull a model
+ollama pull llama2
+```
+
+**ContinueVS Configuration**:
+
+```json
+{
+  "models": [
+    {
+      "name": "Ollama Local Instance",
+      "provider": "ollama",
+      "baseUrl": "http://localhost:11434",
+      "contextWindow": 4096,
+      "supportsFunctionCalling": false
+    }
+  ]
+}
+```
+
+**Validation**:
+```bash
+# Check available models
+curl http://localhost:11434/api/tags | jq '.models[].name'
+
+# Test streaming
+curl -X POST http://localhost:11434/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "llama2",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "stream": true
+  }' | head -3
+```
+
+---
+
+#### vLLM (OpenAI-Compatible, Intranet) — GAP56
+
+**Setup**: Deploy vLLM on intranet server or local machine.
+
+```bash
+# Start vLLM with OpenAI API compatibility
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-2-7b-chat \
+  --host 192.168.1.100 \
+  --port 8000
+```
+
+**ContinueVS Configuration**:
+
+```json
+{
+  "models": [
+    {
+      "name": "vLLM Local Instance",
+      "provider": "openai",
+      "baseUrl": "http://192.168.1.100:8000/v1",
+      "apiKey": "not-required",
+      "contextWindow": 4096,
+      "supportsFunctionCalling": true
+    }
+  ]
+}
+```
+
+**Key Differences from Cloud OpenAI**:
+- `baseUrl` points to intranet vLLM instance endpoint (includes `/v1` path)
+- `apiKey` can be "not-required" (vLLM doesn't validate by default) or any dummy value
+- `supportsFunctionCalling` is true (vLLM supports OpenAI's tools format natively)
+- No cloud service outage risk; runs entirely on-premise
+
+**Validation**:
+```bash
+# Check vLLM model list
+curl http://192.168.1.100:8000/v1/models | jq '.data[].id'
+
+# Test streaming with SSE format
+curl -X POST http://192.168.1.100:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "meta-llama/Llama-2-7b-chat",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "stream": true
+  }' | head -5
+```
+
+**Expected SSE Response**:
+```
+data: {"id":"chatcmpl-xxx","object":"text_completion.chunk","created":1234567890,"model":"...","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-xxx","object":"text_completion.chunk","created":1234567890,"model":"...","choices":[{"index":0,"delta":{"content":" there"},"finish_reason":null}]}
+
+data: [DONE]
+```
+
+---
+
+### vLLM vs. Ollama Comparison (gap55 vs. gap56)
+
+| Aspect | Ollama (gap55) | vLLM (gap56) |
+|--------|---|---|
+| OpenAI API Compatible | ❌ No (requires workaround) | ✅ Yes (native support) |
+| System Prompts | ⚠️ Requires manual construction | ✅ Native `system` role |
+| Function Calling / Tools | ❌ Not supported (gap55 workaround) | ✅ Native `tools` field |
+| Streaming Format | NDJSON (line-delimited JSON) | SSE (Server-Sent Events) |
+| Endpoint Path | `/api/chat` | `/v1/chat/completions` |
+| Provider String | `"ollama"` | `"openai"` |
+| Recommended for | Simple local models | Production-grade intranet LLM |
+
+---
+
 ### JSON-RPC Error Codes
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| -32600 | Invalid Request | Check JSON syntax, method name |
+| -32601 | Method not found | Verify handler name (bridge:xxx) |
+| -32602 | Invalid params | Check parameter types and ranges |
+| -32603 | Internal error | Check bridge logs, restart if needed |
+| -32700 | Parse error | Check JSON encoding |
+
+### Common Failures & Remediation
+
+| Failure | Cause | Fix |
+|---------|-------|-----|
+| Connection refused | Bridge not running | `npm run bridge:start` |
+| Timeout (>5s) | Slow handler or stuck process | Restart bridge, check resource usage |
+| Null response | Missing file or context | Verify file path, ensure context loaded |
+| State inconsistency | Race condition | Add 100ms delay between multi-handler requests |
+| vLLM 404 on `/v1/chat/completions` | Wrong base URL or model not loaded | Verify baseUrl ends with `/v1`, check vLLM model list |
+| "Provider 'openai' is not supported" | MessengerService not updated | Update to v2.1+ with gap56 support |
+
+### Terminal Testing One-Liners
+
+**Test bridge health**:
+```bash
+curl -X POST http://localhost:5173/rpc -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"bridge:health","params":{},"id":1}' | jq '.result'
+```
+
+**Test code completion**:
+```bash
+curl -X POST http://localhost:5173/rpc -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"bridge:codeCompletion","params":{"prefix":"Va"},"id":1}' | jq '.result.completions'
+```
+
+**Test refactor**:
+```bash
+curl -X POST http://localhost:5173/rpc -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"bridge:refactor","params":{"filePath":"app.cs","refactoringType":"rename"},"id":1}' | jq '.result'
+```
+
+### Expected Response Shapes
+
+**Success (any handler)**:
+```json
+{ "jsonrpc": "2.0", "result": { "data": "..." }, "id": 1 }
+```
+
+**Error**:
+```json
+{ "jsonrpc": "2.0", "error": { "code": -32602, "message": "..." }, "id": 1 }
+```
+
+**Subscription event**:
+```json
+{ "jsonrpc": "2.0", "method": "bridge:onEventName", "params": { "data": "..." } }
+```
+
+---
+
+## Next Steps
+
+1. **Execute all test scenarios** from handler matrix (Sections 1–5).
+2. **Validate performance gates** against Step 112 baselines.
+3. **Test all 4 integration workflows** (Section 3).
+4. **Fill in RELEASE-READINESS-CHECKLIST.md** with results.
+5. **Gate approval** by QA Lead + Release Manager (Step 115).
+
+**Version**: 1.0  
+**Last Updated**: 2024-01-15  
+**Status**: Ready for QA execution
+
+```
+
+
 
 | Code | Meaning | Action |
 |------|---------|--------|

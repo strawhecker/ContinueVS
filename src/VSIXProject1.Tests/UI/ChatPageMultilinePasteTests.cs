@@ -76,7 +76,8 @@ namespace ContinueVS.Tests.UI
                 CreateUIStateServiceMock().Object,
                 new Mock<IInstructionExecutorService>().Object,
                 new Mock<IChangeStackService>().Object,
-                new Mock<IMarkdownService>().Object
+                new Mock<IMarkdownService>().Object,
+                new Mock<ILlmQuestionService>().Object
             );
         }
 

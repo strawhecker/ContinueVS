@@ -87,31 +87,38 @@ namespace ContinueVS.Tests.ViewModels
             return new Mock<IMarkdownService>();
         }
 
+        private static Mock<ILlmQuestionService> CreateLlmQuestionServiceMock()
+        {
+            return new Mock<ILlmQuestionService>();
+        }
+
         private ChatPageViewModel CreateViewModel(
             ILlmService? llmService = null,
             IContextService? contextService = null,
             IToolService? toolService = null,
             ISessionService? sessionService = null,
-            IConfigService? configService = null,
-            INotificationService? notificationService = null,
-            ISystemPromptService? systemPromptService = null,
-            IUIStateService? uiStateService = null,
-            IInstructionExecutorService? instructionExecutorService = null,
-            IChangeStackService? changeStackService = null,
-            IMarkdownService? markdownService = null)
-        {
-            return new ChatPageViewModel(
-                llmService ?? CreateLlmServiceMock().Object,
-                contextService ?? CreateContextServiceMock().Object,
-                toolService ?? CreateToolServiceMock().Object,
-                sessionService ?? CreateSessionServiceMock().Object,
-                notificationService ?? CreateNotificationServiceMock().Object,
-                configService ?? CreateConfigServiceMock().Object,
-                systemPromptService ?? CreateSystemPromptServiceMock().Object,
-                uiStateService ?? CreateUIStateServiceMock().Object,
-                instructionExecutorService ?? CreateInstructionExecutorServiceMock().Object,
-                changeStackService ?? CreateChangeStackServiceMock().Object,
-                markdownService ?? CreateMarkdownServiceMock().Object);
+                IConfigService? configService = null,
+                INotificationService? notificationService = null,
+                ISystemPromptService? systemPromptService = null,
+                IUIStateService? uiStateService = null,
+                IInstructionExecutorService? instructionExecutorService = null,
+                IChangeStackService? changeStackService = null,
+                IMarkdownService? markdownService = null,
+                ILlmQuestionService? llmQuestionService = null)
+            {
+                return new ChatPageViewModel(
+                    llmService ?? CreateLlmServiceMock().Object,
+                    contextService ?? CreateContextServiceMock().Object,
+                    toolService ?? CreateToolServiceMock().Object,
+                    sessionService ?? CreateSessionServiceMock().Object,
+                    notificationService ?? CreateNotificationServiceMock().Object,
+                    configService ?? CreateConfigServiceMock().Object,
+                    systemPromptService ?? CreateSystemPromptServiceMock().Object,
+                    uiStateService ?? CreateUIStateServiceMock().Object,
+                    instructionExecutorService ?? CreateInstructionExecutorServiceMock().Object,
+                    changeStackService ?? CreateChangeStackServiceMock().Object,
+                    markdownService ?? CreateMarkdownServiceMock().Object,
+                    llmQuestionService ?? CreateLlmQuestionServiceMock().Object);
         }
 
         [Fact]

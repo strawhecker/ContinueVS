@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.Shell;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Interfaces.Parsers;
 using ContinueVS.Services.Implementations;
@@ -234,7 +236,31 @@ namespace ContinueVS.Services
             {
                 var notificationService = sp.GetRequiredService<INotificationService>();
                 var logger = sp.GetRequiredService<IBridgeLogger>();
-                return new InteractivePromptService(notificationService, logger);
+
+                // Wire inline question handler that adds questions to chat and waits for answers
+                Func<LLMQuestionMessage, Task<string>> handleInlineQuestion = async (question) =>
+                {
+                    // Get ChatPageViewModel from ViewModelLocator (lazily initialized)
+                    var vmProvider = ViewModelLocator.ServiceProvider;
+                    if (vmProvider == null)
+                    {
+                        // Fallback: ChatPageViewModel not yet initialized, use default answer
+                        return AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, ContinueVS.Core.Types.AutoAnswerResponse.Default);
+                    }
+
+                    // Try to get ChatPageViewModel from the service provider
+                    var chatPageVm = vmProvider.GetService<ChatPageViewModel>();
+                    if (chatPageVm == null)
+                    {
+                        // Fallback: ChatPageViewModel not available, use default answer
+                        return AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, ContinueVS.Core.Types.AutoAnswerResponse.Default);
+                    }
+
+                    // Add the question to the chat and wait for the user's answer
+                    return await chatPageVm.AddInlineQuestionAsync(question);
+                };
+
+                return new InteractivePromptService(notificationService, logger, handleInlineQuestion);
             });
 
             // LLM question service for detecting and auto-answering LLM questions (gap29_8_9)

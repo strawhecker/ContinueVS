@@ -207,12 +207,27 @@ namespace ContinueVS.Services.Implementations
         /// Shows an error notification to the user (gap23_4_3).
         /// </summary>
         /// <param name="message">The error message to display.</param>
+        public async Task ShowErrorAsync(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                throw new ArgumentNullException(nameof(message), "Error message cannot be null or empty.");
+
+            await ShowNotificationAsync("Error", message, NotificationType.Error);
+        }
+
+        /// <summary>
+        /// Shows an error notification synchronously (for backward compatibility).
+        /// Uses fire-and-forget pattern with logging.
+        /// </summary>
+        /// <param name="message">The error message to display.</param>
         public void ShowError(string message)
         {
             if (string.IsNullOrEmpty(message))
                 throw new ArgumentNullException(nameof(message), "Error message cannot be null or empty.");
 
-            _ = ShowNotificationAsync("Error", message, NotificationType.Error);
+            // Fire-and-forget with explicit task tracking
+            _ = LoggerService.Current.WriteDebugAsync("[WpfNotificationService] ShowError called; async ShowErrorAsync dispatched");
+            _ = ShowErrorAsync(message);
         }
     }
 }

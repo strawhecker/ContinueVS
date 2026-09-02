@@ -138,39 +138,287 @@ namespace ContinueVS.Services.Implementations
                 throw new LlmException($"Model '{model.Name}' has no provider configured");
             }
 
-            // Currently only support Ollama
-            if (model.Provider != "ollama")
+            // Support both Ollama and OpenAI (including vLLM with custom baseUrl)
+            if (model.Provider == "ollama")
+            {
+                _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Starting Ollama stream...");
+
+                // Query Ollama for available models (for diagnostics)
+                try
+                {
+                    var tagsEndpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/api/tags";
+                    _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Querying Ollama models from {tagsEndpoint}...");
+                    var tagsResponse = await _httpClient.GetAsync(tagsEndpoint, ct);
+                    if (tagsResponse.IsSuccessStatusCode)
+                    {
+                        var tagsJson = await tagsResponse.Content.ReadAsStringAsync();
+                        _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Available Ollama models: {tagsJson}");
+                    }
+                    else
+                    {
+                        _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Failed to query models: HTTP {(int)tagsResponse.StatusCode}");
+                    }
+                }
+                catch (Exception diagEx)
+                {
+                    _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Error querying models: {diagEx.Message}");
+                }
+
+                await foreach (var chunk in ProcessOllamaStreamAsync<TChunk>(model, options, ct))
+                {
+                    yield return chunk;
+                }
+            }
+            else if (model.Provider == "openai")
+            {
+                _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Starting OpenAI-compatible stream (vLLM/OpenAI)...");
+                await foreach (var chunk in ProcessOpenAiStreamAsync<TChunk>(model, options, ct))
+                {
+                    yield return chunk;
+                }
+            }
+            else
             {
                 _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] ERROR: Provider '{model.Provider}' is not yet supported");
-                throw new LlmException($"Provider '{model.Provider}' is not yet supported");
+                throw new LlmException($"Provider '{model.Provider}' is not yet supported. Supported providers: ollama, openai");
+            }
+        }
+
+        /// <summary>
+        /// Helper method to process OpenAI-compatible stream (vLLM, OpenAI, etc.).
+        /// Sends request and streams back CompletionChunk objects from SSE responses.
+        /// </summary>
+        private async IAsyncEnumerable<TChunk> ProcessOpenAiStreamAsync<TChunk>(
+            ModelInfo model,
+            StreamOptions options,
+            [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            // Convert ChatMessage array to message list with role/content
+            var messages = new List<Dictionary<string, object>>();
+            if (options.Messages != null)
+            {
+                foreach (var msg in options.Messages)
+                {
+                    var role = msg.Role switch
+                    {
+                        ChatMessageRole.User => "user",
+                        ChatMessageRole.Assistant => "assistant",
+                        ChatMessageRole.System => "system",
+                        _ => "user"
+                    };
+
+                    messages.Add(new Dictionary<string, object>
+                    {
+                        { "role", role },
+                        { "content", msg.Content ?? string.Empty }
+                    });
+                }
             }
 
-             _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Starting Ollama stream...");
+            // If no messages provided, add a default placeholder
+            if (messages.Count == 0)
+            {
+                messages.Add(new Dictionary<string, object>
+                {
+                    { "role", "user" },
+                    { "content", "Hello" }
+                });
+            }
 
-            // Query Ollama for available models (for diagnostics)
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Message count: {messages.Count}");
+
+            // Build OpenAI request as JSON object
+            var modelId = model.Name ?? "unknown";
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Model name: {model.Name}, Using: {modelId}");
+
+            var requestObj = new Dictionary<string, object>
+            {
+                { "model", modelId },
+                { "stream", true },
+                { "messages", messages }
+            };
+
+            if (options.Temperature.HasValue)
+                requestObj["temperature"] = options.Temperature.Value;
+            if (options.MaxTokens.HasValue)
+                requestObj["max_tokens"] = options.MaxTokens.Value;
+            if (options.TopP.HasValue)
+                requestObj["top_p"] = options.TopP.Value;
+
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Building request - Model: {modelId}, Stream: true, Temperature: {options.Temperature}");
+
+            // Dump context before sending if debug flag is enabled
+            if (options.Messages != null)
+            {
+                var messageList = options.Messages.ToList();
+                await _contextDumpService.DumpContextBeforeSendAsync(messageList);
+            }
+
+            // POST to OpenAI chat completions endpoint
+            var endpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/v1/chat/completions";
+            var json = JsonConvert.SerializeObject(requestObj);
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Endpoint: {endpoint}");
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Request JSON: {json}");
+
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            if (_logger != null)
+                await _logger.WriteDebugAsync($"MessengerService: POST to {endpoint}");
+
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}...");
+            // ResponseHeadersRead prevents HttpClient from buffering the entire response body before returning.
+            var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
+
+            // Add API key header if provided (some vLLM instances don't require it)
+            if (!string.IsNullOrWhiteSpace(model.ApiKey) && model.ApiKey != "not-required")
+            {
+                request.Headers.Add("Authorization", $"Bearer {model.ApiKey}");
+            }
+
+            HttpResponseMessage response;
             try
             {
-                var tagsEndpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/api/tags";
-                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Querying Ollama models from {tagsEndpoint}...");
-                var tagsResponse = await _httpClient.GetAsync(tagsEndpoint, ct);
-                if (tagsResponse.IsSuccessStatusCode)
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Response status code: {response.StatusCode}");
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    var tagsJson = await tagsResponse.Content.ReadAsStringAsync();
-                    _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Available Ollama models: {tagsJson}");
+                    string responseBodyText = "[Unable to read response]";
+                    try
+                    {
+                        responseBodyText = await response.Content.ReadAsStringAsync();
+                    }
+                    catch (Exception readEx)
+                    {
+                        _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Failed to read error response body: {readEx.Message}");
+                    }
+
+                    _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
+                    throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {responseBodyText}");
                 }
-                else
-                {
-                    _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Failed to query models: HTTP {(int)tagsResponse.StatusCode}");
-                }
+
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Status code confirmed successful");
             }
-            catch (Exception diagEx)
+            catch (HttpRequestException ex)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[MessengerService.ProcessLlmStreamAsync] Error querying models: {diagEx.Message}");
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] HttpRequestException: {ex.Message}");
+                throw new LlmException($"HTTP request to OpenAI-compatible endpoint failed: {ex.Message}", ex);
+            }
+            catch (TaskCanceledException ex)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] TaskCanceledException: {ex.Message}");
+                throw new LlmException(
+                    $"OpenAI-compatible request timeout or was cancelled. " +
+                    $"Ensure endpoint is running at {model.BaseUrl}/v1/chat/completions and model '{model.Name}' is available. " +
+                    $"The request may have taken too long to complete.", ex);
+            }
+            catch (Exception ex)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
+                throw new LlmException($"Unexpected error during OpenAI-compatible streaming: {ex.Message}", ex);
             }
 
-            await foreach (var chunk in ProcessOllamaStreamAsync<TChunk>(model, options, ct))
+            _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Starting to read response stream...");
+
+            // Read response stream line-by-line (SSE format with "data: " prefix)
+            using (var stream = await response.Content.ReadAsStreamAsync())
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
             {
-                yield return chunk;
+                string? line;
+                int lineCount = 0;
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    // Skip empty lines
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    lineCount++;
+                    _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Received line {lineCount}: {line}");
+
+                    // Parse SSE format: "data: {json}"
+                    if (!line.StartsWith("data: "))
+                    {
+                        _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Skipping non-data line: {line}");
+                        continue;
+                    }
+
+                    var jsonData = line.Substring("data: ".Length);
+
+                    // Check for stream termination marker
+                    if (jsonData == "[DONE]")
+                    {
+                        _ = LoggerService.Current.WriteDebugAsync($"[ProcessOpenAiStreamAsync] Stream terminated with [DONE] marker");
+                        break;
+                    }
+
+                    // Parse JSON response and extract chunk
+                    var chunk = ParseOpenAiChunk(jsonData);
+                    if (chunk != null && typeof(TChunk) == typeof(CompletionChunk))
+                    {
+                        yield return (TChunk)(object)chunk;
+                    }
+                }
+            }
+
+            response?.Dispose();
+        }
+
+        /// <summary>
+        /// Parse a single SSE line from OpenAI-compatible endpoint into a CompletionChunk.
+        /// Returns null if parse fails or no content extracted.
+        /// </summary>
+        private CompletionChunk? ParseOpenAiChunk(string jsonData)
+        {
+            JObject? jsonObj = null;
+            try
+            {
+                jsonObj = JsonConvert.DeserializeObject<JObject>(jsonData);
+            }
+            catch (JsonException jsonEx)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[ParseOpenAiChunk] Failed to parse JSON: {jsonEx.Message}");
+                return null;
+            }
+
+            if (jsonObj == null)
+                return null;
+
+            try
+            {
+                var choices = jsonObj["choices"] as JArray;
+                if (choices == null || choices.Count == 0)
+                    return null;
+
+                var choice = choices[0] as JObject;
+                if (choice == null)
+                    return null;
+
+                var delta = choice["delta"] as JObject;
+                if (delta == null)
+                    return null;
+
+                var content = delta["content"]?.Value<string>();
+                if (string.IsNullOrEmpty(content))
+                    return null;
+
+                var finishReason = choice["finish_reason"]?.Value<string>();
+                var chunk = new CompletionChunk
+                {
+                    Type = ChunkType.Text,
+                    Content = content,
+                    Role = ChatMessageRole.Assistant,
+                    IsDone = finishReason == "stop",
+                    Timestamp = DateTime.UtcNow
+                };
+
+                return chunk;
+            }
+            catch (Exception parseEx)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[ParseOpenAiChunk] Error extracting content: {parseEx.Message}");
+                return null;
             }
         }
 

@@ -85,10 +85,11 @@ namespace ContinueVS.Tests.ViewModels
                 new Mock<IInstructionExecutorService>().Object,
                 new Mock<IChangeStackService>().Object,
                 new Mock<IMarkdownService>().Object,
-                null,
-                null,
-                null,
-                registry ?? new ModeConfigRegistry(systemPromptService.Object));
+                null,  // llmQuestionService
+                null,  // modeService
+                null,  // workflowService
+                null,  // ideService
+                registry ?? new ModeConfigRegistry(systemPromptService.Object));  // modeConfigRegistry
         }
 
         // -- Mode-switching tests --------------------------------------------------------

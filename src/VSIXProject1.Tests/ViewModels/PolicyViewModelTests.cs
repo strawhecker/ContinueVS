@@ -72,7 +72,8 @@ namespace ContinueVS.Tests.ViewModels
                 new Mock<IInstructionExecutorService>().Object,
                 new Mock<IChangeStackService>().Object,
                 new Mock<IMarkdownService>().Object,
-                null,
+                null,  // llmQuestionService
+                null,  // modeService
                 workflowService
             );
         }

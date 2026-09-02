@@ -116,7 +116,8 @@ namespace ContinueVS.Tests.ViewModels
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
                 new Mock<IChangeStackService>().Object,
-                new Mock<IMarkdownService>().Object);
+                new Mock<IMarkdownService>().Object,
+                new Mock<ILlmQuestionService>().Object);
 
             // Add 3 messages to the collection
             var msg1 = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Message 1" };
@@ -256,7 +257,8 @@ namespace ContinueVS.Tests.ViewModels
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
                 new Mock<IChangeStackService>().Object,
-                new Mock<IMarkdownService>().Object);
+                new Mock<IMarkdownService>().Object,
+                new Mock<ILlmQuestionService>().Object);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);
@@ -298,7 +300,8 @@ namespace ContinueVS.Tests.ViewModels
                 uiStateService.Object,
                 new Mock<IInstructionExecutorService>().Object,
                 new Mock<IChangeStackService>().Object,
-                new Mock<IMarkdownService>().Object);
+                new Mock<IMarkdownService>().Object,
+                new Mock<ILlmQuestionService>().Object);
 
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Test" };
             viewModel.Messages.Add(msg);

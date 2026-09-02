@@ -45,7 +45,15 @@ namespace ContinueVS.Services.Interfaces
         Task<string?> ShowInputAsync(string title, string prompt, string defaultValue = "");
 
         /// <summary>
+        /// Shows an error notification to the user asynchronously (gap23_4_3).
+        /// </summary>
+        /// <param name="message">The error message to display.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task ShowErrorAsync(string message);
+
+        /// <summary>
         /// Shows an error notification to the user (gap23_4_3).
+        /// Synchronous wrapper for backward compatibility.
         /// </summary>
         /// <param name="message">The error message to display.</param>
         void ShowError(string message);

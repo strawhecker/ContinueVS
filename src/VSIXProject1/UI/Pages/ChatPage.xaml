@@ -53,6 +53,41 @@
                     </Border>
                 </DataTemplate>
             </local:ChatMessageTemplateSelector.SystemMessageTemplate>
+            <local:ChatMessageTemplateSelector.QuestionMessageTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="#6C5CE7" BorderThickness="2" CornerRadius="4" Margin="5" Padding="10" Background="#2D2D30">
+                        <StackPanel>
+                            <!-- Question Text -->
+                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#FFFFFF" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <!-- Answer Input -->
+                            <TextBox x:Name="AnswerInput" 
+                                     AcceptsReturn="False"
+                                     Text="{Binding Path=QuestionAnswer, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="#1E1E1E"
+                                     Foreground="#FFFFFF"
+                                     BorderBrush="#3E3E42"
+                                     BorderThickness="1"
+                                     Padding="8"
+                                     Margin="0,0,0,8"
+                                     Height="32"/>
+                            <!-- Buttons -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
+                                <Button Content="Send" 
+                                        Background="#6C5CE7"
+                                        Foreground="White"
+                                        Padding="12,6"
+                                        Margin="0,0,8,0"
+                                        Click="QuestionAnswerButton_Click"/>
+                                <Button Content="Cancel"
+                                        Background="#DC3545"
+                                        Foreground="White"
+                                        Padding="12,6"
+                                        Click="QuestionCancelButton_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </local:ChatMessageTemplateSelector.QuestionMessageTemplate>
             </local:ChatMessageTemplateSelector>
             <!-- Dark Mode ComboBox Style -->
             <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">

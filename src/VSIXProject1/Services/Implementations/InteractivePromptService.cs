@@ -8,20 +8,25 @@ namespace ContinueVS.Services.Implementations
     /// <summary>
     /// Implementation of IInteractivePromptService.
     /// Orchestrates user prompts for interactive debug mode decisions.
-    /// Delegates UI rendering to INotificationService.
+    /// For LLM questions, uses inline chat prompts; for other prompts uses modal dialogs.
     /// </summary>
     public class InteractivePromptService : IInteractivePromptService
     {
         private readonly INotificationService _notificationService;
         private readonly IBridgeLogger? _logger;
+        private readonly Func<LLMQuestionMessage, Task<string>>? _handleInlineQuestion;
 
-        public InteractivePromptService(INotificationService notificationService, IBridgeLogger? logger = null)
+        public InteractivePromptService(
+            INotificationService notificationService,
+            IBridgeLogger? logger = null,
+            Func<LLMQuestionMessage, Task<string>>? handleInlineQuestion = null)
         {
             if (notificationService == null)
                 throw new ArgumentNullException(nameof(notificationService));
 
             _notificationService = notificationService;
             _logger = logger;
+            _handleInlineQuestion = handleInlineQuestion;
         }
 
         public async Task<UserPromptChoice> PromptOnPhaseFailureAsync(
@@ -132,11 +137,40 @@ namespace ContinueVS.Services.Implementations
                 return defaultAnswer;
             }
 
+            // If inline question support is available, use it; otherwise fall back to modal
+            if (_handleInlineQuestion != null)
+            {
+                return await HandleInlineQuestionAsync(question);
+            }
+            else
+            {
+                return await HandleModalQuestionAsync(question);
+            }
+        }
+
+        private async Task<string> HandleInlineQuestionAsync(LLMQuestionPrompt question)
+        {
+            if (_handleInlineQuestion == null)
+                return await HandleModalQuestionAsync(question);
+
+            var llmQuestion = new Core.Types.LLMQuestionMessage(
+                question.QuestionText,
+                question.QuestionType,
+                question.Context);
+
+            if (_logger != null)
+                await _logger.WriteDebugAsync($"[gap29_8_9] Interactive prompt (inline): {question.QuestionText}");
+
+            return await _handleInlineQuestion(llmQuestion);
+        }
+
+        private async Task<string> HandleModalQuestionAsync(LLMQuestionPrompt question)
+        {
             var title = "LLM Question";
             var message = $"{question.QuestionText}\n\n(Answering 'Yes' proceeds; 'No' halts.)";
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap29_8_9] Interactive prompt: {title}");
+                await _logger.WriteDebugAsync($"[gap29_8_9] Interactive prompt (modal): {title}");
 
             var confirmed = await _notificationService.ShowConfirmationAsync(title, message);
             return confirmed ? "Yes, proceed" : "No, halt";

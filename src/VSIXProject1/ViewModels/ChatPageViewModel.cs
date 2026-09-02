@@ -43,7 +43,7 @@ namespace ContinueVS.ViewModels
         public const string DEFAULT_PLAN_SYSTEM_MESSAGE = "You are a planning assistant in Plan mode. Generate detailed implementation plans and analysis in read-only mode. Suggest Agent Mode for executing code changes.";
     }
 
-    public class ChatPageViewModel : ViewModelBase
+     public class ChatPageViewModel : ViewModelBase
     {
         private readonly ILlmService _llmService;
         private readonly IContextService _contextService;
@@ -56,6 +56,7 @@ namespace ContinueVS.ViewModels
         private readonly IInstructionExecutorService _instructionExecutorService;
         private readonly IChangeStackService _changeStackService;
         private readonly IMarkdownService _markdownService;
+        private readonly ILlmQuestionService? _llmQuestionService;
         private IModeService? _modeService;
         private IWorkflowService? _workflowService;
         private readonly IIdeService? _ideService;
@@ -454,6 +455,8 @@ public string? InputText
         /// </summary>
         public RelayCommand<string> ApplyCodeBlockCommand { get; }
 
+        private Dictionary<string, TaskCompletionSource<string>> _pendingInlineQuestions = new();
+
         public ChatPageViewModel(
             ILlmService llmService,
             IContextService contextService,
@@ -466,6 +469,7 @@ public string? InputText
             IInstructionExecutorService instructionExecutorService,
             IChangeStackService changeStackService,
             IMarkdownService markdownService,
+            ILlmQuestionService? llmQuestionService = null,
             IModeService? modeService = null,
             IWorkflowService? workflowService = null,
             IIdeService? ideService = null,
@@ -495,6 +499,7 @@ public string? InputText
             _instructionExecutorService = instructionExecutorService;
             _changeStackService = changeStackService;
             _markdownService = markdownService;
+            _llmQuestionService = llmQuestionService;
             _modeService = modeService;
             _workflowService = workflowService;
             _ideService = ideService;
@@ -589,7 +594,11 @@ public string? InputText
             }
         }
 
-        private async Task InitializeAsync()
+        /// <summary>
+        /// Initializes the ChatPageViewModel asynchronously after construction.
+        /// Must be called after the ViewModel is created to load all required data.
+        /// </summary>
+        public async Task InitializeAsync()
         {
             await _systemPromptService.LoadAsync();
 
@@ -658,6 +667,66 @@ public string? InputText
             _isInitialized = true;
             _ = LoggerService.Current.WriteDebugAsync("[ChatPageViewModel.InitializeAsync] Initialization complete");
         }
+
+        /// <summary>
+        /// Adds an inline LLM question to the chat message stream.
+        /// Returns a Task that completes when user answers or cancels the question.
+        /// </summary>
+        public async Task<string> AddInlineQuestionAsync(Core.Types.LLMQuestionMessage question)
+        {
+            if (question == null)
+                throw new ArgumentNullException(nameof(question));
+
+            var questionId = question.Id;
+            if (string.IsNullOrEmpty(questionId))
+                throw new InvalidOperationException("LLMQuestionMessage Id cannot be null or empty");
+
+            var tcs = new TaskCompletionSource<string>();
+#pragma warning disable CS8604
+            _pendingInlineQuestions[questionId] = tcs;
+#pragma warning restore CS8604
+
+            question.OnAnswerAsync = async (answer) =>
+            {
+                await RemoveInlineQuestionAsync(questionId);
+                tcs.TrySetResult(answer);
+            };
+
+            question.OnCancelAsync = async () =>
+            {
+                await RemoveInlineQuestionAsync(questionId);
+                var defaultAnswer = AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, AutoAnswerResponse.Default);
+                tcs.TrySetResult(defaultAnswer);
+            };
+
+            await SwitchToMainThreadAsync();
+            Messages.Add((ChatMessage)(object)question);
+
+            return await tcs.Task;
+        }
+
+        /// <summary>
+        /// Removes an inline question from the chat message stream.
+        /// </summary>
+        public async Task RemoveInlineQuestionAsync(string questionId)
+        {
+            if (questionId == null)
+                throw new ArgumentNullException(nameof(questionId));
+
+            await SwitchToMainThreadAsync();
+
+            var question = Messages.OfType<Core.Types.LLMQuestionMessage>()
+                .FirstOrDefault(q => q.Id == questionId);
+
+            if (question != null)
+            {
+                Messages.Remove((ChatMessage)(object)question);
+                _pendingInlineQuestions.Remove(questionId);
+            }
+        }
+
+        // Chat message rendering and streaming methods continue below:
+
 
         private async Task LoadModelsAsync()
         {
@@ -880,7 +949,7 @@ public string? InputText
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[gap49-apply] ✗ Error applying code change: {ex.Message}");
-                _notificationService.ShowError(
+                await _notificationService.ShowErrorAsync(
                     $"Failed to apply changes: {ex.Message}");
             }
         }
@@ -1243,6 +1312,18 @@ public string? InputText
                         }
                     }
 
+                    // gap54: Detect and handle any embedded LLM questions in the response
+                    if (!string.IsNullOrWhiteSpace(assistantMessage.Content) && _llmQuestionService != null)
+                    {
+                        var detectedQuestion = await _llmQuestionService.DetectLLMQuestionAsync(assistantMessage.Content, _streamingCts.Token);
+                        if (detectedQuestion != null)
+                        {
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap54-detect] Question detected in response: {detectedQuestion.QuestionText}");
+                            var answer = await _llmQuestionService.HandleLLMQuestionAsync(detectedQuestion, isAutonomous: false, AutoAnswerResponse.Default, _streamingCts.Token);
+                            _ = LoggerService.Current.WriteDebugAsync($"[gap54-handle] Question answered: {answer}");
+                        }
+                    }
+
                     // Finalize the message with tool calls and add to session
                     if (_pendingToolCalls.Count > 0)
                     {
@@ -1463,7 +1544,8 @@ public string? InputText
                     _ = LoggerService.Current.WriteDebugAsync($"[gap23_4_3-limit-caught] {ex.Message}");
                     _limitReachedFlag = true;
                     await SwitchToMainThreadAsync();
-                    _notificationService?.ShowError(ex.Message);
+                    if (_notificationService != null)
+                        await _notificationService.ShowErrorAsync(ex.Message);
                     SendMessageCommand.RaiseCanExecuteChanged();
                     throw; // Stop tool execution loop when limit is hit
                 }
@@ -1491,6 +1573,8 @@ public string? InputText
         private void ExecuteCancel()
         {
             _streamingCts?.Cancel();
+            IsStreaming = false;
+            _streamingCts?.Dispose();
         }
 
         /// <summary>
@@ -1511,7 +1595,7 @@ public string? InputText
             catch (Exception ex)
             {
                 _ = LoggerService.Current.WriteErrorAsync($"[gap47] ExecuteNewChatAsync failed: {ex.Message}", ex);
-                _notificationService.ShowError($"Failed to start new chat: {ex.Message}");
+                await _notificationService.ShowErrorAsync($"Failed to start new chat: {ex.Message}");
             }
         }
 
@@ -1726,7 +1810,7 @@ public string? InputText
                 if (Messages.Count == 0)
                 {
                     _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] No messages available to extract file path from");
-                    _notificationService.ShowError("No context available for file path extraction.");
+                    await _notificationService.ShowErrorAsync("No context available for file path extraction.");
                     return;
                 }
 
@@ -1737,7 +1821,7 @@ public string? InputText
                 if (string.IsNullOrWhiteSpace(extractedPath))
                 {
                     _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] Could not extract file path from message");
-                    _notificationService.ShowError("Could not extract file path from response.");
+                    await _notificationService.ShowErrorAsync("Could not extract file path from response.");
                     return;
                 }
 
@@ -1752,7 +1836,7 @@ public string? InputText
             catch (Exception ex)
             {
                 _ = LoggerService.Current.WriteDebugAsync($"[gap49-apply] Unhandled exception: {ex.Message}");
-                _notificationService.ShowError(
+                await _notificationService.ShowErrorAsync(
                     $"Apply operation failed: {ex.Message}");
             }
         }
