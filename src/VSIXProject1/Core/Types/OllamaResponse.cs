@@ -30,7 +30,9 @@ namespace ContinueVS.Core.Types
         public bool Done { get; set; }
 
         /// <summary>
-        /// Optional reason for completion (e.g., "stop", "length").
+        /// Optional reason for completion.
+        /// Common values: "stop" (normal completion), "length" (max tokens reached), 
+        /// "tool_calls" (model called a tool), or other Ollama-specific reasons.
         /// </summary>
         [JsonProperty("done_reason")]
         public string? DoneReason { get; set; }

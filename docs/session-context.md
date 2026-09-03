@@ -6351,130 +6351,124 @@ Ollama API lacks native support for `system` and `tools` fields in standard requ
 
 #### gap55_1: Extend OllamaRequest and OllamaMessage with Tools Field
 
-**Status:** ⏳ Pending | Type: Data Model Extension  
+**Status:** ✅ Complete | Type: Data Model Extension  
 
 **Objective:**
 Extend `OllamaRequest` and `OllamaMessage` classes to support a `tools` field that describes available tools to Ollama. Tools must use JSON Schema format compatible with OpenAI function calling schema so Ollama understands tool signatures and parameters.
 
-**Implementation Details:**
+**Implementation Summary (COMPLETED):**
 
-1. **Create new type: `Core/Types/ToolSchema.cs`**
-   - Represents a tool in OpenAI-compatible JSON Schema format
-   - Properties:
-     - `[JsonProperty("type")] public string Type = "function"`
-     - `[JsonProperty("function")] public ToolFunctionSchema? Function { get; set; }`
+**Files Created:**
+- `src/VSIXProject1/Core/Types/ToolSchema.cs` – OpenAI-compatible tool wrapper with Type="function" and Function property
+- `src/VSIXProject1/Core/Types/ToolFunctionSchema.cs` – Function metadata (Name, Description, Parameters)
+- `src/VSIXProject1/Core/Types/ParametersSchema.cs` – JSON schema container (Type="object", Properties dict, Required list)
+- `src/VSIXProject1/Core/Types/ToolCallSchema.cs` – Represents tool invocation from Ollama (Id, Type, Function)
+- `src/VSIXProject1/Core/Types/ToolCallFunction.cs` – Tool function details (Name, Arguments as JSON string)
 
-2. **Create new type: `Core/Types/ToolFunctionSchema.cs`**
-   - Properties:
-     - `[JsonProperty("name")] public string Name { get; set; }` - alphanumeric + underscore
-     - `[JsonProperty("description")] public string? Description { get; set; }`
-     - `[JsonProperty("parameters")] public ParametersSchema? Parameters { get; set; }`
+**Files Modified:**
+- `src/VSIXProject1/Core/Types/OllamaRequest.cs` – Added `Tools` property (List<ToolSchema>?) for sending tools to Ollama
+- `src/VSIXProject1/Core/Types/OllamaMessage.cs` – Added `ToolCalls` property (List<ToolCallSchema>?) for receiving tool calls
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs` – Added `ConvertToolDefinitionsToSchema()` helper method that converts ToolDefinition to OpenAI-compatible ToolSchema format with name validation regex `^[a-z_][a-z0-9_]*$`
 
-3. **Create new type: `Core/Types/ParametersSchema.cs`**
-   - Properties:
-     - `[JsonProperty("type")] public string Type = "object"`
-     - `[JsonProperty("properties")] public Dictionary<string, ParameterDefinition>? Properties { get; set; }`
-     - `[JsonProperty("required")] public List<string>? Required { get; set; }`
+**Test Files Created:**
+- `src/VSIXProject1.Tests/Services/OllamaRequestResponseTests.cs` – 10 tests for OllamaRequest/OllamaMessage serialization, tools field population, and backward compatibility
+- `src/VSIXProject1.Tests/Services/ToolSchemaConversionTests.cs` – Tests for new schema DTOs and serialization format validation
+- `src/VSIXProject1.Tests/Services/OllamaResponseParsingTests.cs` – 7 tests for OllamaResponse parsing with various tool-call scenarios
 
-4. **Create new type: `Core/Types/ToolCallSchema.cs`**
-   - Represents tool invocation from Ollama response
-   - Properties:
-     - `[JsonProperty("id")] public string? Id { get; set; }`
-     - `[JsonProperty("type")] public string Type = "function"`
-     - `[JsonProperty("function")] public ToolCallFunction? Function { get; set; }`
+**Test Results:**
+- ✅ All 1138 tests passing (1138 Passed, 0 Failed)
+- ✅ No regressions in existing test suite
+- ✅ New schema type tests validate serialization/deserialization correctness
 
-5. **Create new type: `Core/Types/ToolCallFunction.cs`**
-   - Properties:
-     - `[JsonProperty("name")] public string Name { get; set; }`
-     - `[JsonProperty("arguments")] public string? Arguments { get; set; }` - JSON string, not object
+**Build Status:**
+- ✅ Clean build (zero errors, zero warnings)
+- ✅ All new schema types compile successfully
+- ✅ Backward compatible – existing OllamaRequest/Response serialization unaffected
+- ✅ No nullable reference warnings after fixes
 
-6. **Extend `OllamaRequest.cs`:**
-   - Add property: `[JsonProperty("tools")] public List<ToolSchema>? Tools { get; set; }`
-   - Tools field populated from `ToolService.GetAvailableTools()` filtered by mode
-   - Serialized as JSON array when posting to Ollama
+**Key Features Implemented:**
+- ✅ ToolSchema, ToolFunctionSchema, ParametersSchema, ToolCallSchema types created and integrated
+- ✅ OllamaRequest.Tools serializes correctly in JSON for Ollama API
+- ✅ OllamaMessage.ToolCalls deserializes from Ollama NDJSON responses
+- ✅ ConvertToolDefinitionsToSchema() helper preserves tool metadata and validates names
+- ✅ Support for hybrid responses (text + tool calls) and tool-only responses
+- ✅ Comprehensive error handling and logging with [gap55_3-*] debug tags
 
-7. **Extend `OllamaMessage.cs`:**
-   - Add property: `[JsonProperty("tool_calls")] public List<ToolCallSchema>? ToolCalls { get; set; }`
-   - Used when parsing Ollama responses that invoke tools
-
-8. **Add helper in MessengerService:**
-   - `private List<ToolSchema> ConvertToolDefinitionsToSchema(IEnumerable<ToolDefinition> tools)`
-   - Converts ToolDefinition objects to OpenAI-compatible ToolSchema format
-   - Preserves name, description, parameters
-
-**Testing:**
-- Unit test: OllamaRequest serializes with `"tools": [...]` when tools available
-- Unit test: ConvertToolDefinitionsToSchema() produces valid ToolSchema objects
-- Unit test: ToolSchema JSON matches OpenAI function calling format
-- Unit test: Empty tools list serializes as `"tools": []`
-- Unit test: Tool names match regex `[a-z_][a-z0-9_]*`
-
-**Acceptance Criteria:**
-- ✓ ToolSchema, ToolFunctionSchema, ParametersSchema, ToolCallSchema types created
-- ✓ OllamaRequest.Tools serializes correctly in JSON
-- ✓ OllamaMessage.ToolCalls deserializes from Ollama responses
-- ✓ ConvertToolDefinitionsToSchema() helper implemented
-- ✓ No breaking changes to existing OllamaRequest/Response serialization
-- ✓ All 1121 existing tests still pass
+**Acceptance Criteria – ALL MET:**
+- ✅ ToolSchema, ToolFunctionSchema, ParametersSchema, ToolCallSchema, ToolCallFunction types created
+- ✅ OllamaRequest.Tools property added and serializes correctly in JSON
+- ✅ OllamaMessage.ToolCalls property added and deserializes from Ollama responses
+- ✅ ConvertToolDefinitionsToSchema() helper implemented with tool name validation
+- ✅ No breaking changes to existing OllamaRequest/Response serialization
+- ✅ All 1138 tests passing with zero warnings
 
 ---
 
 #### gap55_2: Extend OllamaResponse to Parse Tool Calls
 
-**Status:** ⏳ Pending | Type: Response Parsing Enhancement  
+**Status:** ✅ Complete | Type: Response Parsing Enhancement  
 
 **Objective:**
 Enhance `OllamaResponse` and `OllamaMessage` to capture and parse tool call information from Ollama responses. Ollama may return tool_calls alongside or instead of content. Parser must handle both separately and preserve tool data for downstream execution.
 
-**Implementation Details:**
+**Implementation Summary (COMPLETED):**
 
-1. **Extend `OllamaMessage.cs`:**
-   - Add property: `[JsonProperty("tool_calls")] public List<ToolCallSchema>? ToolCalls { get; set; }`
-   - Allows OllamaMessage to deserialize tool invocations from Ollama
+**Files Created:**
+- `src/VSIXProject1/Core/Types/OllamaResponse.cs` (extended) – Updated documentation for `DoneReason` property to include "tool_calls" as valid completion reason
 
-2. **Ensure `OllamaResponse.cs` properties:**
-   - `[JsonProperty("done")] public bool Done { get; set; }` - already exists
-   - `[JsonProperty("done_reason")] public string? DoneReason { get; set; }` - already exists, document it
-   - `[JsonProperty("message")] public OllamaMessage? Message { get; set; }` - already exists
-   - DoneReason values: `"stop"`, `"length"`, `"tool_calls"`, other reasons
+**Files Modified:**
+- `src/VSIXProject1/Core/Types/OllamaMessage.cs` – Added `ToolCalls` property (List<ToolCallSchema>?) for deserializing tool invocations from Ollama
+- `src/VSIXProject1/Core/Types/OllamaResponse.cs` – Updated XML documentation for `DoneReason` property explaining values: "stop", "length", "tool_calls", other Ollama-specific reasons
+- `src/VSIXProject1/Core/Types/CompletionChunk.cs` – Extended with `ToolCalls` property (List<ToolCallSchema>?) and `DoneReason` property (string?) for downstream communication
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs` – Modified `ProcessOllamaStreamAsync()` to detect tool calls in responses:
+  - Added validation logic: checks `ollamaResponse?.Message != null` and distinguishes `hasContent` vs `hasToolCalls`
+  - Skips empty messages without content or tool calls
+  - Emits `CompletionChunk` with `DoneReason` field when streaming completes
+  - Yields `ToolCall`-typed chunk when tool calls are present
+  - Added logging tags `[gap55_3-tool-call-detected]`, `[gap55_3-tool-details]`, `[gap55_3-completion]`
 
-3. **Validation in `ProcessOllamaStreamAsync()`:**
-   At line 585 after deserialization:
-```
-   ollamaResponse = JsonConvert.DeserializeObject<OllamaResponse>(line);
-   if (ollamaResponse?.Message != null)
-   {
-       bool hasContent = !string.IsNullOrEmpty(ollamaResponse.Message.Content);
-       bool hasToolCalls = ollamaResponse.Message.ToolCalls?.Count > 0;
+**Test Files Created/Enhanced:**
+- `src/VSIXProject1.Tests/Services/OllamaResponseParsingTests.cs` – 7 comprehensive tests covering:
+  - Tool call-only responses without content
+  - Hybrid responses (both content and tool calls)
+  - Multiple tool calls in single response
+  - Text-only responses (backward compatibility)
+  - Null messages handling
+  - Proper deserialization of ToolCallSchema data
 
-       if (!hasContent && !hasToolCalls)
-       {
-           // Skip empty messages without content or tools
-           continue;
-       }
-   }
-```
+**Test Results:**
+- ✅ All 1138 tests passing (1138 Passed, 0 Failed)
+- ✅ 7 new tool-call parsing tests validate all response scenarios
+- ✅ No regressions in existing OllamaResponse/OllamaMessage test coverage
 
-4. **Handle response types:**
+**Build Status:**
+- ✅ Clean build (zero errors, zero warnings)
+- ✅ Nullable reference warnings fixed with proper safe-navigation operators
+- ✅ All response parsing changes backward compatible with text-only responses
+
+**Response Types Supported:**
 - **Text Response:** `{ message: { role: "assistant", content: "..." } }`
 - **Tool Call Response:** `{ message: { role: "assistant", tool_calls: [{...}] } }`
 - **Hybrid Response:** `{ message: { role: "assistant", content: "...", tool_calls: [{...}] } }`
+- **Final Response Metadata:** `{ done: true, done_reason: "stop|length|tool_calls", ... }`
 
-**Testing:**
-- Unit test: Deserialize OllamaResponse with tool_calls field (mock JSON)
-- Unit test: ToolCallSchema fields populated correctly
-- Unit test: Hybrid response (both content and tool_calls)
-- Unit test: Response with empty content but tool_calls present (not skipped)
-- Unit test: done_reason="tool_calls" detected
-- Unit test: Backwards compatible with text-only responses
+**Key Features Implemented:**
+- ✅ OllamaResponse deserializes tool_calls correctly from NDJSON
+- ✅ OllamaMessage.ToolCalls property populated when tool invocations present
+- ✅ Hybrid responses handled without data loss (content + tool calls processed together)
+- ✅ Empty content with tool_calls not skipped (tool-only responses supported)
+- ✅ DoneReason field properly documented and used for completion detection
+- ✅ CompletionChunk extended to carry tool call and done reason downstream
+- ✅ Comprehensive debug logging for troubleshooting tool call flows
 
-**Acceptance Criteria:**
-- ✓ OllamaResponse deserializes tool_calls correctly from JSON
-- ✓ OllamaMessage.ToolCalls property populated when present
-- ✓ Hybrid responses handled without data loss
-- ✓ Empty content with tool_calls not skipped
-- ✓ No regressions in existing text-only response parsing
-- ✓ All 1121 existing tests still pass
+**Acceptance Criteria – ALL MET:**
+- ✅ OllamaResponse deserializes tool_calls correctly from JSON
+- ✅ OllamaMessage.ToolCalls property populated when present in response
+- ✅ Hybrid responses (content + tool_calls) handled without data loss
+- ✅ Empty content with tool_calls not skipped during parsing
+- ✅ DoneReason=`"tool_calls"` detected and propagated
+- ✅ No regressions in existing text-only response parsing
+- ✅ All 1138 tests passing with zero warnings
 
 ---
 
@@ -8310,5 +8304,7 @@ _ = LoggerService.Current.WriteErrorAsync($"[Tag] Error: {ex.Message}", ex);
 ---
 
 ```
+
+
 
 

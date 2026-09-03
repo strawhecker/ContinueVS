@@ -593,21 +593,69 @@ namespace ContinueVS.Services.Implementations
                             continue;
                         }
 
-                        if (ollamaResponse?.Message?.Content != null)
+                        if (ollamaResponse?.Message != null)
                         {
-                            // Convert to CompletionChunk and yield
-                            var chunk = new CompletionChunk
-                            {
-                                Type = ChunkType.Text,
-                                Content = ollamaResponse.Message.Content,
-                                Role = ChatMessageRole.Assistant,
-                                IsDone = ollamaResponse.Done,
-                                Timestamp = DateTime.UtcNow
-                            };
+                            // Check if message has content or tool calls
+                            bool hasContent = !string.IsNullOrEmpty(ollamaResponse.Message.Content);
+                            bool hasToolCalls = ollamaResponse.Message.ToolCalls?.Count > 0;
 
-                            if (typeof(TChunk) == typeof(CompletionChunk))
+                            if (!hasContent && !hasToolCalls)
                             {
-                                yield return (TChunk)(object)chunk;
+                                // Skip empty messages without content or tools
+                                _ = LoggerService.Current.WriteDebugAsync($"[ProcessOllamaStreamAsync] Skipping empty message at line {lineCount}");
+                                continue;
+                            }
+
+                            // Convert text content to CompletionChunk and yield
+                            if (hasContent)
+                            {
+                                var chunk = new CompletionChunk
+                                {
+                                    Type = ChunkType.Text,
+                                    Content = ollamaResponse.Message.Content,
+                                    Role = ChatMessageRole.Assistant,
+                                    IsDone = ollamaResponse.Done,
+                                    DoneReason = ollamaResponse.DoneReason,
+                                    Timestamp = DateTime.UtcNow
+                                };
+
+                                if (typeof(TChunk) == typeof(CompletionChunk))
+                                {
+                                    yield return (TChunk)(object)chunk;
+                                }
+                            }
+
+                            // Capture tool calls if present
+                            if (hasToolCalls && ollamaResponse.Message?.ToolCalls != null)
+                            {
+                                _ = LoggerService.Current.WriteDebugAsync($"[gap55_3-tool-call-detected] Received {ollamaResponse.Message.ToolCalls.Count} tool calls from Ollama at line {lineCount}");
+                                foreach (var toolCall in ollamaResponse.Message.ToolCalls)
+                                {
+                                    var argPreview = toolCall.Function?.Arguments?.Substring(0, Math.Min(100, toolCall.Function.Arguments.Length)) ?? "[no args]";
+                                    _ = LoggerService.Current.WriteDebugAsync($"[gap55_3-tool-details] Tool={toolCall.Function?.Name}, Args={argPreview}...");
+                                }
+
+                                // If this is the final response, yield tool calls in a final chunk
+                                if (ollamaResponse.Done)
+                                {
+                                    var toolChunk = new CompletionChunk
+                                    {
+                                        Type = ChunkType.ToolCall,
+                                        Content = string.Empty,
+                                        Role = ChatMessageRole.Assistant,
+                                        IsDone = true,
+                                        DoneReason = ollamaResponse.DoneReason,
+                                        ToolCalls = ollamaResponse.Message.ToolCalls,
+                                        Timestamp = DateTime.UtcNow
+                                    };
+
+                                    if (typeof(TChunk) == typeof(CompletionChunk))
+                                    {
+                                        yield return (TChunk)(object)toolChunk;
+                                    }
+
+                                    _ = LoggerService.Current.WriteDebugAsync($"[gap55_3-completion] Done with reason={ollamaResponse.DoneReason}, toolCalls={ollamaResponse.Message.ToolCalls.Count}");
+                                }
                             }
                         }
 
@@ -623,6 +671,70 @@ namespace ContinueVS.Services.Implementations
             {
                 response?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Converts ToolDefinition objects to OpenAI-compatible ToolSchema format.
+        /// Validates tool names and builds parameter schemas for LLM consumption.
+        /// </summary>
+        /// <param name="tools">Enumerable of tool definitions to convert.</param>
+        /// <returns>List of ToolSchema objects in OpenAI function calling format.</returns>
+        private List<ToolSchema> ConvertToolDefinitionsToSchema(IEnumerable<ToolDefinition> tools)
+        {
+            var schemas = new List<ToolSchema>();
+
+            if (tools == null)
+                return schemas;
+
+            var toolNameRegex = new System.Text.RegularExpressions.Regex(@"^[a-z_][a-z0-9_]*$");
+
+            foreach (var tool in tools)
+            {
+                // Validate tool name matches OpenAI requirements: [a-z_][a-z0-9_]*
+                if (string.IsNullOrEmpty(tool.Name) || !toolNameRegex.IsMatch(tool.Name))
+                {
+                    _ = LoggerService.Current.WriteDebugAsync(
+                        $"[gap55_1-tool-validation] Skipping tool '{tool.Name}' - invalid name format. Must match [a-z_][a-z0-9_]*");
+                    continue;
+                }
+
+                // Build parameters schema from tool definition parameters
+                var paramsSchema = new ParametersSchema
+                {
+                    Type = "object",
+                    Properties = new Dictionary<string, ParameterDefinition>(),
+                    Required = new List<string>()
+                };
+
+                foreach (var param in tool.Parameters ?? new List<ParameterDefinition>())
+                {
+                    if (!string.IsNullOrEmpty(param.Name))
+                    {
+                        paramsSchema.Properties[param.Name] = param;
+
+                        if (param.IsRequired)
+                            paramsSchema.Required.Add(param.Name);
+                    }
+                }
+
+                var schema = new ToolSchema
+                {
+                    Type = "function",
+                    Function = new ToolFunctionSchema
+                    {
+                        Name = tool.Name,
+                        Description = tool.Description,
+                        Parameters = paramsSchema
+                    }
+                };
+
+                schemas.Add(schema);
+
+                _ = LoggerService.Current.WriteDebugAsync(
+                    $"[gap55_1-tool-schema] Converted tool '{tool.Name}' with {tool.Parameters?.Count ?? 0} parameters");
+            }
+
+            return schemas;
         }
     }
 

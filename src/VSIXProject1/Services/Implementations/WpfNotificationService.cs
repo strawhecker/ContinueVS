@@ -42,6 +42,8 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Shows a notification to the user using a MessageBox.
+        /// NOTE: This method uses MessageBox.Show synchronously. Consider using ShowNotificationNonBlockingAsync
+        /// for better async integration to avoid UI thread deadlocks.
         /// </summary>
         /// <param name="title">The title of the notification.</param>
         /// <param name="message">The message content.</param>
@@ -65,7 +67,34 @@ namespace ContinueVS.Services.Implementations
                 _ => MessageBoxImage.None
             };
 
-            MessageBox.Show(message, title, MessageBoxButton.OK, icon);
+            try
+            {
+                MessageBox.Show(message, title, MessageBoxButton.OK, icon);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception but don't throw; messagebox failures should not crash the application
+                _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] MessageBox.Show failed: {ex.GetType().Name}: {ex.Message}");
+
+                // Fallback: Try to use TextDialog if available
+                var viewModel = _getViewModel?.Invoke();
+                if (viewModel != null)
+                {
+                    try
+                    {
+                        var dialog = new TextDialog();
+                        dialog.Initialize(TextDialog.DialogType.Text, message);
+                        viewModel.ShowDialog(dialog);
+                        await dialog.GetResultAsync();
+                        viewModel.HideDialog();
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        // If both messagebox and textdialog fail, just log; don't cascade the error
+                        _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] Fallback TextDialog also failed: {fallbackEx.GetType().Name}: {fallbackEx.Message}");
+                    }
+                }
+            }
 
             // Fire the NotificationShown event
             RaiseNotificationShown(title, message, type);

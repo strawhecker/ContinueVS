@@ -34,6 +34,14 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("options")]
         public OllamaOptions? Options { get; set; }
+
+        /// <summary>
+        /// Available tools in OpenAI-compatible JSON Schema format.
+        /// Allows Ollama to understand available function calls and generate tool calls.
+        /// Optional; null if no tools are provided.
+        /// </summary>
+        [JsonProperty("tools")]
+        public List<ToolSchema>? Tools { get; set; }
     }
 
     /// <summary>
@@ -52,6 +60,14 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("content")]
         public string? Content { get; set; }
+
+        /// <summary>
+        /// Tool calls made by the assistant in this message.
+        /// Present when the assistant invokes tools as part of its response.
+        /// Optional; null if no tool calls are present.
+        /// </summary>
+        [JsonProperty("tool_calls")]
+        public List<ToolCallSchema>? ToolCalls { get; set; }
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace ContinueVS.Core.Types
@@ -60,11 +61,26 @@ namespace ContinueVS.Core.Types
         public ToolCall? ToolCall { get; set; }
 
         /// <summary>
+        /// List of tool calls accumulated from the response.
+        /// Present when the LLM invokes multiple tools or when streaming completes with tool calls.
+        /// Null if no tool calls are present.
+        /// </summary>
+        [JsonProperty("toolCalls")]
+        public List<ToolCallSchema>? ToolCalls { get; set; }
+
+        /// <summary>
         /// Indicates whether this chunk marks the end of the stream.
         /// True when Type=Done or when stream has completed.
         /// </summary>
         [JsonProperty("isDone")]
         public bool IsDone { get; set; }
+
+        /// <summary>
+        /// Reason for stream completion (e.g., "stop", "length", "tool_calls").
+        /// Provides context about why streaming ended.
+        /// </summary>
+        [JsonProperty("doneReason")]
+        public string? DoneReason { get; set; }
 
         /// <summary>
         /// Timestamp when this chunk was received from the provider.
