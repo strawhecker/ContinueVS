@@ -1,8 +1,10 @@
 ﻿#nullable enable
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
@@ -13,12 +15,14 @@ namespace ContinueVS.Services.Implementations
 {
     /// <summary>
     /// WPF implementation of INotificationService for displaying notifications and dialogs to the user.
-    /// Uses System.Windows.MessageBox for simple notifications and TextDialog for modal input dialogs.
+    /// Displays notifications as System-role messages in the chat interface with auto-dismiss.
     /// </summary>
     public class WpfNotificationService : INotificationService
     {
         private readonly IBridgeLogger? _logger;
         private readonly Func<MainViewModel?>? _getViewModel;
+        private readonly Func<ChatPageViewModel?>? _getChatPageViewModel;
+        private readonly int _notificationDurationMs;
 
         public event EventHandler<NotificationEventArgs>? NotificationShown;
 
@@ -28,10 +32,14 @@ namespace ContinueVS.Services.Implementations
         /// <param name="logger">Optional logger for diagnostics.</param>
         /// <param name="viewModel">Deprecated: kept for backward compatibility. Use getViewModel parameter instead.</param>
         /// <param name="getViewModel">Factory function to lazily retrieve the MainViewModel.</param>
-        public WpfNotificationService(IBridgeLogger? logger = null, MainViewModel? viewModel = null, Func<MainViewModel?>? getViewModel = null)
+        /// <param name="getChatPageViewModel">Factory function to lazily retrieve the ChatPageViewModel for chat-based notifications.</param>
+        /// <param name="notificationDurationMs">Duration in milliseconds before notification auto-dismisses. Default: 7000 (7 seconds).</param>
+        public WpfNotificationService(IBridgeLogger? logger = null, MainViewModel? viewModel = null, Func<MainViewModel?>? getViewModel = null, Func<ChatPageViewModel?>? getChatPageViewModel = null, int notificationDurationMs = 7000)
         {
             _logger = logger;
             _getViewModel = getViewModel;
+            _getChatPageViewModel = getChatPageViewModel;
+            _notificationDurationMs = notificationDurationMs;
 
             // If no getViewModel factory is provided but a viewModel instance is, create a simple factory
             if (_getViewModel == null && viewModel != null)
@@ -41,9 +49,9 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Shows a notification to the user using a MessageBox.
-        /// NOTE: This method uses MessageBox.Show synchronously. Consider using ShowNotificationNonBlockingAsync
-        /// for better async integration to avoid UI thread deadlocks.
+        /// Shows a notification to the user as a System-role message in the chat interface.
+        /// The notification appears as a dismissable system message and auto-dismisses after the configured duration.
+        /// Falls back to chat dialog or logging if ChatPageViewModel is unavailable.
         /// </summary>
         /// <param name="title">The title of the notification.</param>
         /// <param name="message">The message content.</param>
@@ -58,47 +66,86 @@ namespace ContinueVS.Services.Implementations
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            var icon = type switch
+            var chatViewModel = _getChatPageViewModel?.Invoke();
+            if (chatViewModel != null)
             {
-                NotificationType.Information => MessageBoxImage.Information,
-                NotificationType.Warning => MessageBoxImage.Warning,
-                NotificationType.Error => MessageBoxImage.Error,
-                NotificationType.Success => MessageBoxImage.Information,
-                _ => MessageBoxImage.None
-            };
-
-            try
-            {
-                MessageBox.Show(message, title, MessageBoxButton.OK, icon);
+                // Primary path: Add as System message to chat and schedule auto-dismiss
+                await AddNotificationToChatAsync(chatViewModel, title, message, type);
             }
-            catch (Exception ex)
+            else
             {
-                // Log the exception but don't throw; messagebox failures should not crash the application
-                _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] MessageBox.Show failed: {ex.GetType().Name}: {ex.Message}");
-
-                // Fallback: Try to use TextDialog if available
-                var viewModel = _getViewModel?.Invoke();
-                if (viewModel != null)
+                // Fallback: Try TextDialog via MainViewModel
+                var mainViewModel = _getViewModel?.Invoke();
+                if (mainViewModel != null)
                 {
                     try
                     {
                         var dialog = new TextDialog();
-                        dialog.Initialize(TextDialog.DialogType.Text, message);
-                        viewModel.ShowDialog(dialog);
+                        dialog.Initialize(TextDialog.DialogType.Text, $"{title}: {message}");
+                        mainViewModel.ShowDialog(dialog);
                         await dialog.GetResultAsync();
-                        viewModel.HideDialog();
+                        mainViewModel.HideDialog();
                     }
                     catch (Exception fallbackEx)
                     {
-                        // If both messagebox and textdialog fail, just log; don't cascade the error
-                        _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] Fallback TextDialog also failed: {fallbackEx.GetType().Name}: {fallbackEx.Message}");
+                        _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] Fallback TextDialog failed: {fallbackEx.GetType().Name}: {fallbackEx.Message}");
                     }
+                }
+                else
+                {
+                    // Final fallback: Log only
+                    _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] No ViewModel available. Notification: [{type}] {title}: {message}");
                 }
             }
 
-            // Fire the NotificationShown event
+            // Fire the NotificationShown event for telemetry
             RaiseNotificationShown(title, message, type);
         }
+
+        /// <summary>
+        /// Adds a notification to the chat as a System-role message with auto-dismiss timer.
+        /// </summary>
+        private async Task AddNotificationToChatAsync(ChatPageViewModel viewModel, string title, string message, NotificationType type)
+        {
+            try
+            {
+                // Format: "[Type] Title: Message" (e.g., "[Error] Delete Failed: Could not delete message: ...")
+                var formattedContent = $"[{type}] {title}: {message}";
+
+                var notificationMessage = new ChatMessage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Role = ChatMessageRole.System,
+                    Content = formattedContent,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                // Add to messages collection
+                viewModel.Messages.Add(notificationMessage);
+
+                // Schedule auto-dismiss after configured duration
+                _ = Task.Delay(_notificationDurationMs).ContinueWith(_ =>
+                {
+                    ThreadHelper.JoinableTaskFactory.Run(async () =>
+                    {
+                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                        try
+                        {
+                            viewModel.Messages.Remove(notificationMessage);
+                        }
+                        catch
+                        {
+                            // Silently ignore if already removed or collection disposed
+                        }
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] Failed to add notification to chat: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
 
         /// <summary>
         /// Shows a progress dialog or indicator.

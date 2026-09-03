@@ -162,11 +162,12 @@ namespace ContinueVS.Services
 
             services.AddSingleton<INotificationService>(sp =>
             {
-                // Use a lazy factory for MainViewModel to avoid circular dependency
-                // MainViewModel is transient, so we'll get it when needed, not at singleton creation time
+                // Use lazy factories for MainViewModel and ChatPageViewModel to avoid circular dependencies
                 Func<MainViewModel?> getMainViewModel = () => sp.GetService<MainViewModel>();
-                return new WpfNotificationService(null, null, getMainViewModel);
+                Func<ChatPageViewModel?> getChatPageViewModel = () => sp.GetService<ChatPageViewModel>();
+                return new WpfNotificationService(null, null, getMainViewModel, getChatPageViewModel, notificationDurationMs: 7000);
             });
+
 
             // Breadcrumb trail recording service (gap29_4)
             services.AddSingleton<IBreadcrumbService>(sp =>
