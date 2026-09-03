@@ -5,6 +5,7 @@ using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -19,6 +20,7 @@ using ContinueVS.Services.Utilities;
 using ContinueVS.ViewModels.Models;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
+using Newtonsoft.Json;
 
 namespace ContinueVS.ViewModels
 {
@@ -1132,13 +1134,14 @@ public string? InputText
         {
             try
             {
-                // Guard 1: Ensure ChatPageViewModel initialization is complete
+                // Guard: Ensure ChatPageViewModel initialization is complete
+                // Since ChatPage now awaits InitializeAsync() before allowing user interaction,
+                // this should never be false, but we keep it as a safety check.
+                // Do NOT show messagebox here (VSIX environment issues with MessageBox.Show in certain contexts)
                 if (!_isInitialized)
                 {
-                    await _notificationService.ShowNotificationAsync(
-                        "ContinueVS Initializing",
-                        "The chat interface is still loading. Please wait a moment and try again.",
-                        NotificationType.Warning);
+                    _ = LoggerService.Current.WriteWarningAsync(
+                        "[ExecuteSendMessage] WARNING: ViewModel not yet initialized; discarding user input");
                     return;
                 }
 
@@ -1150,10 +1153,8 @@ public string? InputText
                 }
                 catch (InvalidOperationException configEx)
                 {
-                    await _notificationService.ShowNotificationAsync(
-                        "ContinueVS Not Ready",
-                        $"The plugin is still initializing. Please wait a moment and try again. Error: {configEx.Message}",
-                        NotificationType.Error);
+                    _ = LoggerService.Current.WriteErrorAsync(
+                        $"[ExecuteSendMessage] ConfigService not ready: {configEx.Message}", configEx);
                     return;
                 }
 
@@ -1840,5 +1841,238 @@ public string? InputText
                     $"Apply operation failed: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// gap55_4: Executes Ollama tool calls via ToolService with timeout and error handling.
+        /// Routes ToolCallSchema objects from CompletionChunk.ToolCalls through ToolService.InvokeAsync().
+        /// Handles argument deserialization, timeout protection, and collects results.
+        /// </summary>
+        public async Task<List<ToolResult>> ExecuteToolCallsFromOllamaAsync(
+            List<ToolCallSchema> toolCalls,
+            CancellationToken ct)
+        {
+            var toolResults = new List<ToolResult>();
+            var maxIterations = 5;
+            var iteration = 0;
+
+            foreach (var toolCall in toolCalls)
+            {
+                if (++iteration > maxIterations)
+                {
+                    _ = LoggerService.Current.WriteWarningAsync(
+                        $"[gap55_4-limit] Max tool calls ({maxIterations}) reached in single invocation");
+                    break;
+                }
+
+                try
+                {
+                    _ = LoggerService.Current.WriteDebugAsync(
+                        $"[gap55_4-tool-execution] Executing tool={toolCall.Function.Name}, id={toolCall.Id}");
+
+                    // Parse tool arguments (JSON string to dict)
+                    var args = new Dictionary<string, object>();
+                    if (!string.IsNullOrEmpty(toolCall.Function.Arguments))
+                    {
+                        try
+                        {
+                            args = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                                toolCall.Function.Arguments) ?? new Dictionary<string, object>();
+                        }
+                        catch (JsonException ex)
+                        {
+                            _ = LoggerService.Current.WriteErrorAsync(
+                                $"[gap55_4-tool-error] Failed to deserialize arguments for tool {toolCall.Function.Name}: {ex.Message}");
+                            toolResults.Add(new ToolResult
+                            {
+                                ToolName = toolCall.Function.Name,
+                                ToolCallId = toolCall.Id,
+                                Output = $"Error: Failed to deserialize tool arguments: {ex.Message}"
+                            });
+                            continue;
+                        }
+                    }
+
+                    // Invoke tool with timeout
+                    using (var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+                    using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token))
+                    {
+                        var result = await _toolService.InvokeAsync(
+                            toolCall.Function.Name,
+                            args,
+                            linkedCts.Token);
+
+                        result.ToolCallId = toolCall.Id;
+                        toolResults.Add(result);
+
+                        _ = LoggerService.Current.WriteDebugAsync(
+                            $"[gap55_4-tool-success] Tool {toolCall.Function.Name} completed: " +
+                            $"{result.Output.Substring(0, Math.Min(100, result.Output.Length))}...");
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    _ = LoggerService.Current.WriteWarningAsync(
+                        $"[gap55_4-tool-timeout] Tool {toolCall.Function.Name} timed out (30s)");
+                    toolResults.Add(new ToolResult
+                    {
+                        ToolName = toolCall.Function.Name,
+                        ToolCallId = toolCall.Id,
+                        Output = "Error: Tool execution timed out (30 seconds)"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _ = LoggerService.Current.WriteErrorAsync(
+                        $"[gap55_4-tool-error] Tool {toolCall.Function.Name} failed: {ex.Message}");
+                    toolResults.Add(new ToolResult
+                    {
+                        ToolName = toolCall.Function.Name,
+                        ToolCallId = toolCall.Id,
+                        Output = $"Error: {ex.Message}"
+                    });
+                }
+            }
+
+            return toolResults;
+        }
+
+        /// <summary>
+        /// gap55_4: Re-invokes Ollama with tool results added to message context for multi-turn loops.
+        /// Reconstructs full message history including tool results from session, then streams continuation.
+        /// If continuation yields more tool calls, recursively executes them.
+        /// </summary>
+        public async Task ContinueConversationWithOllamaAsync(CancellationToken ct)
+        {
+            try
+            {
+                _ = LoggerService.Current.WriteDebugAsync(
+                    "[gap55_4-continuation] Re-invoking Ollama with tool results in context");
+
+                // Get updated session with all messages including tool results
+                var currentSession = _sessionService.GetCurrentSession();
+                if (currentSession?.Messages.Count == 0)
+                    return;
+
+                // Reconstruct full message list with all context
+                var allMessages = new List<ChatMessage>(currentSession!.Messages);
+
+                // Get mode config for this continuation
+                var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
+
+                // Filter tools based on mode
+                var availableTools = GetAvailableToolsForCurrentMode();
+
+                // Reconstruct stream options
+                var continuationOptions = new StreamOptions
+                {
+                    Messages = allMessages,
+                    AllowWriteTools = modeConfig.AllowWriteTools,
+                    AllowToolLoop = modeConfig.AllowToolLoop
+                };
+
+                // Re-invoke Ollama with full context and tool results already present
+                var continuation = new StringBuilder();
+                await foreach (var chunk in _llmService.StreamAsync(allMessages, continuationOptions, ct))
+                {
+                    if (chunk.Type == ChunkType.Text)
+                    {
+                        continuation.Append(chunk.Content ?? string.Empty);
+                    }
+                    else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
+                    {
+                        // This case is for individual tool calls during streaming
+                        // (if llmService yields them this way)
+                    }
+
+                    if (chunk.IsDone)
+                    {
+                        // Check if completion chunk has tool calls
+                        if (chunk.ToolCalls?.Count > 0)
+                        {
+                            // Add the continuation text (if any) as assistant message
+                            if (!string.IsNullOrEmpty(continuation.ToString()))
+                            {
+                                var continuationMsg = new ChatMessage
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    Role = ChatMessageRole.Assistant,
+                                    Content = continuation.ToString()
+                                };
+                                await _sessionService.AddMessageAsync(continuationMsg);
+                            }
+
+                            // Another round of tool calls - execute them
+                            var moreResults = await ExecuteToolCallsFromOllamaAsync(chunk.ToolCalls, ct);
+
+                            // Add results to session
+                            foreach (var result in moreResults)
+                            {
+                                var resultMsg = new ChatMessage
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    Role = ChatMessageRole.Tool,
+                                    Content = result.Output,
+                                    ToolCallId = result.ToolCallId
+                                };
+                                await _sessionService.AddMessageAsync(resultMsg);
+                            }
+
+                            // Continue again recursively
+                            await ContinueConversationWithOllamaAsync(ct);
+                        }
+                        else
+                        {
+                            // Final response with no tool calls
+                            continuation.Append(chunk.Content ?? string.Empty);
+                            var finalMsg = new ChatMessage
+                            {
+                                Id = Guid.NewGuid().ToString(),
+                                Role = ChatMessageRole.Assistant,
+                                Content = continuation.ToString()
+                            };
+                            await _sessionService.AddMessageAsync(finalMsg);
+                        }
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _ = LoggerService.Current.WriteErrorAsync(
+                    $"[gap55_4-continuation-error] Failed to continue conversation: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// gap55_4: Filters available tools based on current ChatMode policy.
+        /// Ask mode: read-only tools only (read_file, list_files, search_code).
+        /// Agent mode: all tools allowed.
+        /// Other modes have their own policies.
+        /// </summary>
+        public List<ToolDefinition> GetAvailableToolsForCurrentMode()
+        {
+            var allTools = _toolService.GetAvailableTools().ToList();
+
+            return CurrentMode switch
+            {
+                ChatMode.Ask =>
+                    allTools.Where(t => !IsWriteTool(t.Name) && IsReadTool(t.Name)).ToList(),
+                ChatMode.Agent =>
+                    allTools,  // All tools allowed
+                _ => new List<ToolDefinition>()
+            };
+        }
+
+        /// <summary>
+        /// Helper: Checks if a tool name represents a write operation.
+        /// </summary>
+        private bool IsWriteTool(string name) =>
+            name is "write_files" or "delete_file" or "run_command";
+
+        /// <summary>
+        /// Helper: Checks if a tool name represents a read operation.
+        /// </summary>
+        private bool IsReadTool(string name) =>
+            name is "read_file" or "list_files" or "search_code";
     }
 }

@@ -104,6 +104,7 @@ namespace ContinueVS.Core.Types
         private ChatMessageRole _role;
         private string _content = string.Empty;
         private List<ToolCall>? _toolCalls;
+        private string? _toolCallId;
         private DateTime? _timestamp;
         private ToolInvocationStatus? _invocationStatus;
         private DateTime? _executionStartTime;
@@ -149,6 +150,18 @@ namespace ContinueVS.Core.Types
         {
             get => _toolCalls;
             set => SetProperty(ref _toolCalls, value);
+        }
+
+        /// <summary>
+        /// Unique identifier linking this tool result message back to the original ToolCall.
+        /// Only present in Tool role messages (role=Tool).
+        /// Used to correlate tool results with their originating invocations.
+        /// </summary>
+        [JsonProperty("toolCallId")]
+        public string? ToolCallId
+        {
+            get => _toolCallId;
+            set => SetProperty(ref _toolCallId, value);
         }
 
         /// <summary>

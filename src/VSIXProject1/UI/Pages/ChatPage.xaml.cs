@@ -185,7 +185,7 @@ namespace ContinueVS.UI.Pages
             this.Unloaded += ChatPage_Unloaded;
         }
 
-        private void ChatPage_Loaded(object sender, RoutedEventArgs e)
+        private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -197,8 +197,9 @@ namespace ContinueVS.UI.Pages
                 {
                     messages.CollectionChanged += Messages_CollectionChanged;
 
-                    // Initialize the ViewModel asynchronously
-                    _ = vm.InitializeAsync();
+                    // Initialize the ViewModel asynchronously and AWAIT completion before allowing user interaction
+                    await vm.InitializeAsync();
+                    _ = LoggerService.Current.WriteDebugAsync("[ChatPage_Loaded] ViewModel initialization complete");
                 }
             }
             catch (Exception ex)
