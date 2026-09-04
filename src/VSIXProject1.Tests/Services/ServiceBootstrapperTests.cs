@@ -100,7 +100,7 @@ namespace ContinueVS.Tests.Services
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new AgentCommandDispatcher(null, mockLlmService.Object, mockModeConfigRegistry.Object, mockLogger.Object));
+                new AgentCommandDispatcher(null!, mockLlmService.Object, mockModeConfigRegistry.Object, mockLogger.Object));
         }
     }
 }
