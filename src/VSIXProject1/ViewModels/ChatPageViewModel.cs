@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -1413,6 +1414,11 @@ public string? InputText
             }
             catch (Exception ex)
             {
+#if DEBUG
+                if (DebuggerHelper.ShouldBreakOnException("ServiceName"))
+                    Debugger.Break();
+#endif
+
                 _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Exception caught: {ex.GetType().Name}", ex);
                 _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Exception message: {ex.Message}", ex);
                 _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Exception stack trace: {ex.StackTrace}", ex);

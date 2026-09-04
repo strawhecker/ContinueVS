@@ -485,7 +485,8 @@ namespace ContinueVS.Services.Implementations
                 {
                     Temperature = options.Temperature,
                     MaxTokens = options.MaxTokens,
-                    TopP = options.TopP
+                    TopP = options.TopP,
+                    ContextWindow = model.ContextWindow
                 }
             };
 

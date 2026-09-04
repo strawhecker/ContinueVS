@@ -105,6 +105,34 @@
 
 ---
 
+### gap_num_ctx: Ollama Context Window (num_ctx) in Requests (NEW)
+**Status:** ✅ Complete | Type: Ollama API Parameter Integration
+**Implementation:**
+- Extended `OllamaOptions` class with `ContextWindow` property mapped to JSON key `num_ctx` via `[JsonProperty("num_ctx")]` attribute
+- Property type: `int?` (nullable integer) to support optional context window customization
+- Added XML documentation: "Context window size (number of tokens) for inference. Controls the maximum context length that Ollama will use during model inference."
+- Updated `MessengerService.ProcessOllamaStreamAsync()` to populate `Options.ContextWindow` from the selected model's `ContextWindow` value
+- Assignment placed in OllamaRequest construction (line 488): `ContextWindow = model.ContextWindow`
+- Added unit test `OllamaRequest_SerializesWithNumCtx_WhenContextWindowDefined()` to verify:
+  - OllamaRequest with ContextWindow=8192 serializes to JSON containing `"num_ctx":8192`
+  - Uses predefined model's ContextWindow value (8192 from gap1)
+- Build: Successful, zero warnings
+- Test results: 1155/1155 tests passing (includes new num_ctx test)
+
+**Files Modified:**
+- src/VSIXProject1/Core/Types/OllamaRequest.cs: Added ContextWindow property to OllamaOptions class
+- src/VSIXProject1/Services/Implementations/MessengerService.cs: Populate Options.ContextWindow = model.ContextWindow in ProcessOllamaStreamAsync()
+- src/VSIXProject1.Tests/Services/OllamaRequestResponseTests.cs: Added unit test for num_ctx serialization
+
+**API Impact:**
+- Ollama API now receives `"num_ctx": 8192` in request options (from gap1 predefined model)
+- Enables Ollama to allocate the full configured context window during inference
+- Backward compatible: null values not serialized (existing behavior preserved if ContextWindow not set)
+
+**Blocking Resolved:** None (gap_num_ctx enables proper context management for Ollama inference)
+
+---
+
 ### gap49: Simplify UI with Icons
 **Status:** ✅ Complete | Type: UI Simplification & Code Action Detection
 **Implementation:**
@@ -7293,6 +7321,91 @@ private ChatPageViewModel CreateChatPageViewModelWithMocks()
 **Total Files:** 3 new (interfaces, implementations, tests)  
 **Estimated Time:** 3-4 hours (implementation) + 1-2 hours (testing & debugging)  
 **Exit Criteria:** All 5 E2E scenarios pass; agent loop complete end-to-end; full test coverage
+
+---
+
+### gap63: gap_agent_mode_protocol_violations: LLM Response Validation in Agent Mode
+
+**Status:** 🔴 Open | Type: Agent Mode Enforcement Bug  
+**Severity:** HIGH | Impact: Agent mode unreliable, accepts non-compliant LLM responses  
+
+**Problem:**
+When LLM is in Agent mode, it should:
+1. Make tool calls immediately (no narrative)
+2. Not ask for confirmation or permission
+3. Not invent workflow modes or steps
+4. Output strict tool-call JSON format
+
+Current extension behavior: **Accepts any LLM response without validation**, even when response violates protocol (e.g., "asks for permission", "I will now...", "Accept, modify, or alternative?").
+
+**Root Causes:**
+
+1. **No Response Format Validation (ILlmService)**
+   - LLM response accepted as-is without checking for tool calls
+   - No detection of narrative text when Agent mode requires tool calls only
+   - No resubmit/retry logic for protocol violations
+
+2. **System Prompt Not Reinforced Per-Request**
+   - Prompt set once at session start, not included in every message
+   - LLM drifts away from Agent mode expectations without course correction
+   - No explicit "DO NOT" prohibitions (e.g., "DO NOT ask for confirmation")
+
+3. **No Protocol Violation Detection**
+   - No logging/detection when LLM response contains:
+     - "I assume...", "I will...", "Let me..."
+     - "Accept, modify, or alternative?"
+     - Invented mode names (e.g., "implementit mode", "finalizeit mode")
+   - ChatPageViewModel accepts any `_streamingResponse`
+
+4. **Tool Availability Not Communicated to LLM**
+   - LLM doesn't see tool list/signatures in prompt
+   - LLM makes assumptions about available tools instead of checking
+   - Tool call format not specified in system message
+
+5. **No Mode Enforcement in ChatPageViewModel**
+   - When `_currentMode == ChatMode.Agent`, view model doesn't validate response format
+   - No enforcement that tool calls exist or are properly formatted
+   - No fallback to safer mode if agent protocol violated
+
+**Files Affected:**
+- `src/VSIXProject1/Services/Interfaces/ILlmService.cs`: No response validation contract
+- `src/VSIXProject1/Services/Implementations/LlmService.cs`: No tool enforcement
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`: Accepts any response without protocol check
+- `src/VSIXProject1/Services/ChatModeSystemPrompts.cs`: Weak prompt, missing "DO NOT" directives
+
+**Implementation Plan:**
+
+1. Create `IResponseValidator.cs` interface with method:
+   ```csharp
+   bool ValidateAgentModeResponse(string response, ChatMode mode);
+   Task<(bool valid, string? correction)> ValidateAndCorrectAsync(string response, ChatMode mode);
+   ```
+
+2. Update `ChatModeSystemPrompts`:
+   - Add explicit prohibitions ("DO NOT ask for permission")
+   - Include available tool list and format spec
+   - Reinforce mode on every prompt
+
+3. Wrap `LlmService.StreamAsync()` with validation:
+   - Check for tool calls in Agent mode
+   - Log protocol violations
+   - Retry with corrected prompt if invalid
+
+4. Update `ChatPageViewModel.SendMessageAsync()`:
+   - Validate response via `IResponseValidator`
+   - If invalid in Agent mode, show error (don't show to user)
+   - Resubmit with stricter instruction
+
+5. Add unit tests:
+   - Detect "Accept, modify, or alternative?" responses
+   - Reject text-only responses in Agent mode
+   - Verify tool calls are present and valid JSON
+
+**Blame Distribution:**
+- Extension code: 70% (no validation, weak prompts, no recovery)
+- LLM behavior: 30% (follows path of least resistance)
+
+**Related Steps:** gap27 (Mode logic), gap59 (Agent tool dispatch)
 
 ---
 

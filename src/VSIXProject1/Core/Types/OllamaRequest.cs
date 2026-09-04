@@ -92,5 +92,12 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("top_p")]
         public double? TopP { get; set; }
+
+        /// <summary>
+        /// Context window size (number of tokens) for inference.
+        /// Controls the maximum context length that Ollama will use during model inference.
+        /// </summary>
+        [JsonProperty("num_ctx")]
+        public int? ContextWindow { get; set; }
     }
 }

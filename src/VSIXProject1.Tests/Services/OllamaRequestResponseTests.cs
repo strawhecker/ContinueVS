@@ -281,9 +281,34 @@ namespace ContinueVS.Tests.Services
             var json = JsonConvert.SerializeObject(response);
             var deserialized = JsonConvert.DeserializeObject<OllamaResponse>(json);
 
-            // Assert
-            Assert.NotNull(deserialized);
-            Assert.Equal("tool_calls", deserialized.DoneReason);
-        }
-    }
-}
+                         // Assert
+                         Assert.NotNull(deserialized);
+                         Assert.Equal("tool_calls", deserialized.DoneReason);
+                     }
+
+                     [Fact]
+                     public void OllamaRequest_SerializesWithNumCtx_WhenContextWindowDefined()
+                     {
+                         // Arrange
+                         var request = new OllamaRequest
+                         {
+                             Model = "llama3",
+                             Stream = true,
+                             Messages = new List<OllamaMessage> { new OllamaMessage { Role = "user", Content = "Hello" } },
+                             Options = new OllamaOptions
+                             {
+                                 Temperature = 0.7,
+                                 MaxTokens = 2048,
+                                 TopP = 0.9,
+                                 ContextWindow = 8192
+                             }
+                         };
+
+                         // Act
+                         var json = JsonConvert.SerializeObject(request);
+
+                         // Assert
+                         Assert.Contains("\"num_ctx\":8192", json);
+                     }
+                 }
+            }
