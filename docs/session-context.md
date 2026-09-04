@@ -7083,58 +7083,43 @@ There's no public method on ChatPageViewModel that allows external callers (GUI 
 ---
 
 ### gap61: Register IAgentCommandDispatcher in Service Bootstrapper
-**Status:** ❌ Not Started | Type:Dependency Injection - Service Registration
+**Status:** ✅ Complete | Type: Dependency Injection - Service Registration
 **Severity:** 🔴 BLOCKER - dispatcher not available at runtime
 **Dependencies:** gap58 (IAgentCommandDispatcher created), gap50 (ServiceBootstrapper exists)
 
-**Problem:**
-`ServiceBootstrapper.ConfigureServices()` registers 10+ services but does NOT register `IAgentCommandDispatcher`. Attempting to instantiate ChatPageViewModel with `_agentCommandDispatcher` dependency will throw `ServiceNotRegisteredException`.
+**Implementation:**
+- **Already Registered:** IAgentCommandDispatcher is registered in ServiceBootstrapper.ConfigureServices() at lines 122-130 as a singleton factory
+- **Factory correctly resolves:** IToolService, ILlmService, IModeConfigRegistry, IBridgeLogger (all pre-existing)
+- **ChatPageViewModel constructor** already accepts optional parameter: `IAgentCommandDispatcher? agentCommandDispatcher = null` (line 482)
+- **Fallback logic** creates default dispatcher if parameter is null (line 516): `_agentCommandDispatcher = agentCommandDispatcher ?? new AgentCommandDispatcher(...)`
 
-**Implementation Plan:**
-
-1. **Locate ServiceBootstrapper.ConfigureServices()** → `src/VSIXProject1/Services/ServiceBootstrapper.cs`
-
-2. **Add Registration (as singleton)**
+**Registration Code (ServiceBootstrapper.cs, lines 122-130):**
+```csharp
+// Agent command dispatcher for routing commands to tool handlers with mode policy validation (gap58)
+services.AddSingleton<IAgentCommandDispatcher>(sp =>
+{
+    var toolService = sp.GetRequiredService<IToolService>();
+    var llmService = sp.GetRequiredService<ILmService>();
+    var modeConfigRegistry = sp.GetRequiredService<IModeConfigRegistry>();
+    var logger = sp.GetRequiredService<IBridgeLogger>();
+    return new AgentCommandDispatcher(toolService, llmService, modeConfigRegistry, logger);
+});
 ```
-   // After existing tool/llm service registrations, add:
-   services.AddSingleton<IAgentCommandDispatcher>(sp =>
-       new AgentCommandDispatcher(
-           sp.GetRequiredService<IToolService>(),
-           sp.GetRequiredService<ILlmService>(),
-           sp.GetRequiredService<IModeConfigRegistry>(),
-           sp.GetRequiredService<ILogger>()
-       )
-   );
-```
 
-3. **Verify Dependency Chain**
-- IToolService ✅ (already registered)
-- ILlmService ✅ (already registered)
-- IModeConfigRegistry ✅ (already registered)
-- ILogger ✅ (already registered via LoggerService)
+**Files Modified:**
+- ✅ `src/VSIXProject1.Tests/Services/ServiceBootstrapperTests.cs` (NEW, 3 tests)
 
-4. **Update ChatPageViewModel Constructor**
-- Add parameter: `IAgentCommandDispatcher agentCommandDispatcher`
-- Store in field: `private readonly IAgentCommandDispatcher _agentCommandDispatcher`
-- Verify all existingconstructor calls in tests updated
-
-**Files to Modify:**
-- `src/VSIXProject1/Services/ServiceBootstrapper.cs` (ConfigureServices method, ~5 lines)
-- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (constructor signature, markfile as partial if needed)
-- `src/VSIXProject1.Tests/**Tests.cs` (ALL ChatPageViewModel constructor calls, ~40+ locations)
-- Add `_mockAgentCommandDispatcher` to CreateChatPageViewModelMock() helper
-
-**Testing:**
-- Verify ServiceBootstrapper compiles
-- Add bootstrap test: `ServiceBootstrapper_RegistersAgentCommandDispatcher`
-- Call build provider
-- ResolveIAgentCommandDispatcher
-- Assert not null
+**Tests Added:**
+- ✅ ServiceBootstrapper_HasAgentCommandDispatcherRegistration — verifies DI registration with mock services
+- ✅ AgentCommandDispatcher_InstantiatesWithAllDependencies — verifies constructor accepts all required dependencies
+- ✅ AgentCommandDispatcher_ThrowsArgumentNull_ForNullDependencies — verifies null-check validation
 
 **Build Validation:**
-- Full project compiles
-- All 1100+ existing tests still pass (due to mock updates)
-- New test for DI registration passes
+- ✅ Build successful (clean, zero warnings/errors)
+- ✅ All 3 new ServiceBootstrapperTests pass
+- ✅ No test failures (0 Failed in full suite)
+- ✅ gap60 tests still pass (5/5)
+- ✅ Existing ChatPageViewModel tests pass (10+)
 
 **Blocking Resolved:** gap62 (now fully integrated and ready for E2E testing)
 
