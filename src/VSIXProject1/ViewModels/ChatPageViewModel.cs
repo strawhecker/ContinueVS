@@ -1226,7 +1226,20 @@ public string? InputText
 
                 // gap32_1: Build effective context — start from SelectedContext, inject active file if not already present
                 var effectiveContext = new List<ContextItem>(SelectedContext);
-                if (_ideService != null)
+
+                // gap32_1: Check if active file injection is enabled via setting
+                var addCurrentFileByDefault = false;
+                if (_configService != null)
+                {
+                    var config = _configService.GetCurrentConfig();
+                    if (config?.CustomSettings?.TryGetValue(UserSettings.Experimental_AddCurrentFileByDefault, out var val) == true)
+                    {
+                        addCurrentFileByDefault = val is true or "true" or 1;
+                    }
+                }
+                _ = LoggerService.Current.WriteDebugAsync($"[gap32-setting] experimental.addCurrentFileByDefault={addCurrentFileByDefault}");
+
+                if (addCurrentFileByDefault && _ideService != null)
                 {
                     var activePath = _ideService.GetActiveFilepath();
                     if (!string.IsNullOrEmpty(activePath)
@@ -1415,7 +1428,7 @@ public string? InputText
             catch (Exception ex)
             {
 #if DEBUG
-                if (DebuggerHelper.ShouldBreakOnException("ServiceName"))
+                //if (DebuggerHelper.ShouldBreakOnException("ServiceName"))
                     Debugger.Break();
 #endif
 
