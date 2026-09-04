@@ -65,6 +65,8 @@ namespace ContinueVS.ViewModels
         // gap43_3: Optional plan output service for persisting Plan mode responses
         private readonly IPlanOutputService? _planOutputService;
         private IModeConfigRegistry _modeConfigRegistry;
+        // gap59: Agent command dispatcher for policy-enforced tool execution
+        private readonly IAgentCommandDispatcher _agentCommandDispatcher;
         private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -476,7 +478,8 @@ public string? InputText
             IWorkflowService? workflowService = null,
             IIdeService? ideService = null,
             IModeConfigRegistry? modeConfigRegistry = null,
-            IPlanOutputService? planOutputService = null)
+            IPlanOutputService? planOutputService = null,
+            IAgentCommandDispatcher? agentCommandDispatcher = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -509,6 +512,8 @@ public string? InputText
             _planOutputService = planOutputService;
             // gap44_3: fall back to default registry if none supplied — keeps existing call sites unchanged
             _modeConfigRegistry = modeConfigRegistry ?? new ModeConfigRegistry(_systemPromptService);
+            // gap59: fall back to create default dispatcher if none supplied
+            _agentCommandDispatcher = agentCommandDispatcher ?? new AgentCommandDispatcher(_toolService, _llmService, _modeConfigRegistry, LoggerService.Current);
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -1466,98 +1471,109 @@ public string? InputText
         private async Task<int> ExecuteToolCallsAsync(List<ToolCall> toolCalls)
         {
             int failureCount = 0;
+            var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
+
+            // gap59: Guard against tool execution in modes that don't allow it
+            if (!modeConfig.AllowToolLoop)
+            {
+                _ = LoggerService.Current.WriteDebugAsync($"[gap59-guard] Tool execution not allowed in {CurrentMode} mode (AllowToolLoop={modeConfig.AllowToolLoop})");
+                return 0;
+            }
+
             foreach (var toolCall in toolCalls)
             {
-                // Get tool policy from cached UIState
-                var policy = GetToolPolicy(toolCall.Name);
-
-                // Apply policy logic
-                if (policy == ToolPolicy.Disabled)
-                {
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap9-policy-apply] Tool {toolCall.Name} is DISABLED; skipping execution");
-
-                    await SwitchToMainThreadAsync();
-                    var disabledMessage = new ChatMessage
-                    {
-                        Role = ChatMessageRole.Tool,
-                        Content = $"[Policy: Disabled] Tool '{toolCall.Name}' is disabled and cannot be executed.",
-                        InvocationStatus = ToolInvocationStatus.Skipped,
-                        ExecutionStartTime = DateTime.Now,
-                        ExecutionEndTime = DateTime.Now
-                    };
-                    Messages.Add(disabledMessage);
-                    await _sessionService.AddMessageAsync(disabledMessage);
-                    continue;
-                }
-
-                if (policy == ToolPolicy.AskFirst)
-                {
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap9-policy-apply] Tool {toolCall.Name} requires approval (AskFirst); skipping for now");
-
-                    // TODO: Show approval dialog for AskFirst tools
-                    // For now, stub it with a message
-                    await SwitchToMainThreadAsync();
-                    var askFirstMessage = new ChatMessage
-                    {
-                        Role = ChatMessageRole.Tool,
-                        Content = $"[Policy: AskFirst] Tool '{toolCall.Name}' requires your approval. Use Agent Mode with tool approval dialog to execute.",
-                        InvocationStatus = ToolInvocationStatus.Skipped,
-                        ExecutionStartTime = DateTime.Now,
-                        ExecutionEndTime = DateTime.Now
-                    };
-                    Messages.Add(askFirstMessage);
-                    await _sessionService.AddMessageAsync(askFirstMessage);
-                    continue;
-                }
-
-                // AutoApprove: Execute immediately
-                _ = LoggerService.Current.WriteDebugAsync($"[gap9-policy-apply] Tool {toolCall.Name} is AutoApprove; executing immediately");
-
-                var toolMessage = new ChatMessage
-                {
-                    Role = ChatMessageRole.Tool,
-                    Content = $"[Executing: {toolCall.Name}]",
-                    InvocationStatus = ToolInvocationStatus.Running,
-                    ExecutionStartTime = DateTime.Now
-                };
-                await _sessionService.AddMessageAsync(toolMessage);
-
-                // Switch to main thread to update ObservableCollection
-                await SwitchToMainThreadAsync();
-                Messages.Add(toolMessage);
                 try
                 {
-                    var result = await _toolService.InvokeAsync(
+                    _ = LoggerService.Current.WriteDebugAsync(
+                        $"[gap59-dispatch] Dispatching tool {toolCall.Name} (id={toolCall.Id}) via IAgentCommandDispatcher");
+
+                    // gap59: Execute tool through dispatcher for policy validation
+                    var commandArguments = toolCall.Arguments ?? new Dictionary<string, object>();
+                    var toolResult = await _agentCommandDispatcher.DispatchAgentCommandAsync(
                         toolCall.Name,
-                        toolCall.Arguments ?? new Dictionary<string, object>(),
+                        commandArguments,
+                        CurrentMode,
                         _streamingCts?.Token ?? CancellationToken.None);
 
-                    toolMessage.Content = $"Tool '{toolCall.Name}' result: {result.Output}";
-                    toolMessage.InvocationStatus = ToolInvocationStatus.Complete;
-                    toolMessage.ExecutionEndTime = DateTime.Now;
+                    // Convert ToolResult to ChatMessage for session/UI
+                    await SwitchToMainThreadAsync();
+                    var toolMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Tool,
+                        Content = toolResult.Output,
+                        InvocationStatus = toolResult.IsSuccess ? ToolInvocationStatus.Complete : ToolInvocationStatus.Failed,
+                        ExecutionStartTime = DateTime.Now,
+                        ExecutionEndTime = DateTime.Now
+                    };
+                    await _sessionService.AddMessageAsync(toolMessage);
+                    Messages.Add(toolMessage);
 
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap9-exec] Tool '{toolCall.Name}' executed successfully. Result: {result.Output}");
-
+                    if (!toolResult.IsSuccess)
+                    {
+                        failureCount++;
+                        _ = LoggerService.Current.WriteDebugAsync(
+                            $"[gap59-dispatch] Tool {toolCall.Name} completed with failure: {toolResult.Output}");
+                    }
+                    else
+                    {
+                        _ = LoggerService.Current.WriteDebugAsync(
+                            $"[gap59-dispatch] Tool {toolCall.Name} completed successfully");
+                    }
                 }
                 catch (InvalidOperationException ex)
                 {
-                    // gap23_4_3: Tool call limit reached (gap23_4_3)
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap23_4_3-limit-caught] {ex.Message}");
-                    _limitReachedFlag = true;
+                    // gap59: Policy violation or mode doesn't support tool loop
+                    _ = LoggerService.Current.WriteDebugAsync($"[gap59-dispatch-denied] Tool {toolCall.Name} policy violation: {ex.Message}");
+
                     await SwitchToMainThreadAsync();
-                    if (_notificationService != null)
-                        await _notificationService.ShowErrorAsync(ex.Message);
-                    SendMessageCommand.RaiseCanExecuteChanged();
-                    throw; // Stop tool execution loop when limit is hit
+                    var deniedMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Tool,
+                        Content = $"[Policy Denied] Tool '{toolCall.Name}' cannot be executed: {ex.Message}",
+                        InvocationStatus = ToolInvocationStatus.Failed,
+                        ExecutionStartTime = DateTime.Now,
+                        ExecutionEndTime = DateTime.Now
+                    };
+                    await _sessionService.AddMessageAsync(deniedMessage);
+                    Messages.Add(deniedMessage);
+                    failureCount++;
+                }
+                catch (OperationCanceledException)
+                {
+                    _ = LoggerService.Current.WriteWarningAsync(
+                        $"[gap59-dispatch] Tool {toolCall.Name} was cancelled");
+
+                    await SwitchToMainThreadAsync();
+                    var cancelledMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Tool,
+                        Content = $"Tool '{toolCall.Name}' execution was cancelled",
+                        InvocationStatus = ToolInvocationStatus.Failed,
+                        ExecutionStartTime = DateTime.Now,
+                        ExecutionEndTime = DateTime.Now
+                    };
+                    await _sessionService.AddMessageAsync(cancelledMessage);
+                    Messages.Add(cancelledMessage);
+                    failureCount++;
                 }
                 catch (Exception ex)
                 {
-                    toolMessage.Content = $"Tool '{toolCall.Name}' failed: {ex.Message}";
-                    toolMessage.InvocationStatus = ToolInvocationStatus.Failed;
-                    toolMessage.ExecutionEndTime = DateTime.Now;
-                    failureCount++;
+                    // gap59-dispatch exception: log and continue loop
+                    _ = LoggerService.Current.WriteErrorAsync(
+                        $"[gap59-dispatch-error] Tool {toolCall.Name} execution failed: {ex.Message}", ex);
 
-                    _ = LoggerService.Current.WriteErrorAsync($"[gap9-exec] Tool '{toolCall.Name}' execution failed: {ex.Message}", ex);
+                    await SwitchToMainThreadAsync();
+                    var errorMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Tool,
+                        Content = $"Tool '{toolCall.Name}' failed: {ex.Message}",
+                        InvocationStatus = ToolInvocationStatus.Failed,
+                        ExecutionStartTime = DateTime.Now,
+                        ExecutionEndTime = DateTime.Now
+                    };
+                    await _sessionService.AddMessageAsync(errorMessage);
+                    Messages.Add(errorMessage);
+                    failureCount++;
                 }
             }
             return failureCount;
