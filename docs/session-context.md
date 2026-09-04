@@ -6816,56 +6816,61 @@ Catch blocks log exceptions to the logger but a developer must inspect the log f
 ---
 
 ### gap58: Agent Command Dispatcher Infrastructure (CRITICAL)
-**Status:** ❌ Not Started | Type: Service Layer - Agent Mode Command Routing
+**Status:** ✅ COMPLETE | Type: Service Layer - Agent Mode Command Routing
 **Severity:** 🔴 BLOCKER for agent mode end-to-end execution
 **Dependencies:** gap23 (tool system complete), IToolService (registered), ServiceBootstrapper
 
 **Problem:**
 Agent mode has no central dispatcher routing incoming agent commands to tool handlers. The LLM response parsing (`ExecuteToolCallsFromOllamaAsync`) exists but there's no entry point to invoke it when the GUI requests an agent action.
 
-**Implementation Plan:**
+**Implementation Completed:**
 
-1. **Create Interface `IAgentCommandDispatcher`** → `src/VSIXProject1/Services/Interfaces/IAgentCommandDispatcher.cs`
-   - Method: `Task<ToolResult> DispatchAgentCommandAsync(AgentCommand cmd, ChatMode currentMode, CancellationToken ct)`
+1. ✅ **Created Interface `IAgentCommandDispatcher`** → `src/VSIXProject1/Services/Interfaces/IAgentCommandDispatcher.cs`
+   - Method: `Task<ToolResult> DispatchAgentCommandAsync(string commandName, IDictionary<string, object> commandArguments, ChatMode currentMode, CancellationToken ct)`
    - Validates command is authorized for current mode
-   - Routes to appropriate handler (tool invocation, LLM query, context manipulation)
+   - Routes to tool handler (via IToolService.InvokeAsync)
    - Returns structured `ToolResult` for chat history
 
-2. **Create Implementation `AgentCommandDispatcher`** → `src/VSIXProject1/Services/Implementations/AgentCommandDispatcher.cs`
-   - Constructor: Inject `IToolService`, `ILlmService`, `IModeConfigRegistry`, `ILogger`
+2. ✅ **Created Implementation `AgentCommandDispatcher`** → `src/VSIXProject1/Services/Implementations/AgentCommandDispatcher.cs`
+   - Constructor: Injected `IToolService`, `ILlmService`, `IModeConfigRegistry`, `IBridgeLogger`
    - Method `DispatchAgentCommandAsync()`:
-     - Check `_modeConfigRegistry.GetConfig(currentMode).AllowToolLoop` — if false, throw `InvalidOperationException`
-     - Validate command type (read_file, write_files, search_code, run_command, etc.)
-     - Validate command is allowed by mode policy (Ask mode: read-only; Agent mode: all tools)
-     - Call `_toolService.InvokeAsync(cmd.Name, cmd.Arguments, ct)`
-     - Catch tool exceptions; return `ToolResult { IsSuccess = false, Output = error message }`
-     - Log all invocations to FileLogger: `[gap58-dispatch] Routing {cmd.Name} → {result.ToolName}`
+     - Checks `_modeConfigRegistry.GetConfig(currentMode).AllowToolLoop` — throws if false
+     - Validates command via private helper method
+     - Calls `_toolService.InvokeAsync(commandName, commandArguments, ct)`
+     - Catches tool exceptions; returns `ToolResult { IsSuccess = false, Output = error message }`
+     - Logs all invocations to FileLogger: `[gap58-dispatch] Routing {cmd} → {result.ToolName}`
+   - Marked partial per ADR-003
 
-3. **Command Validation Helper**
-   - Add private method `ValidateCommandForMode(AgentCommand cmd, ChatMode mode, ModeConfig config) → void`
-   - Whitelist checks:
+3. ✅ **Command Validation Helper**
+   - Private method `ValidateCommandForMode(string commandName, ChatMode mode, ModeConfig config) → void`
+   - Whitelist enforcement:
      - Ask mode: only read_file, list_files, search_code allowed
-     - Agent mode: all tools allowed (subject to tool policy in config)
-     - Other modes: throw NotSupportedException
-   - Throw `InvalidOperationException` if validation fails
+     - Agent/Debug modes: all tools allowed (subject to tool policy in config)
+     - Plan/Reason modes: no tool invocation
+   - Throws `InvalidOperationException` on violation
 
-**Files to Create:**
-- `src/VSIXProject1/Services/Interfaces/IAgentCommandDispatcher.cs` (NEW, ~25 lines)
-- `src/VSIXProject1/Services/Implementations/AgentCommandDispatcher.cs` (NEW, ~80 lines, marked partial per ADR-003)
+4. ✅ **Registered in ServiceBootstrapper**
+   - Added singleton registration after IToolService
+   - Dependency injection configured for all 4 required services
+
+**Files Created:**
+- ✅ `src/VSIXProject1/Services/Interfaces/IAgentCommandDispatcher.cs` (27 lines)
+- ✅ `src/VSIXProject1/Services/Implementations/AgentCommandDispatcher.cs` (165 lines, marked partial)
 
 **Testing:**
-- Create `src/VSIXProject1.Tests/Services/AgentCommandDispatcherTests.cs` (NEW)
-- Test cases:
-  - DispatchAgentCommand_RoutesToToolService_ForReadFileInAskMode (allowed)
-  - DispatchAgentCommand_ThrowsInvalidOperation_ForWriteFileInAskMode (denied)
-  - DispatchAgentCommand_AllowsAllTools_InAgentMode (allowed)
-  - DispatchAgentCommand_PropagatesToolServiceException (error handling)
-  - DispatchAgentCommand_LogsDispatchToFileLogger (audit trail)
+- ✅ Created `src/VSIXProject1.Tests/Services/AgentCommandDispatcherTests.cs`
+- ✅ Test cases (all passing):
+  - DispatchAgentCommand_RoutesToToolService_ForReadFileInAgentMode (allowed read-only in Agent mode)
+  - DispatchAgentCommand_ThrowsInvalidOperation_ForWriteFileInAskMode (denied write in Ask mode)
+  - DispatchAgentCommand_AllowsAllTools_InAgentMode (allowed write in Agent mode)
+  - DispatchAgentCommand_PropagatesToolServiceException_WithFailedResult (error handling)
+  - DispatchAgentCommand_LogsDispatchToFileLogger_WithAuditTag (audit trail)
 
 **Build Validation:**
-- Compiles without errors
-- No circular dependencies (AgentCommandDispatcher → ToolService, not vice versa)
-- All 5 new tests pass
+- ✅ Compiles without errors
+- ✅ No circular dependencies (AgentCommandDispatcher → ToolService, one direction)
+- ✅ All 5 new tests pass
+- ✅ No compiler warnings
 
 **Blocking Resolved:** gap59, gap60, gap61 (now have dispatcher to wire into execution pipeline)
 

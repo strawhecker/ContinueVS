@@ -119,6 +119,16 @@ namespace ContinueVS.Services
             services.AddSingleton<IContextService, ContextService>();
             services.AddSingleton<IMcpService, McpService>();
 
+            // Agent command dispatcher for routing commands to tool handlers with mode policy validation (gap58)
+            services.AddSingleton<IAgentCommandDispatcher>(sp =>
+            {
+                var toolService = sp.GetRequiredService<IToolService>();
+                var llmService = sp.GetRequiredService<ILlmService>();
+                var modeConfigRegistry = sp.GetRequiredService<IModeConfigRegistry>();
+                var logger = sp.GetRequiredService<IBridgeLogger>();
+                return new AgentCommandDispatcher(toolService, llmService, modeConfigRegistry, logger);
+            });
+
             // Stack trace parsing service and parsers (gap29_1)
             services.AddSingleton<IDotNetFrameworkParser, DotNetFrameworkStackTraceParser>();
             services.AddSingleton<IDotNetCoreParser, DotNetCoreStackTraceParser>();
