@@ -2090,5 +2090,72 @@ public string? InputText
         /// </summary>
         private bool IsReadTool(string name) =>
             name is "read_file" or "list_files" or "search_code";
+
+        /// <summary>
+        /// gap60: Public entry point for external callers (GUI bridge, tests, CI/CD) to trigger agent commands.
+        /// Validates mode, dispatch via IAgentCommandDispatcher, adds results to session history.
+        /// Logs with [gap60-*] tags for audit trail.
+        /// </summary>
+        public async Task ExecuteAgentCommandAsync(string commandName, IDictionary<string, object> commandArguments, CancellationToken ct = default)
+        {
+            // 1. Validate mode
+            if (CurrentMode != ChatMode.Agent)
+            {
+                throw new InvalidOperationException(
+                    $"Agent commands only valid in Agent mode. Current mode: {CurrentMode}");
+            }
+
+            // 2. Validate command format
+            if (string.IsNullOrWhiteSpace(commandName))
+                throw new ArgumentException("Command name cannot be null or empty.", nameof(commandName));
+
+            try
+            {
+                // 3. Get mode config
+                var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
+
+                // 4. Dispatch via IAgentCommandDispatcher
+                _ = LoggerService.Current.WriteDebugAsync(
+                    $"[gap60-agent-cmd] Executing agent command: {commandName}");
+
+                var result = await _agentCommandDispatcher.DispatchAgentCommandAsync(
+                    commandName, 
+                    commandArguments ?? new Dictionary<string, object>(),
+                    CurrentMode, 
+                    ct);
+
+                // 5. Add to chat history (for context window)
+                var toolMsg = new ChatMessage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Role = ChatMessageRole.Tool,
+                    Content = result.Output,
+                    InvocationStatus = result.Output?.Contains("Error") ?? false ? ToolInvocationStatus.Failed : ToolInvocationStatus.Complete
+                };
+                await _sessionService.AddMessageAsync(toolMsg);
+                Messages.Add(toolMsg);
+
+                _ = LoggerService.Current.WriteDebugAsync(
+                    $"[gap60-agent-cmd-complete] Command {commandName} finished");
+            }
+            catch (InvalidOperationException ex)
+            {
+                _ = LoggerService.Current.WriteErrorAsync(
+                    $"[gap60-agent-error] Agent command validation failed: {ex.Message}");
+                throw;
+            }
+            catch (OperationCanceledException ex)
+            {
+                _ = LoggerService.Current.WriteWarningAsync(
+                    $"[gap60-agent-error] Agent command cancelled: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _ = LoggerService.Current.WriteErrorAsync(
+                    $"[gap60-agent-error] Unexpected error during agent command execution: {ex.Message}");
+                throw;
+            }
+        }
     }
 }
