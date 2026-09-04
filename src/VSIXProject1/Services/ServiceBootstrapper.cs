@@ -32,6 +32,16 @@ namespace ContinueVS.Services
             // BP:sv-di-build — breakpoint at BuildServiceProvider() below confirms all registrations succeeded
             _ = LoggerService.Current.WriteDebugAsync("[sv-di] ConfigureServices START");
 
+#if DEBUG
+            // --- Debug Configuration: Exception breakpoint behavior (gap57-debug) ---
+            // To enable exception breakpoints, set environment variable in PowerShell terminal (one-time per session):
+            //   $env:CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS = "1"                         # break on ALL exceptions
+            //   $env:CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS = "ConfigService,ToolService" # break only on listed contexts
+            //   $env:CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS = ""                          # disable breaks
+            // Uncomment line below when actively debugging exception paths to log current configuration:
+            // DebuggerHelper.LogDebugConfiguration();
+#endif
+
             // --- IBridgeLogger: must be first — many factory lambdas below require it ---
             _ = LoggerService.Current.WriteDebugAsync("[sv-di] registering IBridgeLogger (FileLogger)");
             services.AddSingleton<IBridgeLogger>(LoggerService.Current);

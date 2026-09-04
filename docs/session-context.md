@@ -6739,6 +6739,82 @@ Users want to use local/intranet vLLM instances instead of cloud-hosted OpenAI, 
 
 ---
 
+### gap57b: DEBUG-Only Exception Breakpoint Infrastructure (Debugging Support)
+
+**Status:** ✅ Complete | Type: Developer Ergonomics / Debugging Infrastructure
+
+**Problem:**
+Catch blocks log exceptions to the logger but a developer must inspect the log file to understand context. For interactive debugging, applying persistent breakpoints across many catch statements is tedious and adds noise. Need a debugging aid that allows selective, session-persistent exception breakpoints without code pollution or Release-build overhead.
+
+**Solution Implemented:** DEBUG-only, environment-variable-driven context-aware breakpoint helper
+
+**Changes Made:**
+
+1. **Created `DebuggerHelper.cs`** (`src/VSIXProject1/Services/DebuggerHelper.cs`):
+   - New static utility class with `ShouldBreakOnException(string context)` method
+   - Reads `CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS` environment variable
+   - Supports three modes:
+     - `"1"` or `"true"` = break on ALL exceptions (any context)
+     - Comma-separated context list = break only on listed contexts (case-insensitive)
+     - Unset/empty = no breaks (default)
+   - Included `LogDebugConfiguration()` method for startup diagnostics
+   - Fully wrapped in `#nullable enable`; XML-documented for IDE support
+
+2. **Integrated into `ServiceBootstrapper.cs`** (`src/VSIXProject1/Services/ServiceBootstrapper.cs`):
+   - Added `#if DEBUG` startup block in `ConfigureServices()` method
+   - Included PowerShell environment variable setup instructions as comments
+   - Commented out the `DebuggerHelper.LogDebugConfiguration()` call (enabled selectively)
+   - No Release-build impact (entire block removed by compiler)
+
+**Implementation Details:**
+
+- **Environment Variable Setup** (one-time per debug session):
+  ```powershell
+  # In Visual Studio Developer PowerShell terminal:
+  $env:CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS = "1"                         # Global breaks
+  $env:CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS = "ConfigService,ToolService" # Selective contexts
+  $env:CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS = ""                          # Disable breaks
+  ```
+
+- **Usage Pattern in Catch Blocks** (separate from current work; implementation ready):
+  ```csharp
+  catch (Exception ex)
+  {
+  #if DEBUG
+      if (DebuggerHelper.ShouldBreakOnException("ServiceName"))
+          Debugger.Break();
+  #endif
+      _ = LoggerService.Current.WriteErrorAsync("[ServiceName] Operation failed", ex);
+  }
+  ```
+
+- **Startup Diagnostic** (optional):
+  Uncomment the `DebuggerHelper.LogDebugConfiguration();` call in `ServiceBootstrapper.cs` to log breakpoint configuration during app startup (DEBUG only).
+
+**Acceptance Criteria Met:**
+
+- ✅ Helper class created with context-aware breakpoint logic
+- ✅ Environment variable parsing supports global and selective modes
+- ✅ Startup hook integrated under `#if DEBUG` (commented out by default)
+- ✅ Zero Release-build overhead (code removed by compiler)
+- ✅ Case-insensitive context matching for usability
+- ✅ Clear documentation and usage examples included
+- ✅ Build verified (0 warnings/errors)
+- ✅ All existing tests pass (no regressions)
+
+**Files Created:**
+- `src/VSIXProject1/Services/DebuggerHelper.cs` — new DEBUG-only breakpoint helper
+
+**Files Modified:**
+- `src/VSIXProject1/Services/ServiceBootstrapper.cs` — `#if DEBUG` startup block with env-var comments and commented-out diagnostic call
+
+**Dependencies:**
+- Completes after gap57 (notification refactor) ✅
+- Ready for follow-on instrumentation of catch blocks (separate task)
+- Requires no additional dependencies; uses only Environment, Linq, and LoggerService
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

@@ -1867,24 +1867,24 @@ public string? InputText
                 try
                 {
                     _ = LoggerService.Current.WriteDebugAsync(
-                        $"[gap55_4-tool-execution] Executing tool={toolCall.Function.Name}, id={toolCall.Id}");
+                        $"[gap55_4-tool-execution] Executing tool={toolCall.Function?.Name ?? "unknown"}, id={toolCall.Id}");
 
                     // Parse tool arguments (JSON string to dict)
                     var args = new Dictionary<string, object>();
-                    if (!string.IsNullOrEmpty(toolCall.Function.Arguments))
+                    if (!string.IsNullOrEmpty(toolCall.Function?.Arguments))
                     {
                         try
                         {
                             args = JsonConvert.DeserializeObject<Dictionary<string, object>>(
-                                toolCall.Function.Arguments) ?? new Dictionary<string, object>();
+                                toolCall.Function?.Arguments ?? "") ?? new Dictionary<string, object>();
                         }
                         catch (JsonException ex)
                         {
                             _ = LoggerService.Current.WriteErrorAsync(
-                                $"[gap55_4-tool-error] Failed to deserialize arguments for tool {toolCall.Function.Name}: {ex.Message}");
+                                $"[gap55_4-tool-error] Failed to deserialize arguments for tool {toolCall.Function?.Name ?? "unknown"}: {ex.Message}");
                             toolResults.Add(new ToolResult
                             {
-                                ToolName = toolCall.Function.Name,
+                                ToolName = toolCall.Function?.Name ?? "unknown",
                                 ToolCallId = toolCall.Id,
                                 Output = $"Error: Failed to deserialize tool arguments: {ex.Message}"
                             });
@@ -1897,7 +1897,7 @@ public string? InputText
                     using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token))
                     {
                         var result = await _toolService.InvokeAsync(
-                            toolCall.Function.Name,
+                            toolCall.Function?.Name ?? "unknown",
                             args,
                             linkedCts.Token);
 
@@ -1905,17 +1905,17 @@ public string? InputText
                         toolResults.Add(result);
 
                         _ = LoggerService.Current.WriteDebugAsync(
-                            $"[gap55_4-tool-success] Tool {toolCall.Function.Name} completed: " +
-                            $"{result.Output.Substring(0, Math.Min(100, result.Output.Length))}...");
+                            $"[gap55_4-tool-success] Tool {toolCall.Function?.Name ?? "unknown"} completed: " +
+                            $"{(result.Output?.Substring(0, Math.Min(100, result.Output?.Length ?? 0)) ?? "(empty)")}...");
                     }
                 }
                 catch (OperationCanceledException)
                 {
                     _ = LoggerService.Current.WriteWarningAsync(
-                        $"[gap55_4-tool-timeout] Tool {toolCall.Function.Name} timed out (30s)");
+                        $"[gap55_4-tool-timeout] Tool {toolCall.Function?.Name ?? "unknown"} timed out (30s)");
                     toolResults.Add(new ToolResult
                     {
-                        ToolName = toolCall.Function.Name,
+                        ToolName = toolCall.Function?.Name ?? "unknown",
                         ToolCallId = toolCall.Id,
                         Output = "Error: Tool execution timed out (30 seconds)"
                     });
@@ -1923,10 +1923,10 @@ public string? InputText
                 catch (Exception ex)
                 {
                     _ = LoggerService.Current.WriteErrorAsync(
-                        $"[gap55_4-tool-error] Tool {toolCall.Function.Name} failed: {ex.Message}");
+                        $"[gap55_4-tool-error] Tool {toolCall.Function?.Name ?? "unknown"} failed: {ex.Message}");
                     toolResults.Add(new ToolResult
                     {
-                        ToolName = toolCall.Function.Name,
+                        ToolName = toolCall.Function?.Name ?? "unknown",
                         ToolCallId = toolCall.Id,
                         Output = $"Error: {ex.Message}"
                     });

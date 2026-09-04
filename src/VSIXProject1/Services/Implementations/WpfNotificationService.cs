@@ -138,7 +138,7 @@ namespace ContinueVS.Services.Implementations
                             // Silently ignore if already removed or collection disposed
                         }
                     });
-                });
+                }, TaskScheduler.Default);
             }
             catch (Exception ex)
             {

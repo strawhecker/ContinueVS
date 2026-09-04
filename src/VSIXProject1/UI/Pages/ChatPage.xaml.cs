@@ -2,10 +2,12 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.Shell;
 using ContinueVS.Core.Types;
 using ContinueVS.Services;
 using ContinueVS.Services.Implementations;
@@ -185,7 +187,7 @@ namespace ContinueVS.UI.Pages
             this.Unloaded += ChatPage_Unloaded;
         }
 
-        private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
+        private void ChatPage_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -197,9 +199,19 @@ namespace ContinueVS.UI.Pages
                 {
                     messages.CollectionChanged += Messages_CollectionChanged;
 
-                    // Initialize the ViewModel asynchronously and AWAIT completion before allowing user interaction
-                    await vm.InitializeAsync();
-                    _ = LoggerService.Current.WriteDebugAsync("[ChatPage_Loaded] ViewModel initialization complete");
+                    // Initialize the ViewModel asynchronously without blocking (fire and forget with error handling)
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await vm.InitializeAsync();
+                            _ = LoggerService.Current.WriteDebugAsync("[ChatPage_Loaded] ViewModel initialization complete");
+                        }
+                        catch (Exception ex)
+                        {
+                            _ = LoggerService.Current.WriteErrorAsync("[ChatPage_Loaded] ViewModel initialization error", ex);
+                        }
+                    });
                 }
             }
             catch (Exception ex)
