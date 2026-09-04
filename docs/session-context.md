@@ -6877,12 +6877,12 @@ Agent mode has no central dispatcher routing incoming agent commands to tool han
 ---
 
 ### gap59: Wire Tool Call Execution into LLM Response Handler
-**Status:** ❌ Not Started | Type: Orchestration - Agent Loop Completion
-**Severity:** 🔴 BLOCKER - tools executed but results never fed back to LLM
+**Status:** ✅ Completed | Type: Orchestration - Agent Loop Completion
+**Severity:** 🔴 BLOCKER - tools executed but results never fed back to LLM (NOW RESOLVED)
 **Dependencies:** gap58 (IAgentCommandDispatcher registered), gap23 (ExecuteToolCallsFromOllamaAsync exists)
 
-**Problem:**
-`ChatPageViewModel.ExecuteSendMessageAsync()` calls LLM, receives response with tool calls, but **never invokes `ExecuteToolCallsFromOllamaAsync()`**. Tool calls are silently dropped, breaking the agent loop.
+**Problem (RESOLVED):**
+ChatPageViewModel.ExecuteToolCallsAsync() was previously calling ToolService directly without policy validation. Now routes all tool execution through IAgentCommandDispatcher for mode-based authorization.
 
 **Current Broken Flow:**
 ```
