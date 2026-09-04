@@ -6815,6 +6815,476 @@ Catch blocks log exceptions to the logger but a developer must inspect the log f
 
 ---
 
+### gap58: Agent Command Dispatcher Infrastructure (CRITICAL)
+**Status:** ❌ Not Started | Type: Service Layer - Agent Mode Command Routing
+**Severity:** 🔴 BLOCKER for agent mode end-to-end execution
+**Dependencies:** gap23 (tool system complete), IToolService (registered), ServiceBootstrapper
+
+**Problem:**
+Agent mode has no central dispatcher routing incoming agent commands to tool handlers. The LLM response parsing (`ExecuteToolCallsFromOllamaAsync`) exists but there's no entry point to invoke it when the GUI requests an agent action.
+
+**Implementation Plan:**
+
+1. **Create Interface `IAgentCommandDispatcher`** → `src/VSIXProject1/Services/Interfaces/IAgentCommandDispatcher.cs`
+   - Method: `Task<ToolResult> DispatchAgentCommandAsync(AgentCommand cmd, ChatMode currentMode, CancellationToken ct)`
+   - Validates command is authorized for current mode
+   - Routes to appropriate handler (tool invocation, LLM query, context manipulation)
+   - Returns structured `ToolResult` for chat history
+
+2. **Create Implementation `AgentCommandDispatcher`** → `src/VSIXProject1/Services/Implementations/AgentCommandDispatcher.cs`
+   - Constructor: Inject `IToolService`, `ILlmService`, `IModeConfigRegistry`, `ILogger`
+   - Method `DispatchAgentCommandAsync()`:
+     - Check `_modeConfigRegistry.GetConfig(currentMode).AllowToolLoop` — if false, throw `InvalidOperationException`
+     - Validate command type (read_file, write_files, search_code, run_command, etc.)
+     - Validate command is allowed by mode policy (Ask mode: read-only; Agent mode: all tools)
+     - Call `_toolService.InvokeAsync(cmd.Name, cmd.Arguments, ct)`
+     - Catch tool exceptions; return `ToolResult { IsSuccess = false, Output = error message }`
+     - Log all invocations to FileLogger: `[gap58-dispatch] Routing {cmd.Name} → {result.ToolName}`
+
+3. **Command Validation Helper**
+   - Add private method `ValidateCommandForMode(AgentCommand cmd, ChatMode mode, ModeConfig config) → void`
+   - Whitelist checks:
+     - Ask mode: only read_file, list_files, search_code allowed
+     - Agent mode: all tools allowed (subject to tool policy in config)
+     - Other modes: throw NotSupportedException
+   - Throw `InvalidOperationException` if validation fails
+
+**Files to Create:**
+- `src/VSIXProject1/Services/Interfaces/IAgentCommandDispatcher.cs` (NEW, ~25 lines)
+- `src/VSIXProject1/Services/Implementations/AgentCommandDispatcher.cs` (NEW, ~80 lines, marked partial per ADR-003)
+
+**Testing:**
+- Create `src/VSIXProject1.Tests/Services/AgentCommandDispatcherTests.cs` (NEW)
+- Test cases:
+  - DispatchAgentCommand_RoutesToToolService_ForReadFileInAskMode (allowed)
+  - DispatchAgentCommand_ThrowsInvalidOperation_ForWriteFileInAskMode (denied)
+  - DispatchAgentCommand_AllowsAllTools_InAgentMode (allowed)
+  - DispatchAgentCommand_PropagatesToolServiceException (error handling)
+  - DispatchAgentCommand_LogsDispatchToFileLogger (audit trail)
+
+**Build Validation:**
+- Compiles without errors
+- No circular dependencies (AgentCommandDispatcher → ToolService, not vice versa)
+- All 5 new tests pass
+
+**Blocking Resolved:** gap59, gap60, gap61 (now have dispatcher to wire into execution pipeline)
+
+---
+
+### gap59: Wire Tool Call Execution into LLM Response Handler
+**Status:** ❌ Not Started | Type: Orchestration - Agent Loop Completion
+**Severity:** 🔴 BLOCKER - tools executed but results never fed back to LLM
+**Dependencies:** gap58 (IAgentCommandDispatcher registered), gap23 (ExecuteToolCallsFromOllamaAsync exists)
+
+**Problem:**
+`ChatPageViewModel.ExecuteSendMessageAsync()` calls LLM, receives response with tool calls, but **never invokes `ExecuteToolCallsFromOllamaAsync()`**. Tool calls are silently dropped, breaking the agent loop.
+
+**Current Broken Flow:**
+```
+User sends message → LLM streams response → Assistant message saved → STOP (tools ignored)
+                                                    ↓
+                                          ToolCalls in response? → discarded
+```
+
+**Target Fixed Flow:**
+```
+User sends message → LLM streams response → Assistant message saved 
+                                                    ↓
+                                    Check: ToolCalls exist AND AllowToolLoop?
+                                                    ↓
+                                    Execute tools via dispatcher
+                                                    ↓
+                                    Add tool results to session
+                                                    ↓
+                                    Continue loop (re-invoke LLM with results)
+```
+
+**Implementation Plan:**
+
+1. **Locate Tool Call Check in ExecuteSendMessageAsync** (~line 1340 in ChatPageViewModel.cs)
+   - After `await _sessionService.AddMessageAsync(assistantMessage);` 
+   - Add guard: `if (assistantMessage.ToolCalls?.Count > 0 && modeConfig.AllowToolLoop)`
+
+2. **Convert ToolCall → ToolCallSchema** (Ollama wire format)
+```
+   var ollamaToolCalls = assistantMessage.ToolCalls.Select(tc => new ToolCallSchema
+   {
+       Id = tc.Id,
+       Type = "function",
+       Function = new ToolCallFunction
+       {
+           Name = tc.Name,
+           Arguments = JsonConvert.SerializeObject(tc.Arguments ?? new Dictionary<string, object>())
+       }
+   }).ToList();
+```
+
+3. **Execute Tools**
+```
+   _ = LoggerService.Current.WriteDebugAsync(
+       $"[gap59-tool-exec] Routing {assistantMessage.ToolCalls.Count} tool calls to executor");
+
+   var toolResults = await ExecuteToolCallsFromOllamaAsync(ollamaToolCalls, _streamingCts.Token);
+
+   _ = LoggerService.Current.WriteDebugAsync(
+       $"[gap59-tool-results] Received {toolResults.Count} tool results");
+```
+
+4. **Add Tool Results to Session & Messages Collection**
+- For each result in `toolResults`:
+  ```csharp
+  var toolMsg = new ChatMessage
+  {
+      Role = ChatMessageRole.Tool,
+      Content = result.Output,
+      InvocationStatus = result.IsSuccess ? ToolInvocationStatus.Complete : ToolInvocationStatus.Failed,
+      ExecutionStartTime = DateTime.Now,  // May need actual timing from ToolService
+      ExecutionEndTime = DateTime.Now
+  };
+  await _sessionService.AddMessageAsync(toolMsg);
+  Messages.Add(toolMsg);  // UI update
+  ```
+
+5. **Continue Loop (Re-invoke LLM)**
+- Don't break loop yet; reconstruct message history including tool results
+- Call LLM again with full context (user →assistant → tool → assistant → ...)
+- If LLM returns more tool calls, repeat; if no tools, break
+
+**Files to Modify:**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (ExecuteSendMessageAsync method,~20 lines of new logic at line 1340)
+
+**Code Insertion Point:**
+```
+// Around line 1344-1350, after:
+// await _sessionService.AddMessageAsync(assistantMessage);
+
+// ADD THIS:
+if (assistantMessage.ToolCalls?.Count > 0 && modeConfig.AllowToolLoop)
+{
+    // [gap59 implementation above]
+    // Loop continues; no break
+}
+else
+{
+    // No tools or not in tool-loop mode — break and show response
+    break;
+}
+```
+
+**Testing:**
+- Modify `ChatPageViewModelAgentModeTests.cs` (already exists)
+- Add test: `ExecuteSendMessageAsync_WithToolCallsInResponse_InvokesExecuteToolCallsAsync`
+  - Mock LLM to return response with ToolCalls
+  - Verify `ExecuteToolCallsFromOllamaAsync` is called
+  - Verify tool results added to Messages
+  - Verify session.AddMessageAsync called for each result
+
+**Build Validation:**
+- Full test suite passes (including new agent mode E2E test)
+- No regressions in existing send-message tests
+- Tool execution logs appear in FileLogger
+
+**Blocking Resolved:** gap60 (agent loop now complete)
+
+---
+
+### gap60: Agent Mode Command Entry Point Handler
+**Status:** ❌ Not Started | Type: API Layer - Inbound Command Processing
+**Severity:** 🔴 BLOCKER - no way to trigger agent mode from external callers
+**Dependencies:** gap58 (IAgentCommandDispatcher), gap59 (tool wiring complete)
+
+**Problem:**
+There's no public method on ChatPageViewModel that allows external callers (GUI bridge, automated tests, CI/CD) to trigger an agent command. `ExecuteSendMessageAsync()` is user-initiated (button click); agent mode commands need a separate entry point.
+
+**Implementation Plan:**
+
+1. **Create Public Entry Point `ExecuteAgentCommandAsync()`** in `ChatPageViewModel`
+```
+   public async Task ExecuteAgentCommandAsync(AgentCommand cmd, CancellationToken ct = default)
+   {
+       // 1. Validate mode
+       if (CurrentMode != ChatMode.Agent)
+       {
+           throw new InvalidOperationException(
+               $"Agent commands only valid in Agent mode. Current mode: {CurrentMode}");
+       }
+
+       // 2. Validate command format
+       if (string.IsNullOrWhiteSpace(cmd?.Name))
+           throw new ArgumentNullException(nameof(cmd), "Command name required");
+
+       // 3. Get mode config
+       var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
+
+       // 4. Dispatch via IAgentCommandDispatcher
+       _ = LoggerService.Current.WriteDebugAsync(
+           $"[gap60-agent-cmd] Executing agent command: {cmd.Name}");
+
+       var result = await _agentCommandDispatcher.DispatchAgentCommandAsync(cmd, CurrentMode, ct);
+
+       // 5. Add to chat history (for context window)
+       var toolMsg = new ChatMessage
+       {
+           Role = ChatMessageRole.Tool,
+           Content = result.Output,
+           InvocationStatus = result.IsSuccess ? ToolInvocationStatus.Complete : ToolInvocationStatus.Failed
+       };
+       await _sessionService.AddMessageAsync(toolMsg);
+       Messages.Add(toolMsg);
+
+       _ = LoggerService.Current.WriteDebugAsync(
+           $"[gap60-agent-cmd-complete] Command {cmd.Name} finished: {(result.IsSuccess ? "success" : "failed")}");
+   }
+```
+
+2. **Add to ChatPageViewModel Constructor Signature**
+- Inject `IAgentCommandDispatcher _agentCommandDispatcher`
+-Verify in ServiceBootstrapper (gap61)
+
+3. **Error Handling**
+- Catch `InvalidOperationException` (mode check) → show error banner via `_notificationService`
+- Catch tool executionexceptions → add failed tool message to session
+- Log all errors to FileLogger with `[gap60-agent-error]` tag
+
+**Files to Modify:**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (add ExecuteAgentCommandAsync method, ~35 lines)
+
+**Testing:**
+- Create `ChatPageViewModelAgentCommandEntryPointTests.cs` (NEW, ~60 lines)
+- Test cases:
+- ExecuteAgentCommandAsync_ThrowsInvalidOperation_IfNotInAgentMode
+- ExecuteAgentCommandAsync_ThrowsArgumentNull_IfCommandNameEmpty
+- ExecuteAgentCommandAsync_CallsDispatcher_WithCorrectParameters
+- ExecuteAgentCommandAsync_AddsToolResultToSession
+- ExecuteAgentCommandAsync_ShowsErrorNotification_OnToolFailure
+
+**Build Validation:**
+- All newtests pass
+- No regressions
+
+**Blocking Resolved:** Entry point now available for external callers (gap61 wires DI)
+
+---
+
+### gap61: Register IAgentCommandDispatcher in Service Bootstrapper
+**Status:** ❌ Not Started | Type:Dependency Injection - Service Registration
+**Severity:** 🔴 BLOCKER - dispatcher not available at runtime
+**Dependencies:** gap58 (IAgentCommandDispatcher created), gap50 (ServiceBootstrapper exists)
+
+**Problem:**
+`ServiceBootstrapper.ConfigureServices()` registers 10+ services but does NOT register `IAgentCommandDispatcher`. Attempting to instantiate ChatPageViewModel with `_agentCommandDispatcher` dependency will throw `ServiceNotRegisteredException`.
+
+**Implementation Plan:**
+
+1. **Locate ServiceBootstrapper.ConfigureServices()** → `src/VSIXProject1/Services/ServiceBootstrapper.cs`
+
+2. **Add Registration (as singleton)**
+```
+   // After existing tool/llm service registrations, add:
+   services.AddSingleton<IAgentCommandDispatcher>(sp =>
+       new AgentCommandDispatcher(
+           sp.GetRequiredService<IToolService>(),
+           sp.GetRequiredService<ILlmService>(),
+           sp.GetRequiredService<IModeConfigRegistry>(),
+           sp.GetRequiredService<ILogger>()
+       )
+   );
+```
+
+3. **Verify Dependency Chain**
+- IToolService ✅ (already registered)
+- ILlmService ✅ (already registered)
+- IModeConfigRegistry ✅ (already registered)
+- ILogger ✅ (already registered via LoggerService)
+
+4. **Update ChatPageViewModel Constructor**
+- Add parameter: `IAgentCommandDispatcher agentCommandDispatcher`
+- Store in field: `private readonly IAgentCommandDispatcher _agentCommandDispatcher`
+- Verify all existingconstructor calls in tests updated
+
+**Files to Modify:**
+- `src/VSIXProject1/Services/ServiceBootstrapper.cs` (ConfigureServices method, ~5 lines)
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (constructor signature, markfile as partial if needed)
+- `src/VSIXProject1.Tests/**Tests.cs` (ALL ChatPageViewModel constructor calls, ~40+ locations)
+- Add `_mockAgentCommandDispatcher` to CreateChatPageViewModelMock() helper
+
+**Testing:**
+- Verify ServiceBootstrapper compiles
+- Add bootstrap test: `ServiceBootstrapper_RegistersAgentCommandDispatcher`
+- Call build provider
+- ResolveIAgentCommandDispatcher
+- Assert not null
+
+**Build Validation:**
+- Full project compiles
+- All 1100+ existing tests still pass (due to mock updates)
+- New test for DI registration passes
+
+**Blocking Resolved:** gap62 (now fully integrated and ready for E2E testing)
+
+---
+
+### gap62: End-to-End Agent Mode Integration Test
+**Status:** ❌ Not Started | Type: Integration Test - Full Agent Loop
+**Severity:** 🔴 BLOCKER - cannotvalidate agent mode works end-to-end
+**Dependencies:** gap58, gap59, gap60, gap61 (all components integrated)
+
+**Problem:**
+Agent mode implementation lacks E2E validation. No test simulates: User sends message inAgent mode → LLM returns tool calls → Tools executed → Results back to LLM → Response continues.
+
+**Implementation Plan:**
+
+1. **Create Test Class** → `src/VSIXProject1.Tests/Integration/ChatPageAgentModeE2ETests.cs` (NEW)
+
+2. **Scenario 1: Single Tool Execution + Response**
+```
+   [Fact]
+   public async Task AgentMode_ExecutesToolCall_AndContinuesConversation()
+   {
+       // Arrange
+       var viewModel = CreateChatPageViewModelWithMocks();
+       viewModel.CurrentMode = ChatMode.Agent;
+
+       var userMessage = "Read the file at path /test.txt";
+
+       // Mock LLM response: tool call + text
+       var llmResponse = new ChatMessage
+       {
+           Role = ChatMessageRole.Assistant,
+           Content = "I'll read that file",
+           ToolCalls = new List<ToolCall>
+           {
+               new ToolCall { Name = "read_file", Id = "1", Arguments = new() { ["path"] = "/test.txt" } }
+           }
+       };
+
+       _mockLlmService.Setup(x => x.StreamCompletionAsync(...))
+           .Returns(AsyncEnumerable.Create<CompletionChunk>(...));  // yields llmResponse chunks
+
+       // Mock tool execution
+       var toolResult = new ToolResult
+       {
+           ToolName = "read_file",
+           Output = "File contents here",
+           IsSuccess = true
+       };
+       _mockToolService.Setup(x => x.InvokeAsync("read_file", It.IsAny<...>(), It.IsAny<CancellationToken>()))
+           .ReturnsAsync(toolResult);
+
+       // Mock continuation (LLM re-invoked with tool results)
+       var continuationResponse = new ChatMessage
+       {
+           Role = ChatMessageRole.Assistant,
+           Content = "The file contains: ...",
+           ToolCalls = new List<ToolCall>()  // No more tools
+       };
+       // Mock second LLM call ...
+
+       // Act
+       await viewModel.ExecuteSendMessageAsync(userMessage, CancellationToken.None);
+
+       // Assert
+       Assert.Contains(ChatMessageRole.Assistant, viewModel.Messages.Select(m => m.Role));  // Initial response
+       Assert.Contains(ChatMessageRole.Tool, viewModel.Messages.Select(m => m.Role));  // Tool result
+       Assert.Equal(2, viewModel.Messages.Count(m => m.Role == ChatMessageRole.Assistant));  // Continuation
+
+       // Verify tool was invoked
+       _mockToolService.Verify(
+           x => x.InvokeAsync("read_file", It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()),
+           Times.Once);
+   }
+```
+
+3. **Scenario 2: Tool Failure Handling**
+```
+   [Fact]
+   public async Task AgentMode_HandlesToolFailure_AndNotifies()
+   {
+       // Arrange: Tool throws exception
+       _mockToolService.Setup(x => x.InvokeAsync(...))
+           .ThrowsAsync(new FileNotFoundException("File not found"));
+
+       // Act & Assert
+       await viewModel.ExecuteSendMessageAsync(userMessage, CancellationToken.None);
+
+       // Verify tool result marked as failed
+       var toolMsg = viewModel.Messages.FirstOrDefault(m => m.Role == ChatMessageRole.Tool);
+       Assert.NotNull(toolMsg);
+       Assert.Equal(ToolInvocationStatus.Failed, toolMsg.InvocationStatus);
+       Assert.Contains("not found", toolMsg.Content);
+   }
+```
+
+4. **Scenario 3: Multiple Tool Calls in Single Response**
+```
+   [Fact]
+   public async Task AgentMode_ExecutesMultipleToolCalls_InSequence()
+   {
+       // LLM response contains 3 tool calls
+       // Verify all 3 executed
+       // Verify results added to messages
+       // Verify continuation LLM call includes all 3 results
+   }
+```
+
+5. **Scenario 4: Tool Loop Limit**
+```
+   [Fact]
+   public async Task AgentMode_RespectsModeConfig_AllowToolLoop()
+   {
+       // Arrange: Set modeConfig.AllowToolLoop = false
+       var modeConfig = new ModeConfig { AllowToolLoop = false };
+       _mockModeConfigRegistry.Setup(x => x.GetConfig(ChatMode.Agent))
+           .Returns(modeConfig);
+
+       // Act: Send message with no tool calls in response
+       await viewModel.ExecuteSendMessageAsync(userMessage, CancellationToken.None);
+
+       // Assert: Tool service NOT called (loop disabled)
+       _mockToolService.Verify(
+           x => x.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()),
+           Times.Never);
+   }
+```
+
+**Files to Create:**
+- `src/VSIXProject1.Tests/Integration/ChatPageAgentModeE2ETests.cs` (NEW, ~200 lines, 4-5 test scenarios)
+
+**Test Setup Helper**
+```
+private ChatPageViewModel CreateChatPageViewModelWithMocks()
+{
+    // Return fully-mocked viewModel with all services initialized
+    // Suitable for E2E scenarios
+}
+```
+
+**Build Validation:**
+- All E2E tests pass
+- Logs show `[gap59-tool-exec]`, `[gap60-agent-cmd]` tags in order
+- No regressions in unit tests
+
+**Blocking Resolved:** Agent mode implementation complete and validated ✅
+
+---
+
+## Summary: gap58-gap62 Atomic Delivery
+
+| Gap | Component | Status | Priority |
+|-----|-----------|--------|----------|
+| **gap58** | IAgentCommandDispatcher + implementation | 🔴 BLOCKER | 1 |
+| **gap59** | Wire tool execution into LLM response handler | 🔴 BLOCKER | 2 |
+| **gap60** | ExecuteAgentCommandAsync() entry point | 🔴 BLOCKER | 3 |
+| **gap61** | DI registration in ServiceBootstrapper | 🔴 BLOCKER | 4 |
+| **gap62** | E2E integration test suite | 🟡 VALIDATION | 5 |
+
+**Total Lines of Code:** ~230 (services + tests)  
+**Total Files:** 3 new (interfaces, implementations, tests)  
+**Estimated Time:** 3-4 hours (implementation) + 1-2 hours (testing & debugging)  
+**Exit Criteria:** All 5 E2E scenarios pass; agent loop complete end-to-end; full test coverage
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
