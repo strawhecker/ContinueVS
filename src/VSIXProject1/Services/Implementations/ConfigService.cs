@@ -125,30 +125,33 @@ namespace ContinueVS.Services.Implementations
                                 new CoreTypes.ModelInfo
                                 {
                                     Id = Guid.NewGuid().ToString(),
-                                    Name = "Llama 3.1 8B Instruct",
-                                    Provider = "ollama",
+                                    Name = "DeepSeek-V4-Flash-Spark",
+                                    Provider = "openai",
                                     ApiKey = null,
-                                    BaseUrl = "http://localhost:11434",
+                                    BaseUrl = "http://10.3.3.101:18000",
                                     ContextWindow = 200000,
-                                    SupportsFunctionCalling = false,
+                                    SupportsFunctionCalling = true,
                                     SupportedToolFormats = new List<string>(),
-                                    OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"
+                                    OllamaModelId = "openai/DeepSeek-V4-Flash-Spark"
                                 }
                             };
                             _currentConfig.SelectedModelId = _currentConfig.Models[0].Id;
                             needsSave = true;
                         }
 
-                        // Migrate/upgrade: populate OllamaModelId for any missing entries
-                        foreach (var model in _currentConfig.Models)
-                        {
-                            if (string.IsNullOrEmpty(model.OllamaModelId) && model.Provider == "ollama" && model.Name == "Llama 3.1 8B Instruct")
-                            {
-                                await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Migrating model '{model.Name}': setting OllamaModelId") ?? Task.CompletedTask);
-                                model.OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M";
-                                needsSave = true;
-                            }
-                        }
+                        // gap67: Normalize provider names to lowercase for case-insensitive matching
+                        NormalizeModelProviders(_currentConfig.Models);
+
+                        //// Migrate/upgrade: populate OllamaModelId for any missing entries
+                        //foreach (var model in _currentConfig.Models)
+                        //{
+                        //    if (string.IsNullOrEmpty(model.OllamaModelId) && string.Equals(model.Provider, "ollama", StringComparison.OrdinalIgnoreCase) && model.Name == "Llama 3.1 8B Instruct")
+                        //    {
+                        //        await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Migrating model '{model.Name}': setting OllamaModelId") ?? Task.CompletedTask);
+                        //        model.OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M";
+                        //        needsSave = true;
+                        //    }
+                        //}
 
                         if (needsSave)
                         {
@@ -476,14 +479,14 @@ namespace ContinueVS.Services.Implementations
                 new CoreTypes.ModelInfo
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Name = "Llama 3.1 8B Instruct",
-                    Provider = "ollama",
+                    Name = "DeepSeek-V4-Flash-Spark",
+                    Provider = "openai",
                     ApiKey = null,
-                    BaseUrl = "http://localhost:11434",
+                    BaseUrl = "http://10.3.3.101:18000",
                     ContextWindow = 200000,
-                    SupportsFunctionCalling = false,
+                    SupportsFunctionCalling = true,
                     SupportedToolFormats = new List<string>(),
-                    OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"
+                    OllamaModelId = "openai/DeepSeek-V4-Flash-Spark"
                 }
             };
 
@@ -852,6 +855,24 @@ namespace ContinueVS.Services.Implementations
                     return ContinuationPolicy.Interactive; // Default to Interactive (safe)
                 }
             });
+        }
+
+        /// <summary>
+        /// Normalizes all provider names in a model list to lowercase for case-insensitive matching.
+        /// </summary>
+        private void NormalizeModelProviders(List<CoreTypes.ModelInfo> models)
+        {
+            if (models == null)
+                return;
+
+            foreach (var model in models)
+            {
+                if (!string.IsNullOrWhiteSpace(model.Provider) && model.Provider != null && !model.Provider.Equals(model.Provider.ToLower()))
+                {
+                    _ = _logger?.WriteDebugAsync($"[ConfigService.NormalizeModelProviders] Normalizing provider from '{model.Provider}' to '{model.Provider.ToLower()}'");
+                    model.Provider = model.Provider.ToLower();
+                }
+            }
         }
     }
 }

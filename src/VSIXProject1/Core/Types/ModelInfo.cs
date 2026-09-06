@@ -23,9 +23,16 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// Provider of the model (e.g., OpenAI, Anthropic, Ollama).
+        /// Normalized to lowercase for case-insensitive matching.
         /// </summary>
+        private string? _provider;
+
         [JsonProperty("provider")]
-        public string? Provider { get; set; }
+        public string? Provider
+        {
+            get { return _provider; }
+            set { _provider = value?.ToLower(); }
+        }
 
         /// <summary>
         /// API key for accessing the model provider.

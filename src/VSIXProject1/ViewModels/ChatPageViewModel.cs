@@ -746,6 +746,7 @@ public string? InputText
                     var models = config.Models.ToList();
 
                     // Dispatch collection updates to the main UI thread
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
                     Application.Current?.Dispatcher?.Invoke(() =>
                     {
                         AvailableModels.Clear();
@@ -760,6 +761,7 @@ public string? InputText
                             _ = LoggerService.Current.WriteDebugAsync($"[chat-model-load] Loaded {AvailableModels.Count} models, selected: {SelectedModel?.Name}");
                         }
                     });
+#pragma warning restore VSTHRD001
                 }
                 else
                 {

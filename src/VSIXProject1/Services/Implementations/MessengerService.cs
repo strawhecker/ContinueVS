@@ -139,7 +139,7 @@ namespace ContinueVS.Services.Implementations
             }
 
             // Support both Ollama and OpenAI (including vLLM with custom baseUrl)
-            if (model.Provider == "ollama")
+            if (string.Equals(model.Provider, "ollama", StringComparison.OrdinalIgnoreCase))
             {
                 _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Starting Ollama stream...");
 
@@ -169,7 +169,7 @@ namespace ContinueVS.Services.Implementations
                     yield return chunk;
                 }
             }
-            else if (model.Provider == "openai")
+            else if (string.Equals(model.Provider, "openai", StringComparison.OrdinalIgnoreCase))
             {
                 _ = LoggerService.Current.WriteDebugAsync("[MessengerService.ProcessLlmStreamAsync] Starting OpenAI-compatible stream (vLLM/OpenAI)...");
                 await foreach (var chunk in ProcessOpenAiStreamAsync<TChunk>(model, options, ct))
@@ -399,7 +399,14 @@ namespace ContinueVS.Services.Implementations
                 if (delta == null)
                     return null;
 
+                // Support both "content" (OpenAI/vLLM standard) and "reasoning" (DeepSeek reasoning models)
                 var content = delta["content"]?.Value<string>();
+                if (string.IsNullOrEmpty(content))
+                {
+                    // Fallback to reasoning field for reasoning models (DeepSeek, etc.)
+                    content = delta["reasoning"]?.Value<string>();
+                }
+
                 if (string.IsNullOrEmpty(content))
                     return null;
 

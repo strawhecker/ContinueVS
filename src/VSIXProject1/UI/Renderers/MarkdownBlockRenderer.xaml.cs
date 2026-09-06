@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Threading;
 using ContinueVS.Services;
 using Markdig;
 using Markdig.Syntax;
@@ -16,11 +17,28 @@ namespace ContinueVS.UI.Renderers
     /// WPF UserControl for rendering markdown text.
     /// Accepts a plain string Content, parses it with Markdig synchronously,
     /// and builds the visual tree imperatively inside RootPanel.
+    /// Implements debounced rendering during streaming to handle partial/incomplete markdown gracefully.
     /// </summary>
     public partial class MarkdownBlockRenderer : UserControl
     {
         private static readonly MarkdownPipeline _pipeline =
             new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
+        /// <summary>
+        /// Timer for debouncing markdown rendering during streaming.
+        /// Delays parsing to allow more content to arrive, preventing failures on incomplete markdown.
+        /// </summary>
+        private DispatcherTimer? _renderDebounceTimer;
+
+        /// <summary>
+        /// Pending content to render after debounce delay.
+        /// </summary>
+        private string? _pendingRenderContent;
+
+        /// <summary>
+        /// Debounce delay in milliseconds. Allows incomplete markdown (e.g., unclosed code fences) to complete.
+        /// </summary>
+        private const int RenderDebounceMs = 100;
 
         public MarkdownBlockRenderer()
         {
@@ -45,13 +63,40 @@ namespace ContinueVS.UI.Renderers
 
         private void OnContentChanged(string? text)
         {
+            _pendingRenderContent = text;
+
+            // If timer already running, it will render the latest content when it fires
+            if (_renderDebounceTimer != null && _renderDebounceTimer.IsEnabled)
+            {
+                // Timer will use the newly updated _pendingRenderContent
+                return;
+            }
+
+            // Start or restart the debounce timer
+            _renderDebounceTimer ??= new DispatcherTimer(DispatcherPriority.Normal, Dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(RenderDebounceMs)
+            };
+
+            _renderDebounceTimer.Tick -= RenderDebounceTimer_Tick;
+            _renderDebounceTimer.Tick += RenderDebounceTimer_Tick;
+            _renderDebounceTimer.Start();
+        }
+
+        /// <summary>
+        /// Debounce timer tick handler: performs the actual markdown rendering.
+        /// Called after a delay to allow streaming content to stabilize.
+        /// </summary>
+        private void RenderDebounceTimer_Tick(object? sender, EventArgs e)
+        {
+            _renderDebounceTimer?.Stop();
+
             RootPanel.Children.Clear();
 
-            if (string.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(_pendingRenderContent))
                 return;
 
-            // Non-nullable after the IsNullOrEmpty guard above
-            string nonNullText = text!;
+            string nonNullText = _pendingRenderContent!;
 
             try
             {

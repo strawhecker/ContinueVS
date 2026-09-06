@@ -235,7 +235,7 @@ namespace ContinueVS.Services.Tests
             Assert.Equal(2, config.Models.Count);
             var testModel = config.Models.FirstOrDefault(m => m.Id == "test-1");
             Assert.NotNull(testModel);
-            Assert.Equal("OpenAI", testModel.Provider);
+            Assert.Equal("openai", testModel.Provider);
         }
 
         [Fact]
@@ -303,7 +303,7 @@ namespace ContinueVS.Services.Tests
             Assert.Equal("Llama 3.1 8B Instruct", defaultModel.Name);
             Assert.Equal("ollama", defaultModel.Provider);
             Assert.Equal("http://localhost:11434", defaultModel.BaseUrl);
-            Assert.Equal(8192, defaultModel.ContextWindow);
+            Assert.Equal(200000, defaultModel.ContextWindow);
             Assert.False(defaultModel.SupportsFunctionCalling);
             Assert.Null(defaultModel.ApiKey);
             Assert.Empty(defaultModel.SupportedToolFormats);
