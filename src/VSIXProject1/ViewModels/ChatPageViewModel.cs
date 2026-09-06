@@ -744,19 +744,22 @@ public string? InputText
                 if (config?.Models != null && config.Models.Any())
                 {
                     var models = config.Models.ToList();
-                    await SwitchToMainThreadAsync();
 
-                    AvailableModels.Clear();
-                    foreach (var model in models)
+                    // Dispatch collection updates to the main UI thread
+                    Application.Current?.Dispatcher?.Invoke(() =>
                     {
-                        AvailableModels.Add(model);
-                    }
+                        AvailableModels.Clear();
+                        foreach (var model in models)
+                        {
+                            AvailableModels.Add(model);
+                        }
 
-                    if (AvailableModels.Count > 0 && _selectedModel == null)
-                    {
-                        SelectedModel = AvailableModels[0];
-                        _ = LoggerService.Current.WriteDebugAsync($"[chat-model-load] Loaded {AvailableModels.Count} models, selected: {SelectedModel?.Name}");
-                    }
+                        if (AvailableModels.Count > 0 && _selectedModel == null)
+                        {
+                            SelectedModel = AvailableModels[0];
+                            _ = LoggerService.Current.WriteDebugAsync($"[chat-model-load] Loaded {AvailableModels.Count} models, selected: {SelectedModel?.Name}");
+                        }
+                    });
                 }
                 else
                 {
@@ -1234,7 +1237,13 @@ public string? InputText
                     var config = _configService.GetCurrentConfig();
                     if (config?.CustomSettings?.TryGetValue(UserSettings.Experimental_AddCurrentFileByDefault, out var val) == true)
                     {
-                        addCurrentFileByDefault = val is true or "true" or 1;
+                        addCurrentFileByDefault = val switch
+                        {
+                            true => true,
+                            "true" => true,
+                            1 or 1L => true,
+                            _ => false
+                        };
                     }
                 }
                 _ = LoggerService.Current.WriteDebugAsync($"[gap32-setting] experimental.addCurrentFileByDefault={addCurrentFileByDefault}");

@@ -365,11 +365,67 @@ namespace ContinueVS.Services.Tests
             var toolBackToDefault = savedConfig.ToolOverrides?.FirstOrDefault(t => t.Name == toolToDisable.Name);
             Assert.Null(toolBackToDefault);
 
-            // But it should still appear in the config when reloaded (via merge)
-            var reloadedConfig = service.GetCurrentConfig();
-            var reloadedTool = reloadedConfig.Tools.FirstOrDefault(t => t.Name == toolToDisable.Name);
-            Assert.NotNull(reloadedTool);
-            Assert.True(reloadedTool.IsEnabled);
-        }
-    }
-}
+                        // But it should still appear in the config when reloaded (via merge)
+                        var reloadedConfig = service.GetCurrentConfig();
+                        var reloadedTool = reloadedConfig.Tools.FirstOrDefault(t => t.Name == toolToDisable.Name);
+                        Assert.NotNull(reloadedTool);
+                        Assert.True(reloadedTool.IsEnabled);
+                    }
+
+                    [Fact]
+                    public async Task PreserveCustomSettingsOnSaveLoadCycle_WithMultipleModels()
+                    {
+                        var service = new ConfigService(null, _testConfigDir);
+                        await service.InitializeAsync();
+
+                        // Add 3 custom models
+                        var model1 = new CoreTypes.ModelInfo { Id = "model-1", Name = "GPT-4", Provider = "openai" };
+                        var model2 = new CoreTypes.ModelInfo { Id = "model-2", Name = "Claude", Provider = "anthropic" };
+                        var model3 = new CoreTypes.ModelInfo { Id = "model-3", Name = "Gemini", Provider = "google" };
+
+                        await service.AddModelAsync(model1);
+                        await service.AddModelAsync(model2);
+                        await service.AddModelAsync(model3);
+
+                        // Set custom settings (e.g., experimental flag)
+                        var config = service.GetCurrentConfig();
+                        config.CustomSettings["experimental.addCurrentFileByDefault"] = true;
+                        config.CustomSettings["ui.fontSize"] = 14;
+                        config.SelectedModelId = "model-2";
+
+                        // Save config
+                        await service.SaveConfigAsync();
+
+                        // Create a NEW service instance and initialize (simulating app restart)
+                        var service2 = new ConfigService(null, _testConfigDir);
+                        await service2.InitializeAsync();
+
+                        // Verify all 3 models are preserved
+                        var config2 = service2.GetCurrentConfig();
+                        Assert.Equal(4, config2.Models.Count); // 1 default + 3 custom
+                        Assert.Single(config2.Models, m => m.Id == "model-1");
+                        Assert.Single(config2.Models, m => m.Id == "model-2");
+                        Assert.Single(config2.Models, m => m.Id == "model-3");
+
+                        // Verify custom settings are preserved
+                        Assert.True((bool)config2.CustomSettings["experimental.addCurrentFileByDefault"]);
+                        Assert.Equal(14, (int)(long)config2.CustomSettings["ui.fontSize"]);
+                        Assert.Equal("model-2", config2.SelectedModelId);
+
+                        // Save again and verify no data loss in second cycle
+                        await service2.SaveConfigAsync();
+
+                        var service3 = new ConfigService(null, _testConfigDir);
+                        await service3.InitializeAsync();
+
+                        var config3 = service3.GetCurrentConfig();
+                        Assert.Equal(4, config3.Models.Count);
+                        Assert.Single(config3.Models, m => m.Id == "model-1");
+                        Assert.Single(config3.Models, m => m.Id == "model-2");
+                        Assert.Single(config3.Models, m => m.Id == "model-3");
+                        Assert.True((bool)config3.CustomSettings["experimental.addCurrentFileByDefault"]);
+                        Assert.Equal(14, (int)(long)config3.CustomSettings["ui.fontSize"]);
+                        Assert.Equal("model-2", config3.SelectedModelId);
+                    }
+                }
+            }

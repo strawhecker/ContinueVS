@@ -93,17 +93,33 @@ namespace ContinueVS.Services.Implementations
                         var json = File.ReadAllText(ConfigFilePath);
                         _currentConfig = JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(json) 
                             ?? (await CreateDefaultConfigAsync());
-                        await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Loaded from file. Models: {_currentConfig.Models.Count}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}") ?? Task.CompletedTask);
+                        await (_logger?.WriteDebugAsync($"[gap64-init] Loaded from file. Models: {_currentConfig.Models.Count}, CustomSettings present: {_currentConfig.CustomSettings?.Count > 0}, SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}") ?? Task.CompletedTask);
 
                         // Apply schema migrations for CustomSettings (v0→v1, etc.)
                         CoreTypes.SettingsMigration.MigrateCustomSettings(_currentConfig);
+                        await (_logger?.WriteDebugAsync($"[gap64-init] After migration: CustomSettings count: {_currentConfig.CustomSettings?.Count ?? 0}") ?? Task.CompletedTask);
 
                         bool needsSave = false;
+
+                        // Validate SelectedModelId matches an actual model (gap64-validation)
+                        if (!string.IsNullOrEmpty(_currentConfig.SelectedModelId))
+                        {
+                            var selectedExists = _currentConfig.Models?.Any(m => m.Id == _currentConfig.SelectedModelId) ?? false;
+                            if (!selectedExists)
+                            {
+                                await (_logger?.WriteDebugAsync($"[gap64-init] SelectedModelId '{_currentConfig.SelectedModelId}' does not match any model. Resetting to first model.") ?? Task.CompletedTask);
+                                if (_currentConfig.Models != null && _currentConfig.Models.Count > 0)
+                                {
+                                    _currentConfig.SelectedModelId = _currentConfig.Models[0].Id;
+                                    needsSave = true;
+                                }
+                            }
+                        }
 
                         // Migrate/upgrade: seed default Ollama model when config has no models at all
                         if (_currentConfig.Models == null || _currentConfig.Models.Count == 0)
                         {
-                            await (_logger?.WriteDebugAsync("[ConfigService.InitializeAsync] Config has no models — seeding default Ollama model") ?? Task.CompletedTask);
+                            await (_logger?.WriteDebugAsync("[gap64-init] Config has no models — seeding default Ollama model") ?? Task.CompletedTask);
                             _currentConfig.Models = new List<CoreTypes.ModelInfo>
                             {
                                 new CoreTypes.ModelInfo
@@ -113,7 +129,7 @@ namespace ContinueVS.Services.Implementations
                                     Provider = "ollama",
                                     ApiKey = null,
                                     BaseUrl = "http://localhost:11434",
-                                    ContextWindow = 8192,
+                                    ContextWindow = 200000,
                                     SupportsFunctionCalling = false,
                                     SupportedToolFormats = new List<string>(),
                                     OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"
@@ -154,7 +170,7 @@ namespace ContinueVS.Services.Implementations
 
                     _currentConfig.ConfigFilePath = ConfigFilePath;
                     _currentConfig.LastModified = DateTime.UtcNow;
-                    await (_logger?.WriteDebugAsync($"[ConfigService.InitializeAsync] Final state - SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}, Models: {string.Join(", ", _currentConfig.Models.Select(m => m.Name))}") ?? Task.CompletedTask);
+                    await (_logger?.WriteDebugAsync($"[gap64-init] Final state - SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}, Models: {string.Join(", ", _currentConfig.Models.Select(m => m.Name))}, CustomSettings count: {_currentConfig.CustomSettings?.Count ?? 0}") ?? Task.CompletedTask);
 
                     lock (_lock)
                     {
@@ -464,7 +480,7 @@ namespace ContinueVS.Services.Implementations
                     Provider = "ollama",
                     ApiKey = null,
                     BaseUrl = "http://localhost:11434",
-                    ContextWindow = 8192,
+                    ContextWindow = 200000,
                     SupportsFunctionCalling = false,
                     SupportedToolFormats = new List<string>(),
                     OllamaModelId = "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:Q5_K_M"

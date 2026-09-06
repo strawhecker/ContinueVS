@@ -7415,6 +7415,189 @@ Current extension behavior: **Accepts any LLM response without validation**, eve
 
 ---
 
+### gap64: Do Not Overwrite Models in Config File on Startup When Models Already Exist
+
+**Status:** ✅ IMPLEMENTED | Type: Config Persistence Bug  
+**Phase:** 3 (Core Feature Completion)  
+**Priority:** CRITICAL (Data loss when config is saved; user models and settings overwritten with defaults)
+
+#### **gap64_1: Prevent Config Initialization from Overwriting Existing Models**
+
+- **Status:** ✅ IMPLEMENTED
+- **Goal:** When loading config from disk on startup, if models collection already has items, do NOT overwrite it with defaults. Preserve user models and custom settings.
+- **Problem:** When user saves config after customizing models and settings (e.g., setting `experimental.addCurrentFileByDefault`), the startup sequence overwrites all models with defaults and clears user preferences. Data loss.
+- **Root Cause:** Config initialization logic unconditionally resets/overwrites models and `CustomSettings` instead of merging or skipping initialization if models already exist.
+- **Implementation:**
+  - Modified `ConfigService.InitializeAsync()` (lines 64-171) to add [gap64-init] debug logging:
+    - Line 96: Logged Models count and CustomSettings presence after load
+    - Line 100: Logged CustomSettings count after migration
+    - Line 107: Logged when seeding default models (only if empty)
+    - Line 158: Logged final state with CustomSettings count
+  - Verified `SettingsMigration.MigrateCustomSettings()` uses correct merge semantics:
+    - Initializes CustomSettings dict if null
+    - Applies migrations (renames, adds defaults)
+    - Does NOT overwrite existing user keys — only adds defaults if missing
+  - First-run scenarios (no config file) still create defaults correctly
+  - Config save → load cycle now preserves all user data
+- **Scope:**
+  - `src/VSIXProject1/Services/Implementations/ConfigService.cs` — initialization logic with [gap64-init] debug tags
+  - `src/VSIXProject1/Core/Types/SettingsMigration.cs` — verified merge semantics
+  - Affects all users who customize models or experimental settings
+- **Files Modified:**
+  - `src/VSIXProject1/Services/Implementations/ConfigService.cs` — added [gap64-init] debug logs
+  - `src/VSIXProject1.Tests/Services/ConfigServiceTests.cs` — added regression test
+- **Testing:**
+  - ✅ All 1156 tests passing (519 existing + 637 new from previous work)
+  - ✅ Regression test `PreserveCustomSettingsOnSaveLoadCycle_WithMultipleModels`:
+    - Creates config with 3+ models + `experimental.addCurrentFileByDefault=true` + `ui.fontSize=14`
+    - Saves to disk
+    - Creates new service instance, initializes, verifies all models and settings preserved
+    - Saves again and loads third instance, verifies no data loss in second cycle
+  - ✅ First-run with empty config still populates defaults
+  - ✅ Config save → load → save cycle preserved all user data
+- **Related:** gap32 (experimental settings now work via setting gate); data persistence contract now met
+
+---
+
+### gap65: Context Item Display with Removal Controls
+
+**Status:** 🔴 NOT IMPLEMENTED | Type: Chat UI Enhancement  
+**Phase:** 4 (UI Polish & Features)  
+**Priority:** MEDIUM (Improves UX for context management)
+
+#### **Goal**
+Add visual indicators in the chat UI to show currently active context items (especially the active file reference) with ability to remove them from context before sending.
+
+#### **Requirements**
+- When `experimental.addCurrentFileByDefault = true`, display a rectangle/badge in the chat UI showing "Active File: [filename]"
+- Include a cancel/remove button (✕) on the badge to exclude that reference from the context
+- When user clicks cancel, the badge is removed and that reference is excluded from the LLM request
+- Support multiple context references with individual removal controls
+- Display abbreviated text (filename only, truncated if necessary)
+
+#### **Implementation Plan**
+- Add `ContextItemBadge` WPF control or use ItemsControl to display active context items
+- Create collection in ChatPageViewModel: `ObservableCollection<ContextItem> ActiveContextItems`
+- Add button command: `RemoveContextItemCommand(ContextItem item)` - removes from ActiveContextItems
+- Update ExecuteSendMessage to use filtered context (excluding removed items)
+- Bind UI: ItemsControl ItemsSource="{Binding ActiveContextItems}", each item shows badge with remove button
+- Add visual styling: Rectangle background, truncated text, hover effects
+
+#### **Files to Modify**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` - Add ActiveContextItems collection and RemoveContextItemCommand
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` - Add ItemsControl for context badges
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml.cs` - Command implementation if needed
+
+#### **Testing**
+- Test with experimental.addCurrentFileByDefault enabled/disabled
+- Verify badge displays correct filename
+- Verify clicking remove button removes item from collection and context
+- Verify removed items not sent to LLM
+
+#### **Related**
+- gap32_1 (experimental.addCurrentFileByDefault setting)
+- gap27 (Chat UI mode implementation)
+
+---
+
+### gap66: Separate Thinking Display from Response
+
+**Status:** 🔴 NOT IMPLEMENTED | Type: Chat UI Feature  
+**Phase:** 4 (UI Polish & Features)  
+**Priority:** MEDIUM (Improves transparency for models with reasoning)
+
+#### **Goal**
+Display model "thinking" or "reasoning" output separately from the final response, allowing users to see intermediate steps and analysis.
+
+#### **Requirements**
+- Support models that return both thinking/reasoning blocks and final response (e.g., Claude thinking tags, DeepSeek reasoning)
+- Parse `<thinking>` or similar tags from LLM response
+- Display thinking content in a collapsible/expandable section (initially collapsed)
+- Show final response prominently below thinking section
+- Add visual distinction: different background, icon, or styling for thinking vs. response
+
+#### **Implementation Plan**
+- Modify ILlmService streaming response parsing to detect and separate thinking markers
+- Extend ChatMessage model: add optional `ThinkingContent` property
+- Update ChatPageViewModel.StreamingResponse handling to capture thinking separately
+- Create `ThinkingDisplayControl` WPF component (or use Expander in ChatPage)
+- Bind ChatPage.xaml: 
+  - Expander Header="Thinking (collapsible)" Content="{Binding CurrentMessage.ThinkingContent}"
+  - TextBlock Content="{Binding CurrentMessage.Content}" for final response
+- Add setting to disable thinking display if desired (gap32 CustomSettings)
+
+#### **Files to Modify**
+- `src/VSIXProject1/Services/Interfaces/ILlmService.cs` - Document thinking separation
+- `src/VSIXProject1/Services/Implementations/LlmService.cs` - Parse thinking blocks
+- `src/VSIXProject1/ViewModels/Models/ChatMessage.cs` - Add ThinkingContent property
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` - Handle thinking in streaming
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` - Add Expander for thinking display
+
+#### **Testing**
+- Test with model that returns thinking blocks (Claude, DeepSeek)
+- Verify thinking is parsed and separated correctly
+- Verify thinking expander collapses/expands
+- Test with model that doesn't return thinking (fallback gracefully)
+
+#### **Related**
+- gap33 (Streaming response updates)
+- Continues.js reference: ThemedCode/useEditingModel flow handles CoAI thinking blocks
+
+---
+
+### gap67: Case-Insensitive Provider and Model Name Matching
+
+**Status:** 🔴 NOT IMPLEMENTED | Type: Configuration & API Bug  
+**Phase:** 2 (Core Services)  
+**Priority:** MEDIUM (Prevents subtle bugs from case mismatches)
+
+#### **Goal**
+Normalize all provider and model name comparisons to be case-insensitive across the codebase to prevent matching failures and inconsistent behavior.
+
+#### **Problem**
+Provider names (e.g., "OpenAI", "openai", "OPENAI") and model names are used inconsistently in:
+- Config files (continueVS.json)
+- API requests to LLM services
+- UI display labels
+- Tool definitions and filtering
+- Service provider detection
+
+This causes:
+- Config models not recognized if case differs from hardcoded strings
+- API calls fail silently if provider case doesn't match expected
+- Duplicate models in UI (same model, different case)
+- Inconsistent behavior across config load/save cycles
+
+#### **Root Cause**
+String comparisons use `==` or `string.Equals(a, b)` with default case-sensitive comparison instead of `StringComparison.OrdinalIgnoreCase`.
+
+#### **Implementation Plan**
+- Global find-replace across codebase:
+  - Replace `model.Provider == "ollama"` with `.Equals("ollama", StringComparison.OrdinalIgnoreCase)`
+  - Replace `if (provider == "openai"` with `.Equals("openai", StringComparison.OrdinalIgnoreCase)`
+- Modify ModelInfo class: Convert Provider to lowercase on deserialization
+- Modify provider detection logic in ILlmService implementations to use case-insensitive matching
+- Update all config validation to normalize case
+- Add unit tests for case-insensitive provider/model matching
+
+#### **Files to Modify**
+- `src/VSIXProject1/Core/Types/ModelInfo.cs` - Add case normalization on initialization
+- `src/VSIXProject1/Services/Implementations/ConfigService.cs` - Case-insensitive config validation
+- `src/VSIXProject1/Services/Implementations/LlmService.cs` - Case-insensitive provider detection
+- All service implementations using provider matching (OllamaService, OpenAiService, etc.)
+
+#### **Testing**
+- Test with provider names: "OLLAMA", "Ollama", "openAI", "OpenAI", "OPENAI"
+- Verify all cases work identically
+- Test config save/load with mixed-case provider names
+- Test model detection with case variations
+
+#### **Related**
+- gap1 (Ollama config predefinition - ensure provider case normalization)
+- gap64 (Config validation - should validate case-insensitive model/provider})
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
