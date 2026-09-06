@@ -72,15 +72,46 @@ namespace ContinueVS.UI.Renderers
                 return;
             }
 
-            // Start or restart the debounce timer
-            _renderDebounceTimer ??= new DispatcherTimer(DispatcherPriority.Normal, Dispatcher)
+            // Only debounce if we have incomplete markdown (unclosed code fences, etc.)
+            // Complete markdown renders immediately for responsiveness
+            if (!string.IsNullOrEmpty(text) && IsIncompleteMarkdown(text))
             {
-                Interval = TimeSpan.FromMilliseconds(RenderDebounceMs)
-            };
+                // Start or restart the debounce timer
+                _renderDebounceTimer ??= new DispatcherTimer(DispatcherPriority.Normal, Dispatcher)
+                {
+                    Interval = TimeSpan.FromMilliseconds(RenderDebounceMs)
+                };
 
-            _renderDebounceTimer.Tick -= RenderDebounceTimer_Tick;
-            _renderDebounceTimer.Tick += RenderDebounceTimer_Tick;
-            _renderDebounceTimer.Start();
+                _renderDebounceTimer.Tick -= RenderDebounceTimer_Tick;
+                _renderDebounceTimer.Tick += RenderDebounceTimer_Tick;
+                _renderDebounceTimer.Start();
+            }
+            else
+            {
+                // No incomplete markdown, render immediately
+                _renderDebounceTimer?.Stop();
+                RenderDebounceTimer_Tick(null, EventArgs.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Detects if markdown is incomplete (e.g., unclosed code fences).
+        /// This allows us to debounce only when necessary, rendering complete content immediately.
+        /// </summary>
+        private static bool IsIncompleteMarkdown(string? text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return false;
+
+            // Count fence markers (```)
+            string nonNullText = text!;
+            int fenceCount = (nonNullText.Length - nonNullText.Replace("```", "").Length) / 3;
+
+            // Odd number of fences means unclosed fence
+            if (fenceCount % 2 != 0)
+                return true;
+
+            return false;
         }
 
         /// <summary>
@@ -352,10 +383,9 @@ namespace ContinueVS.UI.Renderers
                 Cursor = System.Windows.Input.Cursors.Hand
             };
 
-            // Store block metadata in tag as simple string-keyed dictionary-like format
+            // Store block metadata in tag (blockId is used to identify which code block this dropdown belongs to)
+            // Do NOT set Name property - WPF Name validation rejects GUIDs with dashes
             actionDropdown.Tag = blockId;
-            // Store additional data as separate attributes to avoid dynamic issues
-            actionDropdown.Name = $"CodeActionDropdown_{blockId}";
 
             var copyItem = new ComboBoxItem { Content = "📋 Copy", IsSelected = true };
             var applyItem = new ComboBoxItem { Content = "✔ Apply" };
