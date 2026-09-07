@@ -33,7 +33,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Server config must have an ID", nameof(config));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"McpService.InitializeServerAsync({config.Id}) (skeleton)");
+                _logger?.WriteDebug($"McpService.InitializeServerAsync({config.Id}) (skeleton)");
 
             var status = new McpServerStatus
             {
@@ -63,7 +63,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Server ID cannot be null or empty", nameof(serverId));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"McpService.ShutdownServerAsync({serverId}) (skeleton)");
+                _logger?.WriteDebug($"McpService.ShutdownServerAsync({serverId}) (skeleton)");
 
             if (_servers.TryGetValue(serverId, out var status))
             {
@@ -85,7 +85,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Server ID cannot be null or empty", nameof(serverId));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"McpService.RestartServerAsync({serverId}) (skeleton)");
+                _logger?.WriteDebug($"McpService.RestartServerAsync({serverId}) (skeleton)");
 
             if (_servers.TryGetValue(serverId, out var currentStatus))
             {

@@ -302,10 +302,10 @@ public string? InputText
             get => _currentMode;
             set
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[a9-property-entry] CurrentMode setter: oldValue={_currentMode}, newValue={value}");
+                LoggerService.Current.WriteDebug($"[a9-property-entry] CurrentMode setter: oldValue={_currentMode}, newValue={value}");
                 if (Set(ref _currentMode, value))
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[a9-property-set-success] Set() returned true, property changed. New _currentMode={_currentMode}, PropertyChanged notification raised");
+                    LoggerService.Current.WriteDebug($"[a9-property-set-success] Set() returned true, property changed. New _currentMode={_currentMode}, PropertyChanged notification raised");
                     SendMessageCommand.RaiseCanExecuteChanged();
                     // gap27_1: keep SelectedMode in sync when CurrentMode is set externally (e.g. SetModeCommand)
                     var matching = AvailableModes.FirstOrDefault(m => m.Value == _currentMode);
@@ -314,7 +314,7 @@ public string? InputText
                 }
                 else
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[a9-property-set-noop] Set() returned false, property unchanged. _currentMode still={_currentMode}");
+                    LoggerService.Current.WriteDebug($"[a9-property-set-noop] Set() returned false, property unchanged. _currentMode still={_currentMode}");
                 }
             }
         }
@@ -555,7 +555,7 @@ public string? InputText
                     ShowErrorBanner = false;
                     DismissWarningBanner();
                     SendMessageCommand.RaiseCanExecuteChanged();
-                    _ = LoggerService.Current.WriteDebugAsync("[gap23_4_3-reset] Limit flag cleared on new session");
+                    LoggerService.Current.WriteDebug("[gap23_4_3-reset] Limit flag cleared on new session");
                 }
                 // gap23_4_5: Refresh counter display on any session change
                 RefreshToolCallCounter();
@@ -564,7 +564,7 @@ public string? InputText
                 if (e.CurrentMode.HasValue)
                 {
                     var restoredMode = ContinueVS.Services.Utilities.ModeValidator.CoerceToValidMode(e.CurrentMode.Value);
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap27_5-restore] Session loaded with mode {e.CurrentMode.Value}, coerced to {restoredMode}");
+                    LoggerService.Current.WriteDebug($"[gap27_5-restore] Session loaded with mode {e.CurrentMode.Value}, coerced to {restoredMode}");
                     CurrentMode = (ChatMode)restoredMode;
                 }
             };
@@ -584,7 +584,7 @@ public string? InputText
                 return;
 
             _codeBlockActions[blockId] = action;
-            _ = LoggerService.Current.WriteDebugAsync($"[gap53-block-registry] Block {blockId} (lang={language}) action recorded: {action}");
+            LoggerService.Current.WriteDebug($"[gap53-block-registry] Block {blockId} (lang={language}) action recorded: {action}");
         }
 
         /// 
@@ -617,11 +617,11 @@ public string? InputText
             try
             {
                 _cachedUIState = await _uiStateService.GetUIStateAsync();
-                _ = LoggerService.Current.WriteDebugAsync($"[gap9-uistate-load] UIState cached: {_cachedUIState?.ToolSettings.Count ?? 0} tool policies loaded");
+                LoggerService.Current.WriteDebug($"[gap9-uistate-load] UIState cached: {_cachedUIState?.ToolSettings.Count ?? 0} tool policies loaded");
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap9-uistate-error] Failed to load UIState: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap9-uistate-error] Failed to load UIState: {ex.Message}", ex);
                 // Fall back to empty UIState (all tools default to AskFirst)
                 _cachedUIState = new UIState();
             }
@@ -637,7 +637,7 @@ public string? InputText
             {
                 var defaultMode = await _configService.GetDefaultModeAsync();
                 var coercedMode = ContinueVS.Services.Utilities.ModeValidator.CoerceToValidMode(defaultMode);
-                _ = LoggerService.Current.WriteDebugAsync($"[gap27_5-init] Loaded default mode from config: {defaultMode}, coerced to {coercedMode}");
+                LoggerService.Current.WriteDebug($"[gap27_5-init] Loaded default mode from config: {defaultMode}, coerced to {coercedMode}");
 
                 // Update CurrentMode and sync SelectedMode
                 CurrentMode = (ChatMode)coercedMode;
@@ -650,7 +650,7 @@ public string? InputText
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap27_5-init-error] Failed to load default mode: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap27_5-init-error] Failed to load default mode: {ex.Message}", ex);
                 // Default to Ask (already the default in _currentMode)
             }
 
@@ -658,7 +658,7 @@ public string? InputText
             try
             {
                 var defaultPolicy = await _configService.GetDefaultPolicyAsync();
-                _ = LoggerService.Current.WriteDebugAsync($"[gap27_16-init] Loaded default policy from config: {defaultPolicy}");
+                LoggerService.Current.WriteDebug($"[gap27_16-init] Loaded default policy from config: {defaultPolicy}");
 
                 // Update _selectedPolicy backing field directly without triggering setter
                 // to avoid saving immediately after loading
@@ -667,13 +667,13 @@ public string? InputText
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap27_16-init-error] Failed to load default policy: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap27_16-init-error] Failed to load default policy: {ex.Message}", ex);
                 // Default to Interactive (already set in field initialization)
             }
 
             // Mark initialization as complete
             _isInitialized = true;
-            _ = LoggerService.Current.WriteDebugAsync("[ChatPageViewModel.InitializeAsync] Initialization complete");
+            LoggerService.Current.WriteDebug("[ChatPageViewModel.InitializeAsync] Initialization complete");
         }
 
         /// <summary>
@@ -758,19 +758,19 @@ public string? InputText
                         if (AvailableModels.Count > 0 && _selectedModel == null)
                         {
                             SelectedModel = AvailableModels[0];
-                            _ = LoggerService.Current.WriteDebugAsync($"[chat-model-load] Loaded {AvailableModels.Count} models, selected: {SelectedModel?.Name}");
+                            LoggerService.Current.WriteDebug($"[chat-model-load] Loaded {AvailableModels.Count} models, selected: {SelectedModel?.Name}");
                         }
                     });
 #pragma warning restore VSTHRD001
                 }
                 else
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[chat-model-load] No models in config (config null={config == null}, Models null/empty={config?.Models == null || !config.Models.Any()})");
+                    LoggerService.Current.WriteDebug($"[chat-model-load] No models in config (config null={config == null}, Models null/empty={config?.Models == null || !config.Models.Any()})");
                 }
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[chat-model-load-error] {ex.GetType().Name}: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[chat-model-load-error] {ex.GetType().Name}: {ex.Message}", ex);
             }
         }
 
@@ -787,7 +787,7 @@ public string? InputText
         private void OnMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             OnboardingCardVisible = Messages.Count == 0;
-            _ = LoggerService.Current.WriteDebugAsync($"[gap25_6-sync] Onboarding card visibility updated: {OnboardingCardVisible} (Messages.Count={Messages.Count})");
+            LoggerService.Current.WriteDebug($"[gap25_6-sync] Onboarding card visibility updated: {OnboardingCardVisible} (Messages.Count={Messages.Count})");
 
             // gap49: Detect file path in latest assistant message
             if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems?.Count > 0)
@@ -796,7 +796,7 @@ public string? InputText
                 if (latestMessage?.Role == ChatMessageRole.Assistant && latestMessage.Content != null)
                 {
                     CurrentResponseHasFilePath = DetectFilePathInResponse(latestMessage.Content);
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap49-detect] File path detected in response: {CurrentResponseHasFilePath}");
+                    LoggerService.Current.WriteDebug($"[gap49-detect] File path detected in response: {CurrentResponseHasFilePath}");
                 }
             }
         }
@@ -1000,7 +1000,7 @@ public string? InputText
             ShowErrorBanner = false;
             DismissWarningBanner(); // Stop any active dismissal timer
             SendMessageCommand.RaiseCanExecuteChanged();
-            _ = LoggerService.Current.WriteDebugAsync("[gap23_4_4-reset] Tool call limit reset for new user action. Fresh budget allocated.");
+            LoggerService.Current.WriteDebug("[gap23_4_4-reset] Tool call limit reset for new user action. Fresh budget allocated.");
         }
 
         /// <summary>
@@ -1012,11 +1012,11 @@ public string? InputText
             try
             {
                 ToolCallCounterDisplay = GetToolCallCounterDisplay();
-                _ = LoggerService.Current.WriteDebugAsync($"[gap23_4_5-refresh] Counter display updated: {ToolCallCounterDisplay}");
+                LoggerService.Current.WriteDebug($"[gap23_4_5-refresh] Counter display updated: {ToolCallCounterDisplay}");
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap23_4_5-refresh-error] Failed to refresh counter: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap23_4_5-refresh-error] Failed to refresh counter: {ex.Message}", ex);
                 ToolCallCounterDisplay = "0 / 0 tool calls";
             }
         }
@@ -1043,7 +1043,7 @@ public string? InputText
                 if (maxToolCalls <= 0)
                     maxToolCalls = 100;
 
-                _ = LoggerService.Current.WriteDebugAsync($"[gap23_4_5-counter] toolCallsExecuted={toolCallsExecuted}, maxToolCalls={maxToolCalls}");
+                LoggerService.Current.WriteDebug($"[gap23_4_5-counter] toolCallsExecuted={toolCallsExecuted}, maxToolCalls={maxToolCalls}");
                 return $"{toolCallsExecuted} / {maxToolCalls} tool calls";
             }
             catch
@@ -1090,7 +1090,7 @@ public string? InputText
             try
             {
                 double percentage = GetToolCallPercentage();
-                _ = LoggerService.Current.WriteDebugAsync($"[gap23_4_4-check] Tool call percentage: {percentage:F1}%");
+                LoggerService.Current.WriteDebug($"[gap23_4_4-check] Tool call percentage: {percentage:F1}%");
 
                 if (percentage >= 100.0)
                 {
@@ -1100,7 +1100,7 @@ public string? InputText
                         ShowErrorBanner = true;
                         _limitReachedFlag = true;
                         SendMessageCommand.RaiseCanExecuteChanged();
-                        _ = LoggerService.Current.WriteErrorAsync("[gap23_4_4-error] Tool call limit reached (100%). Error banner shown.", new InvalidOperationException());
+                        LoggerService.Current.WriteError("[gap23_4_4-error] Tool call limit reached (100%). Error banner shown.", new InvalidOperationException());
 
                         // Log analytics event
                         _notificationService.ShowError("Tool call limit reached (100/100). Start a new session to continue.");
@@ -1112,7 +1112,7 @@ public string? InputText
                     if (!ShowWarningBanner)
                     {
                         ShowWarningBanner = true;
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap23_4_4-warning] Approaching tool call limit ({percentage:F1}%). Warning banner shown.");
+                        LoggerService.Current.WriteDebug($"[gap23_4_4-warning] Approaching tool call limit ({percentage:F1}%). Warning banner shown.");
 
                         // Start 5-second auto-dismiss timer
                         if (_warningDismissTimer == null)
@@ -1135,7 +1135,7 @@ public string? InputText
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap23_4_4-error] Exception in CheckToolCallLimit: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap23_4_4-error] Exception in CheckToolCallLimit: {ex.Message}", ex);
             }
         }
 
@@ -1151,7 +1151,7 @@ public string? InputText
                 // Do NOT show messagebox here (VSIX environment issues with MessageBox.Show in certain contexts)
                 if (!_isInitialized)
                 {
-                    _ = LoggerService.Current.WriteWarningAsync(
+                    LoggerService.Current.WriteWarning(
                         "[ExecuteSendMessage] WARNING: ViewModel not yet initialized; discarding user input");
                     return;
                 }
@@ -1164,7 +1164,7 @@ public string? InputText
                 }
                 catch (InvalidOperationException configEx)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync(
+                    LoggerService.Current.WriteError(
                         $"[ExecuteSendMessage] ConfigService not ready: {configEx.Message}", configEx);
                     return;
                 }
@@ -1197,8 +1197,8 @@ public string? InputText
                 await SwitchToMainThreadAsync();
                 Messages.Add(userMessage);
 
-                _ = LoggerService.Current.WriteDebugAsync($"[a9-command-entry] ExecuteSendMessage started. CurrentMode={CurrentMode}");
-                _ = LoggerService.Current.WriteDebugAsync($"[a9-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
+                LoggerService.Current.WriteDebug($"[a9-command-entry] ExecuteSendMessage started. CurrentMode={CurrentMode}");
+                LoggerService.Current.WriteDebug($"[a9-exec] ExecuteSendMessage: User message added. Role={userMessage.Role}, Content={userMessage.Content}, MessagesCount={Messages.Count}");
 
                 // GAP22_4: Prune messages if needed before streaming
                 var session = _sessionService.GetCurrentSession();
@@ -1210,12 +1210,12 @@ public string? InputText
                         int availableTokens = (int)(selectedModel.ContextWindow * 0.75);
                         int approximateNewMessageTokens = (userMessage.Content?.Length ?? 0 + 3) / 4;
 
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap22-prune-check] ContextWindow={selectedModel.ContextWindow}, Available={availableTokens}, NewMsgTokens~={approximateNewMessageTokens}");
+                        LoggerService.Current.WriteDebug($"[gap22-prune-check] ContextWindow={selectedModel.ContextWindow}, Available={availableTokens}, NewMsgTokens~={approximateNewMessageTokens}");
 
                         if (approximateNewMessageTokens > availableTokens / 2)
                         {
                             var (removedCount, prunedMessages) = await _sessionService.PruneOldMessagesAsync(availableTokens);
-                            _ = LoggerService.Current.WriteDebugAsync($"[gap22-pruned] Removed {removedCount} messages to stay under token limit");
+                            LoggerService.Current.WriteDebug($"[gap22-pruned] Removed {removedCount} messages to stay under token limit");
                         }
                     }
                 }
@@ -1248,7 +1248,7 @@ public string? InputText
                         };
                     }
                 }
-                _ = LoggerService.Current.WriteDebugAsync($"[gap32-setting] experimental.addCurrentFileByDefault={addCurrentFileByDefault}");
+                LoggerService.Current.WriteDebug($"[gap32-setting] experimental.addCurrentFileByDefault={addCurrentFileByDefault}");
 
                 if (addCurrentFileByDefault && _ideService != null)
                 {
@@ -1268,7 +1268,7 @@ public string? InputText
                                 Source = "active-file",
                                 Relevance = 1.0
                             });
-                            _ = LoggerService.Current.WriteDebugAsync($"[gap32_1] Active file injected into context: {activePath}");
+                            LoggerService.Current.WriteDebug($"[gap32_1] Active file injected into context: {activePath}");
                         }
                     }
                 }
@@ -1288,7 +1288,7 @@ public string? InputText
 
                 // gap34-audit: log session history count vs. packaged payload
                 var sessionForAudit = _sessionService.GetCurrentSession();
-                _ = LoggerService.Current.WriteDebugAsync(
+                LoggerService.Current.WriteDebug(
                     $"[gap34-audit] history turns in session: {sessionForAudit?.Messages.Count ?? 0}, packaging with token-budget pruning");
 
                 // gap34: Package messages — system + pruned history + new user turn
@@ -1349,9 +1349,9 @@ public string? InputText
                         var detectedQuestion = await _llmQuestionService.DetectLLMQuestionAsync(assistantMessage.Content, _streamingCts.Token);
                         if (detectedQuestion != null)
                         {
-                            _ = LoggerService.Current.WriteDebugAsync($"[gap54-detect] Question detected in response: {detectedQuestion.QuestionText}");
+                            LoggerService.Current.WriteDebug($"[gap54-detect] Question detected in response: {detectedQuestion.QuestionText}");
                             var answer = await _llmQuestionService.HandleLLMQuestionAsync(detectedQuestion, isAutonomous: false, AutoAnswerResponse.Default, _streamingCts.Token);
-                            _ = LoggerService.Current.WriteDebugAsync($"[gap54-handle] Question answered: {answer}");
+                            LoggerService.Current.WriteDebug($"[gap54-handle] Question answered: {answer}");
                         }
                     }
 
@@ -1370,7 +1370,7 @@ public string? InputText
                     if (thinkingMessage != null && !string.IsNullOrWhiteSpace(cleanedResponseContent))
                     {
                         assistantMessage.Content = cleanedResponseContent;
-                        LoggerService.Current.WriteDebugAsync(
+                        LoggerService.Current.WriteDebug(
                             "[gap68-separate] Thinking separated from response. Response length now: " + cleanedResponseContent.Length);
                     }
 
@@ -1378,11 +1378,11 @@ public string? InputText
                     if (modeConfig.ExportsPlanFile && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
                     {
                         var savedPath = await _planOutputService.SavePlanAsync(assistantMessage.Content, _streamingCts.Token);
-                        LoggerService.Current.WriteDebugAsync($"[gap43_3] Plan saved to: {savedPath}");
+                        LoggerService.Current.WriteDebug($"[gap43_3] Plan saved to: {savedPath}");
                     }
 
                     await _sessionService.AddMessageAsync(assistantMessage);
-                    LoggerService.Current.WriteDebugAsync($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
+                    LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
                     // gap68: Add thinking message if it was parsed and visible per settings
                     if (thinkingMessage != null)
@@ -1394,17 +1394,17 @@ public string? InputText
                     CheckToolCallLimit();
 
                     // gap44_3: Tool execution gated by ModeConfig.AllowToolLoop — not hard-coded to Agent
-                    _ = LoggerService.Current.WriteDebugAsync($"[a9-command-toolcheck] Checking tool execution: CurrentMode={CurrentMode}, AllowToolLoop={modeConfig.AllowToolLoop}, _pendingToolCalls.Count={_pendingToolCalls.Count}, ShouldExecute={modeConfig.AllowToolLoop && _pendingToolCalls.Count > 0}");
+                    LoggerService.Current.WriteDebug($"[a9-command-toolcheck] Checking tool execution: CurrentMode={CurrentMode}, AllowToolLoop={modeConfig.AllowToolLoop}, _pendingToolCalls.Count={_pendingToolCalls.Count}, ShouldExecute={modeConfig.AllowToolLoop && _pendingToolCalls.Count > 0}");
                     if (modeConfig.AllowToolLoop && _pendingToolCalls.Count > 0)
                     {
-                        _ = LoggerService.Current.WriteDebugAsync($"[a9-command-toolexec] Executing tools in Agent mode");
+                        LoggerService.Current.WriteDebug($"[a9-command-toolexec] Executing tools in Agent mode");
                         _toolFailureCount = await ExecuteToolCallsAsync(_pendingToolCalls);
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap23_3-loop] Iteration {_toolCallIterationCount}: {_pendingToolCalls.Count} tools executed, {_toolFailureCount} failures");
+                        LoggerService.Current.WriteDebug($"[gap23_3-loop] Iteration {_toolCallIterationCount}: {_pendingToolCalls.Count} tools executed, {_toolFailureCount} failures");
 
                         // Check error accumulation: 2+ failures trigger loop termination
                         if (_toolFailureCount >= 2)
                         {
-                            _ = LoggerService.Current.WriteErrorAsync($"[gap23_3-error] Too many tool failures ({_toolFailureCount}). Terminating loop.", new InvalidOperationException());
+                            LoggerService.Current.WriteError($"[gap23_3-error] Too many tool failures ({_toolFailureCount}). Terminating loop.", new InvalidOperationException());
                             break;
                         }
 
@@ -1424,7 +1424,7 @@ public string? InputText
                     else
                     {
                         // No tools or not in a tool-loop mode — break the loop
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap23_3-loop] No tools or not in Agent mode. Breaking loop.");
+                        LoggerService.Current.WriteDebug($"[gap23_3-loop] No tools or not in Agent mode. Breaking loop.");
 
                         // gap45_3: If phase execution is enabled for this mode, hand off to InstructionExecutorService
                         if (modeConfig.AllowPhaseExecution && !string.IsNullOrWhiteSpace(assistantMessage.Content))
@@ -1441,7 +1441,7 @@ public string? InputText
                             {
                                 Text = assistantMessage.Content
                             };
-                            _ = LoggerService.Current.WriteDebugAsync($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
+                            LoggerService.Current.WriteDebug($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
                             await _instructionExecutorService.ExecuteInstructionAsync(
                                 execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
                         }
@@ -1452,7 +1452,7 @@ public string? InputText
             }
             catch (OperationCanceledException)
             {
-                _ = LoggerService.Current.WriteDebugAsync("[ChatPageViewModel.ExecuteSendMessage] OperationCanceledException: User cancelled");
+                LoggerService.Current.WriteDebug("[ChatPageViewModel.ExecuteSendMessage] OperationCanceledException: User cancelled");
                 StreamingResponse += "\n[Cancelled by user]";
             }
             catch (Exception ex)
@@ -1462,22 +1462,22 @@ public string? InputText
                     Debugger.Break();
 #endif
 
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Exception caught: {ex.GetType().Name}", ex);
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Exception message: {ex.Message}", ex);
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Exception stack trace: {ex.StackTrace}", ex);
+                LoggerService.Current.WriteError($"[ChatPageViewModel.ExecuteSendMessage] Exception caught: {ex.GetType().Name}", ex);
+                LoggerService.Current.WriteError($"[ChatPageViewModel.ExecuteSendMessage] Exception message: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[ChatPageViewModel.ExecuteSendMessage] Exception stack trace: {ex.StackTrace}", ex);
 
                 // Gap23_3: Distinguish between LLM streaming failure and other errors
                 if (ex is HttpRequestException || ex is InvalidOperationException && ex.Message.Contains("stream"))
                 {
-                    _ = LoggerService.Current.WriteErrorAsync("[gap23_3-error] LLM streaming failed, terminating loop", ex);
+                    LoggerService.Current.WriteError("[gap23_3-error] LLM streaming failed, terminating loop", ex);
                 }
 
                 if (ex.InnerException != null)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}", ex.InnerException);
+                    LoggerService.Current.WriteError($"[ChatPageViewModel.ExecuteSendMessage] Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}", ex.InnerException);
                 }
 
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPageViewModel.ExecuteSendMessage] Showing error popup: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[ChatPageViewModel.ExecuteSendMessage] Showing error popup: {ex.Message}", ex);
                 await _notificationService.ShowNotificationAsync("Error", ex.Message, NotificationType.Error);
             }
             finally
@@ -1497,17 +1497,17 @@ public string? InputText
         {
             if (_cachedUIState == null || _cachedUIState.ToolSettings == null)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[gap9-policy-default] No UIState cached; defaulting {toolName} to AskFirst");
+                LoggerService.Current.WriteDebug($"[gap9-policy-default] No UIState cached; defaulting {toolName} to AskFirst");
                 return ToolPolicy.AskFirst;
             }
 
             if (_cachedUIState.ToolSettings.TryGetValue(toolName, out var policy))
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[gap9-policy-lookup] Tool {toolName} policy: {policy}");
+                LoggerService.Current.WriteDebug($"[gap9-policy-lookup] Tool {toolName} policy: {policy}");
                 return policy;
             }
 
-            _ = LoggerService.Current.WriteDebugAsync($"[gap9-policy-missing] Tool {toolName} not in UIState; defaulting to AskFirst");
+            LoggerService.Current.WriteDebug($"[gap9-policy-missing] Tool {toolName} not in UIState; defaulting to AskFirst");
             return ToolPolicy.AskFirst;
         }
 
@@ -1525,7 +1525,7 @@ public string? InputText
             // gap59: Guard against tool execution in modes that don't allow it
             if (!modeConfig.AllowToolLoop)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[gap59-guard] Tool execution not allowed in {CurrentMode} mode (AllowToolLoop={modeConfig.AllowToolLoop})");
+                LoggerService.Current.WriteDebug($"[gap59-guard] Tool execution not allowed in {CurrentMode} mode (AllowToolLoop={modeConfig.AllowToolLoop})");
                 return 0;
             }
 
@@ -1533,7 +1533,7 @@ public string? InputText
             {
                 try
                 {
-                    _ = LoggerService.Current.WriteDebugAsync(
+                    LoggerService.Current.WriteDebug(
                         $"[gap59-dispatch] Dispatching tool {toolCall.Name} (id={toolCall.Id}) via IAgentCommandDispatcher");
 
                     // gap59: Execute tool through dispatcher for policy validation
@@ -1560,19 +1560,19 @@ public string? InputText
                     if (!toolResult.IsSuccess)
                     {
                         failureCount++;
-                        _ = LoggerService.Current.WriteDebugAsync(
+                        LoggerService.Current.WriteDebug(
                             $"[gap59-dispatch] Tool {toolCall.Name} completed with failure: {toolResult.Output}");
                     }
                     else
                     {
-                        _ = LoggerService.Current.WriteDebugAsync(
+                        LoggerService.Current.WriteDebug(
                             $"[gap59-dispatch] Tool {toolCall.Name} completed successfully");
                     }
                 }
                 catch (InvalidOperationException ex)
                 {
                     // gap59: Policy violation or mode doesn't support tool loop
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap59-dispatch-denied] Tool {toolCall.Name} policy violation: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[gap59-dispatch-denied] Tool {toolCall.Name} policy violation: {ex.Message}");
 
                     await SwitchToMainThreadAsync();
                     var deniedMessage = new ChatMessage
@@ -1589,7 +1589,7 @@ public string? InputText
                 }
                 catch (OperationCanceledException)
                 {
-                    _ = LoggerService.Current.WriteWarningAsync(
+                    LoggerService.Current.WriteWarning(
                         $"[gap59-dispatch] Tool {toolCall.Name} was cancelled");
 
                     await SwitchToMainThreadAsync();
@@ -1608,7 +1608,7 @@ public string? InputText
                 catch (Exception ex)
                 {
                     // gap59-dispatch exception: log and continue loop
-                    _ = LoggerService.Current.WriteErrorAsync(
+                    LoggerService.Current.WriteError(
                         $"[gap59-dispatch-error] Tool {toolCall.Name} execution failed: {ex.Message}", ex);
 
                     await SwitchToMainThreadAsync();
@@ -1656,11 +1656,11 @@ public string? InputText
                 Messages.Clear();
                 InputText = string.Empty;
                 SelectedContext.Clear();
-                _ = LoggerService.Current.WriteDebugAsync("[gap47] New chat session started");
+                LoggerService.Current.WriteDebug("[gap47] New chat session started");
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap47] ExecuteNewChatAsync failed: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap47] ExecuteNewChatAsync failed: {ex.Message}", ex);
                 await _notificationService.ShowErrorAsync($"Failed to start new chat: {ex.Message}");
             }
         }
@@ -1682,7 +1682,7 @@ public string? InputText
             // gap31_2: Cancel active stream if pause activated and streaming is in progress
             if (IsPaused && IsStreaming && _streamingCts != null && !_streamingCts.Token.IsCancellationRequested)
             {
-                _ = LoggerService.Current.WriteDebugAsync("[gap31_2-pause] Cancelling active stream due to pause signal");
+                LoggerService.Current.WriteDebug("[gap31_2-pause] Cancelling active stream due to pause signal");
                 _streamingCts.Cancel();
 
                 // gap31_3: Capture checkpoint with buffered stream state
@@ -1709,12 +1709,12 @@ public string? InputText
                     };
 
                     await _instructionExecutorService.SetPauseCheckpointAsync(checkpoint);
-                    _ = LoggerService.Current.WriteDebugAsync(
+                    LoggerService.Current.WriteDebug(
                         $"[gap31_3-checkpoint] Captured pause checkpoint: {checkpoint.ChunkCount} chunks, {streamedText.Length} chars");
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[gap31_3-checkpoint] Error capturing checkpoint: {ex.Message}", ex);
+                    LoggerService.Current.WriteError($"[gap31_3-checkpoint] Error capturing checkpoint: {ex.Message}", ex);
                 }
             }
         }
@@ -1757,11 +1757,11 @@ public string? InputText
         /// </summary>
         private void ExecuteDeleteMessage(string messageId)
         {
-            _ = LoggerService.Current.WriteDebugAsync($"[delete-cmd] ExecuteDeleteMessage called with ID: {messageId}");
+            LoggerService.Current.WriteDebug($"[delete-cmd] ExecuteDeleteMessage called with ID: {messageId}");
 
             if (string.IsNullOrWhiteSpace(messageId))
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[delete-cmd] messageId is null/empty, aborting");
+                LoggerService.Current.WriteDebug($"[delete-cmd] messageId is null/empty, aborting");
                 return;
             }
 
@@ -1769,13 +1769,13 @@ public string? InputText
             var messageToDelete = Messages.FirstOrDefault(m => m.Id == messageId);
             if (messageToDelete == null)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[delete-cmd] Message with ID {messageId} not found in collection. Available: {string.Join(",", Messages.Select(m => m.Id))}");
+                LoggerService.Current.WriteDebug($"[delete-cmd] Message with ID {messageId} not found in collection. Available: {string.Join(",", Messages.Select(m => m.Id))}");
                 return;
             }
 
-            _ = LoggerService.Current.WriteDebugAsync($"[delete-cmd] Found message, removing from collection. Current count: {Messages.Count}");
+            LoggerService.Current.WriteDebug($"[delete-cmd] Found message, removing from collection. Current count: {Messages.Count}");
             Messages.Remove(messageToDelete);
-            _ = LoggerService.Current.WriteDebugAsync($"[delete-cmd] Message removed. New count: {Messages.Count}");
+            LoggerService.Current.WriteDebug($"[delete-cmd] Message removed. New count: {Messages.Count}");
 
             // Persist deletion asynchronously (fire-and-forget with error handling)
             _ = ExecuteDeleteMessageAsync(messageId, messageToDelete);
@@ -1789,18 +1789,18 @@ public string? InputText
         {
             try
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[delete-service] Calling DeleteMessageAsync for ID: {messageId}");
+                LoggerService.Current.WriteDebug($"[delete-service] Calling DeleteMessageAsync for ID: {messageId}");
                 await _sessionService.DeleteMessageAsync(messageId);
-                _ = LoggerService.Current.WriteDebugAsync($"[delete-service] Successfully deleted message ID: {messageId}");
+                LoggerService.Current.WriteDebug($"[delete-service] Successfully deleted message ID: {messageId}");
             }
             catch (Exception ex)
             {
                 // If service deletion fails, add message back and notify user
-                _ = LoggerService.Current.WriteErrorAsync($"[delete-service] Delete failed, restoring message: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[delete-service] Delete failed, restoring message: {ex.Message}", ex);
                 Messages.Add(messageToRestore);
                 await _notificationService.ShowNotificationAsync("Delete Failed", 
                     $"Could not delete message: {ex.Message}", NotificationType.Error);
-                _ = LoggerService.Current.WriteErrorAsync($"[delete-error] Service deletion failed: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[delete-error] Service deletion failed: {ex.Message}", ex);
             }
         }
 
@@ -1812,19 +1812,19 @@ public string? InputText
         {
             if (string.IsNullOrWhiteSpace(codeContent))
             {
-                _ = LoggerService.Current.WriteDebugAsync("[gap49-copy] Code content is empty");
+                LoggerService.Current.WriteDebug("[gap49-copy] Code content is empty");
                 return;
             }
 
             try
             {
                 System.Windows.Forms.Clipboard.SetText(codeContent);
-                _ = LoggerService.Current.WriteDebugAsync("[gap49-copy] Code copied to clipboard");
+                LoggerService.Current.WriteDebug("[gap49-copy] Code copied to clipboard");
                 _ = _notificationService.ShowNotificationAsync("Copied", "Code block copied to clipboard", NotificationType.Success);
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap49-copy-error] Failed to copy: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap49-copy-error] Failed to copy: {ex.Message}", ex);
                 _ = _notificationService.ShowNotificationAsync("Copy Failed", $"Could not copy code: {ex.Message}", NotificationType.Error);
             }
         }
@@ -1847,7 +1847,7 @@ public string? InputText
         {
             if (string.IsNullOrWhiteSpace(codeContent))
             {
-                _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] Code content is empty");
+                LoggerService.Current.WriteDebug("[gap49-apply] Code content is empty");
                 return;
             }
 
@@ -1855,7 +1855,7 @@ public string? InputText
             {
                 _ = _notificationService.ShowNotificationAsync("Warning", 
                     "No file path detected in response. Unable to apply changes.", NotificationType.Warning);
-                _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] No file path detected");
+                LoggerService.Current.WriteDebug("[gap49-apply] No file path detected");
                 return;
             }
 
@@ -1875,7 +1875,7 @@ public string? InputText
                 // Get the latest message to extract file path from
                 if (Messages.Count == 0)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] No messages available to extract file path from");
+                    LoggerService.Current.WriteDebug("[gap49-apply] No messages available to extract file path from");
                     await _notificationService.ShowErrorAsync("No context available for file path extraction.");
                     return;
                 }
@@ -1886,7 +1886,7 @@ public string? InputText
                 string? extractedPath = ExtractFilePathFromResponse(latestMessage.Content);
                 if (string.IsNullOrWhiteSpace(extractedPath))
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[gap49-apply] Could not extract file path from message");
+                    LoggerService.Current.WriteDebug("[gap49-apply] Could not extract file path from message");
                     await _notificationService.ShowErrorAsync("Could not extract file path from response.");
                     return;
                 }
@@ -1894,14 +1894,14 @@ public string? InputText
                 // Extract code content from markdown if needed
                 var actualCode = ExtractCodeContentFromMarkdown(codeContent) ?? codeContent;
 
-                _ = LoggerService.Current.WriteDebugAsync($"[gap49-apply] Applying code to file: {extractedPath}");
+                LoggerService.Current.WriteDebug($"[gap49-apply] Applying code to file: {extractedPath}");
 
                 // Apply the code change (extractedPath is now guaranteed non-null by the check above)
                 await ApplyCodeChangeAsync(extractedPath!, actualCode);
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[gap49-apply] Unhandled exception: {ex.Message}");
+                LoggerService.Current.WriteDebug($"[gap49-apply] Unhandled exception: {ex.Message}");
                 await _notificationService.ShowErrorAsync(
                     $"Apply operation failed: {ex.Message}");
             }
@@ -1924,14 +1924,14 @@ public string? InputText
             {
                 if (++iteration > maxIterations)
                 {
-                    _ = LoggerService.Current.WriteWarningAsync(
+                    LoggerService.Current.WriteWarning(
                         $"[gap55_4-limit] Max tool calls ({maxIterations}) reached in single invocation");
                     break;
                 }
 
                 try
                 {
-                    _ = LoggerService.Current.WriteDebugAsync(
+                    LoggerService.Current.WriteDebug(
                         $"[gap55_4-tool-execution] Executing tool={toolCall.Function?.Name ?? "unknown"}, id={toolCall.Id}");
 
                     // Parse tool arguments (JSON string to dict)
@@ -1945,7 +1945,7 @@ public string? InputText
                         }
                         catch (JsonException ex)
                         {
-                            _ = LoggerService.Current.WriteErrorAsync(
+                            LoggerService.Current.WriteError(
                                 $"[gap55_4-tool-error] Failed to deserialize arguments for tool {toolCall.Function?.Name ?? "unknown"}: {ex.Message}");
                             toolResults.Add(new ToolResult
                             {
@@ -1969,14 +1969,14 @@ public string? InputText
                         result.ToolCallId = toolCall.Id;
                         toolResults.Add(result);
 
-                        _ = LoggerService.Current.WriteDebugAsync(
+                        LoggerService.Current.WriteDebug(
                             $"[gap55_4-tool-success] Tool {toolCall.Function?.Name ?? "unknown"} completed: " +
                             $"{(result.Output?.Substring(0, Math.Min(100, result.Output?.Length ?? 0)) ?? "(empty)")}...");
                     }
                 }
                 catch (OperationCanceledException)
                 {
-                    _ = LoggerService.Current.WriteWarningAsync(
+                    LoggerService.Current.WriteWarning(
                         $"[gap55_4-tool-timeout] Tool {toolCall.Function?.Name ?? "unknown"} timed out (30s)");
                     toolResults.Add(new ToolResult
                     {
@@ -1987,7 +1987,7 @@ public string? InputText
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync(
+                    LoggerService.Current.WriteError(
                         $"[gap55_4-tool-error] Tool {toolCall.Function?.Name ?? "unknown"} failed: {ex.Message}");
                     toolResults.Add(new ToolResult
                     {
@@ -2010,7 +2010,7 @@ public string? InputText
         {
             try
             {
-                _ = LoggerService.Current.WriteDebugAsync(
+                LoggerService.Current.WriteDebug(
                     "[gap55_4-continuation] Re-invoking Ollama with tool results in context");
 
                 // Get updated session with all messages including tool results
@@ -2103,7 +2103,7 @@ public string? InputText
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync(
+                LoggerService.Current.WriteError(
                     $"[gap55_4-continuation-error] Failed to continue conversation: {ex.Message}");
             }
         }
@@ -2188,7 +2188,7 @@ public string? InputText
                         }
                     }
 
-                    LoggerService.Current.WriteDebugAsync(
+                    LoggerService.Current.WriteDebug(
                         $"[gap68-parse-thinking] Thinking block detected. Length: {thinkingContent.Length}, ShowAfterStreaming: {showThinkingAfterStreaming}");
 
                     var thinkingMessage = new ChatMessage
@@ -2205,7 +2205,7 @@ public string? InputText
                     // Message still persists in session for history but won't display in transcript
                     if (!showThinkingAfterStreaming)
                     {
-                        LoggerService.Current.WriteDebugAsync(
+                        LoggerService.Current.WriteDebug(
                             "[gap68-setting-applied] Thinking message created but hidden per user setting");
                     }
 
@@ -2249,14 +2249,14 @@ public string? InputText
                 await SwitchToMainThreadAsync();
                 Messages.Add(thinkingMessage);
 
-                LoggerService.Current.WriteDebugAsync(
+                LoggerService.Current.WriteDebug(
                     "[gap68-ui-add] Thinking message added to UI transcript");
             }
             else
             {
                 // Still add to session for history, but don't show in UI
                 await _sessionService.AddMessageAsync(thinkingMessage);
-                LoggerService.Current.WriteDebugAsync(
+                LoggerService.Current.WriteDebug(
                     "[gap68-session-only] Thinking message added to session only (not visible in UI)");
             }
         }
@@ -2285,7 +2285,7 @@ public string? InputText
                 var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
 
                 // 4. Dispatch via IAgentCommandDispatcher
-                _ = LoggerService.Current.WriteDebugAsync(
+                LoggerService.Current.WriteDebug(
                     $"[gap60-agent-cmd] Executing agent command: {commandName}");
 
                 var result = await _agentCommandDispatcher.DispatchAgentCommandAsync(
@@ -2305,24 +2305,24 @@ public string? InputText
                 await _sessionService.AddMessageAsync(toolMsg);
                 Messages.Add(toolMsg);
 
-                _ = LoggerService.Current.WriteDebugAsync(
+                LoggerService.Current.WriteDebug(
                     $"[gap60-agent-cmd-complete] Command {commandName} finished");
             }
             catch (InvalidOperationException ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync(
+                LoggerService.Current.WriteError(
                     $"[gap60-agent-error] Agent command validation failed: {ex.Message}");
                 throw;
             }
             catch (OperationCanceledException ex)
             {
-                _ = LoggerService.Current.WriteWarningAsync(
+                LoggerService.Current.WriteWarning(
                     $"[gap60-agent-error] Agent command cancelled: {ex.Message}");
                 throw;
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync(
+                LoggerService.Current.WriteError(
                     $"[gap60-agent-error] Unexpected error during agent command execution: {ex.Message}");
                 throw;
             }

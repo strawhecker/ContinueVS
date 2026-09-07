@@ -52,7 +52,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentNullException(nameof(messages));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync("LlmService.StreamAsync");
+                _logger?.WriteDebug("LlmService.StreamAsync");
 
             // Merge messages into options
             var streamOptions = options ?? new StreamOptions();

@@ -22,11 +22,11 @@ namespace ContinueVS.ViewModels.Converters
                     ChatMessageRole.Thinking => HorizontalAlignment.Stretch,
                     _ => HorizontalAlignment.Stretch
                 };
-                _ = LoggerService.Current.WriteDebugAsync($"[a6-converter] RoleToAlignmentConverter.Convert: Role={role}, Alignment={alignment}");
+                LoggerService.Current.WriteDebug($"[a6-converter] RoleToAlignmentConverter.Convert: Role={role}, Alignment={alignment}");
                 return alignment;
             }
 
-            _ = LoggerService.Current.WriteDebugAsync($"[a6-converter] RoleToAlignmentConverter.Convert: value is null, returning Stretch");
+            LoggerService.Current.WriteDebug($"[a6-converter] RoleToAlignmentConverter.Convert: value is null, returning Stretch");
             return HorizontalAlignment.Stretch;
         }
 

@@ -449,16 +449,16 @@ namespace ContinueVS.UI.Renderers
                     try
                     {
                         Clipboard.SetText(content);
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap53-block-action] Code block copied (lang={language}, id={blockId})");
+                        LoggerService.Current.WriteDebug($"[gap53-block-action] Code block copied (lang={language}, id={blockId})");
                     }
                     catch (Exception ex)
                     {
-                        _ = LoggerService.Current.WriteErrorAsync($"[gap53-block-action-error] Failed to copy block: {ex.Message}", ex);
+                        LoggerService.Current.WriteError($"[gap53-block-action-error] Failed to copy block: {ex.Message}", ex);
                     }
                 }
                 else if (selectedAction.Contains("Apply"))
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap53-block-action] Apply selected for block (lang={language}, id={blockId})");
+                    LoggerService.Current.WriteDebug($"[gap53-block-action] Apply selected for block (lang={language}, id={blockId})");
                     // ApplyCodeBlock will be wired via command through parent ChatMessageControl
                 }
 
@@ -467,7 +467,7 @@ namespace ContinueVS.UI.Renderers
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap53-block-action-handler-error] Exception in handler: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap53-block-action-handler-error] Exception in handler: {ex.Message}", ex);
             }
         }
 

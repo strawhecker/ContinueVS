@@ -32,18 +32,18 @@ namespace ContinueVS.ViewModels.Converters
         /// </summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-entry] ConvertBack: value={value}, parameter={parameter}");
+            LoggerService.Current.WriteDebug($"[a9-converter-entry] ConvertBack: value={value}, parameter={parameter}");
             if (value is bool isChecked && isChecked && parameter is string paramStr)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-parse] Starting Enum.TryParse for paramStr='{paramStr}'");
+                LoggerService.Current.WriteDebug($"[a9-converter-parse] Starting Enum.TryParse for paramStr='{paramStr}'");
                 if (Enum.TryParse<ChatMode>(paramStr, ignoreCase: true, out var paramMode))
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-success] Parsed successfully: paramMode={paramMode}");
+                    LoggerService.Current.WriteDebug($"[a9-converter-success] Parsed successfully: paramMode={paramMode}");
                     return paramMode;
                 }
-                _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-fail] Enum.TryParse failed for paramStr='{paramStr}'");
+                LoggerService.Current.WriteDebug($"[a9-converter-fail] Enum.TryParse failed for paramStr='{paramStr}'");
             }
-            _ = LoggerService.Current.WriteDebugAsync($"[a9-converter-fallback] Returning ChatMode.Ask (value={value}, isChecked={value is bool && (bool)value}, paramStr check failed)");
+            LoggerService.Current.WriteDebug($"[a9-converter-fallback] Returning ChatMode.Ask (value={value}, isChecked={value is bool && (bool)value}, paramStr check failed)");
             return ChatMode.Ask;
         }
     }

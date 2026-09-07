@@ -13,25 +13,22 @@ namespace ContinueVS.Services.Implementations
     /// </summary>
     public sealed class DebugBridgeLogger : IBridgeLogger
     {
-        public Task WriteDebugAsync(string message, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteDebug(string message, IReadOnlyDictionary<string, object>? metadata = null)
         {
             System.Diagnostics.Debug.WriteLine($"[BL-debug] {message}{FormatMetadata(metadata)}");
-            return Task.CompletedTask;
         }
 
-        public Task WriteInfoAsync(string message, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteInfo(string message, IReadOnlyDictionary<string, object>? metadata = null)
         {
             System.Diagnostics.Debug.WriteLine($"[BL-info] {message}{FormatMetadata(metadata)}");
-            return Task.CompletedTask;
         }
 
-        public Task WriteWarningAsync(string message, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteWarning(string message, IReadOnlyDictionary<string, object>? metadata = null)
         {
             System.Diagnostics.Debug.WriteLine($"[BL-warn] {message}{FormatMetadata(metadata)}");
-            return Task.CompletedTask;
         }
 
-        public Task WriteErrorAsync(string message, Exception? exception = null, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteError(string message, Exception? exception = null, IReadOnlyDictionary<string, object>? metadata = null)
         {
             System.Diagnostics.Debug.WriteLine($"[BL-error] {message}{FormatMetadata(metadata)}");
             if (exception != null)
@@ -43,13 +40,6 @@ namespace ContinueVS.Services.Implementations
                     System.Diagnostics.Debug.WriteLine($"[BL-error] InnerException: {exception.InnerException.GetType().FullName}: {exception.InnerException.Message}");
                 }
             }
-            return Task.CompletedTask;
-        }
-
-        public Task FlushAsync()
-        {
-            // Debug.WriteLine is synchronous; nothing to flush
-            return Task.CompletedTask;
         }
 
         private static string FormatMetadata(IReadOnlyDictionary<string, object>? metadata)

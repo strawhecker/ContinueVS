@@ -35,7 +35,7 @@ namespace ContinueVS.Services.Implementations
             if (string.IsNullOrWhiteSpace(instruction))
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync("DebugStrategyGeneratorService: instruction is empty");
+                    _logger?.WriteDebug("DebugStrategyGeneratorService: instruction is empty");
                 return null;
             }
 
@@ -45,7 +45,7 @@ namespace ContinueVS.Services.Implementations
                 var prompt = BuildInstrumentationPrompt(instruction, failureContext, targetFile);
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"DebugStrategyGeneratorService: generating strategy for: {instruction.Substring(0, Math.Min(50, instruction.Length))}");
+                    _logger?.WriteDebug($"DebugStrategyGeneratorService: generating strategy for: {instruction.Substring(0, Math.Min(50, instruction.Length))}");
 
                 // Call LLM via StreamAsync with ChatMessage format
                 var messages = new List<ChatMessage>
@@ -65,12 +65,12 @@ namespace ContinueVS.Services.Implementations
                 if (strategy != null)
                 {
                     if (_logger != null)
-                        await _logger.WriteDebugAsync($"DebugStrategyGeneratorService: strategy generated with {strategy.CodeSnippets.Count} snippets");
+                        _logger?.WriteDebug($"DebugStrategyGeneratorService: strategy generated with {strategy.CodeSnippets.Count} snippets");
                 }
                 else
                 {
                     if (_logger != null)
-                        await _logger.WriteDebugAsync("DebugStrategyGeneratorService: failed to parse strategy from LLM response");
+                        _logger?.WriteDebug("DebugStrategyGeneratorService: failed to parse strategy from LLM response");
                 }
 
                 return strategy;
@@ -78,7 +78,7 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"DebugStrategyGeneratorService: exception during generation - {ex.Message}");
+                    _logger?.WriteDebug($"DebugStrategyGeneratorService: exception during generation - {ex.Message}");
                 return null;
             }
         }

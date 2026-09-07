@@ -18,16 +18,16 @@ namespace ContinueVS.ViewModels.Converters
         /// </summary>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-enter] value={value}, targetType={targetType.Name}");
+            LoggerService.Current.WriteDebug($"[gap10-converter-enter] value={value}, targetType={targetType.Name}");
             if (value is ChatMode mode)
             {
                 bool isAsk = mode == ChatMode.Ask;
-                _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-logic] ChatMode={mode}, isAsk={isAsk}");
+                LoggerService.Current.WriteDebug($"[gap10-converter-logic] ChatMode={mode}, isAsk={isAsk}");
                 Visibility result = isAsk ? Visibility.Visible : Visibility.Collapsed;
-                _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-result] Returning {result}");
+                LoggerService.Current.WriteDebug($"[gap10-converter-result] Returning {result}");
                 return result;
             }
-            _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-invalid-type] value is not ChatMode, type={value?.GetType().Name ?? "null"}");
+            LoggerService.Current.WriteDebug($"[gap10-converter-invalid-type] value is not ChatMode, type={value?.GetType().Name ?? "null"}");
             return Visibility.Collapsed;
         }
 
@@ -36,7 +36,7 @@ namespace ContinueVS.ViewModels.Converters
         /// </summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            _ = LoggerService.Current.WriteDebugAsync($"[gap10-converter-convertback] Unexpected ConvertBack called with value={value}");
+            LoggerService.Current.WriteDebug($"[gap10-converter-convertback] Unexpected ConvertBack called with value={value}");
             throw new NotSupportedException("ChatModeToVisibilityConverter does not support ConvertBack.");
         }
     }

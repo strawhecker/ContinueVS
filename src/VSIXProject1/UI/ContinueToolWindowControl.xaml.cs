@@ -24,7 +24,7 @@ namespace ContinueVS.UI
         {
             try
             {
-                _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b1] ContinueToolWindowControl constructor");
+                LoggerService.Current.WriteDebug("[g7-ctrl-b1] ContinueToolWindowControl constructor");
 
                 // Ensure ViewModelLocator.ServiceProvider is set before XAML initializes
                 if (ContinueVSPackage.ServiceProvider != null && ViewModelLocator.ServiceProvider == null)
@@ -32,7 +32,7 @@ namespace ContinueVS.UI
                     try
                     {
                         ViewModelLocator.ServiceProvider = ContinueVSPackage.ServiceProvider;
-                        _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b2] ServiceProvider set in ViewModelLocator");
+                        LoggerService.Current.WriteDebug("[g7-ctrl-b2] ServiceProvider set in ViewModelLocator");
                     }
                     catch (ArgumentNullException)
                     {
@@ -40,23 +40,23 @@ namespace ContinueVS.UI
                     }
                 }
 
-                _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b3] Calling InitializeComponent");
+                LoggerService.Current.WriteDebug("[g7-ctrl-b3] Calling InitializeComponent");
                 InitializeComponent();
-                _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b3b] InitializeComponent completed");
+                LoggerService.Current.WriteDebug("[g7-ctrl-b3b] InitializeComponent completed");
 
                 Loaded += OnLoaded;
-                _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b3c] Loaded event subscribed");
+                LoggerService.Current.WriteDebug("[g7-ctrl-b3c] Loaded event subscribed");
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[g7-ctrl-b-err] Constructor exception: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[g7-ctrl-b-err] Constructor exception: {ex.Message}", ex);
                 MessageBox.Show($"Error initializing Continue tool window: {ex.Message}", "Initialization Error");
             }
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b4] OnLoaded handler invoked");
+            LoggerService.Current.WriteDebug("[g7-ctrl-b4] OnLoaded handler invoked");
 
             try
             {
@@ -67,13 +67,13 @@ namespace ContinueVS.UI
                 var sp = ViewModelLocator.ServiceProvider;
                 if (sp == null)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b5] ViewModelLocator.ServiceProvider is null");
+                    LoggerService.Current.WriteDebug("[g7-ctrl-b5] ViewModelLocator.ServiceProvider is null");
                     return;
                 }
 
                 _mainViewModel = sp.GetService(typeof(MainViewModel)) as MainViewModel;
                 _pageNavigator = sp.GetService(typeof(IPageNavigator)) as IPageNavigator;
-                _ = LoggerService.Current.WriteDebugAsync($"[g7-ctrl-b6] MainViewModel: {_mainViewModel != null}, PageNavigator: {_pageNavigator != null}");
+                LoggerService.Current.WriteDebug($"[g7-ctrl-b6] MainViewModel: {_mainViewModel != null}, PageNavigator: {_pageNavigator != null}");
 
                 if (_mainViewModel != null)
                 {
@@ -85,17 +85,17 @@ namespace ContinueVS.UI
                     _mainViewModel.PropertyChanged += MainViewModel_PropertyChanged;
 
                     var route = _mainViewModel.CurrentRoute ?? "chat";
-                    _ = LoggerService.Current.WriteDebugAsync($"[g7-ctrl-b9] Navigating to: {route}");
+                    LoggerService.Current.WriteDebug($"[g7-ctrl-b9] Navigating to: {route}");
                     NavigateToRoute(route);
                 }
                 else
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[g7-ctrl-b11] MainViewModel is null — not registered in ServiceBootstrapper");
+                    LoggerService.Current.WriteDebug("[g7-ctrl-b11] MainViewModel is null — not registered in ServiceBootstrapper");
                 }
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[g7-ctrl-b12] OnLoaded error: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[g7-ctrl-b12] OnLoaded error: {ex.Message}", ex);
             }
         }
 
@@ -106,30 +106,30 @@ namespace ContinueVS.UI
                 var sp = ViewModelLocator.ServiceProvider;
                 if (sp == null)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[g7-theme] ServiceProvider is null");
+                    LoggerService.Current.WriteDebug("[g7-theme] ServiceProvider is null");
                     return;
                 }
 
                 var themeService = sp.GetService(typeof(IThemeService)) as IThemeService;
                 if (themeService == null)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[g7-theme] ThemeService not available");
+                    LoggerService.Current.WriteDebug("[g7-theme] ThemeService not available");
                     return;
                 }
 
                 await themeService.LoadThemeAsync("dark");
                 themeService.SetCurrentTheme("dark");
 
-                _ = LoggerService.Current.WriteDebugAsync("[g7-theme] Dark theme applied");
+                LoggerService.Current.WriteDebug("[g7-theme] Dark theme applied");
 
                 themeService.ThemeChanged += (s, e) => 
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[g7-theme] Theme changed from {e.PreviousThemeName} to {e.NewThemeName}");
+                    LoggerService.Current.WriteDebug($"[g7-theme] Theme changed from {e.PreviousThemeName} to {e.NewThemeName}");
                 };
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[g7-theme] Theme initialization error: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[g7-theme] Theme initialization error: {ex.Message}", ex);
             }
         }
 
@@ -137,7 +137,7 @@ namespace ContinueVS.UI
         {
             if (e.PropertyName == nameof(MainViewModel.CurrentRoute) && _mainViewModel != null)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[g7-ctrl-b13] CurrentRoute changed to: {_mainViewModel.CurrentRoute}");
+                LoggerService.Current.WriteDebug($"[g7-ctrl-b13] CurrentRoute changed to: {_mainViewModel.CurrentRoute}");
                 NavigateToRoute(_mainViewModel.CurrentRoute);
             }
         }
@@ -146,7 +146,7 @@ namespace ContinueVS.UI
         {
             if (_pageNavigator != null && !string.IsNullOrEmpty(route))
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[g7-ctrl-b14] NavigatingToRoute: {route}");
+                LoggerService.Current.WriteDebug($"[g7-ctrl-b14] NavigatingToRoute: {route}");
                 _ = _pageNavigator.NavigateAsync(route, MainContentFrame);
             }
         }

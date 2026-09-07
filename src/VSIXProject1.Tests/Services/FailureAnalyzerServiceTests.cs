@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -23,8 +23,8 @@ namespace ContinueVS.Tests.Services
         {
             _mockLlmService = new Mock<ILlmService>();
             _mockLogger = new Mock<IBridgeLogger>();
-            _mockLogger.Setup(l => l.WriteInfoAsync(It.IsAny<string>(), null)).Returns(Task.CompletedTask);
-            _mockLogger.Setup(l => l.WriteErrorAsync(It.IsAny<string>(), null, null)).Returns(Task.CompletedTask);
+            _mockLogger.Setup(l => l.WriteInfo(It.IsAny<string>(), null));
+            _mockLogger.Setup(l => l.WriteError(It.IsAny<string>(), null, null));
 
             _service = new FailureAnalyzerService(_mockLlmService.Object, _mockLogger.Object);
         }

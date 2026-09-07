@@ -47,7 +47,7 @@ namespace ContinueVS.Services
         {
             if (serviceProvider == null)
             {
-                _ = LoggerService.Current.WriteDebugAsync("[ServiceInitializer] Warning: called with null serviceProvider; skipping initialization.");
+                LoggerService.Current.WriteDebug("[ServiceInitializer] Warning: called with null serviceProvider; skipping initialization.");
                 return;
             }
 
@@ -55,7 +55,7 @@ namespace ContinueVS.Services
             try
             {
                 logger = serviceProvider.GetService(typeof(IBridgeLogger)) as IBridgeLogger;
-                await (logger?.WriteDebugAsync("[ServiceInitializer] Starting service initialization...") ?? Task.CompletedTask);
+                logger?.WriteDebug("[ServiceInitializer] Starting service initialization...");
 
                 // Initialize ISystemPromptService (loads prompts from config file)
                 var systemPromptService = serviceProvider.GetService(typeof(ISystemPromptService)) as ISystemPromptService;
@@ -63,19 +63,19 @@ namespace ContinueVS.Services
                 {
                     try
                     {
-                        await (logger?.WriteDebugAsync("[ServiceInitializer] Initializing ISystemPromptService...") ?? Task.CompletedTask);
+                        logger?.WriteDebug("[ServiceInitializer] Initializing ISystemPromptService...");
                         await systemPromptService.EnsureConfigFileExistsAsync();
                         await systemPromptService.LoadAsync();
-                        await (logger?.WriteDebugAsync("[ServiceInitializer] ✓ ISystemPromptService initialized successfully.") ?? Task.CompletedTask);
+                        logger?.WriteDebug("[ServiceInitializer] ✓ ISystemPromptService initialized successfully.");
                     }
                     catch (Exception ex)
                     {
-                        await (logger?.WriteWarningAsync($"[ServiceInitializer] Warning: ISystemPromptService initialization failed; using defaults: {ex.Message}") ?? Task.CompletedTask);
+                        logger?.WriteWarning($"[ServiceInitializer] Warning: ISystemPromptService initialization failed; using defaults: {ex.Message}");
                     }
                 }
                 else
                 {
-                    await (logger?.WriteWarningAsync("[ServiceInitializer] Warning: ISystemPromptService not resolved from serviceProvider; skipping initialization.") ?? Task.CompletedTask);
+                    logger?.WriteWarning("[ServiceInitializer] Warning: ISystemPromptService not resolved from serviceProvider; skipping initialization.");
                 }
 
                 // Initialize IConfigService first (highest priority, no dependencies)
@@ -84,26 +84,26 @@ namespace ContinueVS.Services
                 {
                     try
                     {
-                        await (logger?.WriteDebugAsync("[ServiceInitializer] Initializing IConfigService...") ?? Task.CompletedTask);
+                        logger?.WriteDebug("[ServiceInitializer] Initializing IConfigService...");
                         await configService.InitializeAsync();
-                        await (logger?.WriteDebugAsync("[ServiceInitializer] ✓ IConfigService initialized successfully.") ?? Task.CompletedTask);
+                        logger?.WriteDebug("[ServiceInitializer] ✓ IConfigService initialized successfully.");
                     }
                     catch (Exception ex)
                     {
-                        await (logger?.WriteErrorAsync($"[ServiceInitializer] ✗ IConfigService.InitializeAsync() failed: {ex.Message}", ex) ?? Task.CompletedTask);
+                        logger?.WriteError($"[ServiceInitializer] ✗ IConfigService.InitializeAsync() failed: {ex.Message}", ex);
                         throw new InvalidOperationException("Failed to initialize IConfigService. Handlers cannot operate with uninitialized config.", ex);
                     }
                 }
                 else
                 {
-                    await (logger?.WriteWarningAsync("[ServiceInitializer] Warning: IConfigService not resolved from serviceProvider; skipping initialization.") ?? Task.CompletedTask);
+                    logger?.WriteWarning("[ServiceInitializer] Warning: IConfigService not resolved from serviceProvider; skipping initialization.");
                 }
 
-                await (logger?.WriteDebugAsync("[ServiceInitializer] Service initialization complete.") ?? Task.CompletedTask);
+                logger?.WriteDebug("[ServiceInitializer] Service initialization complete.");
             }
             catch (Exception ex)
             {
-                await (logger?.WriteErrorAsync($"[ServiceInitializer] ✗ Fatal error during service initialization: {ex.Message}", ex) ?? Task.CompletedTask);
+                logger?.WriteError($"[ServiceInitializer] ✗ Fatal error during service initialization: {ex.Message}", ex);
                 throw;
             }
         }

@@ -50,8 +50,7 @@ namespace VSIXProject1.Tests.Services
             var mockRegistry = CreateModeConfigRegistryMock();
             var mockLogger = CreateLoggerMock();
 
-            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebugAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()))
-                .Returns(Task.CompletedTask);
+            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
 
             var agentModeConfig = new ModeConfig
             {
@@ -105,8 +104,7 @@ namespace VSIXProject1.Tests.Services
             var mockRegistry = CreateModeConfigRegistryMock();
             var mockLogger = CreateLoggerMock();
 
-            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebugAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()))
-                .Returns(Task.CompletedTask);
+            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
 
             var askModeConfig = new ModeConfig
             {
@@ -144,8 +142,7 @@ namespace VSIXProject1.Tests.Services
             var mockRegistry = CreateModeConfigRegistryMock();
             var mockLogger = CreateLoggerMock();
 
-            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebugAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()))
-                .Returns(Task.CompletedTask);
+            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
 
             var agentModeConfig = new ModeConfig
             {
@@ -200,8 +197,7 @@ namespace VSIXProject1.Tests.Services
             var mockRegistry = CreateModeConfigRegistryMock();
             var mockLogger = CreateLoggerMock();
 
-            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebugAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()))
-                .Returns(Task.CompletedTask);
+            var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
 
             var agentModeConfig = new ModeConfig
             {
@@ -247,8 +243,7 @@ namespace VSIXProject1.Tests.Services
             var mockRegistry = CreateModeConfigRegistryMock();
             var mockLogger = CreateLoggerMock();
 
-            mockLogger.Setup(l => l.WriteDebugAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()))
-                .Returns(Task.CompletedTask);
+            mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
 
             var agentModeConfig = new ModeConfig
             {
@@ -282,9 +277,9 @@ namespace VSIXProject1.Tests.Services
             await dispatcher.DispatchAgentCommandAsync("read_file", args, ChatMode.Agent);
 
             // Assert
-            mockLogger.Verify(l => l.WriteDebugAsync(It.Is<string>(s => s.Contains("[gap58-dispatch]")), It.IsAny<IReadOnlyDictionary<string, object>>()), 
+            mockLogger.Verify(l => l.WriteDebug(It.Is<string>(s => s.Contains("[gap58-dispatch]")), It.IsAny<IReadOnlyDictionary<string, object>>()), 
                 Times.AtLeastOnce);
-            mockLogger.Verify(l => l.WriteDebugAsync(It.Is<string>(s => s.Contains("read_file")), It.IsAny<IReadOnlyDictionary<string, object>>()), 
+            mockLogger.Verify(l => l.WriteDebug(It.Is<string>(s => s.Contains("read_file")), It.IsAny<IReadOnlyDictionary<string, object>>()), 
                 Times.AtLeastOnce);
         }
     }

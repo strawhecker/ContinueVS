@@ -46,27 +46,27 @@ namespace ContinueVS.Services.Implementations
             try
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"ErrorDrivenInstrumentation: starting suggestion for {exceptionType} at {filePath}:{lineNumber}");
+                    _logger?.WriteDebug($"ErrorDrivenInstrumentation: starting suggestion for {exceptionType} at {filePath}:{lineNumber}");
 
                 // Compute fingerprint from exception type and message
                 var fingerprint = ComputeFingerprint(exceptionType, message);
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"ErrorDrivenInstrumentation: querying repository for fingerprint {fingerprint}");
+                    _logger?.WriteDebug($"ErrorDrivenInstrumentation: querying repository for fingerprint {fingerprint}");
 
                 // Query ErrorRepository for historical matches
                 var historicalErrors = await _errorRepository.GetErrorsByFingerprintAsync(fingerprint);
                 var errorList = historicalErrors?.ToList() ?? new List<ErrorRecord>();
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"ErrorDrivenInstrumentation: found {errorList.Count} historical errors with matching fingerprint");
+                    _logger?.WriteDebug($"ErrorDrivenInstrumentation: found {errorList.Count} historical errors with matching fingerprint");
 
                 // Build failure context from exception info
                 var failureContext = BuildFailureContext(exceptionType, message, stackTrace, errorList);
 
                 // Generate instrumentation strategy via LLM
                 if (_logger != null)
-                    await _logger.WriteDebugAsync("ErrorDrivenInstrumentation: calling strategy generator");
+                    _logger?.WriteDebug("ErrorDrivenInstrumentation: calling strategy generator");
 
                 var strategy = await _strategyGenerator.GenerateStrategyAsync(
                     instruction: $"Add diagnostic instrumentation for {exceptionType}",
@@ -77,12 +77,12 @@ namespace ContinueVS.Services.Implementations
                 if (strategy == null)
                 {
                     if (_logger != null)
-                        await _logger.WriteDebugAsync("ErrorDrivenInstrumentation: strategy generator returned null");
+                        _logger?.WriteDebug("ErrorDrivenInstrumentation: strategy generator returned null");
                     return null;
                 }
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"ErrorDrivenInstrumentation: strategy generated with {strategy.CodeSnippets.Count} snippets");
+                    _logger?.WriteDebug($"ErrorDrivenInstrumentation: strategy generated with {strategy.CodeSnippets.Count} snippets");
 
                 // Wrap strategy in InstrumentationSuggestion
                 var suggestion = new InstrumentationSuggestion
@@ -98,20 +98,20 @@ namespace ContinueVS.Services.Implementations
                 };
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync("ErrorDrivenInstrumentation: suggestion generated successfully");
+                    _logger?.WriteDebug("ErrorDrivenInstrumentation: suggestion generated successfully");
 
                 return suggestion;
             }
             catch (OperationCanceledException)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync("ErrorDrivenInstrumentation: operation cancelled");
+                    _logger?.WriteDebug("ErrorDrivenInstrumentation: operation cancelled");
                 return null;
             }
             catch (Exception ex)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"ErrorDrivenInstrumentation: exception during suggestion generation - {ex.Message}");
+                    _logger?.WriteDebug($"ErrorDrivenInstrumentation: exception during suggestion generation - {ex.Message}");
                 return null;
             }
         }

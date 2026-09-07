@@ -148,7 +148,7 @@ namespace VSIXProject1.Services
                 {
                     if (_logger != null)
                     {
-                        await _logger.WriteWarningAsync("[BridgeStateCollector] Snapshot validation failed");
+                        _logger?.WriteWarning("[BridgeStateCollector] Snapshot validation failed");
                     }
                     return null;
                 }
@@ -159,7 +159,7 @@ namespace VSIXProject1.Services
             {
                 if (_logger != null)
                 {
-                    await _logger.WriteWarningAsync("[BridgeStateCollector] Snapshot creation cancelled");
+                    _logger?.WriteWarning("[BridgeStateCollector] Snapshot creation cancelled");
                 }
                 throw;
             }
@@ -167,7 +167,7 @@ namespace VSIXProject1.Services
             {
                 if (_logger != null)
                 {
-                    await _logger.WriteErrorAsync($"[BridgeStateCollector] Failed to create snapshot: {ex.Message}", ex);
+                    _logger?.WriteError($"[BridgeStateCollector] Failed to create snapshot: {ex.Message}", ex);
                 }
                 return null;
             }

@@ -22,7 +22,7 @@ namespace ContinueVS.UI.Pages
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[SettingsControl-ctor] Error: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[SettingsControl-ctor] Error: {ex.Message}", ex);
             }
         }
 

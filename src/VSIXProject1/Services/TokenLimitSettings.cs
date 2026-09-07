@@ -97,7 +97,7 @@ namespace ContinueVS.Services
             // If file doesn't exist, return defaults and cache
             if (!File.Exists(settingsPath))
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[b24-TOKEN-SETTINGS] Settings file not found at {settingsPath}, using defaults");
+                LoggerService.Current.WriteDebug($"[b24-TOKEN-SETTINGS] Settings file not found at {settingsPath}, using defaults");
                 var defaults = new TokenLimitConfig();
                 lock (s_settingsLock)
                 {
@@ -120,7 +120,7 @@ namespace ContinueVS.Services
                     settings = new TokenLimitConfig();
                 }
 
-                _ = LoggerService.Current.WriteDebugAsync($"[b24-TOKEN-SETTINGS] Loaded settings: maxContext={settings.MaxContextTokens}, reserve={settings.ReserveTokensForResponse}, charsPerToken={settings.CharsPerToken}");
+                LoggerService.Current.WriteDebug($"[b24-TOKEN-SETTINGS] Loaded settings: maxContext={settings.MaxContextTokens}, reserve={settings.ReserveTokensForResponse}, charsPerToken={settings.CharsPerToken}");
 
                 lock (s_settingsLock)
                 {
@@ -131,7 +131,7 @@ namespace ContinueVS.Services
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[b24-TOKEN-SETTINGS] Error reading settings from {settingsPath}: {ex.Message}. Using defaults.", ex);
+                LoggerService.Current.WriteError($"[b24-TOKEN-SETTINGS] Error reading settings from {settingsPath}: {ex.Message}. Using defaults.", ex);
                 var defaults = new TokenLimitConfig();
                 lock (s_settingsLock)
                 {
@@ -162,7 +162,7 @@ namespace ContinueVS.Services
                 if (!Directory.Exists(settingsDir))
                 {
                     Directory.CreateDirectory(settingsDir);
-                    _ = LoggerService.Current.WriteDebugAsync($"[b24-TOKEN-SETTINGS] Created settings directory: {settingsDir}");
+                    LoggerService.Current.WriteDebug($"[b24-TOKEN-SETTINGS] Created settings directory: {settingsDir}");
                 }
 
                 // Validate settings
@@ -187,7 +187,7 @@ namespace ContinueVS.Services
                     string jsonContent = JsonSerializer.Serialize(settings, s_jsonOptions);
                     File.WriteAllText(settingsPath, jsonContent);
 
-                    _ = LoggerService.Current.WriteDebugAsync($"[b24-TOKEN-SETTINGS] Saved settings to {settingsPath}");
+                    LoggerService.Current.WriteDebug($"[b24-TOKEN-SETTINGS] Saved settings to {settingsPath}");
 
                     // Update cache
                     s_cachedSettings = settings;
@@ -197,7 +197,7 @@ namespace ContinueVS.Services
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[b24-TOKEN-SETTINGS] Error writing settings to {settingsPath}: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[b24-TOKEN-SETTINGS] Error writing settings to {settingsPath}: {ex.Message}", ex);
                 return Task.FromException(ex);
             }
         }

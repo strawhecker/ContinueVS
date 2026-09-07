@@ -40,7 +40,7 @@ namespace ContinueVS.Services.Implementations
         public async Task StartIndexingAsync()
         {
             if (_logger != null)
-                await _logger.WriteDebugAsync("IndexingService.StartIndexingAsync (skeleton)");
+                _logger?.WriteDebug("IndexingService.StartIndexingAsync (skeleton)");
 
             _currentIndexingStatus = IndexingStatus.Indexing;
             _currentStatus = new IndexingProgressUpdate
@@ -63,7 +63,7 @@ namespace ContinueVS.Services.Implementations
         public async Task PauseIndexingAsync()
         {
             if (_logger != null)
-                await _logger.WriteDebugAsync("IndexingService.PauseIndexingAsync (skeleton)");
+                _logger?.WriteDebug("IndexingService.PauseIndexingAsync (skeleton)");
 
             if (_currentIndexingStatus != IndexingStatus.Indexing)
                 return;
@@ -80,7 +80,7 @@ namespace ContinueVS.Services.Implementations
         public async Task ResumeIndexingAsync()
         {
             if (_logger != null)
-                await _logger.WriteDebugAsync("IndexingService.ResumeIndexingAsync (skeleton)");
+                _logger?.WriteDebug("IndexingService.ResumeIndexingAsync (skeleton)");
 
             if (_currentIndexingStatus != IndexingStatus.Paused)
                 return;
@@ -97,7 +97,7 @@ namespace ContinueVS.Services.Implementations
         public async Task CancelIndexingAsync()
         {
             if (_logger != null)
-                await _logger.WriteDebugAsync("IndexingService.CancelIndexingAsync (skeleton)");
+                _logger?.WriteDebug("IndexingService.CancelIndexingAsync (skeleton)");
 
             _currentIndexingStatus = IndexingStatus.Cancelled;
             _currentStatus = new IndexingProgressUpdate
@@ -128,7 +128,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Filepath cannot be null or empty", nameof(filepath));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"IndexingService.IsIndexedAsync (skeleton)");
+                _logger?.WriteDebug($"IndexingService.IsIndexedAsync (skeleton)");
 
             return false;
         }
@@ -141,7 +141,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Max results must be non-negative", nameof(maxResults));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"IndexingService.SearchIndexAsync (skeleton)");
+                _logger?.WriteDebug($"IndexingService.SearchIndexAsync (skeleton)");
 
             return Enumerable.Empty<CodeSymbol>();
         }
@@ -149,7 +149,7 @@ namespace ContinueVS.Services.Implementations
         public async Task RebuildIndexAsync()
         {
             if (_logger != null)
-                await _logger.WriteDebugAsync("IndexingService.RebuildIndexAsync (skeleton)");
+                _logger?.WriteDebug("IndexingService.RebuildIndexAsync (skeleton)");
 
             await Task.CompletedTask;
         }

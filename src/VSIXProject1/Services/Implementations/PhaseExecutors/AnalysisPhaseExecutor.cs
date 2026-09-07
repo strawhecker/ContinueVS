@@ -39,7 +39,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                 throw new ArgumentException("Target directory cannot be empty.", nameof(targetDir));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"AnalysisPhaseExecutor: executing phase '{phase.Id}' - {phase.Description}");
+                _logger?.WriteDebug($"AnalysisPhaseExecutor: executing phase '{phase.Id}' - {phase.Description}");
 
             return new InternalPhaseExecution
             {

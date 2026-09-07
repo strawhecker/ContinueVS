@@ -42,7 +42,7 @@ namespace ContinueVS.Services.Implementations
             if (!isInteractiveMode)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"[gap29_8_8] Phase '{phaseName}' failed; Autonomous mode auto-retries without prompt");
+                    _logger?.WriteDebug($"[gap29_8_8] Phase '{phaseName}' failed; Autonomous mode auto-retries without prompt");
                 return UserPromptChoice.Retry;
             }
 
@@ -50,7 +50,7 @@ namespace ContinueVS.Services.Implementations
             var message = $"Error:\n{errorMessage}\n\nWould you like to retry this phase?";
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap29_8_8] Interactive prompt: {title}");
+                _logger?.WriteDebug($"[gap29_8_8] Interactive prompt: {title}");
 
             var confirmed = await _notificationService.ShowConfirmationAsync(title, message);
             return confirmed ? UserPromptChoice.Retry : UserPromptChoice.Skip;
@@ -72,7 +72,7 @@ namespace ContinueVS.Services.Implementations
             if (!isInteractiveMode)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"[gap29_8_8] Retry threshold reached for '{changeDescription}'; Autonomous mode halts without prompt");
+                    _logger?.WriteDebug($"[gap29_8_8] Retry threshold reached for '{changeDescription}'; Autonomous mode halts without prompt");
                 return UserPromptChoice.Cancel;
             }
 
@@ -82,7 +82,7 @@ namespace ContinueVS.Services.Implementations
                          "Maximum retry attempts reached. Halt here or try once more?";
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap29_8_8] Interactive prompt: {title}");
+                _logger?.WriteDebug($"[gap29_8_8] Interactive prompt: {title}");
 
             var confirmed = await _notificationService.ShowConfirmationAsync(title, message);
             return confirmed ? UserPromptChoice.Retry : UserPromptChoice.Cancel;
@@ -102,7 +102,7 @@ namespace ContinueVS.Services.Implementations
             if (!isInteractiveMode)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"[gap29_8_8] Risky change to '{filePath}'; Autonomous mode auto-approves without prompt");
+                    _logger?.WriteDebug($"[gap29_8_8] Risky change to '{filePath}'; Autonomous mode auto-approves without prompt");
                 return UserPromptChoice.Retry;
             }
 
@@ -114,7 +114,7 @@ namespace ContinueVS.Services.Implementations
                          "\n\nApprove and apply this change?";
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap29_8_8] Interactive prompt: {title}");
+                _logger?.WriteDebug($"[gap29_8_8] Interactive prompt: {title}");
 
             var confirmed = await _notificationService.ShowConfirmationAsync(title, message);
             return confirmed ? UserPromptChoice.Retry : UserPromptChoice.Cancel;
@@ -132,7 +132,7 @@ namespace ContinueVS.Services.Implementations
                 var defaultAnswer = AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, AutoAnswerResponse.Default);
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"[gap29_8_9] LLM question in Autonomous mode; returning default answer: {defaultAnswer}");
+                    _logger?.WriteDebug($"[gap29_8_9] LLM question in Autonomous mode; returning default answer: {defaultAnswer}");
 
                 return defaultAnswer;
             }
@@ -159,7 +159,7 @@ namespace ContinueVS.Services.Implementations
                 question.Context);
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap29_8_9] Interactive prompt (inline): {question.QuestionText}");
+                _logger?.WriteDebug($"[gap29_8_9] Interactive prompt (inline): {question.QuestionText}");
 
             return await _handleInlineQuestion(llmQuestion);
         }
@@ -170,7 +170,7 @@ namespace ContinueVS.Services.Implementations
             var message = $"{question.QuestionText}\n\n(Answering 'Yes' proceeds; 'No' halts.)";
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap29_8_9] Interactive prompt (modal): {title}");
+                _logger?.WriteDebug($"[gap29_8_9] Interactive prompt (modal): {title}");
 
             var confirmed = await _notificationService.ShowConfirmationAsync(title, message);
             return confirmed ? "Yes, proceed" : "No, halt";

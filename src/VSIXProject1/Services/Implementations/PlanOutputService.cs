@@ -52,7 +52,7 @@ namespace ContinueVS.Services.Implementations
 
             await Task.Run(() => File.WriteAllText(filePath, content), cancellationToken);
 
-            await LoggerService.Current.WriteDebugAsync($"[gap43_2] Plan persisted: {filePath}");
+            LoggerService.Current.WriteDebug($"[gap43_2] Plan persisted: {filePath}");
             return filePath;
         }
     }

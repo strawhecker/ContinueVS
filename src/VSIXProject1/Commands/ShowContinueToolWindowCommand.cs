@@ -20,7 +20,7 @@ namespace ContinueVS.Commands
         {
             // Command routing is handled by .vsct file + direct keybinding
             // This method is kept for compatibility but does nothing
-            _ = LoggerService.Current.WriteDebugAsync("[ShowContinueToolWindowCommand] Initialized (keybindings via Menus.vsct)");
+            LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] Initialized (keybindings via Menus.vsct)");
         }
 
         /// <summary>
@@ -32,13 +32,13 @@ namespace ContinueVS.Commands
             ThreadHelper.ThrowIfNotOnUIThread();
             try
             {
-                _ = LoggerService.Current.WriteDebugAsync("[ShowContinueToolWindowCommand] *** EXECUTE CALLED *** - Showing Continue tool window");
+                LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] *** EXECUTE CALLED *** - Showing Continue tool window");
 
                 // Get the package instance
                 var package = ContinueVSPackage.Instance;
                 if (package == null)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[ShowContinueToolWindowCommand] ✗ ContinueVSPackage.Instance is null");
+                    LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✗ ContinueVSPackage.Instance is null");
                     return;
                 }
 
@@ -47,26 +47,26 @@ namespace ContinueVS.Commands
                 var windowPane = package.FindToolWindow(typeof(ContinueToolWindowPane), 0, true);
                 if (windowPane?.Frame is not IVsWindowFrame windowFrame)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[ShowContinueToolWindowCommand] ✗ FindToolWindow returned null or no frame");
+                    LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✗ FindToolWindow returned null or no frame");
                     return;
                 }
 
-                _ = LoggerService.Current.WriteDebugAsync("[ShowContinueToolWindowCommand] ✓ Tool window frame found/created");
+                LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✓ Tool window frame found/created");
 
                 // Show the tool window
                 int hr = windowFrame.Show();
                 if (hr == 0)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[ShowContinueToolWindowCommand] ✓ Tool window shown successfully!");
+                    LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✓ Tool window shown successfully!");
                 }
                 else
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[ShowContinueToolWindowCommand] ✗ Show failed with HRESULT 0x{hr:X}");
+                    LoggerService.Current.WriteDebug($"[ShowContinueToolWindowCommand] ✗ Show failed with HRESULT 0x{hr:X}");
                 }
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[ShowContinueToolWindowCommand] ✗ Execute error: {ex.GetType().Name}: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[ShowContinueToolWindowCommand] ✗ Execute error: {ex.GetType().Name}: {ex.Message}", ex);
             }
         }
     }

@@ -35,7 +35,7 @@ namespace ContinueVS.Services.Implementations
             try
             {
                 var errorAnalysis = ParseErrorOutput(errorOutput);
-                await _logger.WriteInfoAsync($"[gap29_8_6] Error parsed - Type: {errorAnalysis.ErrorType}, Message: {errorAnalysis.Message}");
+                _logger?.WriteInfo($"[gap29_8_6] Error parsed - Type: {errorAnalysis.ErrorType}, Message: {errorAnalysis.Message}");
 
                 var hypotheses = await GenerateHypothesesAsync(errorAnalysis, previousChange, sessionContext, isAutonomousMode, cancellationToken);
                 double confidence = CalculateConfidenceScore(hypotheses, errorAnalysis.ErrorType);
@@ -57,17 +57,17 @@ namespace ContinueVS.Services.Implementations
                     ApproachDescription = approachDescription
                 };
 
-                await _logger.WriteInfoAsync($"[gap29_8_6] Refinement generated - Confidence: {confidence:F2}, Viable: {attempt.IsViable()}");
+                _logger?.WriteInfo($"[gap29_8_6] Refinement generated - Confidence: {confidence:F2}, Viable: {attempt.IsViable()}");
                 return attempt;
             }
             catch (OperationCanceledException)
             {
-                await _logger.WriteInfoAsync("[gap29_8_6] Failure analysis cancelled.");
+                _logger?.WriteInfo("[gap29_8_6] Failure analysis cancelled.");
                 throw;
             }
             catch (Exception ex)
             {
-                await _logger.WriteErrorAsync($"[gap29_8_6] Failure analysis error: {ex.Message}", ex);
+                _logger?.WriteError($"[gap29_8_6] Failure analysis error: {ex.Message}", ex);
                 throw;
             }
         }
@@ -151,7 +151,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                await _logger.WriteErrorAsync($"[gap29_8_6] LLM hypothesis generation failed: {ex.Message}", ex);
+                _logger?.WriteError($"[gap29_8_6] LLM hypothesis generation failed: {ex.Message}", ex);
                 return new List<string>();
             }
         }

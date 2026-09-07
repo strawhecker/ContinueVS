@@ -58,7 +58,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                await (_logger?.WriteErrorAsync($"[SystemPromptService.LoadAsync] Error loading config: {ex.Message}. Using defaults.", ex) ?? Task.CompletedTask);
+                _logger?.WriteError($"[SystemPromptService.LoadAsync] Error loading config: {ex.Message}. Using defaults.", ex);
                 _config = new SystemPromptConfig();
                 _isLoaded = true;
             }
@@ -68,7 +68,7 @@ namespace ContinueVS.Services.Implementations
         {
             if (!_isLoaded)
             {
-                _ = _logger?.WriteDebugAsync("[SystemPromptService.GetPromptForMode] Config not loaded yet. Please call LoadAsync() first.");
+                _logger?.WriteDebug("[SystemPromptService.GetPromptForMode] Config not loaded yet. Please call LoadAsync() first.");
             }
 
             if (_config?.SystemPrompts.TryGetValue(mode.ToLowerInvariant(), out var item) == true)
@@ -135,7 +135,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                await (_logger?.WriteErrorAsync($"[SystemPromptService.EnsureConfigFileExistsAsync] Error: {ex.Message}", ex) ?? Task.CompletedTask);
+                _logger?.WriteError($"[SystemPromptService.EnsureConfigFileExistsAsync] Error: {ex.Message}", ex);
             }
         }
 
@@ -260,7 +260,7 @@ namespace ContinueVS.Services.Implementations
         {
             if (_statsService == null)
             {
-                _ = _logger?.WriteDebugAsync("[SystemPromptService] GetContextSuffix: _statsService is NULL — workspace context will not be injected");
+                _logger?.WriteDebug("[SystemPromptService] GetContextSuffix: _statsService is NULL — workspace context will not be injected");
                 return string.Empty;
             }
 
@@ -290,12 +290,12 @@ namespace ContinueVS.Services.Implementations
                 }
 
                 var suffix = sb.ToString();
-                _ = _logger?.WriteDebugAsync($"[SystemPromptService] GetContextSuffix({mode}) produced {suffix.Length} chars");
+                _logger?.WriteDebug($"[SystemPromptService] GetContextSuffix({mode}) produced {suffix.Length} chars");
                 return suffix;
             }
             catch (Exception ex)
             {
-                _ = _logger?.WriteErrorAsync($"[SystemPromptService] GetContextSuffix failed: {ex.Message}", ex);
+                _logger?.WriteError($"[SystemPromptService] GetContextSuffix failed: {ex.Message}", ex);
                 return string.Empty;
             }
         }

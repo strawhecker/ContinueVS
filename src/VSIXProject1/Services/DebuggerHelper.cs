@@ -23,7 +23,7 @@ namespace ContinueVS.Services
     ///     if (DebuggerHelper.ShouldBreakOnException("ServiceName"))
     ///         Debugger.Break();
     /// #endif
-    ///     _ = LoggerService.Current.WriteErrorAsync("[ServiceName] Operation failed", ex);
+    ///     LoggerService.Current.WriteError("[ServiceName] Operation failed", ex);
     /// }
     /// </code>
     /// </remarks>
@@ -84,15 +84,15 @@ namespace ContinueVS.Services
 
             if (string.IsNullOrEmpty(breakConfig))
             {
-                _ = LoggerService.Current.WriteDebugAsync("[DebuggerHelper] Exception breakpoints DISABLED (CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS not set)");
+                LoggerService.Current.WriteDebug("[DebuggerHelper] Exception breakpoints DISABLED (CONTINUEEVS_DEBUG_BREAK_ON_EXCEPTIONS not set)");
             }
             else if (breakConfig == "1" || breakConfig.Equals("true", StringComparison.OrdinalIgnoreCase))
             {
-                _ = LoggerService.Current.WriteDebugAsync("[DebuggerHelper] Exception breakpoints ENABLED for ALL contexts");
+                LoggerService.Current.WriteDebug("[DebuggerHelper] Exception breakpoints ENABLED for ALL contexts");
             }
             else
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[DebuggerHelper] Exception breakpoints ENABLED for selective contexts: {breakConfig}");
+                LoggerService.Current.WriteDebug($"[DebuggerHelper] Exception breakpoints ENABLED for selective contexts: {breakConfig}");
             }
         }
     }

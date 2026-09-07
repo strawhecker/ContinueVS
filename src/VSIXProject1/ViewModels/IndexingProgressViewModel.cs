@@ -72,7 +72,7 @@ namespace ContinueVS.ViewModels
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[IndexingProgressViewModel] Error pausing indexing: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[IndexingProgressViewModel] Error pausing indexing: {ex.Message}", ex);
             }
         }
 
@@ -86,7 +86,7 @@ namespace ContinueVS.ViewModels
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[IndexingProgressViewModel] Error resuming indexing: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[IndexingProgressViewModel] Error resuming indexing: {ex.Message}", ex);
             }
         }
 
@@ -100,7 +100,7 @@ namespace ContinueVS.ViewModels
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[IndexingProgressViewModel] Error canceling indexing: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[IndexingProgressViewModel] Error canceling indexing: {ex.Message}", ex);
             }
         }
 

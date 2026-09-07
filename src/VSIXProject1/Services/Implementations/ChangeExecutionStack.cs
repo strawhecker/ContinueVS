@@ -60,14 +60,14 @@ namespace ContinueVS.Services.Implementations
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    await _logger.WriteInfoAsync($"[gap29_8_7] Change attempt {attemptNumber}/{maxRetries}: {change.Description}");
+                    _logger?.WriteInfo($"[gap29_8_7] Change attempt {attemptNumber}/{maxRetries}: {change.Description}");
 
                     try
                     {
                         // Apply the change
                         await _changeStack.ApplyChangeAsync(changeStack.Id, currentChange, filePath);
 
-                        await _logger.WriteInfoAsync($"[gap29_8_7] Change attempt {attemptNumber} SUCCEEDED");
+                        _logger?.WriteInfo($"[gap29_8_7] Change attempt {attemptNumber} SUCCEEDED");
 
                         result.Status = attemptNumber == 1 
                             ? ChangeExecutionResult.StatusCode.Success 
@@ -82,12 +82,12 @@ namespace ContinueVS.Services.Implementations
                     }
                     catch (Exception ex)
                     {
-                        await _logger.WriteErrorAsync($"[gap29_8_7] Change attempt {attemptNumber} FAILED: {ex.Message}", ex);
+                        _logger?.WriteError($"[gap29_8_7] Change attempt {attemptNumber} FAILED: {ex.Message}", ex);
 
                         // If this was the last attempt, bail out
                         if (attemptNumber >= maxRetries)
                         {
-                            await _logger.WriteInfoAsync($"[gap29_8_7] Max retries ({maxRetries}) exhausted. Halting without automatic rollback.");
+                            _logger?.WriteInfo($"[gap29_8_7] Max retries ({maxRetries}) exhausted. Halting without automatic rollback.");
 
                             result.Status = ChangeExecutionResult.StatusCode.RetryThresholdExceeded;
                             result.ExecutedAttemptCount = attemptNumber;
@@ -114,7 +114,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (OperationCanceledException)
             {
-                await _logger.WriteInfoAsync("[gap29_8_7] Change execution cancelled.");
+                _logger?.WriteInfo("[gap29_8_7] Change execution cancelled.");
                 result.Status = ChangeExecutionResult.StatusCode.ExecutionCancelled;
                 result.ExecutedAttemptCount = attemptNumber;
                 result.Evidence = $"Change attempt cancelled at attempt {attemptNumber}";
@@ -123,7 +123,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                await _logger.WriteErrorAsync($"[gap29_8_7] Unexpected error in change execution: {ex.Message}", ex);
+                _logger?.WriteError($"[gap29_8_7] Unexpected error in change execution: {ex.Message}", ex);
                 result.Status = ChangeExecutionResult.StatusCode.RetryThresholdExceeded;
                 result.ExecutedAttemptCount = attemptNumber;
                 result.Evidence = $"Unexpected error: {ex.Message}";
@@ -146,7 +146,7 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
-                await _logger.WriteInfoAsync($"[gap29_8_7] Analyzing failure to generate refined change...");
+                _logger?.WriteInfo($"[gap29_8_7] Analyzing failure to generate refined change...");
 
                 var refinementAttempt = await _failureAnalyzer.AnalyzeFailureAsync(
                     previousError.Message,
@@ -160,17 +160,17 @@ namespace ContinueVS.Services.Implementations
                 if (refinementAttempt.IsViable())
                 {
                     refinedChange = refinementAttempt.RefinedChange!;
-                    await _logger.WriteInfoAsync(
+                    _logger?.WriteInfo(
                         $"[gap29_8_7] Refined change generated (confidence: {refinementAttempt.ConfidenceScore:F2}): {refinementAttempt.ApproachDescription}");
                 }
                 else
                 {
-                    await _logger.WriteInfoAsync("[gap29_8_7] Refinement analysis did not generate viable refined change.");
+                    _logger?.WriteInfo("[gap29_8_7] Refinement analysis did not generate viable refined change.");
                 }
             }
             catch (Exception ex)
             {
-                await _logger.WriteErrorAsync($"[gap29_8_7] Error during failure analysis and refinement: {ex.Message}", ex);
+                _logger?.WriteError($"[gap29_8_7] Error during failure analysis and refinement: {ex.Message}", ex);
             }
 
             return refinedChange;

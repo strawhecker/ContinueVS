@@ -31,7 +31,7 @@ namespace ContinueVS.Core.Types
         {
             if (config == null)
             {
-                _ = LoggerService.Current.WriteDebugAsync("[SettingsMigration] Config is null, skipping migration.");
+                LoggerService.Current.WriteDebug("[SettingsMigration] Config is null, skipping migration.");
                 return;
             }
 
@@ -58,7 +58,7 @@ namespace ContinueVS.Core.Types
                 }
             }
 
-            _ = LoggerService.Current.WriteDebugAsync($"[SettingsMigration] File version: {fileVersion}, current version: {CurrentVersion}");
+            LoggerService.Current.WriteDebug($"[SettingsMigration] File version: {fileVersion}, current version: {CurrentVersion}");
 
             // Apply migrations in order
             if (fileVersion < 1)
@@ -68,7 +68,7 @@ namespace ContinueVS.Core.Types
 
             // Update schema version to current
             config.CustomSettings[SchemaVersionKey] = CurrentVersion;
-            _ = LoggerService.Current.WriteDebugAsync($"[SettingsMigration] Migration complete. Schema version now: {CurrentVersion}");
+            LoggerService.Current.WriteDebug($"[SettingsMigration] Migration complete. Schema version now: {CurrentVersion}");
         }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace ContinueVS.Core.Types
         /// </summary>
         private static void MigrateV0ToV1(CoreTypes.ContinueConfig config)
         {
-            _ = LoggerService.Current.WriteDebugAsync("[SettingsMigration] Applying v0→v1 migration...");
+            LoggerService.Current.WriteDebug("[SettingsMigration] Applying v0→v1 migration...");
 
             // Example v0→v1 migrations (based on Redux-persist pattern):
             // Rename old keys to new location structure
@@ -97,7 +97,7 @@ namespace ContinueVS.Core.Types
                 {
                     config.CustomSettings[kvp.Value] = value;
                     config.CustomSettings.Remove(kvp.Key);
-                    _ = LoggerService.Current.WriteDebugAsync($"[SettingsMigration] Renamed '{kvp.Key}' → '{kvp.Value}'");
+                    LoggerService.Current.WriteDebug($"[SettingsMigration] Renamed '{kvp.Key}' → '{kvp.Value}'");
                 }
             }
 
@@ -113,11 +113,11 @@ namespace ContinueVS.Core.Types
                 if (!config.CustomSettings.ContainsKey(kvp.Key))
                 {
                     config.CustomSettings[kvp.Key] = kvp.Value;
-                    _ = LoggerService.Current.WriteDebugAsync($"[SettingsMigration] Added default for '{kvp.Key}' = {kvp.Value}");
+                    LoggerService.Current.WriteDebug($"[SettingsMigration] Added default for '{kvp.Key}' = {kvp.Value}");
                 }
             }
 
-            _ = LoggerService.Current.WriteDebugAsync("[SettingsMigration] v0→v1 migration complete.");
+            LoggerService.Current.WriteDebug("[SettingsMigration] v0→v1 migration complete.");
         }
     }
 }

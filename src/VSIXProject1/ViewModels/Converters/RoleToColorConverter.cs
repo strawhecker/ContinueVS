@@ -23,11 +23,11 @@ namespace ContinueVS.ViewModels.Converters
                     ChatMessageRole.Thinking => TryGetResourceBrush("InfoBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                     _ => new SolidColorBrush(Colors.White)
                 };
-                _ = LoggerService.Current.WriteDebugAsync($"[a6-converter] RoleToColorConverter.Convert: Role={role}");
+                LoggerService.Current.WriteDebug($"[a6-converter] RoleToColorConverter.Convert: Role={role}");
                 return brush;
             }
 
-            _ = LoggerService.Current.WriteDebugAsync("[a6-converter] RoleToColorConverter.Convert: value is null, returning White");
+            LoggerService.Current.WriteDebug("[a6-converter] RoleToColorConverter.Convert: value is null, returning White");
             return new SolidColorBrush(Colors.White);
         }
 

@@ -43,7 +43,7 @@ namespace ContinueVS.Services.Implementations
         public async Task InitializeAsync()
         {
             if (_logger != null)
-                await _logger.WriteDebugAsync("ErrorRepository.InitializeAsync (start)");
+                _logger?.WriteDebug("ErrorRepository.InitializeAsync (start)");
 
             lock (_lock)
             {
@@ -74,12 +74,12 @@ namespace ContinueVS.Services.Implementations
                     _initialized = true;
 
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository initialized: {_errorsDirectory}");
+                        _logger?.WriteDebug($"ErrorRepository initialized: {_errorsDirectory}");
                 }
                 catch (Exception ex)
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository.InitializeAsync failed: {ex.Message}");
+                        _logger?.WriteDebug($"ErrorRepository.InitializeAsync failed: {ex.Message}");
                     throw;
                 }
             }
@@ -119,7 +119,7 @@ namespace ContinueVS.Services.Implementations
                 catch (Exception ex)
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository.StoreErrorAsync failed: {ex.Message}");
+                        _logger?.WriteDebug($"ErrorRepository.StoreErrorAsync failed: {ex.Message}");
                     throw;
                 }
             }
@@ -226,17 +226,17 @@ namespace ContinueVS.Services.Implementations
                         catch (Exception ex)
                         {
                             if (_logger != null)
-                                _ = _logger.WriteDebugAsync($"ErrorRepository: Failed to process cleanup for {file}: {ex.Message}");
+                                _logger?.WriteDebug($"ErrorRepository: Failed to process cleanup for {file}: {ex.Message}");
                         }
                     }
 
                     if (_logger != null && deletedCount > 0)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository cleanup: Deleted {deletedCount} errors older than {days} days");
+                        _logger?.WriteDebug($"ErrorRepository cleanup: Deleted {deletedCount} errors older than {days} days");
                 }
                 catch (Exception ex)
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository.DeleteErrorsOlderThanAsync failed: {ex.Message}");
+                        _logger?.WriteDebug($"ErrorRepository.DeleteErrorsOlderThanAsync failed: {ex.Message}");
                 }
             }
         }
@@ -266,12 +266,12 @@ namespace ContinueVS.Services.Implementations
                     File.WriteAllText(outputPath, json);
 
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository: Exported {allErrors.Count} errors to {outputPath}");
+                        _logger?.WriteDebug($"ErrorRepository: Exported {allErrors.Count} errors to {outputPath}");
                 }
                 catch (Exception ex)
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository.ExportAsJsonAsync failed: {ex.Message}");
+                        _logger?.WriteDebug($"ErrorRepository.ExportAsJsonAsync failed: {ex.Message}");
                     throw;
                 }
             }
@@ -316,12 +316,12 @@ namespace ContinueVS.Services.Implementations
                     File.WriteAllText(outputPath, sb.ToString());
 
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository: Exported {allErrors.Count} errors to {outputPath}");
+                        _logger?.WriteDebug($"ErrorRepository: Exported {allErrors.Count} errors to {outputPath}");
                 }
                 catch (Exception ex)
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"ErrorRepository.ExportAsCsvAsync failed: {ex.Message}");
+                        _logger?.WriteDebug($"ErrorRepository.ExportAsCsvAsync failed: {ex.Message}");
                     throw;
                 }
             }
@@ -386,14 +386,14 @@ namespace ContinueVS.Services.Implementations
                     catch (Exception ex)
                     {
                         if (_logger != null)
-                            _ = _logger.WriteDebugAsync($"ErrorRepository: Failed to load {file}: {ex.Message}");
+                            _logger?.WriteDebug($"ErrorRepository: Failed to load {file}: {ex.Message}");
                     }
                 }
             }
             catch (Exception ex)
             {
                 if (_logger != null)
-                    _ = _logger.WriteDebugAsync($"ErrorRepository.ReloadIndex failed: {ex.Message}");
+                    _logger?.WriteDebug($"ErrorRepository.ReloadIndex failed: {ex.Message}");
             }
         }
 

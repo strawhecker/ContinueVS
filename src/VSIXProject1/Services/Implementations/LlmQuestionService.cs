@@ -42,7 +42,7 @@ namespace ContinueVS.Services.Implementations
             var questionType = ClassifyQuestionType(questionText);
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap29_8_9] Detected LLM question: {questionText} (Type: {questionType})");
+                _logger?.WriteDebug($"[gap29_8_9] Detected LLM question: {questionText} (Type: {questionType})");
 
             return new LLMQuestionPrompt
             {
@@ -67,7 +67,7 @@ namespace ContinueVS.Services.Implementations
                 var answer = AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, policy);
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"[gap29_8_9] Autonomous mode: auto-answered question '{question.QuestionText}' with '{answer}'");
+                    _logger?.WriteDebug($"[gap29_8_9] Autonomous mode: auto-answered question '{question.QuestionText}' with '{answer}'");
 
                 return answer;
             }
@@ -77,7 +77,7 @@ namespace ContinueVS.Services.Implementations
                 var answer = await _promptService.PromptOnLLMQuestionAsync(question, isInteractiveMode: true);
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"[gap29_8_9] Interactive mode: user answered question '{question.QuestionText}' with '{answer}'");
+                    _logger?.WriteDebug($"[gap29_8_9] Interactive mode: user answered question '{question.QuestionText}' with '{answer}'");
 
                 return answer;
             }

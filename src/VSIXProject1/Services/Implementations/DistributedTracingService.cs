@@ -60,7 +60,7 @@ namespace ContinueVS.Services.Implementations
                     format: "W3C"
                 );
 
-                _ = LoggerService.Current.WriteDebugAsync($"[TRACING] Parsed W3C trace context: {context}");
+                LoggerService.Current.WriteDebug($"[TRACING] Parsed W3C trace context: {context}");
                 return Task.FromResult(TraceParseResult.CreateSuccess(context));
             }
 
@@ -85,13 +85,13 @@ namespace ContinueVS.Services.Implementations
                             format: "OpenTelemetry"
                         );
 
-                        _ = LoggerService.Current.WriteDebugAsync($"[TRACING] Parsed OpenTelemetry trace context: {context}");
+                        LoggerService.Current.WriteDebug($"[TRACING] Parsed OpenTelemetry trace context: {context}");
                         return Task.FromResult(TraceParseResult.CreateSuccess(context));
                     }
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[TRACING] OpenTelemetry format parse failed: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[TRACING] OpenTelemetry format parse failed: {ex.Message}");
                 }
             }
 
@@ -116,7 +116,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentNullException(nameof(eventName));
 
             var parentInfo = string.IsNullOrWhiteSpace(parentSpanId) ? "(root)" : parentSpanId;
-            _ = LoggerService.Current.WriteDebugAsync($"[DISTRIBUTED_TRACE] {traceId} | {spanId} | {parentInfo} | {eventName}");
+            LoggerService.Current.WriteDebug($"[DISTRIBUTED_TRACE] {traceId} | {spanId} | {parentInfo} | {eventName}");
 
             return Task.CompletedTask;
         }
@@ -130,7 +130,7 @@ namespace ContinueVS.Services.Implementations
             _currentContext.Value = context;
             if (context != null)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[TRACING] Set current context: {context}");
+                LoggerService.Current.WriteDebug($"[TRACING] Set current context: {context}");
             }
         }
 

@@ -99,92 +99,92 @@ namespace ContinueVS.UI.Pages
                     if (Application.Current != null && Application.Current.Resources != null)
                     {
                         Application.Current.Resources.MergedDictionaries.Add(themeDictionary);
-                        _ = LoggerService.Current.WriteDebugAsync($"[ChatPage] Theme loaded into Application.Current.Resources from: {themeDictPath}");
+                        LoggerService.Current.WriteDebug($"[ChatPage] Theme loaded into Application.Current.Resources from: {themeDictPath}");
                     }
                 }
                 else
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[ChatPage] Theme file not found at: {themeDictPath}");
+                    LoggerService.Current.WriteDebug($"[ChatPage] Theme file not found at: {themeDictPath}");
                 }
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPage] Failed to load theme: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[ChatPage] Failed to load theme: {ex.Message}", ex);
             }
 
             InitializeComponent();
 
             try
             {
-                _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage] ChatPage constructor: resolving services from DI");
+                LoggerService.Current.WriteDebug("[sv-chatpage] ChatPage constructor: resolving services from DI");
                 var sp = ViewModelLocator.ServiceProvider;
                 if (sp != null)
                 {
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage] ServiceProvider is available");
+                    LoggerService.Current.WriteDebug("[sv-chatpage] ServiceProvider is available");
 
                     var llm         = sp.GetRequiredService<ILlmService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-1] ✓ ILlmService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-1] ✓ ILlmService resolved");
 
                     var context     = sp.GetRequiredService<IContextService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-2] ✓ IContextService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-2] ✓ IContextService resolved");
 
                     var tool        = sp.GetRequiredService<IToolService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-3] ✓ IToolService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-3] ✓ IToolService resolved");
 
                     var session     = sp.GetRequiredService<ISessionService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-4] ✓ ISessionService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-4] ✓ ISessionService resolved");
 
                     var notif       = sp.GetRequiredService<INotificationService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-5] ✓ INotificationService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-5] ✓ INotificationService resolved");
 
                     var config      = sp.GetRequiredService<IConfigService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-6] ✓ IConfigService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-6] ✓ IConfigService resolved");
 
                     var systemPrompt = sp.GetRequiredService<ISystemPromptService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-7] ✓ ISystemPromptService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-7] ✓ ISystemPromptService resolved");
 
                     var uiState     = sp.GetRequiredService<IUIStateService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-8] ✓ IUIStateService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-8] ✓ IUIStateService resolved");
 
                     var instructionExecutor = sp.GetRequiredService<IInstructionExecutorService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9] ✓ IInstructionExecutorService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-9] ✓ IInstructionExecutorService resolved");
 
                     var changeStackService = sp.GetRequiredService<IChangeStackService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9b] ✓ IChangeStackService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-9b] ✓ IChangeStackService resolved");
 
                     var markdownService = sp.GetRequiredService<IMarkdownService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9c] ✓ IMarkdownService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-9c] ✓ IMarkdownService resolved");
 
                     var llmQuestionService = sp.GetService<ILlmQuestionService>();
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-9d] ✓ ILlmQuestionService resolved");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-9d] ✓ ILlmQuestionService resolved");
 
                     var workflow    = sp.GetService<IWorkflowService>();
-                    _ = LoggerService.Current.WriteDebugAsync($"[sv-chatpage-10] IWorkflowService resolved={workflow != null} (optional)");
+                    LoggerService.Current.WriteDebug($"[sv-chatpage-10] IWorkflowService resolved={workflow != null} (optional)");
 
                     var ideService  = sp.GetService<IIdeService>();
-                    _ = LoggerService.Current.WriteDebugAsync($"[sv-chatpage-11] IIdeService resolved={ideService != null} (optional)");
+                    LoggerService.Current.WriteDebug($"[sv-chatpage-11] IIdeService resolved={ideService != null} (optional)");
 
                     var planOutput  = sp.GetService<IPlanOutputService>();
-                    _ = LoggerService.Current.WriteDebugAsync($"[sv-chatpage-12] IPlanOutputService resolved={planOutput != null} (optional)");
+                    LoggerService.Current.WriteDebug($"[sv-chatpage-12] IPlanOutputService resolved={planOutput != null} (optional)");
 
                     // BP:sv-chatpage-dc — breakpoint here confirms all services resolved and DataContext is being assigned
                     this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, instructionExecutor, changeStackService, markdownService, llmQuestionService, null, workflow, ideService, null, planOutput);
-                    _ = LoggerService.Current.WriteDebugAsync("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
+                    LoggerService.Current.WriteDebug("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
                 }
                 else
                 {
-                    _ = LoggerService.Current.WriteErrorAsync("[sv-chatpage-FAIL] ServiceProvider is NULL — ViewModelLocator.ServiceProvider not set. InitializeAsync may not have completed.", null);
+                    LoggerService.Current.WriteError("[sv-chatpage-FAIL] ServiceProvider is NULL — ViewModelLocator.ServiceProvider not set. InitializeAsync may not have completed.", null);
                 }
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[sv-chatpage-FAIL] ✗ Exception type: {ex.GetType().FullName}", ex);
-                _ = LoggerService.Current.WriteErrorAsync($"[sv-chatpage-FAIL] ✗ Message: {ex.Message}", ex);
-                _ = LoggerService.Current.WriteErrorAsync($"[sv-chatpage-FAIL] ✗ StackTrace: {ex.StackTrace}", ex);
+                LoggerService.Current.WriteError($"[sv-chatpage-FAIL] ✗ Exception type: {ex.GetType().FullName}", ex);
+                LoggerService.Current.WriteError($"[sv-chatpage-FAIL] ✗ Message: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[sv-chatpage-FAIL] ✗ StackTrace: {ex.StackTrace}", ex);
                 if (ex.InnerException != null)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[sv-chatpage-FAIL] ✗ InnerException type: {ex.InnerException.GetType().FullName}", ex);
-                    _ = LoggerService.Current.WriteErrorAsync($"[sv-chatpage-FAIL] ✗ InnerException message: {ex.InnerException.Message}", ex);
+                    LoggerService.Current.WriteError($"[sv-chatpage-FAIL] ✗ InnerException type: {ex.InnerException.GetType().FullName}", ex);
+                    LoggerService.Current.WriteError($"[sv-chatpage-FAIL] ✗ InnerException message: {ex.InnerException.Message}", ex);
                 }
             }
 
@@ -211,18 +211,18 @@ namespace ContinueVS.UI.Pages
                         try
                         {
                             await vm.InitializeAsync();
-                            _ = LoggerService.Current.WriteDebugAsync("[ChatPage_Loaded] ViewModel initialization complete");
+                            LoggerService.Current.WriteDebug("[ChatPage_Loaded] ViewModel initialization complete");
                         }
                         catch (Exception ex)
                         {
-                            _ = LoggerService.Current.WriteErrorAsync("[ChatPage_Loaded] ViewModel initialization error", ex);
+                            LoggerService.Current.WriteError("[ChatPage_Loaded] ViewModel initialization error", ex);
                         }
                     });
                 }
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPage] Loaded event error: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[ChatPage] Loaded event error: {ex.Message}", ex);
             }
         }
 
@@ -247,7 +247,7 @@ namespace ContinueVS.UI.Pages
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPage] Unloaded event error: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[ChatPage] Unloaded event error: {ex.Message}", ex);
             }
         }
 
@@ -275,7 +275,7 @@ namespace ContinueVS.UI.Pages
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[ChatPage] Messages_CollectionChanged error: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[ChatPage] Messages_CollectionChanged error: {ex.Message}", ex);
             }
         }
 
@@ -290,7 +290,7 @@ namespace ContinueVS.UI.Pages
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[ChatPage] Message_PropertyChanged scroll error: {ex.Message}", ex);
+                    LoggerService.Current.WriteError($"[ChatPage] Message_PropertyChanged scroll error: {ex.Message}", ex);
                 }
             }
         }
@@ -333,7 +333,7 @@ namespace ContinueVS.UI.Pages
 
             int lines = content.Split('\n').Length;
             int len = content.Length;
-            _ = LoggerService.Current.WriteDebugAsync($"[gap42-paste] multiline content pasted: {lines} lines, {len} characters");
+            LoggerService.Current.WriteDebug($"[gap42-paste] multiline content pasted: {lines} lines, {len} characters");
         }
 
         /// <summary>
@@ -360,7 +360,7 @@ namespace ContinueVS.UI.Pages
                 else
                 {
                     // Enter alone → send message
-                    _ = LoggerService.Current.WriteDebugAsync("[gap35] Enter key intercepted — firing SendMessageCommand");
+                    LoggerService.Current.WriteDebug("[gap35] Enter key intercepted — firing SendMessageCommand");
                     if (DataContext is ChatPageViewModel vm && vm.SendMessageCommand.CanExecute(null))
                         vm.SendMessageCommand.Execute(null);
                 }
@@ -400,12 +400,12 @@ namespace ContinueVS.UI.Pages
 
             if (answerTextBox == null || string.IsNullOrWhiteSpace(answerTextBox.Text))
             {
-                _ = LoggerService.Current.WriteDebugAsync("[gap54-question] No answer provided");
+                LoggerService.Current.WriteDebug("[gap54-question] No answer provided");
                 return;
             }
 
             var answer = answerTextBox.Text;
-            _ = LoggerService.Current.WriteDebugAsync($"[gap54-question] Answer provided: {answer}");
+            LoggerService.Current.WriteDebug($"[gap54-question] Answer provided: {answer}");
 
             // Fire the OnAnswerAsync callback
             _ = question.OnAnswerAsync?.Invoke(answer);
@@ -424,7 +424,7 @@ namespace ContinueVS.UI.Pages
             if (btn.DataContext is not Core.Types.LLMQuestionMessage question)
                 return;
 
-            _ = LoggerService.Current.WriteDebugAsync("[gap54-question] Question cancelled");
+            LoggerService.Current.WriteDebug("[gap54-question] Question cancelled");
 
             // Fire the OnCancelAsync callback
             _ = question.OnCancelAsync?.Invoke();

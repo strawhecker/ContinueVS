@@ -37,8 +37,7 @@ namespace ContinueVS.Tests.Services
                 .ReturnsAsync(expectedResult);
 
             _mockLogger
-                .Setup(l => l.WriteInfoAsync(It.IsAny<string>()))
-                .Returns(Task.CompletedTask);
+                .Setup(l => l.WriteInfo(It.IsAny<string>()));
 
             // Act
             var result = await _service.AnalyzeFailureAsync(testPath, 0);
@@ -69,8 +68,7 @@ namespace ContinueVS.Tests.Services
                 .ReturnsAsync(result2);
 
             _mockLogger
-                .Setup(l => l.WriteInfoAsync(It.IsAny<string>()))
-                .Returns(Task.CompletedTask);
+                .Setup(l => l.WriteInfo(It.IsAny<string>()));
 
             // Act - First iteration
             var firstResult = await _service.AnalyzeFailureAsync(testPath, 0);
@@ -88,7 +86,7 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(0, secondResult.ExitCode);
             Assert.True(secondResult.Succeeded);
 
-            _mockLogger.Verify(l => l.WriteInfoAsync(It.IsAny<string>()), Times.Exactly(2));
+            _mockLogger.Verify(l => l.WriteInfo(It.IsAny<string>()), Times.Exactly(2));
         }
 
         [Fact]
@@ -104,8 +102,7 @@ namespace ContinueVS.Tests.Services
                 .ReturnsAsync(expectedResult);
 
             _mockLogger
-                .Setup(l => l.WriteInfoAsync(It.IsAny<string>()))
-                .Returns(Task.CompletedTask);
+                .Setup(l => l.WriteInfo(It.IsAny<string>()));
 
             // Act
             var result = await _service.AnalyzeFailureAsync(testPath, iteration);
@@ -116,7 +113,7 @@ namespace ContinueVS.Tests.Services
 
             // Verify logging includes iteration number
             _mockLogger.Verify(
-                l => l.WriteInfoAsync(It.Is<string>(s => s.Contains("iteration") || s.Contains("21"))),
+                l => l.WriteInfo(It.Is<string>(s => s.Contains("iteration") || s.Contains("21"))),
                 Times.Once);
         }
     }

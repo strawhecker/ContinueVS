@@ -42,7 +42,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Instruction text cannot be empty.", nameof(instruction));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"InstructionProcessorService.GenerateInternalPhasesAsync: processing instruction '{instruction.Text}'");
+                _logger?.WriteDebug($"InstructionProcessorService.GenerateInternalPhasesAsync: processing instruction '{instruction.Text}'");
 
             // Build the LLM prompt
             var prompt = BuildPrompt(instruction);
@@ -65,7 +65,7 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstructionProcessorService.GenerateInternalPhasesAsync: LLM error: {ex.Message}");
+                    _logger?.WriteDebug($"InstructionProcessorService.GenerateInternalPhasesAsync: LLM error: {ex.Message}");
                 throw new InvalidOperationException("LLM interpretation failed.", ex);
             }
 
@@ -75,7 +75,7 @@ namespace ContinueVS.Services.Implementations
 
             // Log raw LLM response for debugging
             if (_logger != null)
-                await _logger.WriteDebugAsync($"InstructionProcessorService.GenerateInternalPhasesAsync: Raw LLM response:\n{llmResponse}");
+                _logger?.WriteDebug($"InstructionProcessorService.GenerateInternalPhasesAsync: Raw LLM response:\n{llmResponse}");
 
             // Parse the LLM response into phases
             var phases = ParsePhasesFromResponse(llmResponse);
@@ -88,7 +88,7 @@ namespace ContinueVS.Services.Implementations
             };
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"InstructionProcessorService.GenerateInternalPhasesAsync: generated {phases.Count} phases");
+                _logger?.WriteDebug($"InstructionProcessorService.GenerateInternalPhasesAsync: generated {phases.Count} phases");
 
             return testPlan;
         }
@@ -135,13 +135,13 @@ namespace ContinueVS.Services.Implementations
 
             // Log parsing start for instrumentation
             if (_logger != null)
-                _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: starting parse of {response.Length} character response");
+                _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: starting parse of {response.Length} character response");
 
             // Match lines starting with "- " followed by a phase type and description
             var lines = response.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
             if (_logger != null)
-                _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: found {lines.Length} total lines to process");
+                _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: found {lines.Length} total lines to process");
 
             foreach (var line in lines)
             {
@@ -150,7 +150,7 @@ namespace ContinueVS.Services.Implementations
                     continue;
 
                 if (_logger != null)
-                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: evaluating line '{trimmed.Substring(0, Math.Min(80, trimmed.Length))}'");
+                    _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: evaluating line '{trimmed.Substring(0, Math.Min(80, trimmed.Length))}'");
 
                 // Try primary pattern: "- [TYPE]: Description" or "- TYPE: Description" or "- **TYPE**: Description"
                 var match = Regex.Match(trimmed, @"^-\s*\*{0,2}(\w+)\*{0,2}\s*:?\s*(.+)$", RegexOptions.IgnoreCase);
@@ -161,7 +161,7 @@ namespace ContinueVS.Services.Implementations
                     if (!match.Success)
                     {
                         if (_logger != null)
-                            _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: line does not match any pattern, skipping");
+                            _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: line does not match any pattern, skipping");
                         continue;
                     }
                 }
@@ -173,13 +173,13 @@ namespace ContinueVS.Services.Implementations
                 description = Regex.Replace(description, @"\*{1,2}\s*:\s*$", ":").Trim();
 
                 if (_logger != null)
-                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: extracted type='{typeStr}', description='{description.Substring(0, Math.Min(80, description.Length))}'");
+                    _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: extracted type='{typeStr}', description='{description.Substring(0, Math.Min(80, description.Length))}'");
 
                 // Try to parse the phase type
                 if (!Enum.TryParse<InternalPhaseType>(typeStr, ignoreCase: true, out var phaseType))
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: '{typeStr}' is not a valid phase type (valid types: {string.Join(", ", Enum.GetNames(typeof(InternalPhaseType)))})");
+                        _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: '{typeStr}' is not a valid phase type (valid types: {string.Join(", ", Enum.GetNames(typeof(InternalPhaseType)))})");
                     continue; // Skip invalid phase types
                 }
 
@@ -192,22 +192,22 @@ namespace ContinueVS.Services.Implementations
                 phases.Add(phase);
 
                 if (_logger != null)
-                    _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: successfully parsed phase {phaseType}");
+                    _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: successfully parsed phase {phaseType}");
             }
 
             if (_logger != null)
-                _ = _logger.WriteDebugAsync($"InstructionProcessorService.ParsePhasesFromResponse: parsing complete - found {phases.Count} valid phases");
+                _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: parsing complete - found {phases.Count} valid phases");
 
             if (phases.Count == 0)
             {
                 if (_logger != null)
-                    _ = _logger.WriteDebugAsync("InstructionProcessorService.ParsePhasesFromResponse: no valid phases found in response");
+                    _logger?.WriteDebug("InstructionProcessorService.ParsePhasesFromResponse: no valid phases found in response");
 
                 // FALLBACK: Check if response contains tool calls instead of phases (e.g., <use_mcp_tool> blocks)
                 if (response.Contains("<use_mcp_tool>") || response.Contains("write_file") || response.Contains("read_file"))
                 {
                     if (_logger != null)
-                        _ = _logger.WriteDebugAsync("InstructionProcessorService.ParsePhasesFromResponse: FALLBACK - Detected tool calls in response, creating synthetic Plan Execution phase");
+                        _logger?.WriteDebug("InstructionProcessorService.ParsePhasesFromResponse: FALLBACK - Detected tool calls in response, creating synthetic Plan Execution phase");
 
                     // Create a single execution phase for tool-based responses
                     phases.Add(new InternalPhase

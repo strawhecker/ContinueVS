@@ -44,7 +44,7 @@ namespace ContinueVS.Services.Implementations
             _currentPolicy = policy;
             if (_logger != null)
             {
-                await _logger.WriteDebugAsync($"Workflow policy set to {policy}");
+                _logger?.WriteDebug($"Workflow policy set to {policy}");
             }
         }
 
@@ -68,7 +68,7 @@ namespace ContinueVS.Services.Implementations
 
             if (_logger != null)
             {
-                await _logger.WriteDebugAsync($"ExecuteToolAsync: {toolName}, Policy: {effectivePolicy}");
+                _logger?.WriteDebug($"ExecuteToolAsync: {toolName}, Policy: {effectivePolicy}");
             }
 
             switch (effectivePolicy)
@@ -77,7 +77,7 @@ namespace ContinueVS.Services.Implementations
                     // Auto mode: Execute immediately, continue to next tool
                     if (_logger != null)
                     {
-                        await _logger.WriteInfoAsync($"Policy: Auto | Tool: {toolName}");
+                        _logger?.WriteInfo($"Policy: Auto | Tool: {toolName}");
                     }
                     return await _toolService.InvokeAsync(toolName, args);
 
@@ -91,14 +91,14 @@ namespace ContinueVS.Services.Implementations
                     {
                         if (_logger != null)
                         {
-                            await _logger.WriteInfoAsync($"Policy: Interactive | Tool: {toolName} | User declined execution");
+                            _logger?.WriteInfo($"Policy: Interactive | Tool: {toolName} | User declined execution");
                         }
                         return null;
                     }
 
                     if (_logger != null)
                     {
-                        await _logger.WriteInfoAsync($"Policy: Interactive | Tool: {toolName} | User approved execution");
+                        _logger?.WriteInfo($"Policy: Interactive | Tool: {toolName} | User approved execution");
                     }
                     return await _toolService.InvokeAsync(toolName, args);
 
@@ -106,7 +106,7 @@ namespace ContinueVS.Services.Implementations
                     // Deferred mode: Queue execution for later review via audit log
                     if (_logger != null)
                     {
-                        await _logger.WriteInfoAsync($"Policy: Deferred | Tool: {toolName} | Execution deferred for review");
+                        _logger?.WriteInfo($"Policy: Deferred | Tool: {toolName} | Execution deferred for review");
                     }
                     // Return null to indicate execution was deferred, not performed
                     return null;

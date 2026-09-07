@@ -64,9 +64,9 @@ namespace ContinueVS.Services.Implementations
                     if (!dumpEnabled)
                         return;
 
-                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
-                    _ = LoggerService.Current.WriteDebugAsync("[CONTEXT_DUMP] === LLM REQUEST CONTEXT BEFORE SEND ===");
-                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
+                    LoggerService.Current.WriteDebug("================================================================================");
+                    LoggerService.Current.WriteDebug("[CONTEXT_DUMP] === LLM REQUEST CONTEXT BEFORE SEND ===");
+                    LoggerService.Current.WriteDebug("================================================================================");
 
                     // Dump each message separately
                     var totalTokens = 0;
@@ -76,41 +76,41 @@ namespace ContinueVS.Services.Implementations
                         var tokens = EstimateTokenCount(msg.Content ?? "");
                         totalTokens += tokens;
 
-                        _ = LoggerService.Current.WriteDebugAsync($"\n[MESSAGE {i}] Role: {msg.Role}");
-                        _ = LoggerService.Current.WriteDebugAsync($"  Token Estimate: {tokens} tokens");
-                        _ = LoggerService.Current.WriteDebugAsync($"  Content Length: {(msg.Content?.Length ?? 0)} characters");
-                        _ = LoggerService.Current.WriteDebugAsync($"  Content:\n{msg.Content ?? "[empty]"}");
-                        _ = LoggerService.Current.WriteDebugAsync("--- END MESSAGE ---");
+                        LoggerService.Current.WriteDebug($"\n[MESSAGE {i}] Role: {msg.Role}");
+                        LoggerService.Current.WriteDebug($"  Token Estimate: {tokens} tokens");
+                        LoggerService.Current.WriteDebug($"  Content Length: {(msg.Content?.Length ?? 0)} characters");
+                        LoggerService.Current.WriteDebug($"  Content:\n{msg.Content ?? "[empty]"}");
+                        LoggerService.Current.WriteDebug("--- END MESSAGE ---");
                     }
 
                     // Dump selected context if provided
                     if (selectedContext?.Count > 0)
                     {
-                        _ = LoggerService.Current.WriteDebugAsync($"\n[CONTEXT_ITEMS] Count: {selectedContext.Count}");
+                        LoggerService.Current.WriteDebug($"\n[CONTEXT_ITEMS] Count: {selectedContext.Count}");
                         for (int i = 0; i < selectedContext.Count; i++)
                         {
                             var ctx = selectedContext[i];
                             var tokens = EstimateTokenCount(ctx.Content ?? "");
                             totalTokens += tokens;
-                            _ = LoggerService.Current.WriteDebugAsync($"\n[CONTEXT_ITEM {i}] {ctx.FilePath ?? "[unnamed]"}");
-                            _ = LoggerService.Current.WriteDebugAsync($"  Token Estimate: {tokens} tokens");
-                            _ = LoggerService.Current.WriteDebugAsync($"  Content Length: {(ctx.Content?.Length ?? 0)} characters");
-                            _ = LoggerService.Current.WriteDebugAsync($"  Content:\n{ctx.Content ?? "[empty]"}");
-                            _ = LoggerService.Current.WriteDebugAsync("--- END CONTEXT_ITEM ---");
+                            LoggerService.Current.WriteDebug($"\n[CONTEXT_ITEM {i}] {ctx.FilePath ?? "[unnamed]"}");
+                            LoggerService.Current.WriteDebug($"  Token Estimate: {tokens} tokens");
+                            LoggerService.Current.WriteDebug($"  Content Length: {(ctx.Content?.Length ?? 0)} characters");
+                            LoggerService.Current.WriteDebug($"  Content:\n{ctx.Content ?? "[empty]"}");
+                            LoggerService.Current.WriteDebug("--- END CONTEXT_ITEM ---");
                         }
                     }
 
                     // Summary
-                    _ = LoggerService.Current.WriteDebugAsync($"\n[SUMMARY]");
-                    _ = LoggerService.Current.WriteDebugAsync($"  Total Messages: {messages.Count}");
-                    _ = LoggerService.Current.WriteDebugAsync($"  Total Context Items: {selectedContext?.Count ?? 0}");
-                    _ = LoggerService.Current.WriteDebugAsync($"  Estimated Total Tokens: {totalTokens}");
-                    _ = LoggerService.Current.WriteDebugAsync("================================================================================\n");
+                    LoggerService.Current.WriteDebug($"\n[SUMMARY]");
+                    LoggerService.Current.WriteDebug($"  Total Messages: {messages.Count}");
+                    LoggerService.Current.WriteDebug($"  Total Context Items: {selectedContext?.Count ?? 0}");
+                    LoggerService.Current.WriteDebug($"  Estimated Total Tokens: {totalTokens}");
+                    LoggerService.Current.WriteDebug("================================================================================\n");
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[ERROR] ContextDumpService.DumpContextBeforeSendAsync failed: {ex.Message}", ex);
-                    _ = LoggerService.Current.WriteErrorAsync($"  Stack: {ex.StackTrace}", ex);
+                    LoggerService.Current.WriteError($"[ERROR] ContextDumpService.DumpContextBeforeSendAsync failed: {ex.Message}", ex);
+                    LoggerService.Current.WriteError($"  Stack: {ex.StackTrace}", ex);
                 }
             });
         }
@@ -137,18 +137,18 @@ namespace ContinueVS.Services.Implementations
 
                     var tokens = EstimateTokenCount(responseContent);
 
-                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
-                    _ = LoggerService.Current.WriteDebugAsync("[CONTEXT_DUMP] === LLM RESPONSE RECEIVED ===");
-                    _ = LoggerService.Current.WriteDebugAsync("================================================================================");
-                    _ = LoggerService.Current.WriteDebugAsync($"  Response Length: {responseContent?.Length ?? 0} characters");
-                    _ = LoggerService.Current.WriteDebugAsync($"  Estimated Tokens: {tokens}");
-                    _ = LoggerService.Current.WriteDebugAsync($"  Content:\n{responseContent ?? "[empty]"}");
-                    _ = LoggerService.Current.WriteDebugAsync("================================================================================\n");
+                    LoggerService.Current.WriteDebug("================================================================================");
+                    LoggerService.Current.WriteDebug("[CONTEXT_DUMP] === LLM RESPONSE RECEIVED ===");
+                    LoggerService.Current.WriteDebug("================================================================================");
+                    LoggerService.Current.WriteDebug($"  Response Length: {responseContent?.Length ?? 0} characters");
+                    LoggerService.Current.WriteDebug($"  Estimated Tokens: {tokens}");
+                    LoggerService.Current.WriteDebug($"  Content:\n{responseContent ?? "[empty]"}");
+                    LoggerService.Current.WriteDebug("================================================================================\n");
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[ERROR] ContextDumpService.DumpResponseAfterReceiveAsync failed: {ex.Message}", ex);
-                    _ = LoggerService.Current.WriteErrorAsync($"  Stack: {ex.StackTrace}", ex);
+                    LoggerService.Current.WriteError($"[ERROR] ContextDumpService.DumpResponseAfterReceiveAsync failed: {ex.Message}", ex);
+                    LoggerService.Current.WriteError($"  Stack: {ex.StackTrace}", ex);
                 }
             });
         }

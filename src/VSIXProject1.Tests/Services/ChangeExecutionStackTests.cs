@@ -29,8 +29,8 @@ namespace ContinueVS.Tests.Services
             _mockLogger = new Mock<IBridgeLogger>();
 
             // Setup logger to not throw
-            _mockLogger.Setup(l => l.WriteInfoAsync(It.IsAny<string>(), null)).Returns(Task.CompletedTask);
-            _mockLogger.Setup(l => l.WriteErrorAsync(It.IsAny<string>(), null, null)).Returns(Task.CompletedTask);
+            _mockLogger.Setup(l => l.WriteInfo(It.IsAny<string>(), null));
+            _mockLogger.Setup(l => l.WriteError(It.IsAny<string>(), null, null));
 
             // Setup config service to return default config
             var defaultConfig = new ContinueConfig { MaxRetriesPerChange = 3 };

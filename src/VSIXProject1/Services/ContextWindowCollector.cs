@@ -81,7 +81,7 @@ namespace ContinueVS.Services
 
                 // Determine MaxContextTokens with precedence: model > settings > hardcoded default
                 int maxContextTokens = ResolveMaxContextTokens(settings);
-                _ = LoggerService.Current.WriteDebugAsync($"[gap19-collector-resolve-tokens] ResolvedMaxContextTokens={maxContextTokens}");
+                LoggerService.Current.WriteDebug($"[gap19-collector-resolve-tokens] ResolvedMaxContextTokens={maxContextTokens}");
 
                 // DTE access is handled inside IDteProvider implementations;
                 // those implementations are responsible for their own thread marshalling.
@@ -90,7 +90,7 @@ namespace ContinueVS.Services
             catch (Exception ex)
             {
                 // Log error and return graceful default
-                _ = LoggerService.Current.WriteErrorAsync($"Error retrieving context window: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"Error retrieving context window: {ex.Message}", ex);
                 return GetDefaultContextWindow();
             }
         }
@@ -109,30 +109,30 @@ namespace ContinueVS.Services
                     var activeModel = _configService.GetSelectedModel();
                     if (activeModel != null && activeModel.ContextWindow > 0)
                     {
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap19-collector-active-model] Using active model context window: {activeModel.ContextWindow} (model: {activeModel.Name})");
+                        LoggerService.Current.WriteDebug($"[gap19-collector-active-model] Using active model context window: {activeModel.ContextWindow} (model: {activeModel.Name})");
                         return activeModel.ContextWindow;
                     }
                     else if (activeModel != null)
                     {
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap19-collector-no-context-window] Active model selected but ContextWindow is 0 or null: {activeModel.Name}");
+                        LoggerService.Current.WriteDebug($"[gap19-collector-no-context-window] Active model selected but ContextWindow is 0 or null: {activeModel.Name}");
                     }
                     else
                     {
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap19-collector-no-active-model] No active model selected; using settings file");
+                        LoggerService.Current.WriteDebug($"[gap19-collector-no-active-model] No active model selected; using settings file");
                     }
                 }
                 else
                 {
-                    _ = LoggerService.Current.WriteDebugAsync($"[gap19-collector-no-config-service] ConfigService not available; using settings file");
+                    LoggerService.Current.WriteDebug($"[gap19-collector-no-config-service] ConfigService not available; using settings file");
                 }
 
                 // Fall back to settings file value
-                _ = LoggerService.Current.WriteDebugAsync($"[gap19-collector-settings-fallback] Using TokenLimitSettings.MaxContextTokens: {settings.MaxContextTokens}");
+                LoggerService.Current.WriteDebug($"[gap19-collector-settings-fallback] Using TokenLimitSettings.MaxContextTokens: {settings.MaxContextTokens}");
                 return settings.MaxContextTokens;
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteErrorAsync($"[gap19-collector-resolve-error] Error resolving max context tokens: {ex.Message}; falling back to settings", ex);
+                LoggerService.Current.WriteError($"[gap19-collector-resolve-error] Error resolving max context tokens: {ex.Message}; falling back to settings", ex);
                 return settings.MaxContextTokens;
             }
         }

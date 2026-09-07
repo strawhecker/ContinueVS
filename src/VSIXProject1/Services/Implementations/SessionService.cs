@@ -509,7 +509,7 @@ namespace ContinueVS.Services.Implementations
             }
 
             int totalEstimated = systemTokens + historyTokens + newUserTokens;
-            _ = LoggerService.Current.WriteDebugAsync(
+            LoggerService.Current.WriteDebug(
                 $"[gap34-package] sending {1 + fittingHistory.Count + 1} messages, est. tokens: {totalEstimated}, model context: {contextWindow}");
 
             var result = new List<ChatMessage>();

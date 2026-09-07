@@ -88,13 +88,13 @@ namespace ContinueVS.Services.Implementations
                     }
                     catch (Exception fallbackEx)
                     {
-                        _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] Fallback TextDialog failed: {fallbackEx.GetType().Name}: {fallbackEx.Message}");
+                        LoggerService.Current.WriteDebug($"[WpfNotificationService] Fallback TextDialog failed: {fallbackEx.GetType().Name}: {fallbackEx.Message}");
                     }
                 }
                 else
                 {
                     // Final fallback: Log only
-                    _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] No ViewModel available. Notification: [{type}] {title}: {message}");
+                    LoggerService.Current.WriteDebug($"[WpfNotificationService] No ViewModel available. Notification: [{type}] {title}: {message}");
                 }
             }
 
@@ -142,7 +142,7 @@ namespace ContinueVS.Services.Implementations
             }
             catch (Exception ex)
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[WpfNotificationService] Failed to add notification to chat: {ex.GetType().Name}: {ex.Message}");
+                LoggerService.Current.WriteDebug($"[WpfNotificationService] Failed to add notification to chat: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -302,7 +302,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentNullException(nameof(message), "Error message cannot be null or empty.");
 
             // Fire-and-forget with explicit task tracking
-            _ = LoggerService.Current.WriteDebugAsync("[WpfNotificationService] ShowError called; async ShowErrorAsync dispatched");
+            LoggerService.Current.WriteDebug("[WpfNotificationService] ShowError called; async ShowErrorAsync dispatched");
             _ = ShowErrorAsync(message);
         }
     }

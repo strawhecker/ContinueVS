@@ -48,7 +48,7 @@ namespace ContinueVS.Services.Utilities
                 {
                     retryCount++;
                     int delayMs = (int)(InitialDelayMs * Math.Pow(BackoffMultiplier, retryCount - 1));
-                    _ = LoggerService.Current.WriteDebugAsync($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
+                    LoggerService.Current.WriteDebug($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
 
                     try
                     {
@@ -98,7 +98,7 @@ namespace ContinueVS.Services.Utilities
                 {
                     retryCount++;
                     int delayMs = (int)(InitialDelayMs * Math.Pow(BackoffMultiplier, retryCount - 1));
-                    _ = LoggerService.Current.WriteDebugAsync($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
+                    LoggerService.Current.WriteDebug($"[RetryPolicy] Transient error detected (attempt {retryCount}/{maxRetries}). Retrying after {delayMs}ms: {ex.GetType().Name}");
 
                     try
                     {

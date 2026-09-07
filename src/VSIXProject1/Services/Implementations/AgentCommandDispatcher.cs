@@ -54,7 +54,7 @@ namespace ContinueVS.Services.Implementations
             if (!modeConfig.AllowToolLoop)
             {
                 var errorMsg = $"Tool looping is not allowed in {currentMode} mode.";
-                _ = _logger.WriteDebugAsync($"[gap58-dispatch] ✗ Dispatch blocked: {errorMsg}");
+                _logger?.WriteDebug($"[gap58-dispatch] ✗ Dispatch blocked: {errorMsg}");
                 throw new InvalidOperationException(errorMsg);
             }
 
@@ -65,7 +65,7 @@ namespace ContinueVS.Services.Implementations
             try
             {
                 // Log the dispatch
-                _ = _logger.WriteDebugAsync($"[gap58-dispatch] Routing {commandName} with args={commandArguments?.Count ?? 0}");
+                _logger?.WriteDebug($"[gap58-dispatch] Routing {commandName} with args={commandArguments?.Count ?? 0}");
 
                 // Invoke the tool via IToolService
                 var result = await _toolService.InvokeAsync(
@@ -76,7 +76,7 @@ namespace ContinueVS.Services.Implementations
                 sw.Stop();
                 result.DurationMs = sw.ElapsedMilliseconds;
 
-                _ = _logger.WriteDebugAsync(
+                _logger?.WriteDebug(
                     $"[gap58-dispatch] ✓ {commandName} completed in {sw.ElapsedMilliseconds}ms, success={result.IsSuccess}");
 
                 return result;
@@ -84,7 +84,7 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 sw.Stop();
-                _ = _logger.WriteDebugAsync(
+                _logger?.WriteDebug(
                     $"[gap58-dispatch] ✗ {commandName} failed after {sw.ElapsedMilliseconds}ms: {ex.Message}");
 
                 return new ToolResult
@@ -118,7 +118,7 @@ namespace ContinueVS.Services.Implementations
                     if (!Array.Exists(readOnlyTools, t => t.Equals(commandName, StringComparison.OrdinalIgnoreCase)))
                     {
                         var errorMsg = $"Command '{commandName}' is not allowed in Ask mode. Allowed: {string.Join(", ", readOnlyTools)}";
-                        _ = _logger.WriteDebugAsync($"[gap58-dispatch] ✗ Validation failed: {errorMsg}");
+                        _logger?.WriteDebug($"[gap58-dispatch] ✗ Validation failed: {errorMsg}");
                         throw new InvalidOperationException(errorMsg);
                     }
                     break;
@@ -126,19 +126,19 @@ namespace ContinueVS.Services.Implementations
                 case ChatMode.Agent:
                 case ChatMode.Debug:
                     // Agent and Debug modes: all tools allowed (subject to tool system policy)
-                    _ = _logger.WriteDebugAsync($"[gap58-dispatch] ✓ Command '{commandName}' validated for {currentMode} mode");
+                    _logger?.WriteDebug($"[gap58-dispatch] ✓ Command '{commandName}' validated for {currentMode} mode");
                     break;
 
                 case ChatMode.Plan:
                 case ChatMode.Reason:
                     // Plan and Reason modes: no tool invocation
                     var modeErrorMsg = $"Tool invocation is not supported in {currentMode} mode.";
-                    _ = _logger.WriteDebugAsync($"[gap58-dispatch] ✗ Validation failed: {modeErrorMsg}");
+                    _logger?.WriteDebug($"[gap58-dispatch] ✗ Validation failed: {modeErrorMsg}");
                     throw new InvalidOperationException(modeErrorMsg);
 
                 default:
                     var unknownModeMsg = $"Unknown chat mode: {currentMode}";
-                    _ = _logger.WriteDebugAsync($"[gap58-dispatch] ✗ Validation failed: {unknownModeMsg}");
+                    _logger?.WriteDebug($"[gap58-dispatch] ✗ Validation failed: {unknownModeMsg}");
                     throw new InvalidOperationException(unknownModeMsg);
             }
         }

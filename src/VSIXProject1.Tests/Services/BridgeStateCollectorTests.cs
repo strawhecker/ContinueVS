@@ -363,33 +363,24 @@ namespace VSIXProject1.Tests.Services
     {
         public List<string> LogMessages { get; } = new();
 
-        public Task WriteDebugAsync(string message, IReadOnlyDictionary<string, object> metadata = null)
+        public void WriteDebug(string message, IReadOnlyDictionary<string, object> metadata = null)
         {
             LogMessages.Add($"DEBUG: {message}");
-            return Task.CompletedTask;
         }
 
-        public Task WriteInfoAsync(string message, IReadOnlyDictionary<string, object> metadata = null)
+        public void WriteInfo(string message, IReadOnlyDictionary<string, object> metadata = null)
         {
             LogMessages.Add($"INFO: {message}");
-            return Task.CompletedTask;
         }
 
-        public Task WriteWarningAsync(string message, IReadOnlyDictionary<string, object> metadata = null)
+        public void WriteWarning(string message, IReadOnlyDictionary<string, object> metadata = null)
         {
             LogMessages.Add($"WARN: {message}");
-            return Task.CompletedTask;
         }
 
-        public Task WriteErrorAsync(string message, Exception exception = null, IReadOnlyDictionary<string, object> metadata = null)
+        public void WriteError(string message, Exception exception = null, IReadOnlyDictionary<string, object> metadata = null)
         {
             LogMessages.Add($"ERROR: {message}");
-            return Task.CompletedTask;
-        }
-
-        public Task FlushAsync()
-        {
-            return Task.CompletedTask;
         }
     }
 

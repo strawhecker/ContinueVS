@@ -32,7 +32,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Max items must be non-negative", nameof(maxItems));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"ContextService.GetContextItemsAsync (skeleton)");
+                _logger?.WriteDebug($"ContextService.GetContextItemsAsync (skeleton)");
 
             // Filter out thinking messages to prevent thinking tokens from inflating context window
             // Note: ContextItem is the base type; we check the actual runtime type
@@ -44,7 +44,7 @@ namespace ContinueVS.Services.Implementations
             }).Take(maxItems).ToList();
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"[gap68-context-filter] Returned {contextMessages.Count} context items");
+                _logger?.WriteDebug($"[gap68-context-filter] Returned {contextMessages.Count} context items");
 
             return await Task.FromResult(contextMessages);
         }
@@ -60,7 +60,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentNullException(nameof(item));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"ContextService.AddContextItemAsync");
+                _logger?.WriteDebug($"ContextService.AddContextItemAsync");
 
             if (string.IsNullOrEmpty(item.Id))
                 item.Id = Guid.NewGuid().ToString();
@@ -74,7 +74,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Item ID cannot be null or empty", nameof(itemId));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"ContextService.RemoveContextItemAsync");
+                _logger?.WriteDebug($"ContextService.RemoveContextItemAsync");
 
             var item = _manualContextItems.FirstOrDefault(x => x.Id == itemId);
             if (item != null)

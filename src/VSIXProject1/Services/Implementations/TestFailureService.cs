@@ -43,7 +43,7 @@ namespace ContinueVS.Services.Implementations
             {
                 var result = await _ideService.RunTestAsync(testPath, options, ct);
 
-                await _logger.WriteInfoAsync(
+                _logger?.WriteInfo(
                     $"[gap29_2] Test analysis iteration {iteration + 1}: {testPath} - ExitCode={result.ExitCode}, Frames={result.FrameCount}");
 
                 Debug.WriteLine($"[gap29_2-analyze-complete] Iteration: {iteration}, ExitCode: {result.ExitCode}");
@@ -52,12 +52,12 @@ namespace ContinueVS.Services.Implementations
             }
             catch (OperationCanceledException ex)
             {
-                await _logger.WriteErrorAsync($"[gap29_2] Test analysis cancelled: {ex.Message}");
+                _logger?.WriteError($"[gap29_2] Test analysis cancelled: {ex.Message}");
                 throw;
             }
             catch (Exception ex)
             {
-                await _logger.WriteErrorAsync($"[gap29_2] Test analysis error (iteration {iteration}): {ex.Message}");
+                _logger?.WriteError($"[gap29_2] Test analysis error (iteration {iteration}): {ex.Message}");
                 throw;
             }
         }

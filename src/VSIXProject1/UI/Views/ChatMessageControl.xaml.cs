@@ -46,7 +46,7 @@ namespace ContinueVS.UI.Views
                     if (codeBlockCount > 0)
                     {
                         comboBox.Visibility = Visibility.Collapsed;
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap53-dropdown-visibility] Message has {codeBlockCount} code block(s); message-level dropdown hidden");
+                        LoggerService.Current.WriteDebug($"[gap53-dropdown-visibility] Message has {codeBlockCount} code block(s); message-level dropdown hidden");
                     }
                 }
             }
@@ -89,11 +89,11 @@ namespace ContinueVS.UI.Views
                 try
                 {
                     Clipboard.SetText(content);
-                    _ = LoggerService.Current.WriteDebugAsync("[gap49-copy-all] Entire response copied to clipboard");
+                    LoggerService.Current.WriteDebug("[gap49-copy-all] Entire response copied to clipboard");
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[gap49-copy-all-error] Failed to copy: {ex.Message}", ex);
+                    LoggerService.Current.WriteError($"[gap49-copy-all-error] Failed to copy: {ex.Message}", ex);
                 }
             }
         }
@@ -120,17 +120,17 @@ namespace ContinueVS.UI.Views
                 try
                 {
                     Clipboard.SetText(content);
-                    _ = LoggerService.Current.WriteDebugAsync("[gap49-dropdown-copy] Code copied to clipboard");
+                    LoggerService.Current.WriteDebug("[gap49-dropdown-copy] Code copied to clipboard");
                 }
                 catch (Exception ex)
                 {
-                    _ = LoggerService.Current.WriteErrorAsync($"[gap49-dropdown-copy-error] Failed to copy: {ex.Message}", ex);
+                    LoggerService.Current.WriteError($"[gap49-dropdown-copy-error] Failed to copy: {ex.Message}", ex);
                 }
             }
             else if (selectedItem.Content.ToString().Contains("Apply"))
             {
                 // Execute apply via command
-                _ = LoggerService.Current.WriteDebugAsync("[gap49-dropdown-apply] Apply selected from dropdown");
+                LoggerService.Current.WriteDebug("[gap49-dropdown-apply] Apply selected from dropdown");
                 // Command will be wired to ApplyCodeBlockCommand via XAML if needed
             }
 

@@ -63,14 +63,14 @@ namespace ContinueVS.Services.Implementations
                     throw new InvalidOperationException("Failed to deserialize instruction from file.");
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstructionExecutorService.LoadInstructionAsync: loaded instruction '{instruction.Text}'");
+                    _logger?.WriteDebug($"InstructionExecutorService.LoadInstructionAsync: loaded instruction '{instruction.Text}'");
 
                 return instruction;
             }
             catch (Exception ex)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstructionExecutorService.LoadInstructionAsync: error - {ex.Message}");
+                    _logger?.WriteDebug($"InstructionExecutorService.LoadInstructionAsync: error - {ex.Message}");
                 throw;
             }
         }
@@ -90,7 +90,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Target directory cannot be empty.", nameof(targetDir));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"InstructionExecutorService.ExecuteInstructionAsync: starting execution for '{instruction.Text}' (mode={mode})");
+                _logger?.WriteDebug($"InstructionExecutorService.ExecuteInstructionAsync: starting execution for '{instruction.Text}' (mode={mode})");
 
             try
             {
@@ -98,7 +98,7 @@ namespace ContinueVS.Services.Implementations
                 var testPlan = await _instructionProcessor.GenerateInternalPhasesAsync(instruction, cancellationToken);
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstructionExecutorService.ExecuteInstructionAsync: generated {testPlan.Phases.Count} phases");
+                    _logger?.WriteDebug($"InstructionExecutorService.ExecuteInstructionAsync: generated {testPlan.Phases.Count} phases");
 
                 // Get the change stack
                 var changeStack = _changeStackService.GetChangeStack(changeStackId);
@@ -119,7 +119,7 @@ namespace ContinueVS.Services.Implementations
                     if (executor == null)
                     {
                         if (_logger != null)
-                            await _logger.WriteDebugAsync($"InstructionExecutorService: no executor found for phase type {phase.Type}");
+                            _logger?.WriteDebug($"InstructionExecutorService: no executor found for phase type {phase.Type}");
 
                         phase.Execution = new InternalPhaseExecution
                         {
@@ -149,14 +149,14 @@ namespace ContinueVS.Services.Implementations
                             phase.Status = InternalPhaseStatus.Failed;
 
                             if (_logger != null)
-                                await _logger.WriteDebugAsync($"InstructionExecutorService: phase '{phase.Id}' failed: {phase.Execution.ErrorMessage}");
+                                _logger?.WriteDebug($"InstructionExecutorService: phase '{phase.Id}' failed: {phase.Execution.ErrorMessage}");
 
                             // Stop execution on first failure
                             break;
                         }
 
                         if (_logger != null)
-                            await _logger.WriteDebugAsync($"InstructionExecutorService: phase '{phase.Id}' completed with {phase.Execution.ChangesAppliedCount} changes");
+                            _logger?.WriteDebug($"InstructionExecutorService: phase '{phase.Id}' completed with {phase.Execution.ChangesAppliedCount} changes");
                     }
                     catch (Exception ex)
                     {
@@ -171,7 +171,7 @@ namespace ContinueVS.Services.Implementations
                         phase.Status = InternalPhaseStatus.Failed;
 
                         if (_logger != null)
-                            await _logger.WriteDebugAsync($"InstructionExecutorService: phase '{phase.Id}' threw exception: {ex.Message}");
+                            _logger?.WriteDebug($"InstructionExecutorService: phase '{phase.Id}' threw exception: {ex.Message}");
 
                         break;
                     }
@@ -181,14 +181,14 @@ namespace ContinueVS.Services.Implementations
                 _currentSessionState = testPlan;
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstructionExecutorService.ExecuteInstructionAsync: execution complete. Phases: {testPlan.Phases.Count}");
+                    _logger?.WriteDebug($"InstructionExecutorService.ExecuteInstructionAsync: execution complete. Phases: {testPlan.Phases.Count}");
 
                 return testPlan;
             }
             catch (Exception ex)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstructionExecutorService.ExecuteInstructionAsync: fatal error - {ex.Message}");
+                    _logger?.WriteDebug($"InstructionExecutorService.ExecuteInstructionAsync: fatal error - {ex.Message}");
                 throw;
             }
         }
@@ -201,14 +201,14 @@ namespace ContinueVS.Services.Implementations
         {
             _isPaused = paused;
             if (_logger != null)
-                await _logger.WriteDebugAsync($"InstructionExecutorService.SetPausedAsync: pause state set to {paused}");
+                _logger?.WriteDebug($"InstructionExecutorService.SetPausedAsync: pause state set to {paused}");
         }
 
         public async Task SetPauseCheckpointAsync(PauseCheckpoint checkpoint)
         {
             _currentPauseCheckpoint = checkpoint;
             if (_logger != null)
-                await _logger.WriteDebugAsync($"InstructionExecutorService.SetPauseCheckpointAsync: checkpoint stored with {checkpoint.ChunkCount} chunks");
+                _logger?.WriteDebug($"InstructionExecutorService.SetPauseCheckpointAsync: checkpoint stored with {checkpoint.ChunkCount} chunks");
         }
 
         public async Task<PauseCheckpoint?> GetPauseCheckpointAsync()

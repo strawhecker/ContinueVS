@@ -34,7 +34,7 @@ namespace ContinueVS.Services.Implementations
             if (strategy == null)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync("InstrumentationService: strategy is null");
+                    _logger?.WriteDebug("InstrumentationService: strategy is null");
                 return appliedChangeIds;
             }
 
@@ -45,7 +45,7 @@ namespace ContinueVS.Services.Implementations
                 if (string.IsNullOrEmpty(targetFilePath))
                 {
                     if (_logger != null)
-                        await _logger.WriteDebugAsync($"InstrumentationService: could not resolve target file {strategy.TargetFile}");
+                        _logger?.WriteDebug($"InstrumentationService: could not resolve target file {strategy.TargetFile}");
                     return appliedChangeIds;
                 }
 
@@ -56,7 +56,7 @@ namespace ContinueVS.Services.Implementations
                 if (!File.Exists(resolvedPath))
                 {
                     if (_logger != null)
-                        await _logger.WriteDebugAsync($"InstrumentationService: target file not found - {resolvedPath}");
+                        _logger?.WriteDebug($"InstrumentationService: target file not found - {resolvedPath}");
                     return appliedChangeIds;
                 }
 
@@ -96,24 +96,24 @@ namespace ContinueVS.Services.Implementations
                         appliedChangeIds.Add(change.ChangeId);
 
                         if (_logger != null)
-                            await _logger.WriteDebugAsync($"InstrumentationService: applied snippet at line {snippet.LineNumber}, ChangeId={change.ChangeId}");
+                            _logger?.WriteDebug($"InstrumentationService: applied snippet at line {snippet.LineNumber}, ChangeId={change.ChangeId}");
                     }
                     catch (Exception ex)
                     {
                         if (_logger != null)
-                            await _logger.WriteDebugAsync($"InstrumentationService: error applying snippet at line {snippet.LineNumber} - {ex.Message}");
+                            _logger?.WriteDebug($"InstrumentationService: error applying snippet at line {snippet.LineNumber} - {ex.Message}");
                         // Continue with next snippet; don't fail entire strategy
                     }
                 }
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstrumentationService: applied {appliedChangeIds.Count} changes total");
+                    _logger?.WriteDebug($"InstrumentationService: applied {appliedChangeIds.Count} changes total");
                 return appliedChangeIds;
             }
             catch (Exception ex)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstrumentationService: exception during strategy application - {ex.Message}");
+                    _logger?.WriteDebug($"InstrumentationService: exception during strategy application - {ex.Message}");
                 return appliedChangeIds;
             }
         }

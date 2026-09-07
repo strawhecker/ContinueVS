@@ -24,7 +24,7 @@ namespace ContinueVS.Services
         /// <param name="message">The log message.</param>
         /// <param name="metadata">Optional key-value pairs for structured logging (e.g., correlationId, component).</param>
         /// <returns>A task representing the async write operation.</returns>
-        Task WriteDebugAsync(string message, IReadOnlyDictionary<string, object>? metadata = null);
+        void WriteDebug(string message, IReadOnlyDictionary<string, object>? metadata = null);
 
         /// <summary>
         /// Writes an info-level log message.
@@ -32,7 +32,7 @@ namespace ContinueVS.Services
         /// <param name="message">The log message.</param>
         /// <param name="metadata">Optional key-value pairs for structured logging.</param>
         /// <returns>A task representing the async write operation.</returns>
-        Task WriteInfoAsync(string message, IReadOnlyDictionary<string, object>? metadata = null);
+        void WriteInfo(string message, IReadOnlyDictionary<string, object>? metadata = null);
 
         /// <summary>
         /// Writes a warning-level log message.
@@ -40,7 +40,7 @@ namespace ContinueVS.Services
         /// <param name="message">The log message.</param>
         /// <param name="metadata">Optional key-value pairs for structured logging.</param>
         /// <returns>A task representing the async write operation.</returns>
-        Task WriteWarningAsync(string message, IReadOnlyDictionary<string, object>? metadata = null);
+        void WriteWarning(string message, IReadOnlyDictionary<string, object>? metadata = null);
 
         /// <summary>
         /// Writes an error-level log message.
@@ -49,13 +49,6 @@ namespace ContinueVS.Services
         /// <param name="exception">Optional exception to log as part of the error context.</param>
         /// <param name="metadata">Optional key-value pairs for structured logging.</param>
         /// <returns>A task representing the async write operation.</returns>
-        Task WriteErrorAsync(string message, Exception? exception = null, IReadOnlyDictionary<string, object>? metadata = null);
-
-        /// <summary>
-        /// Flushes any pending log messages.
-        /// Called during shutdown to ensure messages are not lost.
-        /// </summary>
-        /// <returns>A task representing the flush operation.</returns>
-        Task FlushAsync();
+        void WriteError(string message, Exception? exception = null, IReadOnlyDictionary<string, object>? metadata = null);
     }
 }

@@ -50,7 +50,7 @@ namespace ContinueVS.Services.Implementations
             _testGitRoot = testGitRoot;
             _testGitBranch = testGitBranch;
             _gitExe = ResolveGitExe(GetUserConfiguredGitPath());
-            _ = _logger?.WriteDebugAsync($"[WorkspaceStatsService] git resolved to: {_gitExe}");
+            _logger?.WriteDebug($"[WorkspaceStatsService] git resolved to: {_gitExe}");
         }
 
         private string? GetUserConfiguredGitPath()
@@ -66,7 +66,7 @@ namespace ContinueVS.Services.Implementations
             catch (InvalidOperationException ex) when (ex.Message.Contains("not been initialized"))
             {
                 // ConfigService not initialized yet; return null for fallback resolution
-                _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] ConfigService not initialized during constructor, using fallback git resolution: {ex.Message}");
+                LoggerService.Current.WriteDebug($"[WorkspaceStatsService] ConfigService not initialized during constructor, using fallback git resolution: {ex.Message}");
                 return null;
             }
             catch { return null; }
@@ -87,7 +87,7 @@ namespace ContinueVS.Services.Implementations
             // 1. User override
             if (!string.IsNullOrWhiteSpace(userPath) && File.Exists(userPath))
             {
-                _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] git: using user config path: {userPath}");
+                LoggerService.Current.WriteDebug($"[WorkspaceStatsService] git: using user config path: {userPath}");
                 return userPath!;
             }
 
@@ -106,7 +106,7 @@ namespace ContinueVS.Services.Implementations
                     var full = Path.GetFullPath(vsBundled);
                     if (File.Exists(full))
                     {
-                        _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] git: using VS-bundled git: {full}");
+                        LoggerService.Current.WriteDebug($"[WorkspaceStatsService] git: using VS-bundled git: {full}");
                         return full;
                     }
                 }
@@ -127,7 +127,7 @@ namespace ContinueVS.Services.Implementations
                             var candidate = Path.Combine(installPath, rel);
                             if (File.Exists(candidate))
                             {
-                                _ = LoggerService.Current.WriteDebugAsync($"[WorkspaceStatsService] git: registry hit: {candidate}");
+                                LoggerService.Current.WriteDebug($"[WorkspaceStatsService] git: registry hit: {candidate}");
                                 return candidate;
                             }
                         }
@@ -238,7 +238,7 @@ namespace ContinueVS.Services.Implementations
             s.CompletedGaps = CollectCompletedGaps(gitRoot);
 
             _stats = s;
-            _ = _logger?.WriteDebugAsync($"[WorkspaceStatsService] Refresh complete: ActiveFile={s.ActiveFile}, GitBranch={s.GitBranch}, SolutionPath={s.SolutionPath}");
+            _logger?.WriteDebug($"[WorkspaceStatsService] Refresh complete: ActiveFile={s.ActiveFile}, GitBranch={s.GitBranch}, SolutionPath={s.SolutionPath}");
         }
 
         private static string? ResolveWorkDirFromFile(string activeFile, string? solutionDir)

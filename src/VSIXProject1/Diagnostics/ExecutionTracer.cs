@@ -51,9 +51,9 @@ namespace ContinueVS.Diagnostics
 
             var traceJson = $"[TRACE] {tracePoint}";
             // Output to LoggerService for file persistence
-            _ = LoggerService.Current.WriteDebugAsync(traceJson);
+            LoggerService.Current.WriteDebug(traceJson);
             // Also output to Debug.WriteLine for real-time visibility in Output pane
-            _ = LoggerService.Current.WriteDebugAsync(traceJson);
+            LoggerService.Current.WriteDebug(traceJson);
         }
 
         /// <summary>
@@ -86,9 +86,9 @@ namespace ContinueVS.Diagnostics
 
             var traceJson = $"[TRACE] {tracePoint}";
             // Output to LoggerService for file persistence
-            _ = LoggerService.Current.WriteDebugAsync(traceJson);
+            LoggerService.Current.WriteDebug(traceJson);
             // Also output to Debug.WriteLine for Output pane consumption
-            _ = LoggerService.Current.WriteDebugAsync(traceJson);
+            LoggerService.Current.WriteDebug(traceJson);
         }
 
         /// <summary>

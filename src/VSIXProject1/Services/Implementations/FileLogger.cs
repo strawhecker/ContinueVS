@@ -94,37 +94,27 @@ namespace ContinueVS.Services.Implementations
             _writerThread.Start();
         }
 
-        public Task WriteDebugAsync(string message, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteDebug(string message, IReadOnlyDictionary<string, object>? metadata = null)
         {
             EnqueueMessage(message);
-            return Task.CompletedTask;
         }
 
-        public Task WriteInfoAsync(string message, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteInfo(string message, IReadOnlyDictionary<string, object>? metadata = null)
         {
             EnqueueMessage(message);
-            return Task.CompletedTask;
         }
 
-        public Task WriteWarningAsync(string message, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteWarning(string message, IReadOnlyDictionary<string, object>? metadata = null)
         {
             EnqueueMessage(message);
-            return Task.CompletedTask;
         }
 
-        public Task WriteErrorAsync(string message, Exception? exception = null, IReadOnlyDictionary<string, object>? metadata = null)
+        public void WriteError(string message, Exception? exception = null, IReadOnlyDictionary<string, object>? metadata = null)
         {
             var fullMessage = exception != null 
                 ? $"{message} {exception}"
                 : message;
             EnqueueMessage(fullMessage);
-            return Task.CompletedTask;
-        }
-
-        public Task FlushAsync()
-        {
-            FlushQueue();
-            return Task.CompletedTask;
         }
 
         private void EnqueueMessage(string message)

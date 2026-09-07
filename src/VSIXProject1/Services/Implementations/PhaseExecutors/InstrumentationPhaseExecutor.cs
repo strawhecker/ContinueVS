@@ -50,7 +50,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                 throw new ArgumentException("Target directory cannot be empty.", nameof(targetDir));
 
             if (_logger != null)
-                await _logger.WriteDebugAsync($"InstrumentationPhaseExecutor: executing phase '{phase.Id}' - {phase.Description}");
+                _logger?.WriteDebug($"InstrumentationPhaseExecutor: executing phase '{phase.Id}' - {phase.Description}");
 
             int changesApplied = 0;
 
@@ -66,7 +66,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                 if (strategy == null)
                 {
                     if (_logger != null)
-                        await _logger.WriteDebugAsync("InstrumentationPhaseExecutor: strategy generation returned null");
+                        _logger?.WriteDebug("InstrumentationPhaseExecutor: strategy generation returned null");
 
                     return new InternalPhaseExecution
                     {
@@ -87,7 +87,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                 changesApplied = appliedChangeIds.Count;
 
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstrumentationPhaseExecutor: applied {changesApplied} change(s)");
+                    _logger?.WriteDebug($"InstrumentationPhaseExecutor: applied {changesApplied} change(s)");
 
                 return new InternalPhaseExecution
                 {
@@ -100,7 +100,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
             catch (Exception ex)
             {
                 if (_logger != null)
-                    await _logger.WriteDebugAsync($"InstrumentationPhaseExecutor: error - {ex.Message}");
+                    _logger?.WriteDebug($"InstrumentationPhaseExecutor: error - {ex.Message}");
 
                 return new InternalPhaseExecution
                 {

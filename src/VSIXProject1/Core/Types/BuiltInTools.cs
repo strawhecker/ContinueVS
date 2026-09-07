@@ -24,7 +24,7 @@ namespace ContinueVS.Core.Types
             bool isEnabled = true,
             string invokePerm = "Automatic")
         {
-            _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-factory-create] CreateToolDefinition: {name}, params={parameters.Count}, enabled={isEnabled}");
+            LoggerService.Current.WriteDebug($"[gap8_1-factory-create] CreateToolDefinition: {name}, params={parameters.Count}, enabled={isEnabled}");
             return new ToolDefinition
             {
                 Name = name,
@@ -623,7 +623,7 @@ namespace ContinueVS.Core.Types
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
-            _ = LoggerService.Current.WriteDebugAsync("[gap8_1-factory-all-start] GetAllBuiltInTools called");
+            LoggerService.Current.WriteDebug("[gap8_1-factory-all-start] GetAllBuiltInTools called");
             var tools = new List<ToolDefinition>
             {
                 GetReadFileTool(),
@@ -649,7 +649,7 @@ namespace ContinueVS.Core.Types
                 GetGrepSearchTool(),
                 GetSingleFindAndReplaceTool()
             };
-            _ = LoggerService.Current.WriteDebugAsync($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
+            LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;
         }
     }
