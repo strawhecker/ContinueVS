@@ -118,6 +118,12 @@ namespace ContinueVS.ViewModels
         private string _toolCallCounterDisplay = "0 / 0 tool calls";
 
         /// <summary>
+        /// gap70: Detector for hardcoded plan file marker during streaming.
+        /// Accumulates content between fence markers when marker filename is detected.
+        /// </summary>
+        private PlanFileDetector _planFileDetector = new PlanFileDetector();
+
+        /// <summary>
         /// Flag to control onboarding card visibility (gap25_6).
         /// Bound to Messages collection count: visible when empty (count == 0), hidden when populated.
         /// </summary>
@@ -1324,6 +1330,9 @@ public string? InputText
                     await SwitchToMainThreadAsync();
                     Messages.Add(assistantMessage);
 
+                    // gap70: Reset plan file detector for this stream
+                    _planFileDetector.Reset();
+
                     // Stream directly without retry wrapper:
                     // Streaming operations can't be safely retried because chunks are consumed as they arrive.
                     // The HTTP connection is stateful, and mid-stream retries would lose already-received chunks.
@@ -1336,11 +1345,31 @@ public string? InputText
                             // and the UI updates with the new content
                             assistantMessage.Content += chunk.Content;
                             StreamingResponse += chunk.Content;
+
+                            // gap70: Feed chunk to plan file detector for marker detection
+                            try
+                            {
+                                _planFileDetector.ProcessChunk(chunk.Content);
+                            }
+                            catch (Exception ex)
+                            {
+                                LoggerService.Current.WriteWarning($"[gap70-detect] Plan file detector error: {ex.Message}");
+                            }
                         }
                         else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
                         {
                             _pendingToolCalls.Add(chunk.ToolCall);
                         }
+                    }
+
+                    // gap70: Complete detection at end of stream
+                    try
+                    {
+                        _planFileDetector.CompleteDetection();
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerService.Current.WriteError($"[gap70-finalize] Plan file detector completion error: {ex.Message}");
                     }
 
                     // gap54: Detect and handle any embedded LLM questions in the response
@@ -1352,6 +1381,46 @@ public string? InputText
                             LoggerService.Current.WriteDebug($"[gap54-detect] Question detected in response: {detectedQuestion.QuestionText}");
                             var answer = await _llmQuestionService.HandleLLMQuestionAsync(detectedQuestion, isAutonomous: false, AutoAnswerResponse.Default, _streamingCts.Token);
                             LoggerService.Current.WriteDebug($"[gap54-handle] Question answered: {answer}");
+                        }
+                    }
+
+                    // gap70: Handle plan file detection and routing
+                    if (_planFileDetector.IsComplete)
+                    {
+                        try
+                        {
+                            var bufferedPlanContent = _planFileDetector.GetBufferedContent();
+
+                            // Route output based on mode configuration
+                            if (modeConfig.ExportsPlanFile && _planOutputService != null)
+                            {
+                                // Plan/Agent/Debug mode: save to plans folder and open in editor
+                                var savedPath = await _planOutputService.SavePlanAsync(bufferedPlanContent, _streamingCts.Token);
+                                LoggerService.Current.WriteDebug($"[gap70-save] Plan file saved: {savedPath}");
+
+                                if (_ideService != null)
+                                {
+                                    await _ideService.OpenFileInEditorAsync(savedPath);
+                                    LoggerService.Current.WriteDebug($"[gap70-open] Plan file opened in editor: {savedPath}");
+                                }
+
+                                // Add system message feedback
+                                var feedbackMessage = new ChatMessage
+                                {
+                                    Role = ChatMessageRole.System,
+                                    Content = $"✓ Plan saved to {savedPath}"
+                                };
+                                await _sessionService.AddMessageAsync(feedbackMessage);
+                            }
+                            else
+                            {
+                                // Ask mode: plan file marker is treated as normal code block content
+                                LoggerService.Current.WriteDebug("[gap70-skip] Plan file marker in Ask mode - no action taken");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LoggerService.Current.WriteError($"[gap70-error] Plan file handling error: {ex.Message}");
                         }
                     }
 

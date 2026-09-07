@@ -7743,6 +7743,134 @@ No-change optimization: Files with ±0 are filtered entirely. Edge case: what if
 
 ---
 
+### gap70: Planning Mode Keyword "finalize" Does Not Produce and Display Preview of Plan MD File
+
+**Status:** ⋯ Pending | Type: Planning Mode Enhancement
+
+**Understanding:**
+In planning mode, when a user invokes the "finalize" keyword (to signal plan completion), the agent should:
+1. Produce a finalized plan as a markdown file
+2. Store it in ~/.continueVS/plans/ folder
+3. Display a preview of the plan in the chat UI or in a dedicated viewer
+
+Currently, finalize does not generate or persist the plan file, nor does it provide visual feedback to the user.
+
+**Rationale:**
+Users running the planning protocol need a persistent, retrievable record of approved plans. Storing plans enables:
+- Audit trail of plan decisions
+- Re-use of similar plans in future sessions
+- Offline reference without scrolling through chat history
+- Integration with project documentation or CI/CD workflows
+
+**Core Deliverable:**
+- **Plan persistence**: Create ~/.continueVS/plans/ directory (if missing) and write finalized plan to `{plan_name}_{timestamp}.md`
+- **File format**: Markdown with date, status, all steps, and dependencies
+- **Chat display**: Show confirmation and inline preview of where the plan was saved
+- **Retrieval**: Basic listing/access mechanism (future gap70b)
+
+**Scope Exclusions:**
+- gap70 does NOT implement full plan management UI (listing, filtering, re-running)
+- gap70 does NOT handle plan versioning or merge conflicts
+- gap70 does NOT auto-load previous plans on startup
+
+**Key Technical Areas:**
+1. ChatPageViewModel or new PlanService: Implement plan file write logic
+2. File I/O utilities: Ensure ~/.continueVS/plans/ directory exists
+3. Serialization: Convert finalized ChatMessage plan text to MD file format
+4. Chat feedback: Display save confirmation + file path to user
+5. Timestamp naming: {plan_name}_{YYYYMMDD_HHmmss}.md to ensure uniqueness
+6. handle / delimiter as \ for windows.
+
+**Testing Strategy:**
+- Directory creation: Verify ~/.continueVS/plans/ is created on first plan save
+- File write: Confirm .md file is written and readable
+- Content validation: Plan text is complete and well-formatted in output file
+- Chat feedback: User sees confirmation + path in the UI after finalize
+- Error handling: Graceful fallback if directory creation fails (log warning, offer file dialog)
+
+**Risks & Decisions:**
+- Path portability: Using ~/.continueVS/ assumes Unix-style home directory; Windows may need %APPDATA%\ContinueVS\plans
+- Naming conflicts: Timestamps prevent overwrites; consider user-provided names in gap70b
+- Storage quota: No limit on plan file count; cleanup is future work (gap90)
+
+**Steps (Implementation):**
+1. Create PlanService or extend ConfigService to handle plan persistence
+2. Implement plan file write logic: serialize finalized plan to markdown + file I/O
+3. Create ~/.continueVS/plans/ directory on app startup (or on first save)
+4. Modify ChatPageViewModel.OnPlanFinalized() (or equivalent) to call save + emit confirmation
+5. Add chat message feedback: "Plan saved to ~/.continueVS/plans/{filename}.md"
+6. Write unit tests for file creation, directory handling, and error cases
+7. Manual test: Run planning mode, invoke finalize, verify file appears and is readable
+8. Code review and merge
+
+---
+
+### gap70: LLM Plan File Output Detection & Multi-Mode Preview Integration
+
+**Status:** ✅ Complete | Type: Cross-Mode Enhancement | Blocking: None | Related: gap43_2, gap27_1
+
+**IMPLEMENTATION COMPLETE**
+- ✅ PlanFileDetector.cs with hardcoded marker detection
+- ✅ ChatPageViewModel streaming loop integration
+- ✅ ModeConfigRegistry system prompt injection (Plan/Agent/Debug only)  
+- ✅ 12/12 unit tests passing, 10/10 integration tests passing
+- ✅ All files created and modified, zero breaking changes
+
+**MARKER:** A485254C_7481_47BB_A8CF_45B8DEED2DD8.md (single hardcoded filename)
+**BEHAVIOR:** Plan/Agent/Debug auto-save+open to ~/.continueVS/plans/; Ask renders normally
+When LLM outputs GUID.md code block: `{filename}.md\n\`\`\`\n{content}\n\`\`\`` 
+Regex: `\`\`\`[A-F0-9_\-]{36,40}\.md\s*$`
+
+**BEHAVIOR**
+| Mode | Detect | Action | Output |
+|------|--------|--------|--------|
+| Ask | ✅ | Show Apply dropdown | Chat + button: "Apply to file [dropdown]" |
+| Plan | ✅ | Auto-save + open | `~/.continueVS/plans/plan_{YYYYMMDD_HHmmss}.md` in VS preview |
+| Agent | ✅ | Auto-save + open | Same as Plan |
+| Debug | ✅ | Auto-save + open | Same as Plan |
+
+**IMPLEMENTATION**
+1. Detect GUID.md during `ChatPageViewModel.OnMessageStreamReceived()` streaming loop
+2. Buffer content between fence markers
+3. On close fence:
+   - If `CurrentMode.ExportsPlanFile`: `SavePlanAsync(buffer)` → `OpenFileInEditorAsync(path)` 
+   - If Ask mode: render with Apply dropdown (hide GUID filename)
+4. Add system message feedback with file path
+
+**DEPENDENCIES**
+- ✅ `IPlanOutputService.SavePlanAsync()` (gap43_2)
+- ✅ `IIdeService.OpenFileInEditorAsync()` (existing)
+- ✅ `ModeConfig.ExportsPlanFile` (existing)
+
+**NEW WORK**
+- ❌ Stream parser logic in ChatPageViewModel
+- ❌ Ask mode dropdown UI component (XAML)
+- ❌ System prompt instructions (add to all mode configs)
+
+**TESTS**
+- Pattern detection (regex matches, rejects invalid)
+- Buffer accumulation (content integrity, line endings)
+- Mode routing (Plan/Agent/Debug save, Ask shows dropdown)
+- Error handling (disk full, permission denied—logged gracefully)
+
+**SYSTEM PROMPT (Plan/Agent/Debug modes)**
+```
+Output plans as markdown code blocks with UUID marker. Format:
+{UUID}.md
+# Plan Title
+## Section
+Content...
+```
+
+**SYSTEM PROMPT (Ask mode)**
+```
+Do not generate plans. Q&A only.
+```
+
+
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

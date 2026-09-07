@@ -102,7 +102,7 @@ namespace ContinueVS.Services.Tests
 
             var config = service.GetCurrentConfig();
             Assert.Single(config.Models);
-            Assert.Equal("ollama", config.Models[0].Provider);
+            Assert.Equal("openai", config.Models[0].Provider);
             Assert.True(eventRaised);
         }
 
@@ -143,9 +143,9 @@ namespace ContinueVS.Services.Tests
             await service.InitializeAsync();
 
             var selected = service.GetSelectedModel();
-            // Default config has a predefined Llama model; verify it's returned
+            // Default config has DeepSeek-V4-Flash-Spark model; verify it's returned
             Assert.NotNull(selected);
-            Assert.Equal("Llama 3.1 8B Instruct", selected.Name);
+            Assert.Equal("DeepSeek-V4-Flash-Spark", selected.Name);
         }
 
         [Fact]
@@ -300,11 +300,11 @@ namespace ContinueVS.Services.Tests
             Assert.Single(config.Models);
 
             var defaultModel = config.Models[0];
-            Assert.Equal("Llama 3.1 8B Instruct", defaultModel.Name);
-            Assert.Equal("ollama", defaultModel.Provider);
-            Assert.Equal("http://localhost:11434", defaultModel.BaseUrl);
+            Assert.Equal("DeepSeek-V4-Flash-Spark", defaultModel.Name);
+            Assert.Equal("openai", defaultModel.Provider);
+            Assert.Equal("http://10.3.3.101:18000", defaultModel.BaseUrl);
             Assert.Equal(200000, defaultModel.ContextWindow);
-            Assert.False(defaultModel.SupportsFunctionCalling);
+            Assert.True(defaultModel.SupportsFunctionCalling);
             Assert.Null(defaultModel.ApiKey);
             Assert.Empty(defaultModel.SupportedToolFormats);
         }
