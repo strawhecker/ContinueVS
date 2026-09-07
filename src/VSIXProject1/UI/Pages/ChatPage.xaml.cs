@@ -51,9 +51,20 @@ namespace ContinueVS.UI.Pages
         /// </summary>
         public DataTemplate? ThinkingMessageTemplate { get; set; }
 
+        /// <summary>
+        /// DataTemplate for execution impact messages (gap69).
+        /// </summary>
+        public DataTemplate? ExecutionImpactTemplate { get; set; }
+
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
-            // Check for LLMQuestionMessage first (derived from ChatMessage)
+            // Check for ExecutionImpactMessage first (gap69)
+            if (item is Core.Types.ExecutionImpactMessage)
+            {
+                return ExecutionImpactTemplate ?? SystemMessageTemplate ?? base.SelectTemplate(item, container);
+            }
+
+            // Check for LLMQuestionMessage (derived from ChatMessage)
             if (item is Core.Types.LLMQuestionMessage)
             {
                 return QuestionMessageTemplate ?? SystemMessageTemplate ?? base.SelectTemplate(item, container);

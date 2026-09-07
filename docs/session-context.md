@@ -7646,6 +7646,103 @@ String comparisons use `==` or `string.Equals(a, b)` with default case-sensitive
 
 ---
 
+### gap69: Create Agent Execution Impact Viewable (Structured Display)
+
+**Status:** ✓ Complete | Type: Execution Impact Display
+
+**Implementation Summary:**
+Created a structured execution impact message system to display agent tool execution summaries in the chat UI. Users see immediate visual feedback on what files changed and execution status.
+
+**Delivered Components:**
+
+**Core Types:**
+- ExecutionImpactMessage (src/VSIXProject1/Core/Types/ExecutionImpactMessage.cs)
+  - Derived from ChatMessage; Role defaults to System
+  - Aggregates PhaseExecutionResult items (each phase represents a tool call batch)
+  - Properties: Phases, FilesChanged, ToolsRun, DurationMs, Status, IsCollapsed
+  - Method: GetSummaryText() → formatted string e.g., "✓ 3 files modified | 5 tools executed | 12.3s"
+  - Method: Initialize(IEnumerable<PhaseExecutionResult>) → computes aggregates and determines overall Status
+
+**Converters:**
+- ExecutionStatusColorConverter (src/VSIXProject1/ViewModels/Converters/ExecutionStatusColorConverter.cs)
+  - Maps ExecutionStatus to SolidColorBrush for UI rendering
+- ExecutionStatusIconConverter (src/VSIXProject1/ViewModels/Converters/ExecutionStatusIconConverter.cs)
+  - Maps ExecutionStatus to Unicode symbols (✓/⊙/✗/etc.)
+
+**UI Integration:**
+- ChatPage.xaml.cs: Added public ExecutionImpactTemplate property; routed ExecutionImpactMessage first
+- ChatPage.xaml: Added ExecutionImpactTemplate DataTemplate with green border, status icon, summary text, and expandable phase details
+- ChatPageViewModel.cs: After ExecuteToolCallsFromOllamaAsync completes, creates ExecutionImpactMessage from PhaseExecutionResult batch
+
+**Testing:**
+- ExecutionImpactMessageTests: 9 tests (all passing)
+- ChatPageViewModelExecutionImpactTests: 4 tests (all passing)
+
+**Build Status:** Solution compiles cleanly; no regressions
+
+### Previous Planning (Archived)
+
+
+
+### Rationale (Archived)
+Agent mode executes multiple tool calls in sequence. Users need to see what changed (file impact) without drowning in verbose logs. Delta summaries (lines removed/added) are fast, scannable, and sufficient. Collapsibility reduces visual clutter while keeping the information accessible.
+
+### Core Deliverable
+AgentExecutionSummary message type containing:
+- ToolCallId (unique identifier)
+- ToolName (what tool was called)
+- Succeeded (true/false)
+- ModifiedFiles (list with FilePath, LinesRemoved, LinesAdded)
+- Commentary (brief reason for success or failure)
+- Filter rule: Exclude any file entry where LinesRemoved equals 0 AND LinesAdded equals 0
+
+### Display Behavior
+Expanded (default state): Full detail
+- Tool Call 1: read_file → ConfigService.cs ✓
+- Tool Call 2: write_file → ModifyService.cs (−8, +12) ✓
+- Tool Call 3: write_file → Program.cs (−3, +5) ✓
+
+Collapsed state: Compact badges
+- read_file ✓ | write_file ✓ | write_file ✓
+
+User clicks to toggle expand/collapse on each summary independently. There is no user preference to hide execution summaries entirely; they always exist in the message flow.
+
+### Context Handling
+Context window inclusion is deferred to gap70/gap90. Gap69 does not decide whether these summaries bloat context or are valuable signal—that reasoning happens later.
+
+### Key Technical Areas
+1. ChatMessage.cs: Define AgentExecutionSummary and FileImpact types
+2. AgentCommandDispatcher.cs: Generate summaries after each tool call; compute line deltas
+3. ChatPageViewModel.cs: Render summaries with collapse/expand toggle; filter ±0 files
+4. ContextService.cs: No changes in gap69 (deferred)
+
+### Testing Strategy
+- Delta counting: Verify line counts match actual file modifications
+- Filtering: Confirm ±0 files never appear in rendered output
+- UI interaction: Test collapse/expand state per summary, independence of multiple summaries
+- Commentary: Validate success messages and error reasons
+- Integration: End-to-end agent tool execution → summary appears → user can collapse
+
+### Risks & Decisions
+Line counting algorithm: What counts as a "line"? We defer this to implementation detail (simple line count vs. semantic changes). Gap69 assumes tool results provide or allow us to compute this.
+
+Multiple tool calls to same file: If tool 1 modifies file X (adds 5 lines) and tool 2 modifies file X again (removes 2, adds 3), do we show cumulative or per-tool? Decision: Per-tool (each AgentExecutionSummary is independent).
+
+No-change optimization: Files with ±0 are filtered entirely. Edge case: what if a tool is called but touches no files? Summary still shows (tool name and status), just no file list.
+
+### Steps (Implementation)
+1. Create AgentExecutionSummary and FileImpact types in ChatMessage.cs
+2. Update AgentCommandDispatcher to create and populate AgentExecutionSummary after each tool call
+3. Implement delta-counting logic (extract from tool result or compute via file system snapshot)
+4. Update ChatPageViewModel to render AgentExecutionSummary messages with collapse/expand handler
+5. Add filtering logic: remove FileImpact entries where LinesRemoved equals 0 AND LinesAdded equals 0
+6. Write unit tests for delta computation and filtering
+7. Write UI tests for collapse/expand behavior
+8. Manual end-to-end test: run agent; verify execution summaries appear, collapse/expand works
+9. Code review and merge
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

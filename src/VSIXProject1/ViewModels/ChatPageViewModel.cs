@@ -2082,6 +2082,29 @@ public string? InputText
                                 await _sessionService.AddMessageAsync(resultMsg);
                             }
 
+                            // gap69: Create and add execution impact message
+                            var executionImpact = new ExecutionImpactMessage();
+                            // Create phase results from tool execution
+                            var phases = new List<PhaseExecutionResult>();
+                            for (int i = 0; i < chunk.ToolCalls.Count; i++)
+                            {
+                                var phase = new PhaseExecutionResult
+                                {
+                                    PhaseId = $"tool_{i}",
+                                    Status = i < moreResults.Count ? ExecutionStatus.Succeeded : ExecutionStatus.Failed,
+                                    Evidence = i < moreResults.Count ? moreResults[i].ToolName ?? "tool" : "Tool execution failed"
+                                };
+                                if (i < moreResults.Count && moreResults[i] is ToolResult tr)
+                                {
+                                    phase.EndTime = DateTime.UtcNow;
+                                }
+                                phases.Add(phase);
+                            }
+                            executionImpact.Initialize(phases);
+                            await _sessionService.AddMessageAsync(executionImpact);
+                            LoggerService.Current.WriteDebug(
+                                $"[gap69-dispatch] Created execution impact message with {phases.Count} phases");
+
                             // Continue again recursively
                             await ContinueConversationWithOllamaAsync(ct);
                         }

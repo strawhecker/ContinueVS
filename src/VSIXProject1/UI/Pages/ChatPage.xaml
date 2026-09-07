@@ -120,6 +120,31 @@
                     </Border>
                 </DataTemplate>
             </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
+            <local:ChatMessageTemplateSelector.ExecutionImpactTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="#228B22" BorderThickness="2" CornerRadius="4" Margin="5" Padding="12" Background="#1E1E1E">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="✓" FontWeight="Bold" FontSize="14" Margin="0,0,8,0" Foreground="#21A121"/>
+                                <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Foreground="#90EE90" Margin="0,0,0,8" FontSize="12" FontFamily="Consolas">
+                                <Run Text="{Binding GetSummaryText, Mode=OneWay}"/>
+                            </TextBlock>
+                            <Expander Header="Details" Background="#2D2D30" Foreground="#CCCCCC" Margin="0,8,0,0">
+                                <DataGrid AutoGenerateColumns="False" Background="#1E1E1E" Foreground="#CCCCCC" BorderBrush="#3E3E42" RowBackground="#1E1E1E" AlternatingRowBackground="#252526" ItemsSource="{Binding Phases, Mode=OneWay}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Phase" Binding="{Binding PhaseId}" Width="*" Foreground="#CCCCCC"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" Foreground="#CCCCCC"/>
+                                        <DataGridTextColumn Header="Duration (ms)" Binding="{Binding DurationMs}" Width="Auto" Foreground="#CCCCCC"/>
+                                        <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="*" Foreground="#CCCCCC"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </local:ChatMessageTemplateSelector.ExecutionImpactTemplate>
             </local:ChatMessageTemplateSelector>
             <!-- Dark Mode ComboBox Style -->
             <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
