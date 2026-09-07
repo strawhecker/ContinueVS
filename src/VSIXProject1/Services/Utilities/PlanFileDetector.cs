@@ -13,18 +13,16 @@ namespace ContinueVS.Services.Utilities
     {
         /// <summary>
         /// The hardcoded marker filename that signals plan file output.
+        /// Used as the opening fence identifier: ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
         /// </summary>
         private const string MarkerFileName = "A485254C_7481_47BB_A8CF_45B8DEED2DD8.md";
 
         private enum DetectorState
         {
-            /// <summary>Waiting for fence marker matcher.</summary>
+            /// <summary>Waiting for opening fence with marker on same line.</summary>
             Idle,
 
-            /// <summary>Found opening fence, waiting for marker line.</summary>
-            WaitingForMarker,
-
-            /// <summary>Marker detected; now accumulating content until closing fence.</summary>
+            /// <summary>Marker detected on fence line; now accumulating content until closing fence.</summary>
             BufferingContent,
 
             /// <summary>Closing fence received; buffer complete.</summary>
@@ -53,7 +51,7 @@ namespace ContinueVS.Services.Utilities
 
         /// <summary>
         /// Processes a chunk of text from the LLM stream.
-        /// Detects marker filename in fence openers and accumulates content between fences.
+        /// Detects marker filename on the opening fence (same line as ```) and accumulates content between fences.
         /// </summary>
         /// <param name="chunk">The text chunk to process (may be null or empty).</param>
         public void ProcessChunk(string? chunk)
@@ -99,9 +97,10 @@ namespace ContinueVS.Services.Utilities
 
         /// <summary>
         /// Processes a single complete line of text.
-        /// Supports the format:
-        /// ```
-        /// A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
+        /// Supports the format (marker directly on same line as opening fence):
+        /// ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
+        /// # Your Plan
+        /// ## Sections
         /// Content...
         /// ```
         /// </summary>
@@ -115,35 +114,11 @@ namespace ContinueVS.Services.Utilities
             switch (_state)
             {
                 case DetectorState.Idle:
-                    // Look for opening fence
-                    if (trimmedLine.StartsWith("```"))
-                    {
-                        // Check if marker is on same line
-                        if (line.Contains(MarkerFileName))
-                        {
-                            _state = DetectorState.BufferingContent;
-                        }
-                        else
-                        {
-                            // Marker might be on next line
-                            _state = DetectorState.WaitingForMarker;
-                        }
-                    }
-                    break;
-
-                case DetectorState.WaitingForMarker:
-                    // Check if this line has the marker
-                    if (line.Contains(MarkerFileName))
+                    // Look for opening fence with marker on same line (e.g., ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md)
+                    if (trimmedLine.StartsWith("```") && line.Contains(MarkerFileName))
                     {
                         _state = DetectorState.BufferingContent;
                     }
-                    else if (trimmedLine.StartsWith("```"))
-                    {
-                        // Another fence appeared; if it's closing, go back to Idle; otherwise stay waiting
-                        // For safety, if we see a closing fence without finding marker, reset
-                        _state = DetectorState.Idle;
-                    }
-                    // Otherwise: keep waiting for marker on next line
                     break;
 
                 case DetectorState.BufferingContent:

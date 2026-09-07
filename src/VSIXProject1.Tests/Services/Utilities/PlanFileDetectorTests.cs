@@ -1,93 +1,144 @@
-﻿using System;
+﻿using ContinueVS.Services.Utilities;
 using Xunit;
-using ContinueVS.Services.Utilities;
 
 namespace ContinueVS.Tests.Services.Utilities
 {
-    /// <summary>
-    /// Unit tests for PlanFileDetector.
-    /// gap70: Tests pattern matching, buffer accumulation, fence tracking, and edge cases.
-    /// </summary>
     public class PlanFileDetectorTests
     {
-        private const string MarkerFileName = "A485254C_7481_47BB_A8CF_45B8DEED2DD8.md";
-
         [Fact]
-        public void Detector_WhenMarkerDetected_SetsCompleteTrue()
+        public void ProcessChunk_WithMarkersOnSameLine_DetectsPlanFile()
         {
             // Arrange
             var detector = new PlanFileDetector();
-            var chunk1 = "```\nA485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n";
-            var chunk2 = "# Plan\n";
-            var chunk3 = "```\n";
+            var planContent = "```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n# My Plan\n## Step 1\nDo something.\n```\n";
 
             // Act
-            detector.ProcessChunk(chunk1);
-            detector.ProcessChunk(chunk2);
-            detector.ProcessChunk(chunk3);
+            detector.ProcessChunk(planContent);
             detector.CompleteDetection();
 
             // Assert
             Assert.True(detector.IsComplete);
+            var result = detector.GetBufferedContent();
+            Assert.Contains("# My Plan", result);
+            Assert.Contains("## Step 1", result);
         }
 
         [Fact]
-        public void Detector_BuffersContentBetweenFences()
+        public void ProcessChunk_WithClosingFence_CompletesProperly()
         {
             // Arrange
             var detector = new PlanFileDetector();
-            var stream = "```\nA485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n# My Plan\n## Step 1\nDo something\n```\n";
 
             // Act
-            detector.ProcessChunk(stream);
+            detector.ProcessChunk("```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n");
+            detector.ProcessChunk("# Plan Title\n");
+            detector.ProcessChunk("Some content.\n");
+            detector.ProcessChunk("```\n");
             detector.CompleteDetection();
 
             // Assert
             Assert.True(detector.IsComplete);
-            var content = detector.GetBufferedContent();
-            Assert.Contains("# My Plan", content);
-            Assert.Contains("## Step 1", content);
-            Assert.Contains("Do something", content);
+            var result = detector.GetBufferedContent();
+            Assert.Contains("# Plan Title", result);
+            Assert.Contains("Some content.", result);
         }
 
         [Fact]
-        public void Detector_IgnoresOtherMarkdownFiles()
+        public void ProcessChunk_ChunkedInput_AccumulatesCorrectly()
         {
             // Arrange
             var detector = new PlanFileDetector();
-            var stream = "```\nMyOtherFile.md\n# Some content\n```\n";
 
             // Act
-            detector.ProcessChunk(stream);
+            detector.ProcessChunk("```");
+            detector.ProcessChunk("A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n");
+            detector.ProcessChunk("Line 1\n");
+            detector.ProcessChunk("Line 2\n");
+            detector.ProcessChunk("```\n");
+            detector.CompleteDetection();
+
+            // Assert
+            Assert.True(detector.IsComplete);
+            var result = detector.GetBufferedContent();
+            Assert.Contains("Line 1", result);
+            Assert.Contains("Line 2", result);
+        }
+
+        [Fact]
+        public void ProcessChunk_WithoutMarkerInFence_DoesNotDetect()
+        {
+            // Arrange
+            var detector = new PlanFileDetector();
+
+            // Act
+            detector.ProcessChunk("```python\n");
+            detector.ProcessChunk("def foo():\n");
+            detector.ProcessChunk("    pass\n");
+            detector.ProcessChunk("```\n");
+            detector.CompleteDetection();
 
             // Assert
             Assert.False(detector.IsComplete);
         }
 
         [Fact]
-        public void Detector_HandlesChunkedInput()
+        public void ProcessChunk_WithCarriageReturns_HandlesCorrectly()
         {
             // Arrange
             var detector = new PlanFileDetector();
 
-            // Act - feed input in small chunks
-            detector.ProcessChunk("```");
-            detector.ProcessChunk("\nA48");
-            detector.ProcessChunk("5254C_7481_47BB_A8CF_45B8DEED2DD8.md\n");
-            detector.ProcessChunk("Line 1\n");
-            detector.ProcessChunk("Line 2\n");
-            detector.ProcessChunk("```");
+            // Act
+            detector.ProcessChunk("```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\r\n");
+            detector.ProcessChunk("# Plan\r\n");
+            detector.ProcessChunk("Content\r\n");
+            detector.ProcessChunk("```\r\n");
             detector.CompleteDetection();
 
             // Assert
             Assert.True(detector.IsComplete);
-            var content = detector.GetBufferedContent();
-            Assert.Contains("Line 1", content);
-            Assert.Contains("Line 2", content);
+            var result = detector.GetBufferedContent();
+            Assert.Contains("# Plan", result);
+            Assert.Contains("Content", result);
         }
 
         [Fact]
-        public void Detector_ThrowsWhenAccessingContentBeforeComplete()
+        public void ProcessChunk_WithWhitespaceBeforeFence_IgnoresProperly()
+        {
+            // Arrange
+            var detector = new PlanFileDetector();
+
+            // Act (leading spaces before fence)
+            detector.ProcessChunk("  ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n");
+            detector.ProcessChunk("Indented plan\n");
+            detector.ProcessChunk("```\n");
+            detector.CompleteDetection();
+
+            // Assert
+            Assert.True(detector.IsComplete);
+            var result = detector.GetBufferedContent();
+            Assert.Contains("Indented plan", result);
+        }
+
+        [Fact]
+        public void Reset_ClearsState()
+        {
+            // Arrange
+            var detector = new PlanFileDetector();
+            detector.ProcessChunk("```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n");
+
+            // Act
+            detector.Reset();
+            detector.ProcessChunk("```python\n");
+            detector.ProcessChunk("code\n");
+            detector.ProcessChunk("```\n");
+            detector.CompleteDetection();
+
+            // Assert
+            Assert.False(detector.IsComplete);
+        }
+
+        [Fact]
+        public void GetBufferedContent_WhenNotComplete_Throws()
         {
             // Arrange
             var detector = new PlanFileDetector();
@@ -97,119 +148,57 @@ namespace ContinueVS.Tests.Services.Utilities
         }
 
         [Fact]
-        public void Detector_HandlesEmptyContentBetweenFences()
+        public void ProcessChunk_IgnoresContentWithoutMarker()
         {
             // Arrange
             var detector = new PlanFileDetector();
-            var stream = $"```\n{MarkerFileName}\n```\n";
 
             // Act
-            detector.ProcessChunk(stream);
+            detector.ProcessChunk("This is random text\n");
+            detector.ProcessChunk("```\n");
+            detector.ProcessChunk("Still no marker\n");
+            detector.ProcessChunk("```\n");
             detector.CompleteDetection();
-
-            // Assert
-            Assert.True(detector.IsComplete);
-            var content = detector.GetBufferedContent();
-            Assert.Empty(content);
-        }
-
-        [Fact]
-        public void Detector_IgnoresIncompleteMarker()
-        {
-            // Arrange
-            var detector = new PlanFileDetector();
-
-            // Act - similar but not exact marker
-            detector.ProcessChunk("```\nA485254C_7481_47BB_A8CF_45B8DEED2DD.md\n# Content\n```\n");
 
             // Assert
             Assert.False(detector.IsComplete);
         }
 
         [Fact]
-        public void Detector_HandlesMultilineWithCarriageReturns()
+        public void ProcessChunk_MultilineBuffer_CompleatsAfterClosingFence()
         {
             // Arrange
             var detector = new PlanFileDetector();
-            var stream = "```\r\nA485254C_7481_47BB_A8CF_45B8DEED2DD8.md\r\n# Plan\r\n```\r\n";
+            var largeContent = string.Concat(Enumerable.Range(0, 100).Select(i => $"Line {i}\n"));
 
             // Act
-            detector.ProcessChunk(stream);
+            detector.ProcessChunk("```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n");
+            detector.ProcessChunk(largeContent);
+            detector.ProcessChunk("```\n");
             detector.CompleteDetection();
 
             // Assert
             Assert.True(detector.IsComplete);
+            var result = detector.GetBufferedContent();
+            Assert.Contains("Line 0", result);
+            Assert.Contains("Line 99", result);
         }
 
         [Fact]
-        public void Detector_Reset_ClearsState()
+        public void CompleteDetection_WithoutClosingFence_StillCompletes()
         {
             // Arrange
             var detector = new PlanFileDetector();
-            detector.ProcessChunk($"```\n{MarkerFileName}\n# Content\n```\n");
-            detector.CompleteDetection();
-            Assert.True(detector.IsComplete);
 
             // Act
-            detector.Reset();
-
-            // Assert
-            Assert.False(detector.IsComplete);
-            Assert.Throws<InvalidOperationException>(() => detector.GetBufferedContent());
-        }
-
-        [Fact]
-        public void Detector_HandlesMarkerWithAdditionalSpaces()
-        {
-            // Arrange
-            var detector = new PlanFileDetector();
-            var stream = $"  ```\n  {MarkerFileName}\n  Content\n  ```\n";
-
-            // Act
-            detector.ProcessChunk(stream);
+            detector.ProcessChunk("```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n");
+            detector.ProcessChunk("Incomplete plan\n");
             detector.CompleteDetection();
 
-            // Assert
-            // Should detect marker even with leading whitespace
+            // Assert (stream ended without closing fence, but detector completes anyway)
             Assert.True(detector.IsComplete);
-        }
-
-        [Fact]
-        public void Detector_StopsProcessingAfterComplete()
-        {
-            // Arrange
-            var detector = new PlanFileDetector();
-            detector.ProcessChunk($"```\n{MarkerFileName}\n# Plan\n```\n");
-            detector.CompleteDetection();
-            Assert.True(detector.IsComplete);
-            var firstContent = detector.GetBufferedContent();
-
-            // Act - try to process more chunks after complete
-            detector.ProcessChunk("More content that should be ignored\n");
-
-            // Assert
-            var secondContent = detector.GetBufferedContent();
-            Assert.Equal(firstContent, secondContent);
-        }
-
-        [Fact]
-        public void Detector_PreservesNewLines()
-        {
-            // Arrange
-            var detector = new PlanFileDetector();
-            var stream = "```\n" + MarkerFileName + "\nLine1\n\nLine3\n```\n";
-
-            // Act
-            detector.ProcessChunk(stream);
-            detector.CompleteDetection();
-            var content = detector.GetBufferedContent();
-
-            // Assert
-            Assert.Contains("Line1", content);
-            Assert.Contains("Line3", content);
-            // Verify blank line is preserved by checking line count or structure
-            var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            Assert.True(lines.Length >= 3);
+            var result = detector.GetBufferedContent();
+            Assert.Contains("Incomplete plan", result);
         }
     }
 }

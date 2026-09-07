@@ -7854,11 +7854,10 @@ Regex: `\`\`\`[A-F0-9_\-]{36,40}\.md\s*$`
 - Error handling (disk full, permission denied—logged gracefully)
 
 **SYSTEM PROMPT (Plan/Agent/Debug modes)**
-```
-Output plans as markdown code blocks with UUID marker. Format:
-{UUID}.md
-# Plan Title
-## Section
+gap70: When outputting plans, wrap the entire plan in a markdown code block. The marker goes directly after the opening fence with no space or newline:
+```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
+# Your Plan
+## Sections
 Content...
 ```
 

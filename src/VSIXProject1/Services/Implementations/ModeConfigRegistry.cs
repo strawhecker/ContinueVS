@@ -23,7 +23,7 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private static string AppendPlanFileMarkerInstruction(string basePrompt)
         {
-            const string markerInstruction = "\n\ngap70: When outputting plans, wrap the entire plan in a markdown code block with this filename marker:\n```\nA485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n# Your Plan\n## Sections\nContent...\n```";
+            const string markerInstruction = "\n\ngap70: When outputting plans, wrap the entire plan in a markdown code block with this filename marker as the opening fence (no space or newline between ``` and the filename):\n```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n# Your Plan\n## Sections\nContent...\n```";
             return basePrompt + markerInstruction;
         }
 
