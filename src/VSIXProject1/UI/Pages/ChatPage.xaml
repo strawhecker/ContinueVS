@@ -88,6 +88,38 @@
                     </Border>
                 </DataTemplate>
             </local:ChatMessageTemplateSelector.QuestionMessageTemplate>
+            <local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="#A0A0A0" BorderThickness="1" CornerRadius="2" Margin="5" Padding="12" Background="#F5F5F5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <!-- Label Area -->
+                            <TextBlock Grid.Column="0" Grid.Row="0" Text="Thinking" FontWeight="Bold" Foreground="#505050" Margin="0,0,0,6"/>
+                            <!-- Expand/Collapse Toggle Button -->
+                            <ToggleButton Grid.Column="1" Grid.Row="0" 
+                                         IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                         Width="20" Height="20"
+                                         Background="Transparent" BorderThickness="0"
+                                         VerticalAlignment="Top" Margin="8,0,0,0"/>
+                            <!-- Content Area -->
+                            <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
+                                      Text="{Binding Content, Mode=OneWay}" 
+                                      TextWrapping="Wrap" 
+                                      Foreground="#404040"
+                                      FontFamily="Consolas"
+                                      FontSize="11"
+                                      IsEnabled="True"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
             </local:ChatMessageTemplateSelector>
             <!-- Dark Mode ComboBox Style -->
             <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">

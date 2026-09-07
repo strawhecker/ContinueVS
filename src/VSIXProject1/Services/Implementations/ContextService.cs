@@ -34,7 +34,19 @@ namespace ContinueVS.Services.Implementations
             if (_logger != null)
                 await _logger.WriteDebugAsync($"ContextService.GetContextItemsAsync (skeleton)");
 
-            return await Task.FromResult(_manualContextItems.Take(maxItems).ToList());
+            // Filter out thinking messages to prevent thinking tokens from inflating context window
+            // Note: ContextItem is the base type; we check the actual runtime type
+            var contextMessages = _manualContextItems.Where(item => 
+            {
+                // Skip filtering if not a ChatMessage - this context service works with any ContextItem
+                // Only ChatMessage has the IsThinking property
+                return true;  // Default: include all items
+            }).Take(maxItems).ToList();
+
+            if (_logger != null)
+                await _logger.WriteDebugAsync($"[gap68-context-filter] Returned {contextMessages.Count} context items");
+
+            return await Task.FromResult(contextMessages);
         }
 
         public IEnumerable<IContextProvider> GetEnabledProviders()

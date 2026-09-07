@@ -110,6 +110,8 @@ namespace ContinueVS.Core.Types
         private DateTime? _executionStartTime;
         private DateTime? _executionEndTime;
         private MarkdownNode? _renderedMarkdown;
+        private bool _isThinking = false;
+        private bool _isExpanded = false;
 
         /// <summary>
         /// Unique identifier for this message.
@@ -214,6 +216,29 @@ namespace ContinueVS.Core.Types
         {
             get => _executionEndTime;
             set => SetProperty(ref _executionEndTime, value);
+        }
+
+        /// <summary>
+        /// Flag indicating that this message content should be excluded from context window calculations.
+        /// Used to mark thinking/reasoning blocks that should not be included in future chat message contexts.
+        /// Persisted to disk via JSON serialization.
+        /// </summary>
+        [JsonProperty("isThinking")]
+        public bool IsThinking
+        {
+            get => _isThinking;
+            set => SetProperty(ref _isThinking, value);
+        }
+
+        /// <summary>
+        /// UI state flag indicating whether the thinking block is expanded or collapsed in the transcript.
+        /// Not persisted to disk; allows user's expanded/collapsed preference to be restored when history is reopened.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set => SetProperty(ref _isExpanded, value);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

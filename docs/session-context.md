@@ -7605,6 +7605,47 @@ String comparisons use `==` or `string.Equals(a, b)` with default case-sensitive
 
 ---
 
+### gap68: Create Thinking Viewable (Hidden from Context)
+
+**Status:** ⏱️ Not Started | Type: UI Component - Content Display  
+**Description:** Create a read-only thinking/reasoning viewable that displays LLM thinking output identically to existing content viewables, but with a key difference: content shown in this viewable is **NOT included** in future chat message contexts.
+
+**Purpose:**
+- Allow users to see model reasoning/internal thinking
+- Prevent thinking tokens from inflating context window usage
+- Support models with extended reasoning (e.g., DeepSeek reasoning field, o1-style thinking)
+- Maintain separation between user-visible responses and implementation details
+
+**Acceptance Criteria:**
+1. Thinking viewable renders with same formatting/styling as ChatContent viewable
+2. Thinking text is selectable and copyable (read-only UI)
+3. When persisting chat messages, thinking content is stored separately with flag `isThinking: true`
+4. When building context for next message, messages with `isThinking: true` are excluded from context
+5. Thinking viewable appears in message transcript but marked visually distinct (e.g., enabled (visible) by user setting, collapsed afterwards by user setting, lighter background)
+6. Works with streaming (incrementally display thinking as it arrives)
+
+**Dependencies:**
+- gap25 (Message persistence) - must support `isThinking` field
+- gap45 (Context window tracking) - must account for excluded thinking content
+- Models that return reasoning field (DeepSeek, Claude Opus, etc.)
+
+**Implementation Strategy:**
+- Add `isThinking: bool` flag to `ChatMessage` model ✅ DONE
+- Add `isExpanded: bool` flag to `ChatMessage` model (UI state, not persisted) ✅ DONE
+- Add `Chat_ShowThinkingAfterStreaming` user setting (default true) ✅ DONE
+- Create `ChatMessageRole.Thinking` enum value ✅ DONE (already existed)
+- Add `ThinkingMessageTemplate` to ChatPage.xaml UI ✅ DONE
+- Update ChatMessageTemplateSelector to route Thinking messages ✅ DONE
+- Integrate thinking parsing in ChatPageViewModel.ExecuteSendMessage() ✅ DONE
+- ContextService context filtering: partial (no final filtering on ContextItem yet, needs discussion)
+
+**Related Gaps:**
+- gap25 (Message persistence - needs isThinking flag)
+- gap45 (Context window tracking - needs to exclude thinking from count)
+- gap26 (View styling - needs thinking-specific visual treatment)
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

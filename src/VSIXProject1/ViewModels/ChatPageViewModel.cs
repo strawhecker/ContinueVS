@@ -1361,15 +1361,34 @@ public string? InputText
                         assistantMessage.ToolCalls = new List<ToolCall>(_pendingToolCalls);
                     }
 
+                    // gap68: Parse and separate thinking from response content
+                    var (thinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
+                        assistantMessage.Content, 
+                        _streamingCts.Token);
+
+                    // Update assistant message content to exclude thinking (if any was extracted)
+                    if (thinkingMessage != null && !string.IsNullOrWhiteSpace(cleanedResponseContent))
+                    {
+                        assistantMessage.Content = cleanedResponseContent;
+                        LoggerService.Current.WriteDebugAsync(
+                            "[gap68-separate] Thinking separated from response. Response length now: " + cleanedResponseContent.Length);
+                    }
+
                     // gap43_3 / gap45_3: Persist plan output when ExportsPlanFile is true for this mode (Agent, Plan, Debug)
                     if (modeConfig.ExportsPlanFile && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
                     {
                         var savedPath = await _planOutputService.SavePlanAsync(assistantMessage.Content, _streamingCts.Token);
-                        _ = LoggerService.Current.WriteDebugAsync($"[gap43_3] Plan saved to: {savedPath}");
+                        LoggerService.Current.WriteDebugAsync($"[gap43_3] Plan saved to: {savedPath}");
                     }
 
                     await _sessionService.AddMessageAsync(assistantMessage);
-                    _ = LoggerService.Current.WriteDebugAsync($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
+                    LoggerService.Current.WriteDebugAsync($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
+
+                    // gap68: Add thinking message if it was parsed and visible per settings
+                    if (thinkingMessage != null)
+                    {
+                        await AddThinkingMessageIfVisibleAsync(thinkingMessage);
+                    }
 
                     // gap23_4_4: Check tool call limit and show banners
                     CheckToolCallLimit();
@@ -2120,6 +2139,127 @@ public string? InputText
         /// </summary>
         private bool IsReadTool(string name) =>
             name is "read_file" or "list_files" or "search_code";
+
+        /// <summary>
+        /// gap68: Parses thinking/reasoning content from LLM response and creates separate ChatMessage objects.
+        /// Handles models that return reasoning tags (e.g., &lt;thinking&gt;...&lt;/thinking&gt;).
+        /// Returns tuple of (thinkingMessage, responseContent) where thinkingMessage is null if no thinking found.
+        /// Respects user setting Chat_ShowThinkingAfterStreaming to control final visibility.
+        /// </summary>
+        private async Task<(ChatMessage? ThinkingMessage, string ResponseContent)> ParseThinkingFromResponseAsync(
+            string responseContent,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(responseContent))
+                return (null, responseContent);
+
+            // Pattern 1: Extract <thinking>...</thinking> blocks
+            var thinkingPattern = @"<thinking>(.*?)</thinking>";
+            var thinkingMatch = System.Text.RegularExpressions.Regex.Match(
+                responseContent, 
+                thinkingPattern, 
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            if (thinkingMatch.Success && thinkingMatch.Groups.Count > 1)
+            {
+                var thinkingContent = thinkingMatch.Groups[1].Value.Trim();
+                var cleanedResponse = System.Text.RegularExpressions.Regex.Replace(
+                    responseContent, 
+                    thinkingPattern, 
+                    "",
+                    System.Text.RegularExpressions.RegexOptions.Singleline).Trim();
+
+                if (!string.IsNullOrWhiteSpace(thinkingContent))
+                {
+                    // Read user setting for showing thinking after streaming
+                    var showThinkingAfterStreaming = true;
+                    if (_configService != null)
+                    {
+                        var config = _configService.GetCurrentConfig();
+                        if (config?.CustomSettings?.TryGetValue(UserSettings.Chat_ShowThinkingAfterStreaming, out var val) == true)
+                        {
+                            showThinkingAfterStreaming = val switch
+                            {
+                                true => true,
+                                "true" => true,
+                                1 or 1L => true,
+                                _ => false
+                            };
+                        }
+                    }
+
+                    LoggerService.Current.WriteDebugAsync(
+                        $"[gap68-parse-thinking] Thinking block detected. Length: {thinkingContent.Length}, ShowAfterStreaming: {showThinkingAfterStreaming}");
+
+                    var thinkingMessage = new ChatMessage
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Role = ChatMessageRole.Thinking,
+                        Content = thinkingContent,
+                        IsThinking = true,  // Mark for context exclusion
+                        IsExpanded = false,  // Collapsed by default at rest
+                        Timestamp = DateTime.Now
+                    };
+
+                    // If setting is false, create message but mark it invisible to UI
+                    // Message still persists in session for history but won't display in transcript
+                    if (!showThinkingAfterStreaming)
+                    {
+                        LoggerService.Current.WriteDebugAsync(
+                            "[gap68-setting-applied] Thinking message created but hidden per user setting");
+                    }
+
+                    return (thinkingMessage, cleanedResponse);
+                }
+            }
+
+            return (null, responseContent);
+        }
+
+        /// <summary>
+        /// gap68: Adds thinking message to session and UI if visible per user settings.
+        /// </summary>
+        private async Task AddThinkingMessageIfVisibleAsync(ChatMessage thinkingMessage)
+        {
+            if (thinkingMessage == null)
+                throw new ArgumentNullException(nameof(thinkingMessage));
+
+            var showThinkingAfterStreaming = true;
+            if (_configService != null)
+            {
+                var config = _configService.GetCurrentConfig();
+                if (config?.CustomSettings?.TryGetValue(UserSettings.Chat_ShowThinkingAfterStreaming, out var val) == true)
+                {
+                    showThinkingAfterStreaming = val switch
+                    {
+                        true => true,
+                        "true" => true,
+                        1 or 1L => true,
+                        _ => false
+                    };
+                }
+            }
+
+            if (showThinkingAfterStreaming)
+            {
+                // Add to session for persistence
+                await _sessionService.AddMessageAsync(thinkingMessage);
+
+                // Add to UI on main thread
+                await SwitchToMainThreadAsync();
+                Messages.Add(thinkingMessage);
+
+                LoggerService.Current.WriteDebugAsync(
+                    "[gap68-ui-add] Thinking message added to UI transcript");
+            }
+            else
+            {
+                // Still add to session for history, but don't show in UI
+                await _sessionService.AddMessageAsync(thinkingMessage);
+                LoggerService.Current.WriteDebugAsync(
+                    "[gap68-session-only] Thinking message added to session only (not visible in UI)");
+            }
+        }
 
         /// <summary>
         /// gap60: Public entry point for external callers (GUI bridge, tests, CI/CD) to trigger agent commands.

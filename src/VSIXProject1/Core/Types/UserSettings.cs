@@ -16,6 +16,7 @@ namespace ContinueVS.Core.Types
         public const string Chat_TextToSpeechEnabled = "chat.textToSpeechEnabled";
         public const string Chat_EnableSessionTitles = "chat.enableSessionTitles";
         public const string Chat_FormatMarkdown = "chat.formatMarkdown";
+        public const string Chat_ShowThinkingAfterStreaming = "chat.showThinkingAfterStreaming";
 
         // Appearance Settings
         public const string Appearance_FontSize = "appearance.fontSize";
@@ -52,6 +53,7 @@ namespace ContinueVS.Core.Types
                 { Chat_TextToSpeechEnabled, false },
                 { Chat_EnableSessionTitles, true },
                 { Chat_FormatMarkdown, true },
+                { Chat_ShowThinkingAfterStreaming, true },
 
                 // Appearance defaults
                 { Appearance_FontSize, 14 },

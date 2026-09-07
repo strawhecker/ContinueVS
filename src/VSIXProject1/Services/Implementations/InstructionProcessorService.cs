@@ -202,6 +202,24 @@ namespace ContinueVS.Services.Implementations
             {
                 if (_logger != null)
                     _ = _logger.WriteDebugAsync("InstructionProcessorService.ParsePhasesFromResponse: no valid phases found in response");
+
+                // FALLBACK: Check if response contains tool calls instead of phases (e.g., <use_mcp_tool> blocks)
+                if (response.Contains("<use_mcp_tool>") || response.Contains("write_file") || response.Contains("read_file"))
+                {
+                    if (_logger != null)
+                        _ = _logger.WriteDebugAsync("InstructionProcessorService.ParsePhasesFromResponse: FALLBACK - Detected tool calls in response, creating synthetic Plan Execution phase");
+
+                    // Create a single execution phase for tool-based responses
+                    phases.Add(new InternalPhase
+                    {
+                        Type = InternalPhaseType.Observation,
+                        Description = "Execute implementation plan via tool calls (write_file, read_file, etc.)"
+                    });
+
+                    return phases;
+                }
+
+                // If no phases AND no tool calls, this is a genuine error
                 throw new InvalidOperationException("LLM response did not contain valid phases.");
             }
 

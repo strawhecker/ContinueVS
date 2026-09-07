@@ -46,6 +46,11 @@ namespace ContinueVS.UI.Pages
         /// </summary>
         public DataTemplate? QuestionMessageTemplate { get; set; }
 
+        /// <summary>
+        /// DataTemplate for thinking/reasoning messages (Role.Thinking).
+        /// </summary>
+        public DataTemplate? ThinkingMessageTemplate { get; set; }
+
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
             // Check for LLMQuestionMessage first (derived from ChatMessage)
@@ -58,6 +63,7 @@ namespace ContinueVS.UI.Pages
             {
                 return msg.Role switch
                 {
+                    ChatMessageRole.Thinking => ThinkingMessageTemplate ?? base.SelectTemplate(item, container),
                     ChatMessageRole.User => UserMessageTemplate ?? base.SelectTemplate(item, container),
                     ChatMessageRole.Assistant => AssistantMessageTemplate ?? base.SelectTemplate(item, container),
                     ChatMessageRole.Tool => ToolInvocationTemplate ?? base.SelectTemplate(item, container),
