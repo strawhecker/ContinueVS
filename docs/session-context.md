@@ -7856,7 +7856,6 @@ Regex: `\`\`\`[A-F0-9_\-]{36,40}\.md\s*$`
 **SYSTEM PROMPT (Plan/Agent/Debug modes)**
 gap70: When outputting plans, wrap the entire plan in a markdown code block. The marker goes directly after the opening fence with no space or newline:
 ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
-# Your Plan
 ## Sections
 Content...
 ```
@@ -7866,7 +7865,61 @@ Content...
 Do not generate plans. Q&A only.
 ```
 
+---
 
+### gap71: Mode Conditional Tools Not Serialized in LLM Request
+
+**Status:** ✅ COMPLETED | Type: Tool Registration & Serialization | Blocking: None (resolved) | Related: gap60, gap59
+
+**Problem (Resolved):**
+Tools were not being filtered by ChatMode before serialization into LLM requests. This prevented Agent and Debug modes from accessing write-capable tools while restricting Plan mode to read-only operations.
+
+**Solution Implemented:**
+1. Added `SupportedModes` metadata to `ToolDefinition` (List<ChatMode>) with [JsonIgnore] to prevent serialization
+2. Extended `IToolService.GetAvailableTools(ChatMode mode)` with mode-aware filtering
+3. Implemented filtering logic in `ToolService.GetAvailableTools(mode)` that:
+   - Returns empty list for Ask mode (no tool calling)
+   - Returns only read-only tools (read_file, search_codebase, file_glob_search, read_currently_open_file) for Plan mode
+   - Returns all tools for Agent, Debug, and Reason modes
+4. Added `StreamOptions.Mode` property to carry ChatMode through LLM request pipeline
+5. Updated `MessengerService` to:
+   - Accept `IToolService` dependency
+   - Call `_toolService.GetAvailableTools(options.Mode)` before serialization
+   - Populate `OllamaRequest.Tools` with filtered tool schemas
+6. Updated `ServiceBootstrapper` to wire IToolService into MessengerService
+7. Tagged built-in tools with appropriate SupportedModes:
+   - Read-only: read_file, search_codebase, file_glob_search, read_currently_open_file, view_file, read_file_range, grep_search, git_status, git_diff, git_log
+   - Write/Action: create_new_file, run_terminal_command, edit_file, open_file, git_commit, single_find_and_replace, run_pytest, get_problems (Agent, Debug, Reason only)
+
+**Tests Added:**
+- `GetAvailableTools_WithAskMode_ReturnsNoEnabledTools()` - Verifies Ask mode has zero enabled tools
+- `GetAvailableTools_WithPlanMode_ReturnsOnlyReadTools()` - Verifies Plan mode filters to read-only tools
+- `GetAvailableTools_WithAgentMode_ReturnsAllWriteTools()` - Verifies Agent mode includes all tools
+- `GetAvailableTools_WithDebugMode_ReturnsAllWriteTools()` - Verifies Debug mode includes all tools
+- `GetAvailableTools_WithReasonMode_ReturnsAllWriteTools()` - Verifies Reason mode includes all tools
+- `GetAvailableTools_WithoutMode_ReturnsAllTools_BackwardCompatibility()` - Verifies backward compatibility (tools with empty SupportedModes available in all modes)
+- `OllamaRequest_WithModeFilteredTools_SerializesCorrectToolsInPayload()` - Verifies JSON serialization includes only mode-appropriate tools
+
+**Files Modified:**
+- `src/VSIXProject1/Core/Types/ToolDefinition.cs` - Added SupportedModes property
+- `src/VSIXProject1/Services/Interfaces/IToolService.cs` - Added GetAvailableTools(ChatMode mode) overload
+- `src/VSIXProject1/Services/Implementations/ToolService.cs` - Implemented mode filtering logic
+- `src/VSIXProject1/Core/Types/BuiltInTools.cs` - Added SupportedModes tags to all tool factories
+- `src/VSIXProject1/Services/Interfaces/ILlmService.cs` - Added Mode property to StreamOptions
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs` - Integrated tool filtering into request serialization
+- `src/VSIXProject1/Services/ServiceBootstrapper.cs` - Updated DI registration
+- `src/VSIXProject1.Tests/Services/ToolServiceTests.cs` - Added mode-filtering unit tests
+- `src/VSIXProject1.Tests/Services/OllamaRequestResponseTests.cs` - Added serialization test
+
+**Test Results:**
+- All 20 ToolServiceTests pass (including 6 new mode-conditional tests)
+- OllamaRequestResponseTests.OllamaRequest_WithModeFilteredTools_SerializesCorrectToolsInPayload passes
+- Build successful: Zero compilation errors
+
+**Backward Compatibility:**
+- Tools with empty SupportedModes list are available in all modes (default behavior)
+- Existing GetAvailableTools() parameterless method preserved and unchanged
+- JSON serialization of tools unchanged (SupportedModes marked [JsonIgnore])
 
 ---
 

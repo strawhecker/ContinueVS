@@ -26,22 +26,27 @@ namespace ContinueVS.Services.Implementations
     public class MessengerService : IMessengerService
     {
         private readonly IConfigService _configService;
+        private readonly IToolService _toolService;
         private readonly HttpClient _httpClient;
         private readonly IBridgeLogger? _logger;
         private readonly IContextDumpService _contextDumpService;
 
         public MessengerService(
             IConfigService configService,
+            IToolService toolService,
             HttpClient httpClient,
             IBridgeLogger? logger = null,
             IContextDumpService? contextDumpService = null)
         {
             if (configService == null)
                 throw new ArgumentNullException(nameof(configService));
+            if (toolService == null)
+                throw new ArgumentNullException(nameof(toolService));
             if (httpClient == null)
                 throw new ArgumentNullException(nameof(httpClient));
 
             _configService = configService;
+            _toolService = toolService;
             _httpClient = httpClient;
             _logger = logger;
             _contextDumpService = contextDumpService ?? new NullContextDumpService();
@@ -496,6 +501,17 @@ namespace ContinueVS.Services.Implementations
                     ContextWindow = model.ContextWindow
                 }
             };
+
+            // Populate tools filtered by current ChatMode (gap71)
+            var availableTools = _toolService.GetAvailableTools(options.Mode);
+            _logger?.WriteDebug($"[gap71-messenger-tools] Mode={options.Mode}, filtering tools: {availableTools.Count()} available");
+
+            if (availableTools.Any())
+            {
+                var toolSchemas = ConvertToolDefinitionsToSchema(availableTools);
+                ollamaRequest.Tools = toolSchemas;
+                _logger?.WriteDebug($"[gap71-messenger-tools] Populated OllamaRequest.Tools with {toolSchemas.Count} schemas for mode {options.Mode}");
+            }
 
             LoggerService.Current.WriteDebug($"[ProcessOllamaStreamAsync] Building request - Model: {ollamaRequest.Model}, Stream: {ollamaRequest.Stream}, Temperature: {ollamaRequest.Options.Temperature}");
 

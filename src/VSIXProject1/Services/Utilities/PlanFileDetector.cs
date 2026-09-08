@@ -99,7 +99,6 @@ namespace ContinueVS.Services.Utilities
         /// Processes a single complete line of text.
         /// Supports the format (marker directly on same line as opening fence):
         /// ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
-        /// # Your Plan
         /// ## Sections
         /// Content...
         /// ```
@@ -125,6 +124,7 @@ namespace ContinueVS.Services.Utilities
                     // Check for closing fence (line only contains 3+ backticks, nothing else important)
                     if (trimmedLine.StartsWith("```") && !line.Contains(MarkerFileName))
                     {
+                        // Closing fence marks end; don't include it in the buffer
                         _state = DetectorState.Complete;
                     }
                     else

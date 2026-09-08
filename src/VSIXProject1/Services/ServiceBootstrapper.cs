@@ -99,9 +99,10 @@ namespace ContinueVS.Services
             services.AddSingleton<IMessengerService>(sp =>
             {
                 var configService = sp.GetRequiredService<IConfigService>();
+                var toolService = sp.GetRequiredService<IToolService>();
                 var httpClient = sp.GetRequiredService<HttpClient>();
                 var contextDumpService = sp.GetRequiredService<IContextDumpService>();
-                return new MessengerService(configService, httpClient, null, contextDumpService);
+                return new MessengerService(configService, toolService, httpClient, null, contextDumpService);
             });
             services.AddSingleton<ITokenCountingService, SimpleTokenCounterService>();
             services.AddSingleton<ILlmService, LlmService>();

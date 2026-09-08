@@ -130,6 +130,13 @@ namespace ContinueVS.Services.Interfaces
         /// Sourced from <see cref="ModeConfig.AllowToolLoop"/> via ModeConfigRegistry (gap44_3).
         /// </summary>
         public bool AllowToolLoop { get; set; }
+
+        /// <summary>
+        /// The current ChatMode for this streaming request (Ask, Agent, Plan, Debug, Reason).
+        /// Used to filter available tools by mode (gap71).
+        /// Defaults to Agent if not specified.
+        /// </summary>
+        public ChatMode Mode { get; set; } = ChatMode.Agent;
     }
 
     /// <summary>

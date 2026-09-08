@@ -197,5 +197,121 @@ namespace ContinueVS.Tests.Services
                 Assert.Equal("builtin", tool.ToolType);
             }
         }
+
+        [Fact]
+        public void GetAvailableTools_WithAskMode_ReturnsNoEnabledTools()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools(ChatMode.Ask).ToList();
+
+            // Ask mode should not have enabled tools (only disabled ones)
+            var enabledTools = tools.Where(t => t.IsEnabled).ToList();
+            Assert.Empty(enabledTools);
+        }
+
+        [Fact]
+        public void GetAvailableTools_WithPlanMode_ReturnsOnlyReadTools()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools(ChatMode.Plan).ToList();
+
+            Assert.NotEmpty(tools);
+            var toolNames = tools.Select(t => t.Name).ToList();
+            // Should include read-only tools
+            Assert.Contains("read_file", toolNames);
+            Assert.Contains("search_codebase", toolNames);
+            Assert.Contains("file_glob_search", toolNames);
+            // Should NOT include write tools
+            Assert.DoesNotContain("edit_file", toolNames);
+            Assert.DoesNotContain("create_new_file", toolNames);
+            Assert.DoesNotContain("run_terminal_command", toolNames);
+        }
+
+        [Fact]
+        public void GetAvailableTools_WithAgentMode_ReturnsAllWriteTools()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools(ChatMode.Agent).ToList();
+
+            Assert.NotEmpty(tools);
+            var toolNames = tools.Select(t => t.Name).ToList();
+            // Verify Agent mode includes both read and write tools
+            Assert.Contains("read_file", toolNames);
+            Assert.Contains("search_codebase", toolNames);
+            Assert.Contains("create_new_file", toolNames);
+            Assert.Contains("edit_file", toolNames);
+            Assert.Contains("run_terminal_command", toolNames);
+        }
+
+        [Fact]
+        public void GetAvailableTools_WithDebugMode_ReturnsAllWriteTools()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools(ChatMode.Debug).ToList();
+
+            Assert.NotEmpty(tools);
+            var toolNames = tools.Select(t => t.Name).ToList();
+            // Verify Debug mode includes both read and write tools
+            Assert.Contains("read_file", toolNames);
+            Assert.Contains("create_new_file", toolNames);
+            Assert.Contains("edit_file", toolNames);
+        }
+
+        [Fact]
+        public void GetAvailableTools_WithReasonMode_ReturnsAllWriteTools()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools(ChatMode.Reason).ToList();
+
+            Assert.NotEmpty(tools);
+            var toolNames = tools.Select(t => t.Name).ToList();
+            // Verify Reason mode includes both read and write tools
+            Assert.Contains("read_file", toolNames);
+            Assert.Contains("create_new_file", toolNames);
+            Assert.Contains("edit_file", toolNames);
+        }
+
+        [Fact]
+        public void GetAvailableTools_WithoutMode_ReturnsAllTools_BackwardCompatibility()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools().ToList();
+            var agentTools = service.GetAvailableTools(ChatMode.Agent).ToList();
+
+            // Without mode parameter, should return all tools (backward compatibility)
+            Assert.Equal(22, tools.Count);
+            Assert.Equal(tools.Count, agentTools.Count);
+        }
+
+        [Fact]
+        public void GetAvailableTools_PlanMode_ToolCountIsGreaterThanOne()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools(ChatMode.Plan).ToList();
+
+            // Plan mode should have at least 2 read-only tools (read_file, search_codebase)
+            Assert.True(tools.Count >= 2);
+        }
     }
 }

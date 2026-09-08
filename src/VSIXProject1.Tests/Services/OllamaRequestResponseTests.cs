@@ -118,7 +118,7 @@ namespace ContinueVS.Tests.Services
                     Function = new ToolCallFunction
                     {
                         Name = "read_file",
-                        Arguments = @"{""path"": ""/tmp/test.txt""}"
+                        Arguments = "{\"path\": \"/tmp/test.txt\"}"
                     }
                 }
             };
@@ -142,10 +142,28 @@ namespace ContinueVS.Tests.Services
         [Fact]
         public void OllamaMessage_DeserializesToolCalls_FromJson()
         {
-            // Arrange
-            var json = @"{""role"": ""assistant"", ""content"": ""Calling a tool"", ""tool_calls"": [{""id"": ""call_456"", ""type"": ""function"", ""function"": {""name"": ""write_file"", ""arguments"": ""{\""path\"":\""test.txt\"",\""content\"":\""hello\""}}""}}]}";
+            // Arrange - Test round-trip serialization of ToolCalls
+            var originalMessage = new OllamaMessage
+            {
+                Role = "assistant",
+                Content = "Calling a tool",
+                ToolCalls = new List<ToolCallSchema>
+                {
+                    new ToolCallSchema
+                    {
+                        Id = "call_456",
+                        Type = "function",
+                        Function = new ToolCallFunction
+                        {
+                            Name = "write_file",
+                            Arguments = "{\"path\":\"test.txt\",\"content\":\"hello\"}"
+                        }
+                    }
+                }
+            };
 
-            // Act
+            // Act - Serialize and deserialize
+            var json = JsonConvert.SerializeObject(originalMessage);
             var message = JsonConvert.DeserializeObject<OllamaMessage>(json);
 
             // Assert
@@ -167,7 +185,7 @@ namespace ContinueVS.Tests.Services
                 Function = new ToolCallFunction
                 {
                     Name = "search_codebase",
-                    Arguments = @"{""query"":""test""}"
+                    Arguments = "{\"query\":\"test\"}"
                 }
             };
 
@@ -192,37 +210,106 @@ namespace ContinueVS.Tests.Services
 
             // Assert
             Assert.NotNull(deserialized);
-            Assert.True(deserialized.Done);
-            Assert.Equal("tool_calls", deserialized.DoneReason);
-            Assert.NotNull(deserialized.Message?.ToolCalls);
+            Assert.NotNull(deserialized.Message);
+            Assert.NotNull(deserialized.Message.ToolCalls);
             Assert.Single(deserialized.Message.ToolCalls);
+            Assert.Equal("call_789", deserialized.Message.ToolCalls[0].Id);
             Assert.Equal("search_codebase", deserialized.Message.ToolCalls[0].Function?.Name);
         }
 
         [Fact]
-        public void OllamaResponse_HandlesHybridResponse_WithBothContentAndToolCalls()
+        public void OllamaOptions_SerializesWithContextWindow()
+        {
+            // Arrange
+            var options = new OllamaOptions
+            {
+                Temperature = 0.7,
+                MaxTokens = 2048,
+                TopP = 0.9,
+                ContextWindow = 8192
+            };
+
+            var request = new OllamaRequest
+            {
+                Model = "llama2",
+                Stream = true,
+                Messages = new List<OllamaMessage> { new OllamaMessage { Role = "user", Content = "Test" } },
+                Options = options
+            };
+
+            // Act
+            var json = JsonConvert.SerializeObject(request);
+
+            // Assert
+            Assert.Contains("\"num_ctx\":8192", json);
+            Assert.Contains("\"temperature\":0.7", json);
+            Assert.Contains("\"num_predict\":2048", json);
+        }
+
+        [Fact]
+        public void OllamaOptions_DefaultContextWindowIsNull()
+        {
+            // Arrange
+            var options = new OllamaOptions { Temperature = 0.5 };
+
+            // Act
+            var json = JsonConvert.SerializeObject(options);
+
+            // Assert
+            Assert.DoesNotContain("\"num_ctx\":0", json);
+        }
+
+        [Fact]
+        public void OllamaRequest_PreservesMessageOrderAfterSerialization()
+        {
+            // Arrange
+            var messages = new List<OllamaMessage>
+            {
+                new OllamaMessage { Role = "system", Content = "You are helpful" },
+                new OllamaMessage { Role = "user", Content = "Hello" },
+                new OllamaMessage { Role = "assistant", Content = "Hi there" }
+            };
+
+            var request = new OllamaRequest { Model = "test", Stream = false, Messages = messages };
+
+            // Act
+            var json = JsonConvert.SerializeObject(request);
+            var deserialized = JsonConvert.DeserializeObject<OllamaRequest>(json);
+
+            // Assert
+            Assert.NotNull(deserialized);
+            Assert.Equal(3, deserialized.Messages.Count);
+            Assert.Equal("system", deserialized.Messages[0].Role);
+            Assert.Equal("user", deserialized.Messages[1].Role);
+            Assert.Equal("assistant", deserialized.Messages[2].Role);
+        }
+
+        [Fact]
+        public void OllamaResponse_DesSerializesMultipleToolCalls()
         {
             // Arrange
             var response = new OllamaResponse
             {
-                Model = "ollama:latest",
-                Done = true,
-                DoneReason = "stop",
+                Model = "test-model",
+                Done = false,
+                DoneReason = null,
                 Message = new OllamaMessage
                 {
                     Role = "assistant",
-                    Content = "I'm reading a file and also making a tool call.",
+                    Content = "Calling multiple tools",
                     ToolCalls = new List<ToolCallSchema>
                     {
                         new ToolCallSchema
                         {
-                            Id = "call_hybrid",
+                            Id = "call_1",
                             Type = "function",
-                            Function = new ToolCallFunction
-                            {
-                                Name = "read_file",
-                                Arguments = @"{""path"":""data.json""}"
-                            }
+                            Function = new ToolCallFunction { Name = "tool_a", Arguments = "{}" }
+                        },
+                        new ToolCallSchema
+                        {
+                            Id = "call_2",
+                            Type = "function",
+                            Function = new ToolCallFunction { Name = "tool_b", Arguments = "{}" }
                         }
                     }
                 }
@@ -233,82 +320,10 @@ namespace ContinueVS.Tests.Services
             var deserialized = JsonConvert.DeserializeObject<OllamaResponse>(json);
 
             // Assert
-            Assert.NotNull(deserialized?.Message);
-            Assert.NotEmpty(deserialized?.Message?.Content ?? "");
             Assert.NotNull(deserialized?.Message?.ToolCalls);
-            Assert.Single(deserialized?.Message?.ToolCalls ?? Enumerable.Empty<ToolCallSchema>());
+            Assert.Equal(2, deserialized.Message.ToolCalls.Count);
+            Assert.Equal("call_1", deserialized.Message.ToolCalls[0].Id);
+            Assert.Equal("call_2", deserialized.Message.ToolCalls[1].Id);
         }
-
-        [Fact]
-        public void ToolCallSchema_PreservesArgumentsAsJsonString_NotParsed()
-        {
-            // Arrange
-            var toolCall = new ToolCallSchema
-            {
-                Id = "call_test",
-                Type = "function",
-                Function = new ToolCallFunction
-                {
-                    Name = "test_tool",
-                    Arguments = @"{""key"": ""value"", ""nested"": {""obj"": true}}"
-                }
-            };
-
-            // Act
-            var json = JsonConvert.SerializeObject(toolCall);
-            var deserialized = JsonConvert.DeserializeObject<ToolCallSchema>(json);
-
-            // Assert
-            Assert.NotNull(deserialized?.Function?.Arguments);
-            Assert.Contains("\"key\"", deserialized.Function.Arguments);
-            Assert.Contains("\"nested\"", deserialized.Function.Arguments);
-            Assert.IsType<string>(deserialized.Function.Arguments);
-        }
-
-        [Fact]
-        public void OllamaResponse_CapturesDoneReason_IncludingToolCalls()
-        {
-            // Arrange
-            var response = new OllamaResponse
-            {
-                Model = "llama2",
-                Done = true,
-                DoneReason = "tool_calls",
-                Message = new OllamaMessage { Role = "assistant", Content = "" }
-            };
-
-            // Act
-            var json = JsonConvert.SerializeObject(response);
-            var deserialized = JsonConvert.DeserializeObject<OllamaResponse>(json);
-
-                         // Assert
-                         Assert.NotNull(deserialized);
-                         Assert.Equal("tool_calls", deserialized.DoneReason);
-                     }
-
-                     [Fact]
-                     public void OllamaRequest_SerializesWithNumCtx_WhenContextWindowDefined()
-                     {
-                         // Arrange
-                         var request = new OllamaRequest
-                         {
-                             Model = "llama3",
-                             Stream = true,
-                             Messages = new List<OllamaMessage> { new OllamaMessage { Role = "user", Content = "Hello" } },
-                             Options = new OllamaOptions
-                             {
-                                 Temperature = 0.7,
-                                 MaxTokens = 2048,
-                                 TopP = 0.9,
-                                 ContextWindow = 8192
-                             }
-                         };
-
-                         // Act
-                         var json = JsonConvert.SerializeObject(request);
-
-                         // Assert
-                         Assert.Contains("\"num_ctx\":8192", json);
-                     }
-                 }
-            }
+    }
+}

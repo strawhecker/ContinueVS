@@ -212,6 +212,9 @@ namespace ContinueVS.Tests.ViewModels
                 .Returns("Base ask prompt");
             mockPromptService.Setup(s => s.GetPromptForMode("reason"))
                 .Returns("Base reason prompt");
+            // Setup the marker instruction that gets appended to plan, agent, and debug modes
+            mockPromptService.Setup(s => s.GetPlanFileMarkerInstruction())
+                .Returns("\n\ngap70: When outputting plans, wrap the entire plan in a markdown code block with this filename marker as the opening fence (no space or newline between ``` and the filename):\n```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n## Sections\nContent...\n```");
 
             // Act
             var registry = new ModeConfigRegistry(mockPromptService.Object);

@@ -135,5 +135,14 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("lastModified")]
         public DateTime? LastModified { get; set; }
+
+        /// <summary>
+        /// Chat modes in which this tool is available. Used for filtering tools based on current mode.
+        /// Empty list means tool is available in all modes (backward compatibility default).
+        /// If non-empty, tool is only available in specified modes (Ask, Plan, Agent, Debug, Reason).
+        /// Not serialized to JSON - internal metadata only.
+        /// </summary>
+        [JsonIgnore]
+        public List<ChatMode> SupportedModes { get; set; } = new List<ChatMode>();
     }
 }

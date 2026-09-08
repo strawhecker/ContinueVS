@@ -22,10 +22,11 @@ namespace ContinueVS.Core.Types
             IList<ParameterDefinition> parameters,
             string returnsDescription,
             bool isEnabled = true,
-            string invokePerm = "Automatic")
+            string invokePerm = "Automatic",
+            List<ChatMode>? supportedModes = null)
         {
             LoggerService.Current.WriteDebug($"[gap8_1-factory-create] CreateToolDefinition: {name}, params={parameters.Count}, enabled={isEnabled}");
-            return new ToolDefinition
+            var tool = new ToolDefinition
             {
                 Name = name,
                 Description = description,
@@ -35,13 +36,16 @@ namespace ContinueVS.Core.Types
                 IsEnabled = isEnabled,
                 IsAsync = true,
                 ToolType = "builtin",
-                LastModified = DateTime.UtcNow
+                LastModified = DateTime.UtcNow,
+                SupportedModes = supportedModes ?? new List<ChatMode>()
             };
+            return tool;
         }
 
         /// <summary>
         /// read_file: View the contents of an existing file.
-        /// Default: Automatic
+        /// Available in: Plan (read-only), Agent, Debug, Reason
+        /// NOT available in: Ask mode (no tool calling)
         /// </summary>
         public static ToolDefinition GetReadFileTool()
         {
@@ -58,12 +62,14 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "The file contents as a string");
+                returnsDescription: "The file contents as a string",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// create_new_file: Create a new file. Only use when a file doesn't exist and should be created.
-        /// Default: Ask First
+        /// Available in: Agent, Debug, Reason
+        /// NOT available in: Plan (read-only), Ask (no tool calling)
         /// </summary>
         public static ToolDefinition GetCreateNewFileTool()
         {
@@ -87,12 +93,14 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation that the file was created successfully");
+                returnsDescription: "Confirmation that the file was created successfully",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// run_terminal_command: Run a terminal command in the current directory.
-        /// Default: Ask First
+        /// Available in: Agent, Debug, Reason
+        /// NOT available in: Plan (read-only), Ask (no tool calling)
         /// Note: Shell is powershell.exe on Windows, bash on Unix-like systems.
         /// </summary>
         public static ToolDefinition GetRunTerminalCommandTool()
@@ -118,12 +126,14 @@ namespace ContinueVS.Core.Types
                         DefaultValue = true
                     }
                 },
-                returnsDescription: "Standard output and error from the command");
+                returnsDescription: "Standard output and error from the command",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// file_glob_search: Search for files recursively in the project using glob patterns.
-        /// Default: Automatic
+        /// Available in: Plan (read-only search), Agent, Debug, Reason
+        /// NOT available in: Ask (no tool calling)
         /// </summary>
         public static ToolDefinition GetFileGlobSearchTool()
         {
@@ -140,12 +150,14 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "List of file paths matching the glob pattern");
+                returnsDescription: "List of file paths matching the glob pattern",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// view_diff: View the current diff of working changes.
-        /// Default: Automatic
+        /// Available in: Agent, Debug, Reason
+        /// NOT available in: Plan (read-only), Ask (no tool calling)
         /// </summary>
         public static ToolDefinition GetViewDiffTool()
         {
@@ -153,12 +165,14 @@ namespace ContinueVS.Core.Types
                 name: "view_diff",
                 description: "View the current diff of working changes",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The unified diff of all current changes");
+                returnsDescription: "The unified diff of all current changes",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// read_currently_open_file: Read the currently open file in the IDE.
-        /// Default: Ask First
+        /// Available in: Plan (read-only), Agent, Debug, Reason
+        /// NOT available in: Ask (no tool calling)
         /// </summary>
         public static ToolDefinition GetReadCurrentlyOpenFileTool()
         {
@@ -166,12 +180,14 @@ namespace ContinueVS.Core.Types
                 name: "read_currently_open_file",
                 description: "Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The contents of the currently open file in the IDE");
+                returnsDescription: "The contents of the currently open file in the IDE",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// ls: List files and folders in a given directory.
-        /// Default: Automatic
+        /// Available in: Plan (read-only), Agent, Debug, Reason
+        /// NOT available in: Ask (no tool calling)
         /// </summary>
         public static ToolDefinition GetListDirectoryTool()
         {
@@ -196,7 +212,8 @@ namespace ContinueVS.Core.Types
                         DefaultValue = false
                     }
                 },
-                returnsDescription: "List of file and folder names in the directory");
+                returnsDescription: "List of file and folder names in the directory",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -231,7 +248,8 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// edit_file: Edit or replace specific lines in an existing file.
-        /// Default: Ask First
+        /// Available in: Agent, Debug, Reason
+        /// NOT available in: Plan (read-only), Ask (no tool calling)
         /// </summary>
         public static ToolDefinition GetEditFileTool()
         {
@@ -262,12 +280,14 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation of the edit operation");
+                returnsDescription: "Confirmation of the edit operation",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// search_codebase: Search the codebase for text matches using regex or literal text.
-        /// Default: Automatic
+        /// Available in: Plan (read-only search), Agent, Debug, Reason
+        /// NOT available in: Ask (no tool calling)
         /// </summary>
         public static ToolDefinition GetSearchCodebaseTool()
         {
@@ -292,7 +312,8 @@ namespace ContinueVS.Core.Types
                         DefaultValue = 20
                     }
                 },
-                returnsDescription: "List of matching code snippets with file paths and line numbers");
+                returnsDescription: "List of matching code snippets with file paths and line numbers",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -314,7 +335,8 @@ namespace ContinueVS.Core.Types
                         IsRequired = false
                     }
                 },
-                returnsDescription: "Test results including passed, failed, and skipped counts");
+                returnsDescription: "Test results including passed, failed, and skipped counts",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -327,7 +349,8 @@ namespace ContinueVS.Core.Types
                 name: "get_problems",
                 description: "Get compiler errors, warnings, and IDE problems for the current project",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "List of problems with file paths, line numbers, severity, and messages");
+                returnsDescription: "List of problems with file paths, line numbers, severity, and messages",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -349,7 +372,8 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "File contents with line number prefixes");
+                returnsDescription: "File contents with line number prefixes",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -371,7 +395,8 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation that the file was opened in the IDE");
+                returnsDescription: "Confirmation that the file was opened in the IDE",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -384,7 +409,8 @@ namespace ContinueVS.Core.Types
                 name: "git_status",
                 description: "Show git status of the repository including modified files, staged changes, and untracked files",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "Git status output showing current branch and file changes");
+                returnsDescription: "Git status output showing current branch and file changes",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -421,7 +447,8 @@ namespace ContinueVS.Core.Types
                         IsRequired = false
                     }
                 },
-                returnsDescription: "Unified diff format showing additions and deletions");
+                returnsDescription: "Unified diff format showing additions and deletions",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -444,7 +471,8 @@ namespace ContinueVS.Core.Types
                         DefaultValue = 10
                     }
                 },
-                returnsDescription: "Commit history with hashes, authors, dates, and messages");
+                returnsDescription: "Commit history with hashes, authors, dates, and messages",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -466,7 +494,8 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation of the commit with commit hash");
+                returnsDescription: "Confirmation of the commit with commit hash",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -532,7 +561,8 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "The file contents for the specified line range");
+                returnsDescription: "The file contents for the specified line range",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -569,7 +599,8 @@ namespace ContinueVS.Core.Types
                         DefaultValue = "*"
                     }
                 },
-                returnsDescription: "Array of matching lines with file paths, line numbers, and matched content");
+                returnsDescription: "Array of matching lines with file paths, line numbers, and matched content",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -614,6 +645,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation of replacement with number of replacements made",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason },
                 invokePerm: "Ask First");
         }
 
