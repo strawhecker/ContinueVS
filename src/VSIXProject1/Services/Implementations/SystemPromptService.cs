@@ -194,10 +194,6 @@ namespace ContinueVS.Services.Implementations
             //    + "</macro>\n"
             //    ;
 
-            const string PLAN_FILE_INSTRUCTIONS =
-                "You are an assistant that writes code in fenced code blocks marked with language and a file path.\r\n\r\n**Normal behavior:** When the user asks you to write or modify code, output a fenced code block with the correct language and the exact path they specified (e.g., ```python src/main.py```). This is **their file** and will be treated as part of their project.\r\n\r\n**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly as the code fence marker:\r\n\r\n```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\r\n# Your Plan\r\n## Section\r\nContent...\r\n```\r\n\r\nThe marker goes directly after the three backticks with no space or newline. Inside the fenced block, include a top-level heading `# Your Plan` followed by sections using `##`. Do not add any extra text outside the fenced block.\r\n\r\n**User override:** If the user explicitly gives a custom file name for the plan (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n";
-            //  "You are an assistant that writes code in fenced code blocks marked with language and a file path.\r\n\r\n**Normal behavior:** When the user asks you to write or modify code, output a fenced code block with the correct language and the exact path they specified (e.g., ```python src/main.py```). This is **their file** and will be treated as part of their project.\r\n\r\n**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly: A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\r\nInside the fenced block, include a top-level heading `# Your Plan` followed by sections using `##`. Do not add any extra text outside the fenced block.\r\n**User override:** If the user explicitly gives a custom file name for the plan (e.g., “create a plan called `release_notes.md`”), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n";
-
             switch (mode.ToLowerInvariant())
             {
                 case "agent":
@@ -211,17 +207,34 @@ namespace ContinueVS.Services.Implementations
                            GetContextSuffix("agent");
 
                 case "plan":
-                    return "<important_rules>\n" +
-                           "You are in plan mode, in which you help the user understand and construct a plan.\n" +
-                           "Only use read-only tools. Do not use any tools that would write to non-temporary files.\n" +
-                           "If the user wants to make changes, offer that they can switch to Agent mode to give you access to write tools to make the suggested updates.\n\n" +
-                           CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
-                           BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
-                           PLAN_FILE_INSTRUCTIONS + "\n\n" +
-                           "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +
-                           "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
-                           "</important_rules>" +
+                    return "<important_rules>\r\n"
+                        + "You are in plan mode. In this mode, your entire response must be **exactly one fenced code block** using the plan sentinel filename (see exception below).  \r\n"
+                        + "Any text outside that block — before ``` or after ``` — is forbidden. No greetings, no explanations, no status messages, no recaps, no summaries. Output nothing else.\r\n\r\n"
+                        + "Only use read-only tools. Do not use any tools that would write to non-temporary files.\r\n"
+                        + "If the user wants to make changes, offer that they can switch to Agent mode.\r\n\r\n"
+                        + "**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly as the code fence marker:\r\n\r\n"
+                        + "```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\r\n"
+                        + "# Your Plan\r\n"
+                        + "## Section\r\n"
+                        + "Content...\r\n"
+                        + "```\r\n\r\n"
+                        + "The marker goes directly after the three backticks with no space or newline. Inside the fenced block, include a top-level heading `# Your Plan` followed by sections using `##`. Do not add any extra text outside the fenced block.\r\n\r\n"
+                        + "**User override:** If the user explicitly gives a custom file name for the plan (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n\r\n"
+                        + "**Hard constraint:**  \r\nIf you output even a single character (letter, number, punctuation, space) outside the fenced plan block (including newlines before or after), your output is invalid. You must self-correct and retry producing only the block.\r\n\r\n"
+                        + "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\r\n"
+                        + "</important_rules>" +
                            GetContextSuffix("plan");
+                    //return "<important_rules>\n" +
+                    //       "You are in plan mode, in which you help the user understand and construct a plan.\n" +
+                    //       "Only use read-only tools. Do not use any tools that would write to non-temporary files.\n" +
+                    //       "If the user wants to make changes, offer that they can switch to Agent mode to give you access to write tools to make the suggested updates.\n\n" +
+                    //       CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
+                    //       BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
+                    //       PLAN_FILE_INSTRUCTIONS + "\n\n" +
+                    //       "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +
+                    //       "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
+                    //       "</important_rules>" +
+                    //       GetContextSuffix("plan");
 
                 case "debug":
                     return "<important_rules>\n" +
@@ -369,6 +382,11 @@ namespace ContinueVS.Services.Implementations
         // Returns true when the StringBuilder contains at least one field element between the outer tags
         private static bool HasAnyContent(StringBuilder sb)
             => sb.ToString().Contains("  <");
+
+        public string GetPlanFileMarkerInstruction()
+        {
+            return "\n\ngap70: When outputting plans, wrap the entire plan in a markdown code block with this filename marker as the opening fence (no space or newline between ``` and the filename):\n```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n# Your Plan\n## Sections\nContent...\n```";
+        }
     }
 }
 

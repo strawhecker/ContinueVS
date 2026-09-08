@@ -18,14 +18,7 @@ namespace ContinueVS.Services.Implementations
 
         private readonly Dictionary<ChatMode, ModeConfig> _configs;
 
-        /// <summary>
-        /// Appends gap70 plan file marker instruction to a system prompt.
-        /// </summary>
-        private static string AppendPlanFileMarkerInstruction(string basePrompt)
-        {
-            const string markerInstruction = "\n\ngap70: When outputting plans, wrap the entire plan in a markdown code block with this filename marker as the opening fence (no space or newline between ``` and the filename):\n```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n# Your Plan\n## Sections\nContent...\n```";
-            return basePrompt + markerInstruction;
-        }
+
 
         /// <summary>
         /// Initializes the registry with prompts from <paramref name="systemPromptService"/>.
@@ -51,7 +44,7 @@ namespace ContinueVS.Services.Implementations
                 [ChatMode.Agent] = new ModeConfig
                 {
                     Mode = ChatMode.Agent,
-                    SystemPrompt = AppendPlanFileMarkerInstruction(systemPromptService.GetPromptForMode("agent")),
+                    SystemPrompt = systemPromptService.GetPromptForMode("agent") + systemPromptService.GetPlanFileMarkerInstruction(),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
                         "write_file",
@@ -69,7 +62,7 @@ namespace ContinueVS.Services.Implementations
                 [ChatMode.Plan] = new ModeConfig
                 {
                     Mode = ChatMode.Plan,
-                    SystemPrompt = AppendPlanFileMarkerInstruction(systemPromptService.GetPromptForMode("plan")),
+                    SystemPrompt = systemPromptService.GetPromptForMode("plan") + systemPromptService.GetPlanFileMarkerInstruction(),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
                         "plan_export"
@@ -82,7 +75,7 @@ namespace ContinueVS.Services.Implementations
                 [ChatMode.Debug] = new ModeConfig
                 {
                     Mode = ChatMode.Debug,
-                    SystemPrompt = AppendPlanFileMarkerInstruction(systemPromptService.GetPromptForMode("debug")),
+                    SystemPrompt = systemPromptService.GetPromptForMode("debug") + systemPromptService.GetPlanFileMarkerInstruction(),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
                         "write_file",

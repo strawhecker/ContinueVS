@@ -1313,6 +1313,7 @@ public string? InputText
                     var streamOptions = new StreamOptions
                     {
                         Messages = messages,
+                        SystemPrompt = systemContent,
                         AllowWriteTools = modeConfig.AllowWriteTools,
                         AllowToolLoop   = modeConfig.AllowToolLoop
                     };

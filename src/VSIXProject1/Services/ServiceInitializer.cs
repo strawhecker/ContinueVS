@@ -64,9 +64,9 @@ namespace ContinueVS.Services
                     try
                     {
                         logger?.WriteDebug("[ServiceInitializer] Initializing ISystemPromptService...");
-                        await systemPromptService.EnsureConfigFileExistsAsync();
-                        await systemPromptService.LoadAsync();
-                        logger?.WriteDebug("[ServiceInitializer] ✓ ISystemPromptService initialized successfully.");
+                        // await systemPromptService.EnsureConfigFileExistsAsync();
+                        // await systemPromptService.LoadAsync();
+                        logger?.WriteDebug("[ServiceInitializer] ✓ ISystemPromptService initialized successfully (using hardcoded defaults).");
                     }
                     catch (Exception ex)
                     {
