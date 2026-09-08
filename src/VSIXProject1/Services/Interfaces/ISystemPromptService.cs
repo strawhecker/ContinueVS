@@ -34,12 +34,5 @@ namespace ContinueVS.Services.Interfaces
         /// </summary>
         /// <returns>A task that represents the asynchronous operation.</returns>
         Task EnsureConfigFileExistsAsync();
-
-        /// <summary>
-        /// Gets the plan file marker instruction to append to plan-mode prompts.
-        /// Used to instruct the LLM to wrap plans in a markdown code block with a specific marker filename.
-        /// </summary>
-        /// <returns>The plan file marker instruction string.</returns>
-        string GetPlanFileMarkerInstruction();
     }
 }

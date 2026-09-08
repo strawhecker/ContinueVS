@@ -1315,7 +1315,8 @@ public string? InputText
                         Messages = messages,
                         SystemPrompt = systemContent,
                         AllowWriteTools = modeConfig.AllowWriteTools,
-                        AllowToolLoop   = modeConfig.AllowToolLoop
+                        AllowToolLoop   = modeConfig.AllowToolLoop,
+                        Mode = CurrentMode
                     };
 
                     // Create provisional assistant message BEFORE streaming starts
@@ -1326,6 +1327,9 @@ public string? InputText
                         Content = string.Empty,
                         ToolCalls = null
                     };
+
+                    // Optional thinking message to accumulate reasoning chunks from streaming
+                    ChatMessage? streamingThinkingMessage = null;
 
                     // Switch to main thread to update ObservableCollection
                     await SwitchToMainThreadAsync();
@@ -1342,19 +1346,47 @@ public string? InputText
                     {
                         if (chunk.Type == ChunkType.Text)
                         {
+                            // Handle reasoning content by accumulating in a thinking message
+                            if (!string.IsNullOrEmpty(chunk.Reasoning))
+                            {
+                                // Create thinking message on first reasoning chunk
+                                if (streamingThinkingMessage == null)
+                                {
+                                    streamingThinkingMessage = new ChatMessage
+                                    {
+                                        Role = ChatMessageRole.Thinking,
+                                        Content = string.Empty,
+                                        IsThinking = true,
+                                        IsExpanded = false
+                                    };
+
+                                    await SwitchToMainThreadAsync();
+                                    Messages.Add(streamingThinkingMessage);
+                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Thinking message created for reasoning accumulation");
+                                }
+
+                                // Append reasoning to thinking message
+                                streamingThinkingMessage.Content += chunk.Reasoning;
+                                var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
+                                LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning accumulated: {reasoningPreview}...");
+                            }
+
                             // Update the message content in place - this triggers PropertyChanged
                             // and the UI updates with the new content
-                            assistantMessage.Content += chunk.Content;
-                            StreamingResponse += chunk.Content;
+                            if (!string.IsNullOrEmpty(chunk.Content))
+                            {
+                                assistantMessage.Content += chunk.Content;
+                                StreamingResponse += chunk.Content;
 
-                            // gap70: Feed chunk to plan file detector for marker detection
-                            try
-                            {
-                                _planFileDetector.ProcessChunk(chunk.Content);
-                            }
-                            catch (Exception ex)
-                            {
-                                LoggerService.Current.WriteWarning($"[gap70-detect] Plan file detector error: {ex.Message}");
+                                // gap70: Feed chunk to plan file detector for marker detection
+                                try
+                                {
+                                    _planFileDetector.ProcessChunk(chunk.Content);
+                                }
+                                catch (Exception ex)
+                                {
+                                    LoggerService.Current.WriteWarning($"[gap70-detect] Plan file detector error: {ex.Message}");
+                                }
                             }
                         }
                         else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
@@ -1391,6 +1423,21 @@ public string? InputText
                         try
                         {
                             var bufferedPlanContent = _planFileDetector.GetBufferedContent();
+
+                            // Remove plan file marker and fenced content from response
+                            var markerPattern = _planFileDetector.GetMarkerPattern();
+                            if (!string.IsNullOrEmpty(markerPattern) && assistantMessage.Content.Contains(markerPattern))
+                            {
+                                // Remove the entire fenced code block with plan content from response
+                                var planBlockPattern = $@"{System.Text.RegularExpressions.Regex.Escape(markerPattern)}(.*?)```";
+                                assistantMessage.Content = System.Text.RegularExpressions.Regex.Replace(
+                                    assistantMessage.Content,
+                                    planBlockPattern,
+                                    string.Empty,
+                                    System.Text.RegularExpressions.RegexOptions.Singleline).Trim();
+
+                                LoggerService.Current.WriteDebug($"[gap70-clean] Plan file marker removed from response");
+                            }
 
                             // Route output based on mode configuration
                             if (modeConfig.ExportsPlanFile && _planOutputService != null)
@@ -1432,16 +1479,35 @@ public string? InputText
                     }
 
                     // gap68: Parse and separate thinking from response content
-                    var (thinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
-                        assistantMessage.Content, 
-                        _streamingCts.Token);
+                    // Only parse for thinking tags if we didn't already extract thinking via streaming
+                    ChatMessage? thinkingMessage = null;
 
-                    // Update assistant message content to exclude thinking (if any was extracted)
-                    if (thinkingMessage != null && !string.IsNullOrWhiteSpace(cleanedResponseContent))
+                    if (streamingThinkingMessage == null)
                     {
-                        assistantMessage.Content = cleanedResponseContent;
+                        var (parsedThinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
+                            assistantMessage.Content, 
+                            _streamingCts.Token);
+
+                        thinkingMessage = parsedThinkingMessage;
+
+                        // Update assistant message content to exclude thinking (if any was extracted)
+                        if (thinkingMessage != null && !string.IsNullOrWhiteSpace(cleanedResponseContent))
+                        {
+                            assistantMessage.Content = cleanedResponseContent;
+                            LoggerService.Current.WriteDebug(
+                                "[gap68-separate] Thinking separated from response. Response length now: " + cleanedResponseContent.Length);
+                        }
+                        else if (thinkingMessage != null && string.IsNullOrWhiteSpace(cleanedResponseContent))
+                        {
+                            // Thinking was extracted but no content remained, add the thinking message
+                            await SwitchToMainThreadAsync();
+                            Messages.Add(thinkingMessage);
+                        }
+                    }
+                    else
+                    {
                         LoggerService.Current.WriteDebug(
-                            "[gap68-separate] Thinking separated from response. Response length now: " + cleanedResponseContent.Length);
+                            "[gap68-skip-parse] Thinking already extracted via streaming; skipping post-stream parsing");
                     }
 
                     // gap43_3 / gap45_3: Persist plan output when ExportsPlanFile is true for this mode (Agent, Plan, Debug)
@@ -2102,16 +2168,47 @@ public string? InputText
                 {
                     Messages = allMessages,
                     AllowWriteTools = modeConfig.AllowWriteTools,
-                    AllowToolLoop = modeConfig.AllowToolLoop
+                    AllowToolLoop = modeConfig.AllowToolLoop,
+                    Mode = CurrentMode
                 };
 
                 // Re-invoke Ollama with full context and tool results already present
                 var continuation = new StringBuilder();
+                ChatMessage? thinkingMessage = null;
+
                 await foreach (var chunk in _llmService.StreamAsync(allMessages, continuationOptions, ct))
                 {
                     if (chunk.Type == ChunkType.Text)
                     {
-                        continuation.Append(chunk.Content ?? string.Empty);
+                        // Handle reasoning content by accumulating in a thinking message
+                        if (!string.IsNullOrEmpty(chunk.Reasoning))
+                        {
+                            // Create thinking message on first reasoning chunk
+                            if (thinkingMessage == null)
+                            {
+                                thinkingMessage = new ChatMessage
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    Role = ChatMessageRole.Thinking,
+                                    Content = string.Empty,
+                                    IsThinking = true,
+                                    IsExpanded = false
+                                };
+
+                                await _sessionService.AddMessageAsync(thinkingMessage);
+                                LoggerService.Current.WriteDebug($"[continuation] Thinking message created for reasoning accumulation");
+                            }
+
+                            // Append reasoning to thinking message
+                            thinkingMessage.Content += chunk.Reasoning;
+                            var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
+                            LoggerService.Current.WriteDebug($"[continuation] Reasoning accumulated: {reasoningPreview}...");
+                        }
+
+                        if (!string.IsNullOrEmpty(chunk.Content))
+                        {
+                            continuation.Append(chunk.Content);
+                        }
                     }
                     else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
                     {

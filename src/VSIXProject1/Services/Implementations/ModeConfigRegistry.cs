@@ -44,7 +44,7 @@ namespace ContinueVS.Services.Implementations
                 [ChatMode.Agent] = new ModeConfig
                 {
                     Mode = ChatMode.Agent,
-                    SystemPrompt = systemPromptService.GetPromptForMode("agent") + systemPromptService.GetPlanFileMarkerInstruction(),
+                    SystemPrompt = systemPromptService.GetPromptForMode("agent"),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
                         "write_file",
@@ -62,7 +62,7 @@ namespace ContinueVS.Services.Implementations
                 [ChatMode.Plan] = new ModeConfig
                 {
                     Mode = ChatMode.Plan,
-                    SystemPrompt = systemPromptService.GetPromptForMode("plan") + systemPromptService.GetPlanFileMarkerInstruction(),
+                    SystemPrompt = systemPromptService.GetPromptForMode("plan"),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
                         "plan_export"
@@ -75,7 +75,7 @@ namespace ContinueVS.Services.Implementations
                 [ChatMode.Debug] = new ModeConfig
                 {
                     Mode = ChatMode.Debug,
-                    SystemPrompt = systemPromptService.GetPromptForMode("debug") + systemPromptService.GetPlanFileMarkerInstruction(),
+                    SystemPrompt = systemPromptService.GetPromptForMode("debug"),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
                         "write_file",

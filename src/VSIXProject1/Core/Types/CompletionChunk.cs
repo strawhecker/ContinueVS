@@ -46,6 +46,15 @@ namespace ContinueVS.Core.Types
         public string? Content { get; set; }
 
         /// <summary>
+        /// Reasoning content from reasoning models (e.g., DeepSeek).
+        /// Contains model's internal reasoning/thinking during response generation.
+        /// Separate from regular content to allow distinct UI presentation.
+        /// Null if no reasoning is provided.
+        /// </summary>
+        [JsonProperty("reasoning")]
+        public string? Reasoning { get; set; }
+
+        /// <summary>
         /// Role of the message sender (typically 'assistant' for streaming responses).
         /// Optional; included for context in multi-turn conversations.
         /// </summary>

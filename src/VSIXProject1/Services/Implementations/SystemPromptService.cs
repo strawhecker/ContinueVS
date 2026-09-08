@@ -213,11 +213,13 @@ namespace ContinueVS.Services.Implementations
                         + "Only use read-only tools. Do not use any tools that would write to non-temporary files.\r\n"
                         + "If the user wants to make changes, offer that they can switch to Agent mode.\r\n\r\n"
                         + "**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly as the code fence marker:\r\n\r\n"
-                        + "```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\r\n"
+                        + "start_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
+                        + "```\r\n"
                         + "## Section\r\n"
                         + "Content...\r\n"
-                        + "```\r\n\r\n"
-                        + "The marker goes directly after the three backticks with no space or newline. Inside the fenced block, include a top-level heading sections using `##`. Do not add any extra text outside the fenced block.\r\n\r\n"
+                        + "```\r\n"
+                        + "stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
+                        + "The `start_<UUID>` line must be placed on a separate line before the fenced code block. The `stop_<UUID>` line must be placed on a separate line after the fenced code block. Inside the fenced block, include a top-level heading sections using `##`. Do not add any extra text outside the two sentinel lines and the fenced block.\r\n\r\n"
                         + "**User override:** If the user explicitly gives a custom file name for the plan (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n\r\n"
                         + "**Hard constraint:**  \r\nIf you output even a single character (letter, number, punctuation, space) outside the fenced plan block (including newlines before or after), your output is invalid. You must self-correct and retry producing only the block.\r\n\r\n"
                         + "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\r\n"
@@ -381,11 +383,6 @@ namespace ContinueVS.Services.Implementations
         // Returns true when the StringBuilder contains at least one field element between the outer tags
         private static bool HasAnyContent(StringBuilder sb)
             => sb.ToString().Contains("  <");
-
-        public string GetPlanFileMarkerInstruction()
-        {
-            return "\n\ngap70: When outputting plans, wrap the entire plan in a markdown code block with this filename marker as the opening fence (no space or newline between ``` and the filename):\n```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md\n## Sections\nContent...\n```";
-        }
     }
 }
 

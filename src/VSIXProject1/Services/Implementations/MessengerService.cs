@@ -406,13 +406,10 @@ namespace ContinueVS.Services.Implementations
 
                 // Support both "content" (OpenAI/vLLM standard) and "reasoning" (DeepSeek reasoning models)
                 var content = delta["content"]?.Value<string>();
-                if (string.IsNullOrEmpty(content))
-                {
-                    // Fallback to reasoning field for reasoning models (DeepSeek, etc.)
-                    content = delta["reasoning"]?.Value<string>();
-                }
+                var reasoning = delta["reasoning"]?.Value<string>();
 
-                if (string.IsNullOrEmpty(content))
+                // If neither content nor reasoning, skip this chunk
+                if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(reasoning))
                     return null;
 
                 var finishReason = choice["finish_reason"]?.Value<string>();
@@ -420,6 +417,7 @@ namespace ContinueVS.Services.Implementations
                 {
                     Type = ChunkType.Text,
                     Content = content,
+                    Reasoning = reasoning,
                     Role = ChatMessageRole.Assistant,
                     IsDone = finishReason == "stop",
                     Timestamp = DateTime.UtcNow

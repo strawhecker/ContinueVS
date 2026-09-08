@@ -34,6 +34,14 @@ namespace ContinueVS.Services.Utilities
         private string? _lineBuffer = string.Empty;
 
         /// <summary>
+        /// Tracks the opening and closing fence lines for plan content removal from response.
+        /// Allows cleaning up plan markers and fenced content from the displayed response.
+        /// </summary>
+        private List<(int StartLine, int EndLine)> _detectionRanges = new List<(int, int)>();
+        private int _lineCount = 0;
+        private int? _detectionStartLine = null;
+
+        /// <summary>
         /// Gets a value indicating whether the detector has detected and completed buffering a plan file.
         /// </summary>
         public bool IsComplete => _state == DetectorState.Complete;
@@ -47,6 +55,15 @@ namespace ContinueVS.Services.Utilities
                 throw new InvalidOperationException("Detector is not complete. Call IsComplete first.");
 
             return _buffer.ToString();
+        }
+
+        /// <summary>
+        /// Gets the plan file marker pattern (opening fence line with marker).
+        /// Used to cleanly remove the entire plan file block from response display.
+        /// </summary>
+        public string GetMarkerPattern()
+        {
+            return $"```{MarkerFileName}";
         }
 
         /// <summary>
@@ -113,10 +130,11 @@ namespace ContinueVS.Services.Utilities
             switch (_state)
             {
                 case DetectorState.Idle:
-                    // Look for opening fence with marker on same line (e.g., ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md)
+                    // Look for opening fence with marker on same line (e.g., .md)
                     if (trimmedLine.StartsWith("```") && line.Contains(MarkerFileName))
                     {
                         _state = DetectorState.BufferingContent;
+                        _detectionStartLine = _lineCount;
                     }
                     break;
 
@@ -126,6 +144,11 @@ namespace ContinueVS.Services.Utilities
                     {
                         // Closing fence marks end; don't include it in the buffer
                         _state = DetectorState.Complete;
+                        if (_detectionStartLine.HasValue)
+                        {
+                            _detectionRanges.Add((_detectionStartLine.Value, _lineCount));
+                            _detectionStartLine = null;
+                        }
                     }
                     else
                     {
@@ -134,6 +157,8 @@ namespace ContinueVS.Services.Utilities
                     }
                     break;
             }
+
+            _lineCount++;
         }
 
         /// <summary>
@@ -144,6 +169,9 @@ namespace ContinueVS.Services.Utilities
             _state = DetectorState.Idle;
             _buffer.Clear();
             _lineBuffer = string.Empty;
+            _detectionRanges.Clear();
+            _lineCount = 0;
+            _detectionStartLine = null;
         }
     }
 }
