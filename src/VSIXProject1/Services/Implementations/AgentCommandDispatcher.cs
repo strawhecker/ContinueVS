@@ -49,16 +49,10 @@ namespace ContinueVS.Services.Implementations
             if (string.IsNullOrWhiteSpace(commandName))
                 throw new ArgumentException("Command name cannot be null or empty.", nameof(commandName));
 
-            // Check if the current mode allows tool looping
+            // Get the mode configuration for policy-based checks
             var modeConfig = _modeConfigRegistry.GetConfig(currentMode);
-            if (!modeConfig.AllowToolLoop)
-            {
-                var errorMsg = $"Tool looping is not allowed in {currentMode} mode.";
-                _logger?.WriteDebug($"[gap58-dispatch] ✗ Dispatch blocked: {errorMsg}");
-                throw new InvalidOperationException(errorMsg);
-            }
 
-            // Validate command is authorized for this mode
+            // Validate command is authorized for this mode (checks read-only policies, etc.)
             ValidateCommandForMode(commandName, currentMode, modeConfig);
 
             var sw = Stopwatch.StartNew();
@@ -100,9 +94,8 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Validates that the command is authorized for the current mode.
-        /// Ask mode: only read-only tools are allowed (read_file, list_files, search_code).
+        /// Plan/Ask/Reason modes: only tools available in those modes are allowed (read-only tools).
         /// Agent/Debug modes: all tools are allowed.
-        /// Other modes: tool invocation is not supported.
         /// </summary>
         /// <param name="commandName">The command name to validate.</param>
         /// <param name="currentMode">The current chat mode.</param>
@@ -112,12 +105,20 @@ namespace ContinueVS.Services.Implementations
         {
             switch (currentMode)
             {
+                case ChatMode.Plan:
                 case ChatMode.Ask:
-                    // Ask mode: read-only tools only
-                    var readOnlyTools = new[] { "read_file", "list_files", "search_code" };
-                    if (!Array.Exists(readOnlyTools, t => t.Equals(commandName, StringComparison.OrdinalIgnoreCase)))
+                case ChatMode.Reason:
+                    // Plan, Ask, and Reason modes: only read-only tools (from mode-filtered set)
+                    var availableTools = _toolService.GetAvailableTools(currentMode);
+                    var availableToolNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var tool in availableTools)
                     {
-                        var errorMsg = $"Command '{commandName}' is not allowed in Ask mode. Allowed: {string.Join(", ", readOnlyTools)}";
+                        availableToolNames.Add(tool.Name);
+                    }
+
+                    if (!availableToolNames.Contains(commandName))
+                    {
+                        var errorMsg = $"Command '{commandName}' is not allowed in {currentMode} mode.";
                         _logger?.WriteDebug($"[gap58-dispatch] ✗ Validation failed: {errorMsg}");
                         throw new InvalidOperationException(errorMsg);
                     }
@@ -128,13 +129,6 @@ namespace ContinueVS.Services.Implementations
                     // Agent and Debug modes: all tools allowed (subject to tool system policy)
                     _logger?.WriteDebug($"[gap58-dispatch] ✓ Command '{commandName}' validated for {currentMode} mode");
                     break;
-
-                case ChatMode.Plan:
-                case ChatMode.Reason:
-                    // Plan and Reason modes: no tool invocation
-                    var modeErrorMsg = $"Tool invocation is not supported in {currentMode} mode.";
-                    _logger?.WriteDebug($"[gap58-dispatch] ✗ Validation failed: {modeErrorMsg}");
-                    throw new InvalidOperationException(modeErrorMsg);
 
                 default:
                     var unknownModeMsg = $"Unknown chat mode: {currentMode}";

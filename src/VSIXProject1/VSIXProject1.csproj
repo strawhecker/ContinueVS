@@ -13,6 +13,14 @@
     <GeneratePkgDefFile>true</GeneratePkgDefFile>
     <CreateVsixContainer>True</CreateVsixContainer>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectCapability Include="CreateVsixContainer" />
   </ItemGroup>

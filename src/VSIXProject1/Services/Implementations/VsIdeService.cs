@@ -85,6 +85,37 @@ namespace ContinueVS.Services.Implementations
             return Task.CompletedTask;
         }
 
+        public Task CreateFileAsync(string filepath, string contents)
+        {
+            if (string.IsNullOrWhiteSpace(filepath))
+                throw new ArgumentException("filepath must not be empty.", nameof(filepath));
+
+            // Ensure directory exists
+            var directory = Path.GetDirectoryName(filepath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            // Write file
+            File.WriteAllText(filepath, contents ?? string.Empty);
+
+            return Task.CompletedTask;
+        }
+
+        public Task CreateFolderAsync(string folderpath)
+        {
+            if (string.IsNullOrWhiteSpace(folderpath))
+                throw new ArgumentException("folderpath must not be empty.", nameof(folderpath));
+
+            if (!Directory.Exists(folderpath))
+            {
+                Directory.CreateDirectory(folderpath);
+            }
+
+            return Task.CompletedTask;
+        }
+
         // Git Operations
 
         public Task<string> GetActiveDocumentPathAsync()

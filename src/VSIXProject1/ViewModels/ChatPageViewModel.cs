@@ -68,6 +68,8 @@ namespace ContinueVS.ViewModels
         private IModeConfigRegistry _modeConfigRegistry;
         // gap59: Agent command dispatcher for policy-enforced tool execution
         private readonly IAgentCommandDispatcher _agentCommandDispatcher;
+        // gap72: MessengerService for tool call schema conversion (optional; used when present)
+        private readonly IMessengerService? _messengerService;
         private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -189,11 +191,11 @@ namespace ContinueVS.ViewModels
                 {
                     _availableModes = new ObservableCollection<ModeOption>
                     {
-                        new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "💬"),
-                        new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "🤖"),
-                        new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "📋"),
-                        new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "🔧"),
-                        new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "🧠")
+                        new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "??"),
+                        new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "??"),
+                        new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "??"),
+                        new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "??"),
+                        new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "??")
                     };
                 }
                 return _availableModes;
@@ -212,9 +214,9 @@ public ObservableCollection<PolicyOption> ContinuationPolicies
         {
             _continuationPolicies = new ObservableCollection<PolicyOption>
             {
-                new PolicyOption("Automatically continue", ContinuationPolicy.Auto, "Continue to next tool without pause", "⚡"),
-                new PolicyOption("Ask before each action", ContinuationPolicy.Interactive, "Show UI prompt before each tool execution", "❓"),
-                new PolicyOption("Defer for review", ContinuationPolicy.Deferred, "Queue execution for later review (safest)", "⏸️")
+                new PolicyOption("Automatically continue", ContinuationPolicy.Auto, "Continue to next tool without pause", "?"),
+                new PolicyOption("Ask before each action", ContinuationPolicy.Interactive, "Show UI prompt before each tool execution", "?"),
+                new PolicyOption("Defer for review", ContinuationPolicy.Deferred, "Queue execution for later review (safest)", "??")
             };
         }
         return _continuationPolicies;
@@ -407,9 +409,9 @@ public string? InputText
 
         /// <summary>
         /// Gets the icon display for the pause button (gap49 polish).
-        /// Returns "⏸" (pause icon) when not paused, "▶" (play/resume icon) when paused.
+        /// Returns "?" (pause icon) when not paused, "?" (play/resume icon) when paused.
         /// </summary>
-        public string IsPausedDisplayIcon => _isPaused ? "▶" : "⏸";
+        public string IsPausedDisplayIcon => _isPaused ? "?" : "?";
 
         /// <summary>
         /// Gets or sets whether the latest assistant response contains a file path (gap49).
@@ -486,7 +488,8 @@ public string? InputText
             IIdeService? ideService = null,
             IModeConfigRegistry? modeConfigRegistry = null,
             IPlanOutputService? planOutputService = null,
-            IAgentCommandDispatcher? agentCommandDispatcher = null)
+            IAgentCommandDispatcher? agentCommandDispatcher = null,
+            IMessengerService? messengerService = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -521,6 +524,8 @@ public string? InputText
             _modeConfigRegistry = modeConfigRegistry ?? new ModeConfigRegistry(_systemPromptService);
             // gap59: fall back to create default dispatcher if none supplied
             _agentCommandDispatcher = agentCommandDispatcher ?? new AgentCommandDispatcher(_toolService, _llmService, _modeConfigRegistry, LoggerService.Current);
+            // gap72: MessengerService for tool call schema conversion (optional; used when present)
+            _messengerService = messengerService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -963,11 +968,11 @@ public string? InputText
                     $"File created/updated: {Path.GetFileName(filePath)}",
                     NotificationType.Success);
 
-                System.Diagnostics.Debug.WriteLine($"[gap49-apply] ✓ File written successfully: {filePath}");
+                System.Diagnostics.Debug.WriteLine($"[gap49-apply] ? File written successfully: {filePath}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[gap49-apply] ✗ Error applying code change: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[gap49-apply] ? Error applying code change: {ex.Message}");
                 await _notificationService.ShowErrorAsync(
                     $"Failed to apply changes: {ex.Message}");
             }
@@ -1328,12 +1333,8 @@ public string? InputText
                         ToolCalls = null
                     };
 
-                    // Optional thinking message to accumulate reasoning chunks from streaming
-                    ChatMessage? streamingThinkingMessage = null;
-
-                    // Switch to main thread to update ObservableCollection
-                    await SwitchToMainThreadAsync();
-                    Messages.Add(assistantMessage);
+                    // Optional reasoning message to hold provider reasoning (separate from content)
+                    ChatMessage? reasoningMessage = null;
 
                     // gap70: Reset plan file detector for this stream
                     _planFileDetector.Reset();
@@ -1346,27 +1347,24 @@ public string? InputText
                     {
                         if (chunk.Type == ChunkType.Text)
                         {
-                            // Handle reasoning content by accumulating in a thinking message
+                            // Handle reasoning content by creating a separate reasoning message
                             if (!string.IsNullOrEmpty(chunk.Reasoning))
                             {
-                                // Create thinking message on first reasoning chunk
-                                if (streamingThinkingMessage == null)
+                                // Create reasoning message on first reasoning chunk
+                                if (reasoningMessage == null)
                                 {
-                                    streamingThinkingMessage = new ChatMessage
+                                    reasoningMessage = new ChatMessage
                                     {
                                         Role = ChatMessageRole.Thinking,
                                         Content = string.Empty,
                                         IsThinking = true,
                                         IsExpanded = false
                                     };
-
-                                    await SwitchToMainThreadAsync();
-                                    Messages.Add(streamingThinkingMessage);
-                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Thinking message created for reasoning accumulation");
+                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning message created for provider reasoning");
                                 }
 
-                                // Append reasoning to thinking message
-                                streamingThinkingMessage.Content += chunk.Reasoning;
+                                // Append reasoning to reasoning message
+                                reasoningMessage.Content += chunk.Reasoning;
                                 var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
                                 LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning accumulated: {reasoningPreview}...");
                             }
@@ -1389,9 +1387,28 @@ public string? InputText
                                 }
                             }
                         }
-                        else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
+                        else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCalls != null && chunk.ToolCalls.Count > 0)
                         {
-                            _pendingToolCalls.Add(chunk.ToolCall);
+                            // gap72: Convert provider schemas to canonical ToolCall objects
+                            // Iterate through batch tool calls from streaming response
+                            foreach (var toolCallSchema in chunk.ToolCalls)
+                            {
+                                ToolCall toolCall;
+                                if (_messengerService != null)
+                                {
+                                    // Use MessengerService converter if available
+                                    toolCall = _messengerService.ConvertToolCallSchemaToToolCall(toolCallSchema);
+                                }
+                                else
+                                {
+                                    // Fallback: manual conversion if MessengerService not injected
+                                    toolCall = ConvertToolCallSchemaManually(toolCallSchema);
+                                }
+
+                                _pendingToolCalls.Add(toolCall);
+                                LoggerService.Current.WriteDebug(
+                                    $"[gap72-toolcall] Queued tool: {toolCall.Name} (id={toolCall.Id})");
+                            }
                         }
                     }
 
@@ -1424,19 +1441,21 @@ public string? InputText
                         {
                             var bufferedPlanContent = _planFileDetector.GetBufferedContent();
 
-                            // Remove plan file marker and fenced content from response
-                            var markerPattern = _planFileDetector.GetMarkerPattern();
-                            if (!string.IsNullOrEmpty(markerPattern) && assistantMessage.Content.Contains(markerPattern))
+                            // Remove plan file marker and content from response  
+                            var markerStart = _planFileDetector.GetMarkerStart();
+                            var markerStop = _planFileDetector.GetMarkerStop();
+                            if (!string.IsNullOrEmpty(markerStart) && !string.IsNullOrEmpty(markerStop) && 
+                                assistantMessage.Content.Contains(markerStart) && assistantMessage.Content.Contains(markerStop))
                             {
-                                // Remove the entire fenced code block with plan content from response
-                                var planBlockPattern = $@"{System.Text.RegularExpressions.Regex.Escape(markerPattern)}(.*?)```";
+                                // Remove the entire plan block from response using start_/stop_ markers
+                                var regexStart = System.Text.RegularExpressions.Regex.Escape(markerStart); var regexStop = System.Text.RegularExpressions.Regex.Escape(markerStop); var planBlockPattern = regexStart + @"\r?\n(.*?)\r?\n" + regexStop;
                                 assistantMessage.Content = System.Text.RegularExpressions.Regex.Replace(
                                     assistantMessage.Content,
                                     planBlockPattern,
                                     string.Empty,
                                     System.Text.RegularExpressions.RegexOptions.Singleline).Trim();
 
-                                LoggerService.Current.WriteDebug($"[gap70-clean] Plan file marker removed from response");
+                                LoggerService.Current.WriteDebug($"[gap70-clean] Plan file marker block removed from response");
                             }
 
                             // Route output based on mode configuration
@@ -1456,7 +1475,7 @@ public string? InputText
                                 var feedbackMessage = new ChatMessage
                                 {
                                     Role = ChatMessageRole.System,
-                                    Content = $"✓ Plan saved to {savedPath}"
+                                    Content = $"? Plan saved to {savedPath}"
                                 };
                                 await _sessionService.AddMessageAsync(feedbackMessage);
                             }
@@ -1479,10 +1498,10 @@ public string? InputText
                     }
 
                     // gap68: Parse and separate thinking from response content
-                    // Only parse for thinking tags if we didn't already extract thinking via streaming
+                    // Only parse for thinking tags if we didn't already extract reasoning via streaming
                     ChatMessage? thinkingMessage = null;
 
-                    if (streamingThinkingMessage == null)
+                    if (reasoningMessage == null)
                     {
                         var (parsedThinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
                             assistantMessage.Content, 
@@ -1507,7 +1526,7 @@ public string? InputText
                     else
                     {
                         LoggerService.Current.WriteDebug(
-                            "[gap68-skip-parse] Thinking already extracted via streaming; skipping post-stream parsing");
+                            "[gap68-skip-parse] Reasoning already extracted via streaming; skipping post-stream parsing");
                     }
 
                     // gap43_3 / gap45_3: Persist plan output when ExportsPlanFile is true for this mode (Agent, Plan, Debug)
@@ -1520,10 +1539,26 @@ public string? InputText
                     await _sessionService.AddMessageAsync(assistantMessage);
                     LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
-                    // gap68: Add thinking message if it was parsed and visible per settings
-                    if (thinkingMessage != null)
+                    // Add all messages to UI in the correct order: thinking, reasoning, content
+                    // This ensures the UI displays sections in the user's preferred order
+                    await SwitchToMainThreadAsync();
+
+                    if (thinkingMessage != null && !string.IsNullOrEmpty(thinkingMessage.Content))
                     {
-                        await AddThinkingMessageIfVisibleAsync(thinkingMessage);
+                        Messages.Add(thinkingMessage);
+                        LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
+                    }
+
+                    if (reasoningMessage != null && !string.IsNullOrEmpty(reasoningMessage.Content))
+                    {
+                        Messages.Add(reasoningMessage);
+                        LoggerService.Current.WriteDebug($"[UI-ordering] Reasoning message added to UI");
+                    }
+
+                    if (!string.IsNullOrEmpty(assistantMessage.Content))
+                    {
+                        Messages.Add(assistantMessage);
+                        LoggerService.Current.WriteDebug($"[UI-ordering] Assistant message added to UI");
                     }
 
                     // gap23_4_4: Check tool call limit and show banners
@@ -1648,6 +1683,42 @@ public string? InputText
         }
 
         /// <summary>
+        /// Fallback manual conversion of ToolCallSchema to ToolCall when MessengerService is unavailable.
+        /// gap72: Provides provider-agnostic schema conversion without dependency on MessengerService.
+        /// </summary>
+        private ToolCall ConvertToolCallSchemaManually(ToolCallSchema schema)
+        {
+            var toolCall = new ToolCall
+            {
+                Id = schema.Id,
+                Name = schema.Function?.Name ?? "unknown"
+            };
+
+            // Parse Arguments from JSON string to IDictionary<string, object>
+            if (schema.Function?.Arguments != null && !string.IsNullOrEmpty(schema.Function.Arguments))
+            {
+                try
+                {
+                    var parsed = JsonConvert.DeserializeObject<IDictionary<string, object>>(
+                        schema.Function.Arguments);
+                    toolCall.Arguments = parsed;
+                }
+                catch (JsonException argEx)
+                {
+                    LoggerService.Current.WriteWarning(
+                        $"[gap72-fallback-convert] Failed to parse arguments for tool '{toolCall.Name}': {argEx.Message}");
+                    toolCall.Arguments = new Dictionary<string, object>();
+                }
+            }
+            else
+            {
+                toolCall.Arguments = new Dictionary<string, object>();
+            }
+
+            return toolCall;
+        }
+
+        /// <summary>
         /// Executes pending tool calls and creates Tool role messages with results.
         /// Gap23_3: Returns the number of failures in this batch for error accumulation.
         /// Tracks cumulative failures for loop termination logic (2+ failures = stop).
@@ -1686,6 +1757,7 @@ public string? InputText
                     {
                         Role = ChatMessageRole.Tool,
                         Content = toolResult.Output,
+                        ToolCallId = toolCall.Id,
                         InvocationStatus = toolResult.IsSuccess ? ToolInvocationStatus.Complete : ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -1715,6 +1787,7 @@ public string? InputText
                     {
                         Role = ChatMessageRole.Tool,
                         Content = $"[Policy Denied] Tool '{toolCall.Name}' cannot be executed: {ex.Message}",
+                        ToolCallId = toolCall.Id,
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -1733,6 +1806,7 @@ public string? InputText
                     {
                         Role = ChatMessageRole.Tool,
                         Content = $"Tool '{toolCall.Name}' execution was cancelled",
+                        ToolCallId = toolCall.Id,
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -1752,6 +1826,7 @@ public string? InputText
                     {
                         Role = ChatMessageRole.Tool,
                         Content = $"Tool '{toolCall.Name}' failed: {ex.Message}",
+                        ToolCallId = toolCall.Id,
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2210,10 +2285,24 @@ public string? InputText
                             continuation.Append(chunk.Content);
                         }
                     }
-                    else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
+                    else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCalls != null && chunk.ToolCalls.Count > 0)
                     {
-                        // This case is for individual tool calls during streaming
-                        // (if llmService yields them this way)
+                        // gap72: Handle batch tool calls in continuation path
+                        // (if secondary streaming yields tool calls this way)
+                        foreach (var toolCallSchema in chunk.ToolCalls)
+                        {
+                            ToolCall toolCall;
+                            if (_messengerService != null)
+                            {
+                                toolCall = _messengerService.ConvertToolCallSchemaToToolCall(toolCallSchema);
+                            }
+                            else
+                            {
+                                toolCall = ConvertToolCallSchemaManually(toolCallSchema);
+                            }
+                            LoggerService.Current.WriteDebug(
+                                $"[gap72-continuation-toolcall] Queued tool: {toolCall.Name} (id={toolCall.Id})");
+                        }
                     }
 
                     if (chunk.IsDone)
@@ -2519,3 +2608,4 @@ public string? InputText
         }
     }
 }
+

@@ -230,6 +230,11 @@ namespace ContinueVS.Services.Implementations
                 "write_file" => await WriteFileInternalAsync(
                     GetArgString(args, "filepath"),
                     GetArgString(args, "contents")),
+                "create_new_file" => await CreateNewFileInternalAsync(
+                    GetArgString(args, "filepath"),
+                    GetArgString(args, "contents")),
+                "create_folder" => await CreateFolderInternalAsync(
+                    GetArgString(args, "folderpath")),
                 "search_codebase" => await SearchCodebaseInternalAsync(
                     GetArgString(args, "query"),
                     GetArgInt(args, "maxResults", 10)),
@@ -443,6 +448,48 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 return CreateErrorResult("write_file", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for create new file as ToolResult.
+        /// </summary>
+        private async Task<ToolResult> CreateNewFileInternalAsync(string filepath, string contents)
+        {
+            try
+            {
+                await _ideService.CreateFileAsync(filepath, contents);
+                return new ToolResult
+                {
+                    ToolName = "create_new_file",
+                    Output = $"File created: {filepath}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("create_new_file", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for create folder as ToolResult.
+        /// </summary>
+        private async Task<ToolResult> CreateFolderInternalAsync(string folderpath)
+        {
+            try
+            {
+                await _ideService.CreateFolderAsync(folderpath);
+                return new ToolResult
+                {
+                    ToolName = "create_folder",
+                    Output = $"Folder created: {folderpath}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("create_folder", ex.Message);
             }
         }
 

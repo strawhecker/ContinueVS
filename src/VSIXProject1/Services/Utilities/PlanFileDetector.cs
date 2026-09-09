@@ -13,9 +13,10 @@ namespace ContinueVS.Services.Utilities
     {
         /// <summary>
         /// The hardcoded marker filename that signals plan file output.
-        /// Used as the opening fence identifier: ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
+        /// Used as the opening fence identifier: start_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n```A485254C_7481_47BB_A8CF_45B8DEED2DD8
         /// </summary>
-        private const string MarkerFileName = "A485254C_7481_47BB_A8CF_45B8DEED2DD8.md";
+        private const string MarkerFileNameStart = "start_A485254C_7481_47BB_A8CF_45B8DEED2DD8";
+        private const string MarkerFileNameStop = "stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8";
 
         private enum DetectorState
         {
@@ -58,12 +59,21 @@ namespace ContinueVS.Services.Utilities
         }
 
         /// <summary>
-        /// Gets the plan file marker pattern (opening fence line with marker).
-        /// Used to cleanly remove the entire plan file block from response display.
+        /// Gets the plan file marker start pattern.
+        /// Used to identify where plan file blocks begin.
         /// </summary>
-        public string GetMarkerPattern()
+        public string GetMarkerStart()
         {
-            return $"```{MarkerFileName}";
+            return MarkerFileNameStart;
+        }
+
+        /// <summary>
+        /// Gets the plan file marker stop pattern.
+        /// Used to identify where plan file blocks end.
+        /// </summary>
+        public string GetMarkerStop()
+        {
+            return MarkerFileNameStop;
         }
 
         /// <summary>
@@ -115,10 +125,10 @@ namespace ContinueVS.Services.Utilities
         /// <summary>
         /// Processes a single complete line of text.
         /// Supports the format (marker directly on same line as opening fence):
-        /// ```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
+        /// start_A485254C_7481_47BB_A8CF_45B8DEED2DD8
         /// ## Sections
         /// Content...
-        /// ```
+        /// stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8
         /// </summary>
         private void ProcessLine(string? line)
         {
@@ -131,7 +141,7 @@ namespace ContinueVS.Services.Utilities
             {
                 case DetectorState.Idle:
                     // Look for opening fence with marker on same line (e.g., .md)
-                    if (trimmedLine.StartsWith("```") && line.Contains(MarkerFileName))
+                    if (trimmedLine.StartsWith(MarkerFileNameStart))
                     {
                         _state = DetectorState.BufferingContent;
                         _detectionStartLine = _lineCount;
@@ -140,7 +150,7 @@ namespace ContinueVS.Services.Utilities
 
                 case DetectorState.BufferingContent:
                     // Check for closing fence (line only contains 3+ backticks, nothing else important)
-                    if (trimmedLine.StartsWith("```") && !line.Contains(MarkerFileName))
+                    if (trimmedLine.StartsWith(MarkerFileNameStop))
                     {
                         // Closing fence marks end; don't include it in the buffer
                         _state = DetectorState.Complete;

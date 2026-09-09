@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using ContinueVS.Core.Types;
 
 namespace ContinueVS.Services.Interfaces
 {
@@ -57,5 +58,14 @@ namespace ContinueVS.Services.Interfaces
             string messageType,
             TRequest data,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Converts provider-specific ToolCallSchema to canonical internal ToolCall.
+        /// gap72: Enables provider-agnostic tool call handling for multiple LLM backends.
+        /// Handles JSON argument parsing and gracefully handles malformed input.
+        /// </summary>
+        /// <param name="schema">Provider-specific tool call schema (from OpenAI/DeepSeek/vLLM)</param>
+        /// <returns>Canonical internal ToolCall with parsed arguments dictionary</returns>
+        ToolCall ConvertToolCallSchemaToToolCall(ToolCallSchema schema);
     }
 }

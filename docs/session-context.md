@@ -7923,6 +7923,155 @@ Tools were not being filtered by ChatMode before serialization into LLM requests
 
 ---
 
+### gap72: Tool Call Streaming from DeepSeek/vLLM not Propagated to Execution
+
+**Status:** 🔧 IN PROGRESS | Type: Provider Integration Bug | Blocking: Tool Execution in Agent/Plan/Debug Modes | Related: gap59, gap71
+
+**Problem (Root Cause Analysis):**
+
+When DeepSeek/vLLM send tool calls in streaming responses, they are received but never executed. Investigation revealed a multi-layer issue:
+
+1. **Provider JSON Format**: DeepSeek/vLLM send tool_calls as an array in the delta:
+   ```json
+   {"delta": {"content": null, "tool_calls": [{"id":"call_xyz", "type":"function", "function":{"name":"read_file", "arguments":"{...}"}}]}}
+   ```
+
+2. **ParseOpenAiChunk() Extraction Gap (FIXED)**: 
+   - Original code only checked for `content` and `reasoning` fields
+   - Tool calls in delta were silently dropped (test: DeepSeek stream showed `ToolCallsCount=0`)
+   - Fix: Added extraction of `tool_calls` array into `CompletionChunk.ToolCalls` property
+   - Now properly deserializes `List<ToolCallSchema>` from provider JSON
+
+3. **Type Mismatch Bug (ACTIVE)**: 
+   - `ParseOpenAiChunk()` stores tool calls in `chunk.ToolCalls` (plural, List<ToolCallSchema>)
+   - Streaming loop checks `chunk.ToolCall` (singular, ToolCall object)
+   - Properties don't match → tool calls never added to `_pendingToolCalls`
+   - Result: `_pendingToolCalls.Count=0` at execution check, loop breaks with "No tools or not in Agent mode"
+
+4. **Type System Gap**: 
+   - `ToolCallSchema` = Provider-specific format (OpenAI/DeepSeek/vLLM JSON structure)
+   - `ToolCall` = ContinueVS canonical internal format with parsed Arguments dict
+   - No conversion layer exists between provider format and internal format
+
+**Solution Plan (To Be Implemented):**
+
+**Step 1: Remove Singular Property**
+- Delete `chunk.ToolCall` from `CompletionChunk`
+- Use only `chunk.ToolCalls` (List<ToolCallSchema>)
+- **Rationale**: Polyglot provider support (Ollama, OpenAI, DeepSeek, llama.cpp variants) all send tool_calls as arrays, not singles
+
+**Step 2: Add Conversion Method in MessengerService**
+- Create `ConvertToolCallSchemaToToolCall(ToolCallSchema schema)` private method
+- **Conversion logic**:
+  - Extract `Id` from schema
+  - Map `schema.Function.Name` → `toolCall.Name`
+  - Parse `schema.Function.Arguments` (JSON string) → `IDictionary<string, object>`
+  - Handle JSON parsing errors gracefully (log warning, return empty dict, continue)
+- **Rationale**: Single source of conversion logic, provider-agnostic
+
+**Step 3: Update Streaming Loop (ChatPageViewModel Lines 1385-1388)**
+- **Current code**:
+  ```csharp
+  else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCall != null)
+  {
+      _pendingToolCalls.Add(chunk.ToolCall);
+  }
+  ```
+- **Fixed code**:
+  ```csharp
+  else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCalls != null && chunk.ToolCalls.Count > 0)
+  {
+      foreach (var toolCallSchema in chunk.ToolCalls)
+      {
+          var toolCall = ConvertToolCallSchemaToToolCall(toolCallSchema);
+          _pendingToolCalls.Add(toolCall);
+          LoggerService.Current.WriteDebug(
+              $"[gap72-toolcall] Converted and queued tool: {toolCall.Name} (id={toolCall.Id})");
+      }
+  }
+  ```
+- **Rationale**: Handles batch tool calls from providers; each tool is independently converted and added
+
+**Step 4: Ensure Chunk Type Categorization**
+- When `chunk.ToolCalls` is populated (non-null, count > 0), set `chunk.Type = ChunkType.ToolCall`
+- Current code in `ParseOpenAiChunk()` already does this (line 447)
+
+**Files to Modify:**
+- `src/VSIXProject1/Core/Types/CompletionChunk.cs` - Remove `ToolCall` property
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs` - Add conversion method (private), update ParseOpenAiChunk logging
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` - Update streaming loop (lines 1385-1388) + add using for conversion
+
+**Tests Required:**
+- Unit: `ConvertToolCallSchemaToToolCall_WithValidSchema_ReturnsToolCall()` - Valid conversion
+- Unit: `ConvertToolCallSchemaToToolCall_WithMalformedArguments_LogsWarningAndReturnsEmptyDict()` - Error handling
+- Unit: `ConvertToolCallSchemaToToolCall_WithMultipleArguments_ParsesCorrectly()` - Argument parsing
+- Integration: `StreamAsync_WithDeepSeekToolCalls_QueuesPendingToolCalls()` - End-to-end stream → execution
+- Integration: `StreamAsync_WithBatchToolCalls_AllToolsQueued()` - Batch handling
+- Regression: `ExecuteToolCallsAsync_StillWorks_AfterConversion()` - No existing functionality broken
+
+**Expected Outcome:**
+- DeepSeek/vLLM tool calls appear in `_pendingToolCalls` after streaming
+- `[a9-command-toolcheck]` shows `_pendingToolCalls.Count > 0`
+- Tools execute in Agent/Plan/Debug modes (gated by AllowToolLoop policy)
+- Tool result messages are added to chat with proper `ToolCallId` correlation
+
+**Backward Compatibility:**
+- Compiler error on any existing `chunk.ToolCall` access (none currently in codebase except the bug)
+- Ollama tool calls (if sent as single ToolCall instead of array) will break - but Ollama currently doesn't send tool_calls in streaming
+- vLLM and OpenAI-compatible APIs all send tool_calls as arrays, so this is forward-compatible
+
+**Architectural Value:**
+- Single conversion function serves all provider variants
+- Decouples provider JSON format from internal representation
+- Foundation for future parallel tool execution (when UI message placeholders are ready per gap73)
+
+___
+
+## Mode × Tool Availability Matrix
+
+### Read-Only Tools (Available in ALL modes, user settings override)
+- read_file, read_file_range
+- ls, file_glob_search
+- search_code, grep_search
+- view_diff, git_status, git_diff, git_log
+- get_problems, view_file
+- grep_search
+
+### Write Tools (Agent + Debug only, user settings override)
+- edit_file, write_file, create_new_file
+- run_terminal_command
+- git_checkout, git_commit, git_push (if enabled by user)
+
+### Debug-Only Tools (Debug mode only) — TBD
+**Status:** Planned | Type: Debugger Integration  
+**Blocking:** None yet (debug-only tools not yet required)
+
+**Planned Tools (Implementation deferred):**
+- `debugger_breakpoint_set`: Set breakpoint at file:line
+- `debugger_breakpoint_clear`: Clear breakpoint at file:line
+- `debugger_breakpoint_list`: List all breakpoints
+- `debugger_pause`: Pause execution at current breakpoint
+- `debugger_continue`: Resume execution
+- `debugger_step`: Step over next statement
+- `debugger_step_in`: Step into function call
+- `debugger_step_out`: Step out of current function
+- `debugger_locals`: Inspect local variables in current frame
+- `debugger_stack_trace`: Get full call stack
+- `debugger_watch_add`: Add variable to watch list
+- `debugger_watch_remove`: Remove variable from watch list
+
+**Implementation Notes:**
+- All tools have `supportedModes: [ChatMode.Debug]` (NOT available in Agent mode)
+- Will be wired in `src/VSIXProject1/Core/Types/BuiltInTools.cs` when debugger integration is implemented
+- Requires `IDebuggerService` implementation (currently stubbed in VsIdeService.cs)
+- Debug-only tools do NOT appear in Agent mode tool list (filtered by ToolService.GetAvailableTools)
+- User settings can disable individual debugger tools (e.g., disable "write to debugger" tools for safety)
+
+**Discovery Gap:** gap_debugger_integration (future phase)
+
+---
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
@@ -7972,30 +8121,6 @@ Tools were not being filtered by ChatMode before serialization into LLM requests
 - **Theme Caching:** AGENTS.md lines 226-280 (setDocumentStylesFromTheme, cache functions)
 - **Settings Migration:** AGENTS.md lines 66-90 (Redux-persist createMigrate)
 - **Font Size Sync:** AGENTS.md lines 16-63 (LocalStorageProvider)
-
----
-
-## REMEDIATION PRIORITY ORDER (User Goals)
-
-| Priority | Gap # | Goal | Blocking | 
-|----------|-------|------|-----------| 
-| 1 | gap1 | Ollama predefined config | gap2, gap3, gap4 all |
-| 2 | gap2 | Fix DataContext binding | gap3, gap5, gap6 all |
-| 3 | gap3 | Load models in ConfigPage | gap7 depends |
-| 4 | gap4 | MessengerService HTTP streaming | gap5 depends |
-| 5 | gap5 | Chat message flow (ILlmService â†’ UI) | gap6 depends |
-| 6 | gap6 | Chat message display rendering | user test |
-| 7 | gap7 | Navigation tabs visible | gap8, gap9, gap10 depend |
-| 8 | gap8 | Ask mode UI + mode selector | user test |
-| 9 | gap9 | Agent mode (tool calling) | user test |
-| 10 | gap10 | Plan mode | less critical |
-| 11 | gap11 | Tools count badge in nav | user verification |
-| 12 | gap12 | Dark theme applied | appearance only |
-| 13 | gap13 | Config round-trip end-to-end | verification |
-| 14 | gap14 | Cloud model setup UI | OpenAI support |
-| 15 | gap15 | Subscription service | defer |
-| 16 | gap16 | Scroll bar for long messages | high priority |
-| 17 | gap17 | Delete message functionality | high priority |
 
 ---
 

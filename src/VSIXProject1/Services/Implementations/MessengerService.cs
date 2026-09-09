@@ -250,6 +250,17 @@ namespace ContinueVS.Services.Implementations
             if (options.TopP.HasValue)
                 requestObj["top_p"] = options.TopP.Value;
 
+            // Populate tools filtered by current ChatMode (gap71)
+            var availableTools = _toolService.GetAvailableTools(options.Mode);
+            _logger?.WriteDebug($"[gap71-messenger-openai-tools] Mode={options.Mode}, filtering tools: {availableTools.Count()} available");
+
+            if (availableTools.Any())
+            {
+                var toolSchemas = ConvertToolDefinitionsToSchema(availableTools);
+                requestObj["tools"] = toolSchemas;
+                _logger?.WriteDebug($"[gap71-messenger-openai-tools] Populated request.tools with {toolSchemas.Count} schemas for mode {options.Mode}");
+            }
+
             LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Building request - Model: {modelId}, Stream: true, Temperature: {options.Temperature}");
 
             // Dump context before sending if debug flag is enabled
@@ -408,18 +419,38 @@ namespace ContinueVS.Services.Implementations
                 var content = delta["content"]?.Value<string>();
                 var reasoning = delta["reasoning"]?.Value<string>();
 
-                // If neither content nor reasoning, skip this chunk
-                if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(reasoning))
+                // Extract tool_calls from delta if present (gap70: tool streaming)
+                List<ToolCallSchema>? toolCalls = null;
+                var toolCallsArray = delta["tool_calls"] as JArray;
+                if (toolCallsArray != null && toolCallsArray.Count > 0)
+                {
+                    try
+                    {
+                        toolCalls = toolCallsArray.ToObject<List<ToolCallSchema>>();
+                        LoggerService.Current.WriteDebug(
+                            $"[ParseOpenAiChunk] Extracted tool_calls: {toolCalls?.Count ?? 0} calls");
+                    }
+                    catch (Exception toolEx)
+                    {
+                        LoggerService.Current.WriteWarning(
+                            $"[ParseOpenAiChunk] Failed to deserialize tool_calls: {toolEx.Message}");
+                    }
+                }
+
+                // If neither content nor reasoning nor tool_calls, skip this chunk
+                if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(reasoning) && (toolCalls == null || toolCalls.Count == 0))
                     return null;
 
                 var finishReason = choice["finish_reason"]?.Value<string>();
                 var chunk = new CompletionChunk
                 {
-                    Type = ChunkType.Text,
+                    Type = toolCalls != null && toolCalls.Count > 0 ? ChunkType.ToolCall : ChunkType.Text,
                     Content = content,
                     Reasoning = reasoning,
+                    ToolCalls = toolCalls,
                     Role = ChatMessageRole.Assistant,
                     IsDone = finishReason == "stop",
+                    DoneReason = finishReason,
                     Timestamp = DateTime.UtcNow
                 };
 
@@ -430,6 +461,46 @@ namespace ContinueVS.Services.Implementations
                 LoggerService.Current.WriteDebug($"[ParseOpenAiChunk] Error extracting content: {parseEx.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Converts provider-specific ToolCallSchema to canonical internal ToolCall.
+        /// Handles JSON argument parsing and gracefully handles malformed input.
+        /// Public method to support streaming loop conversion in ChatPageViewModel.
+        /// </summary>
+        /// <param name="schema">Provider-specific tool call schema (from OpenAI/DeepSeek/vLLM)</param>
+        /// <returns>Canonical internal ToolCall with parsed arguments dictionary</returns>
+        public ToolCall ConvertToolCallSchemaToToolCall(ToolCallSchema schema)
+        {
+            var toolCall = new ToolCall
+            {
+                Id = schema.Id,
+                Name = schema.Function?.Name ?? "unknown"
+            };
+
+            // Parse Arguments from JSON string to IDictionary<string, object>
+            if (schema.Function?.Arguments != null && !string.IsNullOrEmpty(schema.Function.Arguments))
+            {
+                try
+                {
+                    var parsed = JsonConvert.DeserializeObject<IDictionary<string, object>>(
+                        schema.Function.Arguments);
+                    toolCall.Arguments = parsed;
+                }
+                catch (JsonException argEx)
+                {
+                    LoggerService.Current.WriteWarning(
+                        $"[gap72-convert] Failed to parse arguments for tool '{toolCall.Name}': {argEx.Message}. " +
+                        $"Raw arguments: {schema.Function.Arguments}");
+                    toolCall.Arguments = new Dictionary<string, object>();
+                }
+            }
+            else
+            {
+                toolCall.Arguments = new Dictionary<string, object>();
+            }
+
+            return toolCall;
         }
 
         /// <summary>
@@ -453,14 +524,23 @@ namespace ContinueVS.Services.Implementations
                         ChatMessageRole.User => "user",
                         ChatMessageRole.Assistant => "assistant",
                         ChatMessageRole.System => "system",
+                        ChatMessageRole.Tool => "tool",
                         _ => "user"
                     };
 
-                    ollamaMessages.Add(new OllamaMessage
+                    var ollamaMsg = new OllamaMessage
                     {
                         Role = role,
                         Content = msg.Content ?? string.Empty
-                    });
+                    };
+
+                    // For tool role messages, include the tool_call_id that correlates to the original tool call
+                    if (msg.Role == ChatMessageRole.Tool && !string.IsNullOrEmpty(msg.ToolCallId))
+                    {
+                        ollamaMsg.ToolCallId = msg.ToolCallId;
+                    }
+
+                    ollamaMessages.Add(ollamaMsg);
                 }
             }
 

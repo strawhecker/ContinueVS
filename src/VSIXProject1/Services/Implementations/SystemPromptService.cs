@@ -176,7 +176,7 @@ namespace ContinueVS.Services.Implementations
 
             const string BRIEF_LAZY_INSTRUCTIONS =
                 "NEVER skip, omit or elide content from a file listing using \"...\" or by adding comments like \"... rest of code...\"!";
-                //"For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'";
+            //"For larger codeblocks (>20 lines), use brief language-appropriate placeholders for unmodified sections, e.g. '// ... existing code ...'";
 
             //const string ECHO_RULES =
             //    ""
@@ -194,6 +194,8 @@ namespace ContinueVS.Services.Implementations
             //    + "</macro>\n"
             //    ;
 
+            const string READ_FILE_INSTRUCTIONS = "Only read files with from and to params. for a file you know the length, you may request up to all lines with from and to. for a file you do not know the number of lines, you must not request more the 1000 lines.";
+
             switch (mode.ToLowerInvariant())
             {
                 case "agent":
@@ -202,6 +204,7 @@ namespace ContinueVS.Services.Implementations
                            "If you need to use multiple tools, you can call multiple read-only tools simultaneously.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
+                           READ_FILE_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
                            "</important_rules>" +
                            GetContextSuffix("agent");
@@ -214,15 +217,14 @@ namespace ContinueVS.Services.Implementations
                         + "If the user wants to make changes, offer that they can switch to Agent mode.\r\n\r\n"
                         + "**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly as the code fence marker:\r\n\r\n"
                         + "start_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
-                        + "```\r\n"
                         + "## Section\r\n"
                         + "Content...\r\n"
-                        + "```\r\n"
                         + "stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
-                        + "The `start_<UUID>` line must be placed on a separate line before the fenced code block. The `stop_<UUID>` line must be placed on a separate line after the fenced code block. Inside the fenced block, include a top-level heading sections using `##`. Do not add any extra text outside the two sentinel lines and the fenced block.\r\n\r\n"
+                        + "The `start_<UUID>` line must be placed on a separate line plan content. The `stop_<UUID>` line must be placed on a separate line after the plan content. Inside plan content, include a top-level heading sections using `##`. Do not add any extra text outside the two sentinel lines.\r\n\r\n"
                         + "**User override:** If the user explicitly gives a custom file name for the plan (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n\r\n"
                         + "**Hard constraint:**  \r\nIf you output even a single character (letter, number, punctuation, space) outside the fenced plan block (including newlines before or after), your output is invalid. You must self-correct and retry producing only the block.\r\n\r\n"
                         + "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\r\n"
+                        + READ_FILE_INSTRUCTIONS + "\n\n"
                         + "</important_rules>" +
                            GetContextSuffix("plan");
                     //return "<important_rules>\n" +
@@ -244,6 +246,7 @@ namespace ContinueVS.Services.Implementations
                            "You operate as in agent mode so all tools are available. prompt user for changes, on accept, make the changes.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
+                           READ_FILE_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("debug");
 
@@ -255,6 +258,7 @@ namespace ContinueVS.Services.Implementations
                            "Only use read-only tools. If the user wants changes implemented, suggest switching to Agent mode.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
+                           READ_FILE_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("reason");
 
@@ -264,6 +268,7 @@ namespace ContinueVS.Services.Implementations
                            "If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.\n" +
                            "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
+                           READ_FILE_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("ask");
                     //EDIT_CODE_INSTRUCTIONS + "\n" +

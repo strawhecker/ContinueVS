@@ -14,6 +14,7 @@ using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Tests.Infrastructure;
 using ContinueVS.ViewModels;
+using Newtonsoft.Json;
 
 namespace ContinueVS.Tests.Integration
 {
@@ -157,16 +158,16 @@ namespace ContinueVS.Tests.Integration
             // Mock first LLM response: assistant message with tool call
             var toolCall = new ToolCall
             {
-                Id = "call_1",
-                Name = "read_file",
-                Arguments = new Dictionary<string, object> { { "path", "/test.txt" } }
-            };
+                    Id = "call_1",
+                    Name = "read_file",
+                    Arguments = new Dictionary<string, object> { { "path", "/test.txt" } }
+                };
 
-            var firstChunks = new List<CompletionChunk>
-            {
-                new CompletionChunk { Type = ChunkType.Text, Content = "I'll read that file" },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCall = toolCall }
-            };
+                var firstChunks = new List<CompletionChunk>
+                {
+                    new CompletionChunk { Type = ChunkType.Text, Content = "I'll read that file" },
+                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } } }
+                };
 
             // Create async enumerable for first LLM response
             _mockLlmService.Setup(x => x.StreamAsync(
@@ -247,15 +248,15 @@ namespace ContinueVS.Tests.Integration
             var toolCall = new ToolCall
             {
                 Id = "call_1",
-                Name = "read_file",
-                Arguments = new Dictionary<string, object> { { "path", "/nonexistent.txt" } }
-            };
+                    Name = "read_file",
+                    Arguments = new Dictionary<string, object> { { "path", "/nonexistent.txt" } }
+                };
 
-            var chunks = new List<CompletionChunk>
-            {
-                new CompletionChunk { Type = ChunkType.Text, Content = "I'll try to read that file" },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCall = toolCall }
-            };
+                var chunks = new List<CompletionChunk>
+                {
+                    new CompletionChunk { Type = ChunkType.Text, Content = "I'll try to read that file" },
+                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } } }
+                };
 
             _mockLlmService.Setup(x => x.StreamAsync(
                 It.IsAny<IEnumerable<ChatMessage>>(),
@@ -322,9 +323,9 @@ namespace ContinueVS.Tests.Integration
             var chunks = new List<CompletionChunk>
             {
                 new CompletionChunk { Type = ChunkType.Text, Content = "I'll analyze the code" },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCall = toolCall1 },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCall = toolCall2 },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCall = toolCall3 }
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall1.Id, Function = new ToolCallFunction { Name = toolCall1.Name, Arguments = JsonConvert.SerializeObject(toolCall1.Arguments) } } } },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall2.Id, Function = new ToolCallFunction { Name = toolCall2.Name, Arguments = JsonConvert.SerializeObject(toolCall2.Arguments) } } } },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall3.Id, Function = new ToolCallFunction { Name = toolCall3.Name, Arguments = JsonConvert.SerializeObject(toolCall3.Arguments) } } } }
             };
 
             int callCount = 0;

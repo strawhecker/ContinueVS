@@ -346,6 +346,23 @@
         }
       ],
       "returnsDescription": "Confirmation that the snippet was created"
+    },
+    {
+      "name": "create_folder",
+      "description": "Create a new directory/folder. Only use this when a directory doesn't exist and should be created",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "parameters": [
+        {
+          "name": "folderpath",
+          "type": "string",
+          "description": "The path where the new folder should be created. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI",
+          "isRequired": true
+        }
+      ],
+      "returnsDescription": "Confirmation that the folder was created successfully"
     }
   ]
 }

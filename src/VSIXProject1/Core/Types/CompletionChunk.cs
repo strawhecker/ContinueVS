@@ -62,14 +62,6 @@ namespace ContinueVS.Core.Types
         public ChatMessageRole? Role { get; set; }
 
         /// <summary>
-        /// Tool call data (for Type=ToolCall chunks).
-        /// Contains the tool name, id, and arguments.
-        /// Null for non-tool chunk types.
-        /// </summary>
-        [JsonProperty("toolCall")]
-        public ToolCall? ToolCall { get; set; }
-
-        /// <summary>
         /// List of tool calls accumulated from the response.
         /// Present when the LLM invokes multiple tools or when streaming completes with tool calls.
         /// Null if no tool calls are present.

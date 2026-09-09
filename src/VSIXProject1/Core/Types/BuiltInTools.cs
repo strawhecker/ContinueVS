@@ -44,8 +44,7 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// read_file: View the contents of an existing file.
-        /// Available in: Plan (read-only), Agent, Debug, Reason
-        /// NOT available in: Ask mode (no tool calling)
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only)
         /// </summary>
         public static ToolDefinition GetReadFileTool()
         {
@@ -63,13 +62,13 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "The file contents as a string",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// create_new_file: Create a new file. Only use when a file doesn't exist and should be created.
-        /// Available in: Agent, Debug, Reason
-        /// NOT available in: Plan (read-only), Ask (no tool calling)
+        /// Available in: Agent, Debug
+        /// NOT available in: Plan (read-only), Ask (read-only), Reason (read-only analysis)
         /// </summary>
         public static ToolDefinition GetCreateNewFileTool()
         {
@@ -94,13 +93,37 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation that the file was created successfully",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// create_folder: Create a new directory/folder. Only use when a folder doesn't exist and should be created.
+        /// Available in: Agent, Debug
+        /// NOT available in: Plan (read-only), Ask (read-only), Reason (read-only analysis)
+        /// </summary>
+        public static ToolDefinition GetCreateFolderTool()
+        {
+            return CreateToolDefinition(
+                name: "create_folder",
+                description: "Create a new directory/folder. Only use this when a folder doesn't exist and should be created",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "folderpath",
+                        Type = "string",
+                        Description = "The path where the new folder should be created. Can be a relative path (from workspace root), absolute path, tilde path (~/...), or file:// URI",
+                        IsRequired = true
+                    }
+                },
+                returnsDescription: "Confirmation that the folder was created successfully",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
         }
 
         /// <summary>
         /// run_terminal_command: Run a terminal command in the current directory.
-        /// Available in: Agent, Debug, Reason
-        /// NOT available in: Plan (read-only), Ask (no tool calling)
+        /// Available in: Agent, Debug
+        /// NOT available in: Plan (read-only), Ask (read-only), Reason (read-only analysis)
         /// Note: Shell is powershell.exe on Windows, bash on Unix-like systems.
         /// </summary>
         public static ToolDefinition GetRunTerminalCommandTool()
@@ -127,13 +150,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Standard output and error from the command",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
         }
 
         /// <summary>
         /// file_glob_search: Search for files recursively in the project using glob patterns.
-        /// Available in: Plan (read-only search), Agent, Debug, Reason
-        /// NOT available in: Ask (no tool calling)
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only search)
         /// </summary>
         public static ToolDefinition GetFileGlobSearchTool()
         {
@@ -151,13 +173,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "List of file paths matching the glob pattern",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// view_diff: View the current diff of working changes.
-        /// Available in: Agent, Debug, Reason
-        /// NOT available in: Plan (read-only), Ask (no tool calling)
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only)
         /// </summary>
         public static ToolDefinition GetViewDiffTool()
         {
@@ -166,13 +187,12 @@ namespace ContinueVS.Core.Types
                 description: "View the current diff of working changes",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "The unified diff of all current changes",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// read_currently_open_file: Read the currently open file in the IDE.
-        /// Available in: Plan (read-only), Agent, Debug, Reason
-        /// NOT available in: Ask (no tool calling)
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only)
         /// </summary>
         public static ToolDefinition GetReadCurrentlyOpenFileTool()
         {
@@ -181,13 +201,12 @@ namespace ContinueVS.Core.Types
                 description: "Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "The contents of the currently open file in the IDE",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// ls: List files and folders in a given directory.
-        /// Available in: Plan (read-only), Agent, Debug, Reason
-        /// NOT available in: Ask (no tool calling)
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only)
         /// </summary>
         public static ToolDefinition GetListDirectoryTool()
         {
@@ -213,7 +232,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "List of file and folder names in the directory",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
@@ -248,8 +267,8 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// edit_file: Edit or replace specific lines in an existing file.
-        /// Available in: Agent, Debug, Reason
-        /// NOT available in: Plan (read-only), Ask (no tool calling)
+        /// Available in: Agent, Debug
+        /// NOT available in: Plan (read-only), Ask (read-only), Reason (read-only analysis)
         /// </summary>
         public static ToolDefinition GetEditFileTool()
         {
@@ -281,13 +300,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation of the edit operation",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
         }
 
         /// <summary>
         /// search_codebase: Search the codebase for text matches using regex or literal text.
-        /// Available in: Plan (read-only search), Agent, Debug, Reason
-        /// NOT available in: Ask (no tool calling)
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only search)
         /// </summary>
         public static ToolDefinition GetSearchCodebaseTool()
         {
@@ -313,11 +331,13 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "List of matching code snippets with file paths and line numbers",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// run_pytest: Run pytest test suite.
+        /// Available in: Agent, Debug
+        /// NOT available in: Plan (read-only), Ask (read-only), Reason (read-only analysis)
         /// Default: Ask First
         /// </summary>
         public static ToolDefinition GetRunPytestTool()
@@ -336,12 +356,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Test results including passed, failed, and skipped counts",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
         }
 
         /// <summary>
         /// get_problems: Get compiler errors, warnings, and IDE problems.
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only diagnostics)
         /// </summary>
         public static ToolDefinition GetGetProblemsTool()
         {
@@ -350,12 +370,12 @@ namespace ContinueVS.Core.Types
                 description: "Get compiler errors, warnings, and IDE problems for the current project",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "List of problems with file paths, line numbers, severity, and messages",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// view_file: View a file with line numbers for easier reference.
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only)
         /// </summary>
         public static ToolDefinition GetViewFileTool()
         {
@@ -373,12 +393,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "File contents with line number prefixes",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// open_file: Open a file in the IDE editor.
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only inspection)
         /// </summary>
         public static ToolDefinition GetOpenFileTool()
         {
@@ -396,12 +416,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation that the file was opened in the IDE",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// git_status: Show git status of the repository.
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only VCS)
         /// </summary>
         public static ToolDefinition GetGitStatusTool()
         {
@@ -410,12 +430,12 @@ namespace ContinueVS.Core.Types
                 description: "Show git status of the repository including modified files, staged changes, and untracked files",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "Git status output showing current branch and file changes",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// git_diff: Show git diff of changes.
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only VCS)
         /// </summary>
         public static ToolDefinition GetGitDiffTool()
         {
@@ -448,12 +468,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Unified diff format showing additions and deletions",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// git_log: Show git commit history.
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only VCS history)
         /// </summary>
         public static ToolDefinition GetGitLogTool()
         {
@@ -472,11 +492,13 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Commit history with hashes, authors, dates, and messages",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// git_commit: Create a git commit with the given message.
+        /// Available in: Agent, Debug
+        /// NOT available in: Plan (read-only), Ask (read-only), Reason (read-only analysis)
         /// Default: Ask First
         /// </summary>
         public static ToolDefinition GetGitCommitTool()
@@ -495,7 +517,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation of the commit with commit hash",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
         }
 
         /// <summary>
@@ -530,7 +552,7 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// read_file_range: Read a specific line range from a file (not the entire file).
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only)
         /// </summary>
         public static ToolDefinition GetReadFileRangeTool()
         {
@@ -562,12 +584,12 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "The file contents for the specified line range",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// grep_search: Pattern search within files using regex.
-        /// Default: Automatic
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - read-only search)
         /// </summary>
         public static ToolDefinition GetGrepSearchTool()
         {
@@ -600,11 +622,13 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Array of matching lines with file paths, line numbers, and matched content",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
         /// <summary>
         /// single_find_and_replace: Regex find-replace in one file.
+        /// Available in: Agent, Debug
+        /// NOT available in: Plan (read-only), Ask (read-only), Reason (read-only analysis)
         /// Default: Ask First
         /// </summary>
         public static ToolDefinition GetSingleFindAndReplaceTool()
@@ -645,7 +669,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation of replacement with number of replacements made",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug, ChatMode.Reason },
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug },
                 invokePerm: "Ask First");
         }
 
@@ -660,6 +684,7 @@ namespace ContinueVS.Core.Types
             {
                 GetReadFileTool(),
                 GetCreateNewFileTool(),
+                GetCreateFolderTool(),
                 GetRunTerminalCommandTool(),
                 GetFileGlobSearchTool(),
                 GetViewDiffTool(),

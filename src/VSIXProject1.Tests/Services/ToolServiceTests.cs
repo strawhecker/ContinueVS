@@ -199,7 +199,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public void GetAvailableTools_WithAskMode_ReturnsNoEnabledTools()
+        public void GetAvailableTools_WithAskMode_ReturnsReadOnlyTools()
         {
             var ideServiceMock = CreateMockIdeService();
             var configServiceMock = CreateMockConfigService();
@@ -207,9 +207,15 @@ namespace ContinueVS.Tests.Services
 
             var tools = service.GetAvailableTools(ChatMode.Ask).ToList();
 
-            // Ask mode should not have enabled tools (only disabled ones)
+            // Ask mode should have all read-only tools for context inspection
             var enabledTools = tools.Where(t => t.IsEnabled).ToList();
-            Assert.Empty(enabledTools);
+            Assert.NotEmpty(enabledTools);
+            // Should include read-only tools: read_file, file_glob_search, search_codebase, grep_search, etc.
+            var readOnlyToolNames = new[] { "read_file", "file_glob_search", "search_codebase", "grep_search", "git_status", "git_diff", "git_log" };
+            foreach (var toolName in readOnlyToolNames)
+            {
+                Assert.NotNull(enabledTools.FirstOrDefault(t => t.Name == toolName));
+            }
         }
 
         [Fact]
@@ -270,7 +276,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public void GetAvailableTools_WithReasonMode_ReturnsAllWriteTools()
+        public void GetAvailableTools_WithReasonMode_ReturnsOnlyReadOnlyTools()
         {
             var ideServiceMock = CreateMockIdeService();
             var configServiceMock = CreateMockConfigService();
@@ -280,10 +286,10 @@ namespace ContinueVS.Tests.Services
 
             Assert.NotEmpty(tools);
             var toolNames = tools.Select(t => t.Name).ToList();
-            // Verify Reason mode includes both read and write tools
+            // Verify Reason mode includes only read-only tools, not write tools
             Assert.Contains("read_file", toolNames);
-            Assert.Contains("create_new_file", toolNames);
-            Assert.Contains("edit_file", toolNames);
+            Assert.DoesNotContain("create_new_file", toolNames);
+            Assert.DoesNotContain("edit_file", toolNames);
         }
 
         [Fact]

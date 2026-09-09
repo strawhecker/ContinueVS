@@ -50,7 +50,7 @@ namespace ContinueVS.Core.Types
     public class OllamaMessage
     {
         /// <summary>
-        /// Role of the message sender: "system", "user", or "assistant".
+        /// Role of the message sender: "system", "user", "assistant", or "tool".
         /// </summary>
         [JsonProperty("role")]
         public string? Role { get; set; }
@@ -68,6 +68,14 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("tool_calls")]
         public List<ToolCallSchema>? ToolCalls { get; set; }
+
+        /// <summary>
+        /// Unique identifier linking this tool result message back to the original ToolCall.
+        /// Only present in tool role messages (role="tool").
+        /// Required by OpenAI-compatible APIs to correlate tool results with their invocations.
+        /// </summary>
+        [JsonProperty("tool_call_id")]
+        public string? ToolCallId { get; set; }
     }
 
     /// <summary>

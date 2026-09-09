@@ -172,6 +172,21 @@ namespace ContinueVS.Services.Interfaces
         /// <returns>A task representing the asynchronous operation.</returns>
         Task DeleteFileAsync(string filepath);
 
+        /// <summary>
+        /// Creates a new file with the specified contents.
+        /// </summary>
+        /// <param name="filepath">The path where the file should be created.</param>
+        /// <param name="contents">The contents to write to the file.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task CreateFileAsync(string filepath, string contents);
+
+        /// <summary>
+        /// Creates a new directory/folder.
+        /// </summary>
+        /// <param name="folderpath">The path where the folder should be created.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task CreateFolderAsync(string folderpath);
+
         // Git Operations
         /// <summary>
         /// Gets the full path of the currently active document in the editor, or "none".

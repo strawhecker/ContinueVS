@@ -16,26 +16,55 @@ namespace VSIXProject1.Tests.Services
     /// Tests cover: mode policy enforcement, tool routing, error handling, and audit logging.
     /// </summary>
     public class AgentCommandDispatcherTests
-    {
-        private Mock<IToolService> CreateToolServiceMock()
-        {
-            return new Mock<IToolService>();
-        }
+       {
+           private Mock<IToolService> CreateToolServiceMock()
+           {
+               return new Mock<IToolService>();
+           }
 
-        private Mock<ILlmService> CreateLlmServiceMock()
-        {
-            return new Mock<ILlmService>();
-        }
+           private Mock<ILlmService> CreateLlmServiceMock()
+           {
+               return new Mock<ILlmService>();
+           }
 
-        private Mock<IModeConfigRegistry> CreateModeConfigRegistryMock()
-        {
-            return new Mock<IModeConfigRegistry>();
-        }
+           private Mock<IModeConfigRegistry> CreateModeConfigRegistryMock()
+           {
+               return new Mock<IModeConfigRegistry>();
+           }
 
-        private Mock<IBridgeLogger> CreateLoggerMock()
-        {
-            return new Mock<IBridgeLogger>();
-        }
+           private Mock<IBridgeLogger> CreateLoggerMock()
+           {
+               return new Mock<IBridgeLogger>();
+           }
+
+           /// <summary>
+           /// Helper method to set up mock tool service with mode-filtered tools for authorization checks.
+           /// Returns read-only tools for Plan/Ask/Reason modes, all tools for Agent/Debug modes.
+           /// </summary>
+           private void SetupToolServiceMockForMode(Mock<IToolService> mockToolService, ChatMode mode)
+           {
+               var readOnlyTools = new List<ToolDefinition>
+               {
+                   new ToolDefinition { Name = "read_file", Description = "Read a file" },
+                   new ToolDefinition { Name = "list_files", Description = "List files" },
+                   new ToolDefinition { Name = "search_code", Description = "Search code" },
+                   new ToolDefinition { Name = "ls", Description = "List directory" }
+               };
+
+               var allTools = new List<ToolDefinition>(readOnlyTools)
+               {
+                   new ToolDefinition { Name = "write_file", Description = "Write a file" },
+                   new ToolDefinition { Name = "edit_file", Description = "Edit a file" }
+               };
+
+               var availableTools = (mode == ChatMode.Plan || mode == ChatMode.Ask || mode == ChatMode.Reason)
+                   ? readOnlyTools
+                   : allTools;
+
+               mockToolService
+                   .Setup(t => t.GetAvailableTools(mode))
+                   .Returns(availableTools);
+           }
 
         // ====================================================================
         // TEST 1: DispatchAgentCommand_RoutesToToolService_ForReadFileInAgentMode
@@ -49,6 +78,8 @@ namespace VSIXProject1.Tests.Services
             var mockLlmService = CreateLlmServiceMock();
             var mockRegistry = CreateModeConfigRegistryMock();
             var mockLogger = CreateLoggerMock();
+
+            SetupToolServiceMockForMode(mockToolService, ChatMode.Agent);
 
             var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
 
@@ -104,6 +135,8 @@ namespace VSIXProject1.Tests.Services
             var mockRegistry = CreateModeConfigRegistryMock();
             var mockLogger = CreateLoggerMock();
 
+            SetupToolServiceMockForMode(mockToolService, ChatMode.Ask);
+
             var mockLogger_Setup = mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
 
             var askModeConfig = new ModeConfig
@@ -124,6 +157,254 @@ namespace VSIXProject1.Tests.Services
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(
                 () => dispatcher.DispatchAgentCommandAsync("write_file", args, ChatMode.Ask));
+
+            mockToolService.Verify(t => t.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        // ====================================================================
+        // TEST 2b: DispatchAgentCommand_AllowsReadOnlyTools_InPlanMode
+        // ====================================================================
+
+        [Fact]
+        public async Task DispatchAgentCommand_AllowsReadOnlyTools_InPlanMode()
+        {
+            // Arrange
+            var mockToolService = CreateToolServiceMock();
+            var mockLlmService = CreateLlmServiceMock();
+            var mockRegistry = CreateModeConfigRegistryMock();
+            var mockLogger = CreateLoggerMock();
+
+            SetupToolServiceMockForMode(mockToolService, ChatMode.Plan);
+
+            mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
+
+            var planModeConfig = new ModeConfig
+            {
+                Mode = ChatMode.Plan,
+                SystemPrompt = "You are planning mode.",
+                AllowToolLoop = false,
+                AllowWriteTools = false
+            };
+
+            mockRegistry.Setup(r => r.GetConfig(ChatMode.Plan)).Returns(planModeConfig);
+
+            var expectedResult = new ToolResult
+            {
+                ToolName = "read_file",
+                IsSuccess = true,
+                Output = "file contents"
+            };
+
+            mockToolService.Setup(t => t.InvokeAsync(
+                "read_file",
+                It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(expectedResult);
+
+            var dispatcher = new AgentCommandDispatcher(mockToolService.Object, mockLlmService.Object,
+                mockRegistry.Object, mockLogger.Object);
+
+            var args = new Dictionary<string, object> { { "filepath", "test.txt" } };
+
+            // Act - read_file should be allowed in Plan mode
+            var result = await dispatcher.DispatchAgentCommandAsync("read_file", args, ChatMode.Plan);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.True(result.IsSuccess);
+            Assert.Equal("read_file", result.ToolName);
+            mockToolService.Verify(t => t.InvokeAsync("read_file", It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        // ====================================================================
+        // TEST 2c: DispatchAgentCommand_ThrowsInvalidOperation_ForWriteFileInPlanMode
+        // ====================================================================
+
+        [Fact]
+        public async Task DispatchAgentCommand_ThrowsInvalidOperation_ForWriteFileInPlanMode()
+        {
+            // Arrange
+            var mockToolService = CreateToolServiceMock();
+            var mockLlmService = CreateLlmServiceMock();
+            var mockRegistry = CreateModeConfigRegistryMock();
+            var mockLogger = CreateLoggerMock();
+
+            SetupToolServiceMockForMode(mockToolService, ChatMode.Plan);
+
+            mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
+
+            var planModeConfig = new ModeConfig
+            {
+                Mode = ChatMode.Plan,
+                SystemPrompt = "You are planning mode.",
+                AllowToolLoop = false,
+                AllowWriteTools = false
+            };
+
+            mockRegistry.Setup(r => r.GetConfig(ChatMode.Plan)).Returns(planModeConfig);
+
+            var dispatcher = new AgentCommandDispatcher(mockToolService.Object, mockLlmService.Object,
+                mockRegistry.Object, mockLogger.Object);
+
+            var args = new Dictionary<string, object> { { "filepath", "test.txt" }, { "contents", "new content" } };
+
+            // Act & Assert - write tools should not be allowed in Plan mode
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dispatcher.DispatchAgentCommandAsync("write_file", args, ChatMode.Plan));
+
+            mockToolService.Verify(t => t.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        // ====================================================================
+        // TEST 2c-bis: DispatchAgentCommand_AllowsListDirectoryTool_InPlanMode
+        // ====================================================================
+
+        [Fact]
+        public async Task DispatchAgentCommand_AllowsListDirectoryTool_InPlanMode()
+        {
+            // Arrange
+            var mockToolService = CreateToolServiceMock();
+            var mockLlmService = CreateLlmServiceMock();
+            var mockRegistry = CreateModeConfigRegistryMock();
+            var mockLogger = CreateLoggerMock();
+
+            SetupToolServiceMockForMode(mockToolService, ChatMode.Plan);
+
+            mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
+
+            var planModeConfig = new ModeConfig
+            {
+                Mode = ChatMode.Plan,
+                SystemPrompt = "You are planning mode.",
+                AllowToolLoop = false,
+                AllowWriteTools = false
+            };
+
+            mockRegistry.Setup(r => r.GetConfig(ChatMode.Plan)).Returns(planModeConfig);
+
+            var expectedResult = new ToolResult
+            {
+                ToolName = "ls",
+                IsSuccess = true,
+                Output = "file1.txt\nfile2.txt"
+            };
+
+            mockToolService.Setup(t => t.InvokeAsync(
+                "ls",
+                It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(expectedResult);
+
+            var dispatcher = new AgentCommandDispatcher(mockToolService.Object, mockLlmService.Object,
+                mockRegistry.Object, mockLogger.Object);
+
+            var args = new Dictionary<string, object> { { "path", "/test" } };
+
+            // Act - ls should be allowed in Plan mode as it's a read-only tool
+            var result = await dispatcher.DispatchAgentCommandAsync("ls", args, ChatMode.Plan);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.True(result.IsSuccess);
+            Assert.Equal("ls", result.ToolName);
+            mockToolService.Verify(t => t.InvokeAsync("ls", It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        // ====================================================================
+        // TEST 2d: DispatchAgentCommand_AllowsReadOnlyTools_InReasonMode
+        // ====================================================================
+
+        [Fact]
+        public async Task DispatchAgentCommand_AllowsReadOnlyTools_InReasonMode()
+        {
+            // Arrange
+            var mockToolService = CreateToolServiceMock();
+            var mockLlmService = CreateLlmServiceMock();
+            var mockRegistry = CreateModeConfigRegistryMock();
+            var mockLogger = CreateLoggerMock();
+
+            SetupToolServiceMockForMode(mockToolService, ChatMode.Reason);
+
+            mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
+
+            var reasonModeConfig = new ModeConfig
+            {
+                Mode = ChatMode.Reason,
+                SystemPrompt = "You are in reasoning mode.",
+                AllowToolLoop = false,
+                AllowWriteTools = false
+            };
+
+            mockRegistry.Setup(r => r.GetConfig(ChatMode.Reason)).Returns(reasonModeConfig);
+
+            var expectedResult = new ToolResult
+            {
+                ToolName = "read_file",
+                IsSuccess = true,
+                Output = "file contents"
+            };
+
+            mockToolService.Setup(t => t.InvokeAsync(
+                "read_file",
+                It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(expectedResult);
+
+            var dispatcher = new AgentCommandDispatcher(mockToolService.Object, mockLlmService.Object,
+                mockRegistry.Object, mockLogger.Object);
+
+            var args = new Dictionary<string, object> { { "filepath", "test.txt" } };
+
+            // Act - read_file should be allowed in Reason mode
+            var result = await dispatcher.DispatchAgentCommandAsync("read_file", args, ChatMode.Reason);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.True(result.IsSuccess);
+            Assert.Equal("read_file", result.ToolName);
+            mockToolService.Verify(t => t.InvokeAsync("read_file", It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        // ====================================================================
+        // TEST 2e: DispatchAgentCommand_ThrowsInvalidOperation_ForWriteFileInReasonMode
+        // ====================================================================
+
+        [Fact]
+        public async Task DispatchAgentCommand_ThrowsInvalidOperation_ForWriteFileInReasonMode()
+        {
+            // Arrange
+            var mockToolService = CreateToolServiceMock();
+            var mockLlmService = CreateLlmServiceMock();
+            var mockRegistry = CreateModeConfigRegistryMock();
+            var mockLogger = CreateLoggerMock();
+
+            SetupToolServiceMockForMode(mockToolService, ChatMode.Reason);
+
+            mockLogger.Setup(l => l.WriteDebug(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, object>>()));
+
+            var reasonModeConfig = new ModeConfig
+            {
+                Mode = ChatMode.Reason,
+                SystemPrompt = "You are in reasoning mode.",
+                AllowToolLoop = false,
+                AllowWriteTools = false
+            };
+
+            mockRegistry.Setup(r => r.GetConfig(ChatMode.Reason)).Returns(reasonModeConfig);
+
+            var dispatcher = new AgentCommandDispatcher(mockToolService.Object, mockLlmService.Object,
+                mockRegistry.Object, mockLogger.Object);
+
+            var args = new Dictionary<string, object> { { "filepath", "test.txt" }, { "contents", "new content" } };
+
+            // Act & Assert - write tools should not be allowed in Reason mode
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dispatcher.DispatchAgentCommandAsync("write_file", args, ChatMode.Reason));
 
             mockToolService.Verify(t => t.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(),
                 It.IsAny<CancellationToken>()), Times.Never);

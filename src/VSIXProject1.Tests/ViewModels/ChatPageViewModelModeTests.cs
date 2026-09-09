@@ -164,7 +164,7 @@ namespace ContinueVS.Tests.ViewModels
         [Theory]
         [InlineData(ChatMode.Ask,    false, false)]
         [InlineData(ChatMode.Agent,  true,  true)]
-        [InlineData(ChatMode.Plan,   false, false)]
+        [InlineData(ChatMode.Plan,   true,  true)]
         [InlineData(ChatMode.Debug,  true,  true)]
         [InlineData(ChatMode.Reason, false, false)]
         public void ModeConfig_ToolLoopAndWriteTools_CorrectPerMode(

@@ -65,10 +65,12 @@ namespace ContinueVS.Services.Implementations
                     SystemPrompt = systemPromptService.GetPromptForMode("plan"),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
+                        "write_file",
+                        "tool_loop",
                         "plan_export"
                     },
-                    AllowWriteTools = false,
-                    AllowToolLoop  = false,
+                    AllowWriteTools = true,
+                    AllowToolLoop  = true,
                     RequiresDebuggerContext = false,
                     ExportsPlanFile = true
                 },

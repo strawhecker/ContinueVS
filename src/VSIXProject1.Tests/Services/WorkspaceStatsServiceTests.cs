@@ -31,6 +31,8 @@ namespace ContinueVS.Services.Tests
 
             public Task<string> ReadFileAsync(string filepath) => Task.FromResult(string.Empty);
             public Task WriteFileAsync(string filepath, string contents) => Task.CompletedTask;
+            public Task CreateFileAsync(string filepath, string contents) => Task.CompletedTask;
+            public Task CreateFolderAsync(string folderpath) => Task.CompletedTask;
             public Task<string> ReadRangeInFileAsync(string filepath, int startLine, int endLine) => Task.FromResult(string.Empty);
             public Task SaveFileAsync(string filepath) => Task.CompletedTask;
             public Task DeleteFileAsync(string filepath) => Task.CompletedTask;
