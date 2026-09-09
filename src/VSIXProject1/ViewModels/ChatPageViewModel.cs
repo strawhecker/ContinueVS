@@ -184,23 +184,23 @@ namespace ContinueVS.ViewModels
         /// Gets the available chat mode options for the mode dropdown (gap27_1).
         /// </summary>
         public ObservableCollection<ModeOption> AvailableModes
-        {
-            get
             {
-                if (_availableModes == null)
+                get
                 {
-                    _availableModes = new ObservableCollection<ModeOption>
+                    if (_availableModes == null)
                     {
-                        new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "??"),
-                        new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "??"),
-                        new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "??"),
-                        new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "??"),
-                        new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "??")
-                    };
+                        _availableModes = new ObservableCollection<ModeOption>
+                        {
+                            new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "\U0001F4AC"),
+                            new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "\U0001F916"),
+                            new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "\U0001F4CB"),
+                            new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "\U0001F527"),
+                            new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "\U0001F9E0")
+                        };
+                    }
+                    return _availableModes;
                 }
-                return _availableModes;
-            }
-}
+        }
 
 /// <summary>
 /// Gets the available continuation policy options for the policy dropdown (gap27_12).
