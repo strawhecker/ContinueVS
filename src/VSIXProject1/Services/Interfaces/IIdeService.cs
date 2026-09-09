@@ -187,6 +187,14 @@ namespace ContinueVS.Services.Interfaces
         /// <returns>A task representing the asynchronous operation.</returns>
         Task CreateFolderAsync(string folderpath);
 
+        /// <summary>
+        /// Lists files and folders in a directory.
+        /// </summary>
+        /// <param name="dirPath">The directory path to list.</param>
+        /// <param name="recursive">If true, lists contents recursively.</param>
+        /// <returns>An enumerable of file and folder paths.</returns>
+        Task<IEnumerable<string>> ListDirectoryAsync(string dirPath, bool recursive = false);
+
         // Git Operations
         /// <summary>
         /// Gets the full path of the currently active document in the editor, or "none".

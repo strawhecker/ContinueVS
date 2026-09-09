@@ -21,7 +21,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public void GetConfig_AskMode_ReturnsNoWriteNoLoop()
+        public void GetConfig_AskMode_ReturnsNoWrite()
         {
             // Arrange
             var registry = CreateRegistry();
@@ -32,13 +32,12 @@ namespace ContinueVS.Tests.Services
             // Assert
             Assert.Equal(ChatMode.Ask, cfg.Mode);
             Assert.False(cfg.AllowWriteTools);
-            Assert.False(cfg.AllowToolLoop);
             Assert.False(cfg.RequiresDebuggerContext);
             Assert.False(cfg.ExportsPlanFile);
         }
 
         [Fact]
-        public void GetConfig_AgentMode_AllowsToolLoopWriteToolsAndPhaseExecution()
+        public void GetConfig_AgentMode_AllowsToolsAndPhaseExecution()
         {
             // Arrange
             var registry = CreateRegistry();
@@ -49,7 +48,6 @@ namespace ContinueVS.Tests.Services
             // Assert
             Assert.Equal(ChatMode.Agent, cfg.Mode);
             Assert.True(cfg.AllowWriteTools);
-            Assert.True(cfg.AllowToolLoop);
             Assert.True(cfg.AllowPhaseExecution);
             Assert.False(cfg.RequiresDebuggerContext);
             Assert.True(cfg.ExportsPlanFile);
@@ -67,13 +65,12 @@ namespace ContinueVS.Tests.Services
             // Assert
             Assert.Equal(ChatMode.Plan, cfg.Mode);
             Assert.False(cfg.AllowWriteTools);
-            Assert.False(cfg.AllowToolLoop);
             Assert.False(cfg.RequiresDebuggerContext);
             Assert.True(cfg.ExportsPlanFile);
         }
 
         [Fact]
-        public void GetConfig_DebugMode_AllowsToolLoopWriteToolsPhaseExecutionAndDebuggerContext()
+        public void GetConfig_DebugMode_AllowsToolsPhaseExecutionAndDebuggerContext()
         {
             // Arrange
             var registry = CreateRegistry();
@@ -84,14 +81,13 @@ namespace ContinueVS.Tests.Services
             // Assert
             Assert.Equal(ChatMode.Debug, cfg.Mode);
             Assert.True(cfg.AllowWriteTools);
-            Assert.True(cfg.AllowToolLoop);
             Assert.True(cfg.AllowPhaseExecution);
             Assert.True(cfg.RequiresDebuggerContext);
             Assert.True(cfg.ExportsPlanFile);
         }
 
         [Fact]
-        public void GetConfig_ReasonMode_NoWriteNoLoop()
+        public void GetConfig_ReasonMode_NoWrite()
         {
             // Arrange
             var registry = CreateRegistry();
@@ -102,7 +98,6 @@ namespace ContinueVS.Tests.Services
             // Assert
             Assert.Equal(ChatMode.Reason, cfg.Mode);
             Assert.False(cfg.AllowWriteTools);
-            Assert.False(cfg.AllowToolLoop);
             Assert.False(cfg.RequiresDebuggerContext);
             Assert.False(cfg.ExportsPlanFile);
         }

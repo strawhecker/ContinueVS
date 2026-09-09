@@ -126,12 +126,6 @@ namespace ContinueVS.Services.Interfaces
         public bool AllowWriteTools { get; set; }
 
         /// <summary>
-        /// When true, the tool-call loop continues after each LLM response until no pending tool calls remain.
-        /// Sourced from <see cref="ModeConfig.AllowToolLoop"/> via ModeConfigRegistry (gap44_3).
-        /// </summary>
-        public bool AllowToolLoop { get; set; }
-
-        /// <summary>
         /// The current ChatMode for this streaming request (Ask, Agent, Plan, Debug, Reason).
         /// Used to filter available tools by mode (gap71).
         /// Defaults to Agent if not specified.

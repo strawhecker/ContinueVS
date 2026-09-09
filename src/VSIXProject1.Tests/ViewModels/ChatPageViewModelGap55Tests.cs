@@ -51,7 +51,6 @@ namespace ContinueVS.Tests.ViewModels
             // Default setup for mode config registry
             var defaultModeConfig = new ModeConfig
             {
-                AllowToolLoop = true,
                 AllowWriteTools = true,
                 ExportsPlanFile = false,
                 AllowPhaseExecution = false

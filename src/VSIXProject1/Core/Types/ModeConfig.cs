@@ -32,12 +32,6 @@ namespace ContinueVS.Core.Types
         public bool AllowWriteTools { get; set; }
 
         /// <summary>
-        /// When true, the tool-call loop continues after each LLM response until no pending tool calls remain.
-        /// False for Ask, Plan, and Reason modes; true for Agent and Debug modes.
-        /// </summary>
-        public bool AllowToolLoop { get; set; }
-
-        /// <summary>
         /// When true, phase execution is enabled after the tool loop completes.
         /// Shared by Agent and Debug modes; false for Ask, Plan, and Reason.
         /// </summary>

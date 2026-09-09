@@ -116,6 +116,45 @@ namespace ContinueVS.Services.Implementations
             return Task.CompletedTask;
         }
 
+        public async Task<IEnumerable<string>> ListDirectoryAsync(string dirPath, bool recursive = false)
+        {
+            if (string.IsNullOrWhiteSpace(dirPath))
+                throw new ArgumentException("dirPath must not be empty.", nameof(dirPath));
+
+            try
+            {
+                var result = new List<string>();
+
+                if (!Directory.Exists(dirPath))
+                    return result.AsEnumerable();
+
+                // Add directories
+                var dirs = Directory.GetDirectories(dirPath);
+                result.AddRange(dirs.Select(d => new DirectoryInfo(d).Name + "/"));
+
+                // Add files
+                var files = Directory.GetFiles(dirPath);
+                result.AddRange(files.Select(f => new FileInfo(f).Name));
+
+                // Recursively add subdirectory contents if requested
+                if (recursive)
+                {
+                    foreach (var dir in dirs)
+                    {
+                        var subItems = await ListDirectoryAsync(dir, recursive: true);
+                        result.AddRange(subItems.Select(item => new DirectoryInfo(dir).Name + "/" + item));
+                    }
+                }
+
+                return result.AsEnumerable();
+            }
+            catch (Exception ex)
+            {
+                // Return empty list on error instead of throwing
+                return new List<string> { $"Error: {ex.Message}" }.AsEnumerable();
+            }
+        }
+
         // Git Operations
 
         public Task<string> GetActiveDocumentPathAsync()

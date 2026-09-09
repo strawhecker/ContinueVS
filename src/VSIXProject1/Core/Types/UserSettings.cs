@@ -39,6 +39,34 @@ namespace ContinueVS.Core.Types
         // Agent/Tool Settings
         public const string Agent_MaxToolCallsPerSession = "agent.maxToolCallsPerSession";
 
+        // Tool-Specific Enabled/Disabled Settings (Read-Only Tools - All MODES)
+        public const string Tool_ReadFileEnabled = "tool.readFileEnabled";
+        public const string Tool_ReadFileRangeEnabled = "tool.readFileRangeEnabled";
+        public const string Tool_ListDirectoryEnabled = "tool.listDirectoryEnabled";
+        public const string Tool_FileGlobSearchEnabled = "tool.fileGlobSearchEnabled";
+        public const string Tool_SearchCodeEnabled = "tool.searchCodeEnabled";
+        public const string Tool_GrepSearchEnabled = "tool.grepSearchEnabled";
+        public const string Tool_ViewDiffEnabled = "tool.viewDiffEnabled";
+        public const string Tool_GitStatusEnabled = "tool.gitStatusEnabled";
+        public const string Tool_GitDiffEnabled = "tool.gitDiffEnabled";
+        public const string Tool_GitLogEnabled = "tool.gitLogEnabled";
+        public const string Tool_GetProblemsEnabled = "tool.getProblemsEnabled";
+        public const string Tool_ViewFileEnabled = "tool.viewFileEnabled";
+        public const string Tool_ReadCurrentlyOpenFileEnabled = "tool.readCurrentlyOpenFileEnabled";
+
+        // Tool-Specific Enabled/Disabled Settings (Write Tools - Agent + Debug ONLY)
+        public const string Tool_EditFileEnabled = "tool.editFileEnabled";
+        public const string Tool_WriteFileEnabled = "tool.writeFileEnabled";
+        public const string Tool_CreateNewFileEnabled = "tool.createNewFileEnabled";
+        public const string Tool_RunTerminalCommandEnabled = "tool.runTerminalCommandEnabled";
+        public const string Tool_GitCommitEnabled = "tool.gitCommitEnabled";
+        public const string Tool_CreateFolderEnabled = "tool.createFolderEnabled";
+        public const string Tool_CreateRuleBlockEnabled = "tool.createRuleBlockEnabled";
+        public const string Tool_CreateSnippetEnabled = "tool.createSnippetEnabled";
+        public const string Tool_OpenFileEnabled = "tool.openFileEnabled";
+        public const string Tool_SingleFindAndReplaceEnabled = "tool.singleFindAndReplaceEnabled";
+        public const string Tool_RunPytestEnabled = "tool.runPytestEnabled";
+
         /// <summary>
         /// Returns a dictionary of all default settings values.
         /// </summary>
@@ -74,7 +102,35 @@ namespace ContinueVS.Core.Types
                 { Experimental_DumpResponseAfterReceive, false },
 
                 // Agent/Tool defaults
-                { Agent_MaxToolCallsPerSession, 100 }
+                { Agent_MaxToolCallsPerSession, 100 },
+
+                // Tool-Specific defaults (Read-Only - default true, safe to auto-execute)
+                { Tool_ReadFileEnabled, true },
+                { Tool_ReadFileRangeEnabled, true },
+                { Tool_ListDirectoryEnabled, true },
+                { Tool_FileGlobSearchEnabled, true },
+                { Tool_SearchCodeEnabled, true },
+                { Tool_GrepSearchEnabled, true },
+                { Tool_ViewDiffEnabled, true },
+                { Tool_GitStatusEnabled, false },
+                { Tool_GitDiffEnabled, false },
+                { Tool_GitLogEnabled, false },
+                { Tool_GetProblemsEnabled, true },
+                { Tool_ViewFileEnabled, true },
+                { Tool_ReadCurrentlyOpenFileEnabled, true },
+
+                // Tool-Specific defaults (Write Tools - default true, mode registry gates to Agent+Debug)
+                { Tool_EditFileEnabled, true },
+                { Tool_WriteFileEnabled, true },
+                { Tool_CreateNewFileEnabled, true },
+                { Tool_RunTerminalCommandEnabled, true },
+                { Tool_GitCommitEnabled, false },
+                { Tool_CreateFolderEnabled, true },
+                { Tool_CreateRuleBlockEnabled, true },
+                { Tool_CreateSnippetEnabled, true },
+                { Tool_OpenFileEnabled, true },
+                { Tool_SingleFindAndReplaceEnabled, true },
+                { Tool_RunPytestEnabled, true }
             };
         }
 

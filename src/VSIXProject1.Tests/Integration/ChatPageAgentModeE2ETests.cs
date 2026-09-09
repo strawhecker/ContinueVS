@@ -113,12 +113,12 @@ namespace ContinueVS.Tests.Integration
             _mockUIStateService.Setup(x => x.GetUIStateAsync())
                 .ReturnsAsync(uiState);
 
-            // Default mode config: Agent mode allows tool loop
+            // Default mode config: Agent mode allows write tools
             var agentModeConfig = new ModeConfig
             {
                 Mode = ChatMode.Agent,
-                AllowToolLoop = true,
-                SystemPrompt = "Agent mode system prompt"
+                SystemPrompt = "Agent mode system prompt",
+                AllowWriteTools = true
             };
             _mockModeConfigRegistry.Setup(x => x.GetConfig(ChatMode.Agent))
                 .Returns(agentModeConfig);
@@ -401,18 +401,18 @@ namespace ContinueVS.Tests.Integration
         }
 
         /// <summary>
-        /// Scenario 4: Tool loop policy enforcement.
-        /// When AllowToolLoop = false, agent mode respects policy configuration.
+        /// Scenario 4: Write tools policy enforcement.
+        /// Verify that mode config restricts write tools appropriately.
         /// </summary>
         [Fact]
-        public void AgentMode_RespectsModeConfig_AllowToolLoopPolicy()
+        public void AgentMode_RespectsModeConfig_AllowWriteToolsPolicy()
         {
-            // Arrange: Get mode config and verify tool loop setting
+            // Arrange: Get mode config and verify write tools setting
             var modeConfig = _mockModeConfigRegistry.Object.GetConfig(ChatMode.Agent);
 
-            // Assert: Default agent mode allows tool loop
+            // Assert: Default agent mode allows write tools
             Assert.NotNull(modeConfig);
-            Assert.True(modeConfig.AllowToolLoop);
+            Assert.True(modeConfig.AllowWriteTools);
         }
 
         /// <summary>

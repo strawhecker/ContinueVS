@@ -37,7 +37,6 @@ namespace ContinueVS.Services.Implementations
                     SystemPrompt = systemPromptService.GetPromptForMode("ask"),
                     EnabledCapabilities = new List<string>(SharedCapabilities),
                     AllowWriteTools = false,
-                    AllowToolLoop  = false,
                     RequiresDebuggerContext = false,
                     ExportsPlanFile = false
                 },
@@ -54,7 +53,6 @@ namespace ContinueVS.Services.Implementations
                         "backtrack"
                     },
                     AllowWriteTools = true,
-                    AllowToolLoop  = true,
                     AllowPhaseExecution = true,
                     RequiresDebuggerContext = false,
                     ExportsPlanFile = true
@@ -65,12 +63,9 @@ namespace ContinueVS.Services.Implementations
                     SystemPrompt = systemPromptService.GetPromptForMode("plan"),
                     EnabledCapabilities = new List<string>(SharedCapabilities)
                     {
-                        "write_file",
-                        "tool_loop",
                         "plan_export"
                     },
-                    AllowWriteTools = true,
-                    AllowToolLoop  = true,
+                    AllowWriteTools = false,
                     RequiresDebuggerContext = false,
                     ExportsPlanFile = true
                 },
@@ -88,7 +83,6 @@ namespace ContinueVS.Services.Implementations
                         "debugger_context"
                     },
                     AllowWriteTools = true,
-                    AllowToolLoop  = true,
                     AllowPhaseExecution = true,
                     RequiresDebuggerContext = true,
                     ExportsPlanFile = true
@@ -99,7 +93,6 @@ namespace ContinueVS.Services.Implementations
                     SystemPrompt = systemPromptService.GetPromptForMode("reason"),
                     EnabledCapabilities = new List<string>(SharedCapabilities),
                     AllowWriteTools = false,
-                    AllowToolLoop  = false,
                     RequiresDebuggerContext = false,
                     ExportsPlanFile = false
                 }

@@ -1320,7 +1320,6 @@ public string? InputText
                         Messages = messages,
                         SystemPrompt = systemContent,
                         AllowWriteTools = modeConfig.AllowWriteTools,
-                        AllowToolLoop   = modeConfig.AllowToolLoop,
                         Mode = CurrentMode
                     };
 
@@ -1564,9 +1563,8 @@ public string? InputText
                     // gap23_4_4: Check tool call limit and show banners
                     CheckToolCallLimit();
 
-                    // gap44_3: Tool execution gated by ModeConfig.AllowToolLoop — not hard-coded to Agent
-                    LoggerService.Current.WriteDebug($"[a9-command-toolcheck] Checking tool execution: CurrentMode={CurrentMode}, AllowToolLoop={modeConfig.AllowToolLoop}, _pendingToolCalls.Count={_pendingToolCalls.Count}, ShouldExecute={modeConfig.AllowToolLoop && _pendingToolCalls.Count > 0}");
-                    if (modeConfig.AllowToolLoop && _pendingToolCalls.Count > 0)
+                    // Execute all pending tool calls (no orchestration gate; tool availability controlled by mode registry + user settings)
+                    if (_pendingToolCalls.Count > 0)
                     {
                         LoggerService.Current.WriteDebug($"[a9-command-toolexec] Executing tools in Agent mode");
                         _toolFailureCount = await ExecuteToolCallsAsync(_pendingToolCalls);
@@ -1728,13 +1726,6 @@ public string? InputText
         {
             int failureCount = 0;
             var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
-
-            // gap59: Guard against tool execution in modes that don't allow it
-            if (!modeConfig.AllowToolLoop)
-            {
-                LoggerService.Current.WriteDebug($"[gap59-guard] Tool execution not allowed in {CurrentMode} mode (AllowToolLoop={modeConfig.AllowToolLoop})");
-                return 0;
-            }
 
             foreach (var toolCall in toolCalls)
             {
@@ -2243,7 +2234,6 @@ public string? InputText
                 {
                     Messages = allMessages,
                     AllowWriteTools = modeConfig.AllowWriteTools,
-                    AllowToolLoop = modeConfig.AllowToolLoop,
                     Mode = CurrentMode
                 };
 

@@ -87,7 +87,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Agent,
                 SystemPrompt = "You are an autonomous agent.",
-                AllowToolLoop = true,
                 AllowWriteTools = true
             };
 
@@ -143,7 +142,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Ask,
                 SystemPrompt = "You are a helpful assistant.",
-                AllowToolLoop = false,
                 AllowWriteTools = false
             };
 
@@ -183,7 +181,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Plan,
                 SystemPrompt = "You are planning mode.",
-                AllowToolLoop = false,
                 AllowWriteTools = false
             };
 
@@ -239,7 +236,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Plan,
                 SystemPrompt = "You are planning mode.",
-                AllowToolLoop = false,
                 AllowWriteTools = false
             };
 
@@ -279,7 +275,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Plan,
                 SystemPrompt = "You are planning mode.",
-                AllowToolLoop = false,
                 AllowWriteTools = false
             };
 
@@ -335,7 +330,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Reason,
                 SystemPrompt = "You are in reasoning mode.",
-                AllowToolLoop = false,
                 AllowWriteTools = false
             };
 
@@ -391,7 +385,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Reason,
                 SystemPrompt = "You are in reasoning mode.",
-                AllowToolLoop = false,
                 AllowWriteTools = false
             };
 
@@ -429,7 +422,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Agent,
                 SystemPrompt = "You are an autonomous agent.",
-                AllowToolLoop = true,
                 AllowWriteTools = true,
                 AllowPhaseExecution = true
             };
@@ -484,7 +476,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Agent,
                 SystemPrompt = "You are an autonomous agent.",
-                AllowToolLoop = true,
                 AllowWriteTools = true
             };
 
@@ -530,7 +521,6 @@ namespace VSIXProject1.Tests.Services
             {
                 Mode = ChatMode.Agent,
                 SystemPrompt = "You are an autonomous agent.",
-                AllowToolLoop = true,
                 AllowWriteTools = true
             };
 

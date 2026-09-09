@@ -162,13 +162,13 @@ namespace ContinueVS.Tests.ViewModels
         // -- ModeConfig policy correctness via registry injection ----------------------
 
         [Theory]
-        [InlineData(ChatMode.Ask,    false, false)]
-        [InlineData(ChatMode.Agent,  true,  true)]
-        [InlineData(ChatMode.Plan,   true,  true)]
-        [InlineData(ChatMode.Debug,  true,  true)]
-        [InlineData(ChatMode.Reason, false, false)]
-        public void ModeConfig_ToolLoopAndWriteTools_CorrectPerMode(
-            ChatMode mode, bool expectedWriteTools, bool expectedToolLoop)
+        [InlineData(ChatMode.Ask,    false)]
+        [InlineData(ChatMode.Agent,  true)]
+        [InlineData(ChatMode.Plan,   false)]
+        [InlineData(ChatMode.Debug,  true)]
+        [InlineData(ChatMode.Reason, false)]
+        public void ModeConfig_WriteTools_CorrectPerMode(
+            ChatMode mode, bool expectedWriteTools)
         {
             // Arrange — use the same registry the ViewModel will use
             var systemPromptService = CreateSystemPromptServiceMock();
@@ -179,7 +179,6 @@ namespace ContinueVS.Tests.ViewModels
 
             // Assert
             Assert.Equal(expectedWriteTools, cfg.AllowWriteTools);
-            Assert.Equal(expectedToolLoop, cfg.AllowToolLoop);
         }
 
         [Theory]

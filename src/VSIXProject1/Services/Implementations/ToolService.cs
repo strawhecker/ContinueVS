@@ -29,6 +29,40 @@ namespace ContinueVS.Services.Implementations
         private readonly object _registryLock = new object();
         private readonly ToolOverrideProcessor _overrideProcessor = new();
 
+        /// <summary>
+        /// Static mapping of tool names to UserSettings constants for filtering.
+        /// Used to check if a tool should be available based on user settings.
+        /// </summary>
+        private static readonly Dictionary<string, string> ToolNameToUserSettingKey = new()
+        {
+            // Read-Only Tools
+            { "read_file", UserSettings.Tool_ReadFileEnabled },
+            { "read_file_range", UserSettings.Tool_ReadFileRangeEnabled },
+            { "ls", UserSettings.Tool_ListDirectoryEnabled },
+            { "file_glob_search", UserSettings.Tool_FileGlobSearchEnabled },
+            { "search_codebase", UserSettings.Tool_SearchCodeEnabled },
+            { "grep_search", UserSettings.Tool_GrepSearchEnabled },
+            { "view_diff", UserSettings.Tool_ViewDiffEnabled },
+            { "git_status", UserSettings.Tool_GitStatusEnabled },
+            { "git_diff", UserSettings.Tool_GitDiffEnabled },
+            { "git_log", UserSettings.Tool_GitLogEnabled },
+            { "get_problems", UserSettings.Tool_GetProblemsEnabled },
+            { "view_file", UserSettings.Tool_ViewFileEnabled },
+            { "read_currently_open_file", UserSettings.Tool_ReadCurrentlyOpenFileEnabled },
+
+            // Write Tools
+            { "edit_file", UserSettings.Tool_EditFileEnabled },
+            { "create_new_file", UserSettings.Tool_CreateNewFileEnabled },
+            { "create_folder", UserSettings.Tool_CreateFolderEnabled },
+            { "run_terminal_command", UserSettings.Tool_RunTerminalCommandEnabled },
+            { "git_commit", UserSettings.Tool_GitCommitEnabled },
+            { "create_rule_block", UserSettings.Tool_CreateRuleBlockEnabled },
+            { "create_snippet", UserSettings.Tool_CreateSnippetEnabled },
+            { "open_file", UserSettings.Tool_OpenFileEnabled },
+            { "single_find_and_replace", UserSettings.Tool_SingleFindAndReplaceEnabled },
+            { "run_pytest", UserSettings.Tool_RunPytestEnabled }
+        };
+
         public event EventHandler<ToolErrorEventArgs>? Error;
 
         /// <summary>
@@ -69,6 +103,9 @@ namespace ContinueVS.Services.Implementations
                 var overrideConfig = _configService.GetToolOverrideConfig();
                 allTools = _overrideProcessor.ApplyOverrides(allTools, overrideConfig).ToList();
 
+                // Apply user settings filtering (second gate: per-tool enable/disable)
+                allTools = ApplyUserSettingsFilter(allTools).ToList();
+
                 // Defensive: Log warning if tools are unexpectedly empty
                 if (allTools.Count == 0)
                 {
@@ -108,8 +145,57 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Gets a specific tool by name.
+        /// Applies user settings filtering to a list of tools.
+        /// Excludes tools that are disabled in the user's CustomSettings.
         /// </summary>
+        private IEnumerable<ToolDefinition> ApplyUserSettingsFilter(IEnumerable<ToolDefinition> tools)
+        {
+            try
+            {
+                var customSettings = _configService.GetCurrentConfig()?.CustomSettings ?? new Dictionary<string, object>();
+                var defaults = UserSettings.GetDefaults();
+
+                var filtered = tools.Where(tool =>
+                {
+                    // Check if this tool has a user settings key
+                    if (!ToolNameToUserSettingKey.TryGetValue(tool.Name, out var settingKey))
+                    {
+                        // Tool has no user setting, allow it (backward compatibility)
+                        return true;
+                    }
+
+                    // Get the user's setting value, or use default if not set
+                    object? settingValue;
+                    if (customSettings.TryGetValue(settingKey, out var customValue))
+                    {
+                        settingValue = customValue;
+                    }
+                    else
+                    {
+                        settingValue = defaults.TryGetValue(settingKey, out var defaultValue) ? defaultValue : true;
+                    }
+
+                    // Convert value to bool
+                    bool isEnabled = Convert.ToBoolean(settingValue);
+
+                    if (!isEnabled)
+                    {
+                        _logger?.WriteDebug($"[user-settings-filter] Tool '{tool.Name}' filtered (disabled in user settings via {settingKey})");
+                    }
+
+                    return isEnabled;
+                }).ToList();
+
+                _logger?.WriteDebug($"[user-settings-filter] Filtered {tools.Count()} tools -> {filtered.Count} after user settings");
+                return filtered;
+            }
+            catch (Exception ex)
+            {
+                // If anything fails, return the original tools to avoid blocking
+                _logger?.WriteWarning($"[user-settings-filter] Error applying user settings filter: {ex.Message}. Returning all tools.");
+                return tools;
+            }
+        }
         public ToolDefinition? GetTool(string toolName)
         {
             if (string.IsNullOrEmpty(toolName))
@@ -235,6 +321,9 @@ namespace ContinueVS.Services.Implementations
                     GetArgString(args, "contents")),
                 "create_folder" => await CreateFolderInternalAsync(
                     GetArgString(args, "folderpath")),
+                "ls" => await ListDirectoryInternalAsync(
+                    GetArgString(args, "dirPath"),
+                    args.TryGetValue("recursive", out var rec) && (rec is bool b ? b : bool.TryParse(rec?.ToString() ?? "false", out var parsed) && parsed)),
                 "search_codebase" => await SearchCodebaseInternalAsync(
                     GetArgString(args, "query"),
                     GetArgInt(args, "maxResults", 10)),
@@ -490,6 +579,29 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 return CreateErrorResult("create_folder", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for list directory (ls) as ToolResult.
+        /// </summary>
+        private async Task<ToolResult> ListDirectoryInternalAsync(string dirPath, bool recursive)
+        {
+            try
+            {
+                var items = await _ideService.ListDirectoryAsync(dirPath, recursive);
+                var itemList = items?.ToList() ?? new List<string>();
+                return new ToolResult
+                {
+                    ToolName = "ls",
+                    Output = string.Join("\n", itemList),
+                    RawOutput = itemList,
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("ls", ex.Message);
             }
         }
 

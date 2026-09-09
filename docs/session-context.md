@@ -8038,9 +8038,53 @@ ___
 - grep_search
 
 ### Write Tools (Agent + Debug only, user settings override)
+
+### ARCHITECTURE REFACTOR COMPLETED: AllowToolLoop Removed
+
+**Rationale**: Tool execution is now governed by two gates only:
+1. **Mode + Tool Registry** (`BuiltInTools.supportedModes`) — determines availability based on mode
+2. **User Settings** (`UserSettings.Tool_*Enabled`) — determines enablement regardless of mode
+
+Tool execution loop (`ExecuteToolCallsAsync`) is no longer gated by `AllowToolLoop` orchestration flag.
+The mode registry's `AllowWriteTools` and `AllowPhaseExecution` flags remain for policy control.
 - edit_file, write_file, create_new_file
 - run_terminal_command
 - git_checkout, git_commit, git_push (if enabled by user)
+
+---
+
+### HOTFIX: Resolved "Unknown built-in tool: ls" Runtime Error
+
+**Status:** ✅ Complete | Type: Built-In Tool Execution Routing  
+**Issue**: Tool `ls` was registered in `BuiltInTools.cs` and policy-approved for Plan/Ask/Reason modes, but runtime execution fell through to "Unknown built-in tool: ls" because the `ToolService.InvokeBuiltInAsync()` switch statement lacked an `ls` case and `IIdeService` lacked a directory-listing API.
+
+**Root Cause**: The tool registration layer and execution routing layer were out of sync:
+- `BuiltInTools.GetListDirectoryTool()` defined the `ls` tool name and registered it for read-only modes
+- `ToolService.InvokeBuiltInAsync()` switch had no `"ls"` case
+- `IIdeService` had no `ListDirectoryAsync` method
+
+**Implementation**:
+- Added `ListDirectoryAsync(string dirPath, bool recursive = false)` method to `IIdeService` interface
+- Implemented `ListDirectoryAsync()` in `VsIdeService` with full recursive directory traversal support
+- Added `ListDirectoryInternalAsync(string dirPath, bool recursive)` wrapper in `ToolService` matching pattern of other built-ins
+- Wired `"ls"` case in `ToolService.InvokeBuiltInAsync()` switch to call `ListDirectoryInternalAsync()`
+- Updated test stub `StubIdeService` in `WorkspaceStatsServiceTests.cs` to implement the new interface method
+
+**Files Modified**:
+- `src/VSIXProject1/Services/Interfaces/IIdeService.cs`: Added `ListDirectoryAsync` signature
+- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`: Implemented `ListDirectoryAsync` with recursive directory listing
+- `src/VSIXProject1/Services/Implementations/ToolService.cs`: Added `"ls"` case in switch + `ListDirectoryInternalAsync` wrapper
+- `src/VSIXProject1.Tests/Services/WorkspaceStatsServiceTests.cs`: Updated `StubIdeService` to provide stub `ListDirectoryAsync`
+
+**Validation**:
+- Build: Successful (zero errors)
+- Test Run: 1244/1253 tests pass; 9 pre-existing failures unrelated to this fix (4 tool-count tests expecting 22 instead of 23; 5 emoji Unicode rendering tests)
+- Tool Execution Chain: `PolicyDispatcher` allows → `ToolService.GetAvailableTools()` filters → `ToolService.InvokeBuiltInAsync()` routes → `IIdeService.ListDirectoryAsync()` executes
+- Platform Verification: Safe fallback on directory access errors (returns error message instead of throwing)
+
+**Blocking Resolved**: The "Unknown built-in tool: ls" runtime error is eliminated; `ls` tool now executes end-to-end.
+
+---
 
 ### Debug-Only Tools (Debug mode only) — TBD
 **Status:** Planned | Type: Debugger Integration  
@@ -8070,6 +8114,235 @@ ___
 **Discovery Gap:** gap_debugger_integration (future phase)
 
 ---
+
+### gap73: Tool Call Serialization - ConvertToolCallToSchema()
+**Status:** 🔴 Not Started | Type: Tool Execution Bug  
+**Dependency:** Requires gap2, gap5_5 (ChatPage binding + model selector operational)  
+**Impact:** Tool results not serialized correctly for Ollama; LLM cannot receive tool responses
+
+**Problem Statement:**
+- `ChatMessage.ToolCalls` (C# List<ToolCall>) contains tool results from execution
+- `OllamaMessage.tool_calls` (JSON wire format) must serialize these for Ollama API
+- Current bug: No `ConvertToolCallToSchema()` helper; tool results dropped silently
+- Result: Tool execution → result calculated → silently discarded → LLM never receives answer
+
+**Implementation Plan:**
+
+**Step 1: Create ConvertToolCallToSchema() Helper (atomic)**
+- Location: `src/VSIXProject1/Services/Implementations/MessengerService.cs`
+- Create private static method signature:
+```csharp
+  private static ToolCallSchema ConvertToolCallToSchema(ToolCall toolCall)
+```
+- Logic:
+  - Map `toolCall.ToolUseId` → `ToolCallSchema.id`
+  - Map `toolCall.ToolName` → `ToolCallSchema.function.name`
+  - Serialize `toolCall.Arguments` (Dictionary<string, object>) to JSON string
+  - Handle null arguments (empty JSON object `{}`)
+  - Catch `JsonSerializationException`; log and re-throw with context
+- Unit test: `ConvertToolCallToSchema_ConvertsArgumentsToJsonString()`
+
+**Step 2: Wire Assistant ToolCalls in Message Loop (atomic)**
+- Location: `src/VSIXProject1/Services/Implementations/MessengerService.cs` line~537 (ProcessOllamaStreamAsync)
+- Current behavior: Only sends `assistant_message.content`; ignores `assistant_message.tool_calls`
+- New behavior:
+  - Check if `assistant_message.tool_calls != null && count > 0`
+  - If yes: Create list of `ToolCallSchema` by calling `ConvertToolCallToSchema()` for each
+  - Assign to `oracleMessage.tool_calls = schemaList`
+  - Log: "Assistant response includes {count} tool calls"
+- Unit test: `ProcessOllamaStreamAsync_SerializesToolCallsInOllamaMessage()`
+
+**Step 3: Wire Tool Results in Message Loop (atomic)**
+- When `ToolResult` returned from `ToolService.ExecuteToolAsync()`:
+  - Convert result to `ToolCall` with `ToolUseId`, `ToolName`, `Arguments` from metadata
+  - Add to `ChatMessage.ToolCalls` collection
+  - On next assistant request, all accumulated results serialized via step 2
+- Unit test: `ProcessOllamaStreamAsync_IncludesToolResultsInFollowupMessage()`
+
+**Step 4: Integration Test - Full Cycle (atomic)**
+- Scenario: User sends chat → LLM requests tool → tool executes → result sent back to LLM
+- Mock: `OllamaServiceMock` returns tool use blocks in SSE stream
+- Verify: Tool called, result serialized, next Ollama request includes `tool_calls` array
+- Test: `MessengerService_FullToolCycle_SerializesAndSendsResults()`
+
+**Files Modified:**
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs`: Add ConvertToolCallToSchema(), wire tool_calls serialization (line ~537), wire tool results
+- `src/VSIXProject1.Tests/Services/MessengerServiceTests.cs`: Add 4 new tests + update existing message loop tests
+
+**Blocking Resolved:** gap74 (context budget can now measure accurate tool call sizes)
+
+---
+
+### gap74: Context Budget Tracking & Backtracking Algorithm
+**Status:** 🔴 Not Started | Type: Token Management + UI State Machine  
+**Dependency:** Requires gap73 (tool serialization complete), all prior gaps  
+**Impact:** Prevents context overflow; enables "Optimize & Continue" feature for long conversations
+
+**Problem Statement:**
+- User conversation grows → tokens accumulate → LLM context window fills
+- No mechanism to detect saturation or trim conversation
+- UI lacks 3-state indicator (Safe/Caution/Locked) + corresponding button state
+- Backtracking algorithm undefined (should remove newest conversation units, preserve oldest context)
+
+**Architecture Overview:**
+
+```
+Context Budget States:
+├─ Safe:   Used tokens ≤ (MaxTokens - Reserve) * 0.85     [Green, optional optimize]
+├─ Caution: Used tokens ∈ ((MaxTokens - Reserve) * 0.85, MaxTokens - Reserve)  [Yellow, recommend optimize]
+└─ Locked:  Used tokens ≥ (MaxTokens - Reserve)           [Red, input disabled]
+
+Backtracking Algorithm (newest-first removal):
+├─ Start: Full history [Msg1, Msg2, ..., MsgN] (oldest→newest)
+├─ Loop:
+│   ├─ Attempt: EstimateTokens(history)
+│   ├─ If fits: Return optimized history + truncation summary
+│   ├─ If exceeds: Remove NEWEST unit (Assistant + paired ToolResults)
+│   └─ If history empty: Return error (reserve too small)
+└─ Preservation: Oldest foundational context kept; newest work trimmed
+```
+
+**Implementation Plan:**
+
+**Step 1: Extend ISessionService Interface (atomic)**
+- Location: `src/VSIXProject1/Services/ISessionService.cs`
+- Add methods:
+```csharp
+  ContextBudgetState GetContextBudgetState();  // Returns Safe/Caution/Locked
+  int EstimateTokensUsed(List<ChatMessage> history);
+  Task<(List<ChatMessage> trimmed, string summary)> BacktrackAndOptimizeAsync(List<ChatMessage> history, int maxTokens, int reserve);
+```
+- Keep existing methods; no modifications to signatures
+- Unit test: Interface definition only (no implementation test)
+
+**Step 2: Implement ContextBudgetState Enum (atomic)**
+- Location: `src/VSIXProject1/Services/ContextBudgetState.cs` (new file)
+- Enum: `public enum ContextBudgetState { Safe, Caution, Locked }`
+- Add computed properties in `SessionService`:
+  - `SafeThreshold = (maxTokens - reserve) * 0.85`
+  - `CautionThreshold = maxTokens - reserve`
+- No tests (simple enum)
+
+**Step 3: Implement EstimateTokensUsed() (atomic)**
+- Location: `src/VSIXProject1/Services/Implementations/SessionService.cs`
+- Logic (conservative estimate, no LLM tokenizer required):
+  - User message: `content.Length / 4` (rough chars→tokens)
+  - Assistant response: `content.Length / 4 + tool_calls.Count * 150` (tool call overhead)
+  - Tool result: `(result.content.Length / 4) + 50` (metadata overhead)
+  - Sum all messages
+- Unit test: `EstimateTokensUsed_ReturnsApproximateTokenCount()`
+
+**Step 4: Implement GetContextBudgetState() (atomic)**
+- Location: `src/VSIXProject1/Services/Implementations/SessionService.cs`
+- Logic:
+  - Call `EstimateTokensUsed(currentHistory)`
+  - Compare to `SafeThreshold` and `CautionThreshold`
+  - Return `ContextBudgetState.Safe`, `.Caution`, or `.Locked`
+  - Memoize state (avoid recalculating on every property access)
+- Unit test: `GetContextBudgetState_ReturnsSafe_WhenBelowThreshold()`
+- Unit test: `GetContextBudgetState_ReturnsCaution_WhenNearThreshold()`
+- Unit test: `GetContextBudgetState_ReturnsLocked_WhenExceedsThreshold()`
+
+**Step 5: Implement BacktrackAndOptimizeAsync() (atomic)**
+- Location: `src/VSIXProject1/Services/Implementations/SessionService.cs`
+- Algorithm:
+```csharp
+  while (EstimateTokensUsed(history) > (maxTokens - reserve)):
+    if history.isEmpty():
+      throw ContextBudgetException("Reserve too small; cannot continue")
+
+    // Find newest Assistant + paired ToolResults unit
+    newestUnit = FindNewestConversationUnit(history)
+    history.RemoveRange(newestUnit.StartIndex, newestUnit.Count)
+
+  summary = $"Removed {removedCount} messages; preserved {history.Count} foundational context"
+  return (history, summary)
+```
+- Helper: `FindNewestConversationUnit()` - locate last Assistant message and all subsequent ToolResults
+- Unit test: `BacktrackAndOptimizeAsync_RemovesNewestUnit_WhenOverBudget()`
+- Unit test: `BacktrackAndOptimizeAsync_PreservesOldestContext_WhenTrimming()`
+- Unit test: `BacktrackAndOptimizeAsync_ThrowsException_WhenReserveTooSmall()`
+
+**Step 6: Wire into SessionService.SendMessageAsync() (atomic)**
+- Location: `src/VSIXProject1/Services/Implementations/SessionService.cs`
+- Before sending to LLM:
+  - Call `GetContextBudgetState()`
+  - If `Locked`: Throw `InvalidOperationException("Context budget locked; optimize required")`
+  - If `Caution`: Log warning "Context budget near capacity"
+  - Proceed with message
+- No tests (already covered by step 4-5 tests)
+
+**Step 7: Wire into MessengerService Message Loop (atomic)**
+- Location: `src/VSIXProject1/Services/Implementations/MessengerService.cs`
+- After receiving ToolResults or new message:
+  - Call `_sessionService.GetContextBudgetState()`
+  - Update internal `_budgetState` field (for UI binding)
+  - If changed: Publish event `ContextBudgetStateChanged?.Invoke(newState)`
+- Unit test: `MessengerService_PublishesContextBudgetStateChanged_WhenStateShifts()`
+
+**Step 8: Create ContextBudgetStateConverter for UI (atomic)**
+- Location: `src/VSIXProject1/UI/Converters/ContextBudgetStateToColorConverter.cs` (new file)
+- IValueConverter implementation:
+  - `Safe` → Green (`#00AA00`)
+  - `Caution` → Yellow (`#FFAA00`)
+  - `Locked` → Red (`#FF0000`)
+- Unit test: `ContextBudgetStateToColorConverter_ReturnsBrush_ForEachState()`
+
+**Step 9: Add Context Budget Indicator to ChatPage.xaml (atomic)**
+- Location: `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+- Add to toolbar:
+  - Rectangle (indicator dot), bound to `ChatPageViewModel.ContextBudgetState` via converter
+  - TextBlock: `"{Binding UsedTokensPercentage, StringFormat='{0:P0}'}"` (e.g., "84%")
+  - Example: `<Rectangle Width="12" Height="12" Fill="{Binding ContextBudgetState, Converter={StaticResource ContextBudgetStateToColorConverter}}"/>`
+  - Position next to model selector
+
+**Step 10: Add "Optimize & Continue" Button Logic to ChatPageViewModel (atomic)**
+- Location: `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+- Add properties:
+  - `ContextBudgetState CurrentBudgetState` (updated by SessionService.ContextBudgetStateChanged event)
+  - `string OptimizeButtonText` (computed: "Optimize & Continue" / "⚠️ CAUTION: Optimize & Continue" / "🔴 LOCKED: Optimize & Continue")
+  - `bool IsInputEnabled` (true unless Locked)
+- Add command: `OptimizeAndContinueCommand`
+  - Call `await _sessionService.BacktrackAndOptimizeAsync()`
+  - Show truncation summary in notification
+  - Reset budget state
+  - Re-enable input if was Locked
+- Unit test: `OptimizeAndContinueCommand_BacktracksHistory_AndResetsBudgetState()`
+
+**Step 11: Wire UI Button to ChatPage.xaml (atomic)**
+- Location: `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+- Add button:
+  - Binding: `Command="{Binding OptimizeAndContinueCommand}"`
+  - Text: `{Binding OptimizeButtonText}`
+  - IsEnabled: `{Binding IsInputEnabled}`
+  - Background: Conditional (Green/Yellow/Red based on state)
+  - Position in toolbar next to indicator
+
+**Step 12: Integration Test - Full Context Lifecycle (atomic)**
+- Scenario: Simulate long conversation → cross Safe threshold → cross Caution threshold → approach Locked
+- Mock: `SessionServiceMock` with configurable maxTokens (e.g., 1000)
+- Verify:
+  - State transitions correct (Safe→Caution→Locked)
+  - Button text updates (normal → caution → locked)
+  - Input disabled at Locked
+  - BacktrackAndOptimizeAsync removes newest units
+  - Oldest context preserved
+- Test: `SessionService_ContextBudgetLifecycle_TransitionsStatesCorrectly()`
+- Test: `ChatPageViewModel_OptimizeAndContinue_BacktracksAndResetsState()`
+
+**Files Modified:**
+- `src/VSIXProject1/Services/ISessionService.cs`: Add 3 new methods
+- `src/VSIXProject1/Services/ContextBudgetState.cs`: New enum file
+- `src/VSIXProject1/Services/Implementations/SessionService.cs`: Implement 5 methods + wire into SendMessageAsync
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs`: Wire ContextBudgetStateChanged event
+- `src/VSIXProject1/UI/Converters/ContextBudgetStateToColorConverter.cs`: New converter file
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`: Add 4 properties + OptimizeAndContinueCommand
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml`: Add indicator + button
+- `src/VSIXProject1.Tests/Services/SessionServiceTests.cs`: Add 8 new tests
+- `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelTests.cs`: Add 2 new tests
+
+**Blocking Resolved:** Context budget tracking complete; "Optimize & Continue" feature fully functional
+
 ---
 
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
@@ -9404,6 +9677,63 @@ _ = LoggerService.Current.WriteErrorAsync($"[Tag] Error: {ex.Message}", ex);
 - ChatPageViewModel.cs (remaining calls) - mode/policy/model selection
 - ChatModeToBoolConverter.cs (5 calls) - binding conversion traces
 - Converters, Services (UIStateService, ServiceBootstrapper, WorkspaceStatsService)
+
+---
+
+## FIXED: Tool Visibility and User Settings Filtering for Plan Mode
+
+**Status:** ✅ Complete | Type: Tool Filtering Architecture  
+**Issue**: Two related issues identified in Plan mode:
+1. Write tools (edit_file, create_new_file, run_terminal_command, etc.) were appearing in Plan mode despite SupportedModes configuration
+2. Git tools default to disabled (false) in UserSettings.GetDefaults(), but user settings were never applied to filter tools
+
+**Root Cause**: Tool filtering was implemented by SupportedModes only (mode registry). User settings stored in ContinueConfig.CustomSettings were never checked during tool availability filtering. The architecture lacked a second gate for per-tool user enable/disable.
+
+**Solution Implemented**: Three-layer tool filtering architecture:
+1. **Registry + Overrides** (existing) - Apply configuration overrides
+2. **User Settings Filter** (NEW) - Check CustomSettings against UserSettings constants; apply defaults if not yet saved; exclude disabled tools
+3. **Mode Filter** (existing) - Apply SupportedModes filter for ChatMode-specific availability
+
+**Implementation Details**:
+- Created static `ToolNameToUserSettingKey` dictionary mapping all 23 tool names to their UserSettings constants
+- Implemented `ApplyUserSettingsFilter()` private method in ToolService that:
+  - Checks CustomSettings for each tool's enable/disable setting
+  - Applies UserSettings.GetDefaults() if setting not yet persisted
+  - Logs which tools are filtered and why
+  - Has exception handling to gracefully fallback on errors
+- Applied filter in both `GetAvailableTools()` (base) and indirectly in `GetAvailableTools(ChatMode mode)` (which calls base)
+- Tool filtering chain now: Base tools → Overrides → User Settings Filter → Mode Filter
+
+**Files Modified**:
+- src/VSIXProject1/Services/Implementations/ToolService.cs:
+  - Added ToolNameToUserSettingKey static mapping dictionary
+  - Implemented ApplyUserSettingsFilter() method
+  - Applied filter in GetAvailableTools()
+- src/VSIXProject1.Tests/Services/ToolServiceTests.cs:
+  - Fixed existing tests to expect 19 tools (git tools now default-disabled)
+  - Added 5 new tests: Plan mode write tool exclusion, read-only inclusion, git tool user settings override, per-tool filtering, integration test
+
+**Validation Results**:
+- Build: ✅ Successful (zero errors)
+- ToolServiceTests: 25/25 passing (20 existing + 5 new)
+- Full suite: 1251/1258 passing (7 pre-existing failures unrelated to tool filtering)
+- **Key validations**:
+  - Plan mode has zero write tools (edit_file, create_new_file, run_terminal_command, git_commit, single_find_and_replace, run_pytest all filtered)
+  - Plan mode includes read-only tools (read_file, search_codebase, grep_search, file_glob_search, view_diff, get_problems)
+  - Git tools respect Tool_Git*Enabled settings (git_status, git_diff, git_log, git_commit can be individually disabled)
+  - User settings defaults work (git tools default to false = disabled, which is correct behavior)
+
+**Blocking Resolved**: Both issues eliminated:
+1. Write tools no longer appear in Plan mode (SupportedModes + User Settings filtering)
+2. Git tools default to disabled and are respected when enabled via user settings
+
+**Architecture Note**: This fix completes the tool visibility gating model:
+- **Gap72 (streaming/tool-call conversion)**: ✅ Completed - tool calls stream & queue correctly
+- **Policy layer (AllowToolLoop refactor)**: ✅ Completed - mode-based policy enforced via dispatcher
+- **User settings layer (THIS FIX)**: ✅ Completed - per-tool enable/disable now applied
+- **Execution layer**: ✅ Completed - tool invocation routes to services correctly
+
+The entire tool pipeline is now properly gated at multiple levels, preventing unwanted tools from appearing in any mode.
 
 ---
 

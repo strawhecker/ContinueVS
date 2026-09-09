@@ -141,27 +141,27 @@ namespace ContinueVS.Tests.ViewModels
         }
 
         [Fact]
-        public void AgentMode_AllowsToolLoop()
+        public void AgentMode_AllowsWriteTools()
         {
-            // Verify that Agent mode has AllowToolLoop enabled
+            // Verify that Agent mode has AllowWriteTools enabled
             var systemPromptService = CreateSystemPromptServiceMock();
             var modeRegistry = new ModeConfigRegistry(systemPromptService.Object);
             var agentConfig = modeRegistry.GetConfig(ChatMode.Agent);
 
             Assert.NotNull(agentConfig);
-            Assert.True(agentConfig.AllowToolLoop);
+            Assert.True(agentConfig.AllowWriteTools);
         }
 
         [Fact]
-        public void AskMode_DoesNotAllowToolLoop()
+        public void AskMode_DoesNotAllowWriteTools()
         {
-            // Verify that Ask mode has AllowToolLoop disabled
+            // Verify that Ask mode has AllowWriteTools disabled
             var systemPromptService = CreateSystemPromptServiceMock();
             var modeRegistry = new ModeConfigRegistry(systemPromptService.Object);
             var askConfig = modeRegistry.GetConfig(ChatMode.Ask);
 
             Assert.NotNull(askConfig);
-            Assert.False(askConfig.AllowToolLoop);
+            Assert.False(askConfig.AllowWriteTools);
         }
 
         /// <summary>
@@ -250,7 +250,7 @@ namespace ContinueVS.Tests.ViewModels
             var markdownService = new Mock<IMarkdownService>();
             var mockDispatcher = new Mock<IAgentCommandDispatcher>();
             var modeConfigRegistry = new Mock<IModeConfigRegistry>();
-            var modeConfig = new ModeConfig { AllowToolLoop = true };
+            var modeConfig = new ModeConfig { AllowWriteTools = true };
             modeConfigRegistry.Setup(r => r.GetConfig(ChatMode.Agent))
                 .Returns(modeConfig);
 

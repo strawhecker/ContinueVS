@@ -49,7 +49,7 @@ namespace ContinueVS.Tests.ViewModels
             // Setup defaults
             _mockModeConfigRegistry
                 .Setup(r => r.GetConfig(It.IsAny<ChatMode>()))
-                .Returns(new ModeConfig { AllowToolLoop = false, ExportsPlanFile = false });
+                .Returns(new ModeConfig { ExportsPlanFile = false });
 
             _mockSessionService
                 .Setup(s => s.GetCurrentSession())
