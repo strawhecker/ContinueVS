@@ -212,5 +212,154 @@ namespace ContinueVS.Tests.Services
             // Empty string is kept as-is (not converted to "unknown")
             Assert.Equal(string.Empty, toolCall.Name);
         }
+
+        /// <summary>
+        /// gap73: Unit tests for reverse conversion (ToolCall → ToolCallSchema)
+        /// Tests the serialization logic for sending tool results back to Ollama.
+        /// </summary>
+
+        /// <summary>
+        /// Helper that mimics MessengerService.ConvertToolCallToSchema logic for testing.
+        /// </summary>
+        private ToolCallSchema ConvertToolCallToSchema(ToolCall toolCall)
+        {
+            var schema = new ToolCallSchema
+            {
+                Id = toolCall.Id,
+                Type = "function",
+                Function = new ToolCallFunction
+                {
+                    Name = toolCall.Name ?? "unknown"
+                }
+            };
+
+            // Serialize Arguments from IDictionary<string, object> to JSON string
+            if (toolCall.Arguments != null && toolCall.Arguments.Count > 0)
+            {
+                try
+                {
+                    schema.Function.Arguments = JsonConvert.SerializeObject(toolCall.Arguments);
+                }
+                catch (JsonSerializationException)
+                {
+                    // Re-throw to match service behavior
+                    throw;
+                }
+            }
+            else
+            {
+                // Empty arguments serialize to empty JSON object
+                schema.Function.Arguments = "{}";
+            }
+
+            return schema;
+        }
+
+        [Fact]
+        public void ConvertToolCallToSchema_WithValidToolCall_ReturnsSchema()
+        {
+            // Arrange
+            var argumentsDict = new Dictionary<string, object>
+            {
+                { "path", "/test/file.txt" },
+                { "encoding", "utf8" }
+            };
+            var toolCall = new ToolCall
+            {
+                Id = "call_123",
+                Name = "read_file",
+                Arguments = argumentsDict
+            };
+
+            // Act
+            var schema = ConvertToolCallToSchema(toolCall);
+
+            // Assert
+            Assert.NotNull(schema);
+            Assert.Equal("call_123", schema.Id);
+            Assert.Equal("function", schema.Type);
+            Assert.NotNull(schema.Function);
+            Assert.Equal("read_file", schema.Function.Name);
+            Assert.NotNull(schema.Function.Arguments);
+
+            // Verify Arguments are serialized as JSON string
+            var parsedArgs = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                schema.Function.Arguments);
+            Assert.NotNull(parsedArgs);
+            Assert.Equal(2, parsedArgs.Count);
+            Assert.Equal("/test/file.txt", parsedArgs["path"]);
+            Assert.Equal("utf8", parsedArgs["encoding"]);
+        }
+
+        [Fact]
+        public void ConvertToolCallToSchema_WithNullArguments_ReturnsEmptyJsonObject()
+        {
+            // Arrange
+            var toolCall = new ToolCall
+            {
+                Id = "call_456",
+                Name = "list_files",
+                Arguments = null
+            };
+
+            // Act
+            var schema = ConvertToolCallToSchema(toolCall);
+
+            // Assert
+            Assert.NotNull(schema);
+            Assert.Equal("call_456", schema.Id);
+            Assert.Equal("list_files", schema.Function?.Name);
+            Assert.Equal("{}", schema.Function?.Arguments); // Empty JSON object
+        }
+
+        [Fact]
+        public void ConvertToolCallToSchema_WithEmptyArguments_ReturnsEmptyJsonObject()
+        {
+            // Arrange
+            var toolCall = new ToolCall
+            {
+                Id = "call_789",
+                Name = "get_time",
+                Arguments = new Dictionary<string, object>() // Empty dict
+            };
+
+            // Act
+            var schema = ConvertToolCallToSchema(toolCall);
+
+            // Assert
+            Assert.NotNull(schema);
+            Assert.Equal("call_789", schema.Id);
+            Assert.Equal("get_time", schema.Function?.Name);
+            Assert.Equal("{}", schema.Function?.Arguments); // Empty JSON object
+        }
+
+        [Fact]
+        public void ConvertToolCallToSchema_WithComplexArguments_SerializesCorrectly()
+        {
+            // Arrange
+            var complexArgs = new Dictionary<string, object>
+            {
+                { "query", "class MyClass" },
+                { "limit", 50 },
+                { "flags", new Dictionary<string, object> { { "recursive", true }, { "ignoreCase", false } } }
+            };
+            var toolCall = new ToolCall
+            {
+                Id = "call_complex",
+                Name = "search_symbols",
+                Arguments = complexArgs
+            };
+
+            // Act
+            var schema = ConvertToolCallToSchema(toolCall);
+
+            // Assert
+            Assert.NotNull(schema.Function?.Arguments);
+            var parsedArgs = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                schema.Function.Arguments);
+            Assert.NotNull(parsedArgs);
+            Assert.Equal("class MyClass", parsedArgs["query"]);
+            Assert.Equal(50L, parsedArgs["limit"]); // JSON deserializes to long
+        }
     }
 }

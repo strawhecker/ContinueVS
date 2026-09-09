@@ -472,6 +472,9 @@ namespace ContinueVS.Services.Implementations
         /// <returns>Canonical internal ToolCall with parsed arguments dictionary</returns>
         public ToolCall ConvertToolCallSchemaToToolCall(ToolCallSchema schema)
         {
+            if (schema == null)
+                throw new ArgumentNullException(nameof(schema));
+
             var toolCall = new ToolCall
             {
                 Id = schema.Id,
@@ -501,6 +504,52 @@ namespace ContinueVS.Services.Implementations
             }
 
             return toolCall;
+        }
+
+        /// <summary>
+        /// gap73: Converts canonical internal ToolCall to provider-specific ToolCallSchema for serialization.
+        /// Handles JSON serialization of arguments dictionary and error handling.
+        /// Used to send tool results back to Ollama in the message loop.
+        /// </summary>
+        /// <param name="toolCall">Internal ToolCall with parsed arguments dictionary</param>
+        /// <returns>Provider-specific ToolCallSchema with JSON string arguments</returns>
+        private static ToolCallSchema ConvertToolCallToSchema(ToolCall toolCall)
+        {
+            if (toolCall == null)
+                throw new ArgumentNullException(nameof(toolCall));
+
+            var schema = new ToolCallSchema
+            {
+                Id = toolCall.Id,
+                Type = "function",
+                Function = new ToolCallFunction
+                {
+                    Name = toolCall.Name ?? "unknown"
+                }
+            };
+
+            // Serialize Arguments from IDictionary<string, object> to JSON string
+            if (toolCall.Arguments != null && toolCall.Arguments.Count > 0)
+            {
+                try
+                {
+                    schema.Function.Arguments = JsonConvert.SerializeObject(toolCall.Arguments);
+                }
+                catch (JsonSerializationException serEx)
+                {
+                    LoggerService.Current.WriteWarning(
+                        $"[gap73-convert] Failed to serialize arguments for tool '{toolCall.Name}': {serEx.Message}");
+                    // Re-throw to signal serialization failure to caller
+                    throw;
+                }
+            }
+            else
+            {
+                // Empty arguments serialize to empty JSON object
+                schema.Function.Arguments = "{}";
+            }
+
+            return schema;
         }
 
         /// <summary>
@@ -538,6 +587,33 @@ namespace ContinueVS.Services.Implementations
                     if (msg.Role == ChatMessageRole.Tool && !string.IsNullOrEmpty(msg.ToolCallId))
                     {
                         ollamaMsg.ToolCallId = msg.ToolCallId;
+                    }
+
+                    // gap73: Wire assistant ToolCalls for serialization to Ollama
+                    if (msg.Role == ChatMessageRole.Assistant && msg.ToolCalls != null && msg.ToolCalls.Count > 0)
+                    {
+                        var toolCallSchemas = new List<ToolCallSchema>();
+                        foreach (var toolCall in msg.ToolCalls)
+                        {
+                            try
+                            {
+                                var schema = ConvertToolCallToSchema(toolCall);
+                                toolCallSchemas.Add(schema);
+                            }
+                            catch (JsonSerializationException ex)
+                            {
+                                LoggerService.Current.WriteWarning(
+                                    $"[gap73-wire] Failed to serialize tool call '{toolCall.Name}' ({toolCall.Id}): {ex.Message}");
+                                // Continue with other tool calls; skip this one
+                            }
+                        }
+
+                        if (toolCallSchemas.Count > 0)
+                        {
+                            ollamaMsg.ToolCalls = toolCallSchemas;
+                            LoggerService.Current.WriteDebug(
+                                $"[gap73-wire] Assistant response includes {toolCallSchemas.Count} tool calls");
+                        }
                     }
 
                     ollamaMessages.Add(ollamaMsg);
