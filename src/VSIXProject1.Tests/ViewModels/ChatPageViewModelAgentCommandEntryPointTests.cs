@@ -212,7 +212,7 @@ namespace ContinueVS.Tests.ViewModels
 
         /// <summary>
         /// Test 4: ExecuteAgentCommandAsync_AddsToolResultToSession
-        /// Validates that successful command result is added to session and UI messages
+        /// Validates that command results are displayed in UI but NOT persisted to session (gap73 behavior)
         /// </summary>
         [Fact]
         public async Task ExecuteAgentCommandAsync_AddsToolResultToSession()
@@ -250,14 +250,14 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             await viewModel.ExecuteAgentCommandAsync(commandName, commandArgs, ct);
 
-            // Assert
+            // Assert: gap73 - Tool results NOT persisted to session
             mockSessionService.Verify(
                 x => x.AddMessageAsync(It.Is<ChatMessage>(m =>
                     m.Role == ChatMessageRole.Tool &&
                     m.Content == "Test output")),
-                Times.Once);
+                Times.Never);
 
-            // Verify message added to UI
+            // Verify message added to UI only
             Assert.Single(viewModel.Messages);
             var uiMessage = viewModel.Messages[0];
             Assert.Equal(ChatMessageRole.Tool, uiMessage.Role);
@@ -267,6 +267,7 @@ namespace ContinueVS.Tests.ViewModels
         /// <summary>
         /// Test 5: ExecuteAgentCommandAsync_HandlesErrorResponse
         /// Validates that error responses in command output are handled correctly
+        /// Tool results are NOT persisted to session (gap73 behavior)
         /// </summary>
         [Fact]
         public async Task ExecuteAgentCommandAsync_HandlesErrorResponse()
@@ -304,11 +305,11 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             await viewModel.ExecuteAgentCommandAsync(commandName, commandArgs, ct);
 
-            // Assert
+            // Assert: gap73 - Tool results NOT persisted to session
             mockSessionService.Verify(
                 x => x.AddMessageAsync(It.Is<ChatMessage>(m =>
                     m.Role == ChatMessageRole.Tool)),
-                Times.Once);
+                Times.Never);
 
             var uiMessage = viewModel.Messages[0];
             Assert.Equal(ToolInvocationStatus.Failed, uiMessage.InvocationStatus);

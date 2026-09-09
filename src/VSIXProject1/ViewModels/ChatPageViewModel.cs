@@ -1803,7 +1803,7 @@ public string? InputText
                         CurrentMode,
                         _streamingCts?.Token ?? CancellationToken.None);
 
-                    // Convert ToolResult to ChatMessage for session/UI
+                    // Convert ToolResult to ChatMessage for UI display only (not persisted to session)
                     await SwitchToMainThreadAsync();
                     var toolMessage = new ChatMessage
                     {
@@ -1814,7 +1814,8 @@ public string? InputText
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
                     };
-                    await _sessionService.AddMessageAsync(toolMessage);
+                    // gap73: Tool results are displayed in UI but NOT persisted to session file
+                    // They are only used for LLM context in the current loop via ConvertToolCallToSchema
                     Messages.Add(toolMessage);
 
                     if (!toolResult.IsSuccess)
@@ -1844,7 +1845,7 @@ public string? InputText
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
                     };
-                    await _sessionService.AddMessageAsync(deniedMessage);
+                    // gap73: Tool error messages displayed in UI but NOT persisted to session
                     Messages.Add(deniedMessage);
                     failureCount++;
                 }
@@ -1863,7 +1864,7 @@ public string? InputText
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
                     };
-                    await _sessionService.AddMessageAsync(cancelledMessage);
+                    // gap73: Tool error messages displayed in UI but NOT persisted to session
                     Messages.Add(cancelledMessage);
                     failureCount++;
                 }
@@ -1883,7 +1884,7 @@ public string? InputText
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
                     };
-                    await _sessionService.AddMessageAsync(errorMessage);
+                    // gap73: Tool error messages displayed in UI but NOT persisted to session
                     Messages.Add(errorMessage);
                     failureCount++;
                 }
@@ -2624,7 +2625,7 @@ public string? InputText
                     CurrentMode, 
                     ct);
 
-                // 5. Add to chat history (for context window)
+                // 5. Add to chat history for display only (not persisted to session)
                 var toolMsg = new ChatMessage
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -2632,7 +2633,8 @@ public string? InputText
                     Content = result.Output,
                     InvocationStatus = result.Output?.Contains("Error") ?? false ? ToolInvocationStatus.Failed : ToolInvocationStatus.Complete
                 };
-                await _sessionService.AddMessageAsync(toolMsg);
+                // gap73: Tool results are displayed in UI but NOT persisted to session file
+                // They are only used for LLM context in the current loop via ConvertToolCallToSchema
                 Messages.Add(toolMsg);
 
                 LoggerService.Current.WriteDebug(

@@ -292,12 +292,21 @@ namespace ContinueVS.UI.Pages
 
         private void Message_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            // When a message's Content property changes (during streaming), scroll to bottom to show the new text
+            // When a message's Content property changes (during streaming), only scroll to bottom if already at bottom
+            // This allows users to scroll up and read history without being forced back down
             if (e.PropertyName == nameof(ChatMessage.Content) && _messagesScrollViewer != null)
             {
                 try
                 {
-                    _messagesScrollViewer.ScrollToEnd();
+                    // Check if scrollbar is at the bottom (with small tolerance for rounding)
+                    double scrollableHeight = _messagesScrollViewer.ScrollableHeight;
+                    double verticalOffset = _messagesScrollViewer.VerticalOffset;
+
+                    // If at bottom (within 5 pixels tolerance), auto-scroll to show new content
+                    if (scrollableHeight <= 0 || verticalOffset >= scrollableHeight - 5)
+                    {
+                        _messagesScrollViewer.ScrollToEnd();
+                    }
                 }
                 catch (Exception ex)
                 {
