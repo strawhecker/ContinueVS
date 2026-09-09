@@ -110,5 +110,34 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="newUserContent">Content of the new user turn to append.</param>
         /// <returns>Ordered list: systemMessage → pruned history → new user message.</returns>
         List<ChatMessage> PackageMessages(ModelInfo? model, ChatMessage systemMessage, string newUserContent);
+
+        /// <summary>
+        /// Gets the current context budget state based on estimated token usage.
+        /// Compares current message history against Safe/Caution/Locked thresholds.
+        /// </summary>
+        /// <returns>ContextBudgetState enum value: Safe, Caution, or Locked.</returns>
+        ContextBudgetState GetContextBudgetState();
+
+        /// <summary>
+        /// Estimates total tokens used by a message history using conservative heuristics.
+        /// No LLM tokenizer required; uses character-based approximation.
+        /// User message: content.Length / 4
+        /// Assistant response: content.Length / 4 + tool_calls.Count * 150
+        /// Tool result: result.content.Length / 4 + 50
+        /// </summary>
+        /// <param name="history">List of messages to estimate tokens for.</param>
+        /// <returns>Approximate token count as integer.</returns>
+        int EstimateTokensUsed(List<ChatMessage> history);
+
+        /// <summary>
+        /// Backtracks and optimizes conversation history by removing newest Assistant + paired ToolResults units
+        /// until the message history fits within the specified token budget.
+        /// Preserves oldest foundational context; removes newest work units first.
+        /// </summary>
+        /// <param name="history">Full conversation history (oldest to newest).</param>
+        /// <param name="maxTokens">Maximum tokens allowed by model context window.</param>
+        /// <param name="reserve">Token buffer reserved for response; actual limit is (maxTokens - reserve).</param>
+        /// <returns>Tuple of (trimmed history, truncation summary string).</returns>
+        Task<(List<ChatMessage> trimmed, string summary)> BacktrackAndOptimizeAsync(List<ChatMessage> history, int maxTokens, int reserve);
     }
 }

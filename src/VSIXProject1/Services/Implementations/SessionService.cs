@@ -21,6 +21,7 @@ namespace ContinueVS.Services.Implementations
         private Session? _currentSession;
         private readonly object _lockObj = new object();
         private readonly ITokenCountingService _tokenCountingService;
+        private ContextBudgetState _cachedBudgetState = ContextBudgetState.Safe;
 
         /// <summary>
         /// Computes the base directory for session storage: ~/.continue/sessions/
@@ -537,6 +538,165 @@ namespace ContinueVS.Services.Implementations
                 CurrentMode = newMode,
                 Timestamp = DateTime.UtcNow
             });
+        }
+
+        /// <summary>
+        /// Gets the current context budget state based on estimated token usage.
+        /// Safe: tokens ≤ (maxTokens - reserve) * 0.85
+        /// Caution: tokens ∈ ((maxTokens - reserve) * 0.85, maxTokens - reserve)
+        /// Locked: tokens ≥ (maxTokens - reserve)
+        /// Assumes default maxTokens of 4096, reserve of 512 if not configured.
+        /// </summary>
+        public ContextBudgetState GetContextBudgetState()
+        {
+            var session = GetCurrentSession();
+            int used = EstimateTokensUsed(session.Messages);
+
+            // Conservative defaults: model context window 4096, reserve 512
+            int maxTokens = 4096;
+            int reserve = 512;
+
+            int safeThreshold = (int)((maxTokens - reserve) * 0.85);
+            int cautionThreshold = maxTokens - reserve;
+
+            if (used <= safeThreshold)
+            {
+                _cachedBudgetState = ContextBudgetState.Safe;
+            }
+            else if (used < cautionThreshold)
+            {
+                _cachedBudgetState = ContextBudgetState.Caution;
+            }
+            else
+            {
+                _cachedBudgetState = ContextBudgetState.Locked;
+            }
+
+            return _cachedBudgetState;
+        }
+
+        /// <summary>
+        /// Estimates total tokens used by a message history using conservative heuristics.
+        /// User message: content.Length / 4
+        /// Assistant response: content.Length / 4 + tool_calls.Count * 150
+        /// Tool result: content.Length / 4 + 50
+        /// </summary>
+        public int EstimateTokensUsed(List<ChatMessage> history)
+        {
+            if (history == null || history.Count == 0)
+                return 0;
+
+            int totalTokens = 0;
+
+            foreach (var message in history)
+            {
+                if (message.Role == ChatMessageRole.User)
+                {
+                    // User message: simple character-based estimation
+                    totalTokens += (message.Content?.Length ?? 0) / 4;
+                }
+                else if (message.Role == ChatMessageRole.Assistant)
+                {
+                    // Assistant response: content + tool call overhead
+                    totalTokens += (message.Content?.Length ?? 0) / 4;
+
+                    if (message.ToolCalls != null && message.ToolCalls.Count > 0)
+                    {
+                        totalTokens += message.ToolCalls.Count * 150;
+                    }
+                }
+                else if (message.Role == ChatMessageRole.Tool)
+                {
+                    // Tool result: content + metadata overhead
+                    totalTokens += (message.Content?.Length ?? 0) / 4;
+                    totalTokens += 50; // Metadata overhead
+                }
+                else
+                {
+                    // System or other roles: simple estimation
+                    totalTokens += (message.Content?.Length ?? 0) / 4;
+                }
+            }
+
+            return totalTokens;
+        }
+
+        /// <summary>
+        /// Helper method to find the newest conversation unit (Assistant message + following ToolResults).
+        /// Returns the start index and count of messages to remove.
+        /// </summary>
+        private (int startIndex, int count) FindNewestConversationUnit(List<ChatMessage> history)
+        {
+            if (history == null || history.Count == 0)
+                return (-1, 0);
+
+            // Find last Assistant message
+            int lastAssistantIndex = -1;
+            for (int i = history.Count - 1; i >= 0; i--)
+            {
+                if (history[i].Role == ChatMessageRole.Assistant)
+                {
+                    lastAssistantIndex = i;
+                    break;
+                }
+            }
+
+            if (lastAssistantIndex == -1)
+            {
+                // No assistant message; return last message (likely user message)
+                return (history.Count - 1, 1);
+            }
+
+            // Count subsequent tool results
+            int toolResultCount = 0;
+            for (int i = lastAssistantIndex + 1; i < history.Count; i++)
+            {
+                if (history[i].Role == ChatMessageRole.Tool)
+                {
+                    toolResultCount++;
+                }
+                else
+                {
+                    break; // Stop at first non-tool message
+                }
+            }
+
+            return (lastAssistantIndex, 1 + toolResultCount);
+        }
+
+        /// <summary>
+        /// Backtracks and optimizes conversation history by removing newest units until budget fits.
+        /// Preserves oldest foundational context; removes newest work units first.
+        /// Throws ContextBudgetException if history becomes empty and still exceeds budget.
+        /// </summary>
+        public async Task<(List<ChatMessage> trimmed, string summary)> BacktrackAndOptimizeAsync(List<ChatMessage> history, int maxTokens, int reserve)
+        {
+            if (history == null)
+                throw new ArgumentNullException(nameof(history));
+
+            var workingHistory = new List<ChatMessage>(history);
+            int budgetLimit = maxTokens - reserve;
+            int removedCount = 0;
+
+            while (EstimateTokensUsed(workingHistory) > budgetLimit)
+            {
+                if (workingHistory.Count == 0)
+                {
+                    throw new InvalidOperationException("Context budget reserve is too small; cannot continue.");
+                }
+
+                var (startIndex, count) = FindNewestConversationUnit(workingHistory);
+                if (startIndex < 0)
+                {
+                    throw new InvalidOperationException("Cannot find conversation unit to remove.");
+                }
+
+                workingHistory.RemoveRange(startIndex, count);
+                removedCount += count;
+            }
+
+            string summary = $"Removed {removedCount} messages; preserved {workingHistory.Count} foundational context.";
+            return await Task.FromResult((workingHistory, summary));
         }
     }
 }

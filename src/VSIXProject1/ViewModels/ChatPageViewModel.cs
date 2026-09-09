@@ -149,6 +149,25 @@ namespace ContinueVS.ViewModels
         private ModeOption? _selectedMode;
 
         /// <summary>
+        /// gap74: Current context budget state (Safe/Caution/Locked).
+        /// Updated by MessengerService.ContextBudgetStateChanged event.
+        /// </summary>
+        private ContextBudgetState _currentBudgetState = ContextBudgetState.Safe;
+
+        /// <summary>
+        /// gap74: Computed text for Optimize & Continue button.
+        /// Normal: "Optimize & Continue"
+        /// Caution: "⚠️ CAUTION: Optimize & Continue"
+        /// Locked: "🔴 LOCKED: Optimize & Continue"
+        /// </summary>
+        private string _optimizeButtonText = "Optimize & Continue";
+
+        /// <summary>
+        /// gap74: Whether user input is enabled (disabled when budget is Locked).
+        /// </summary>
+        private bool _isInputEnabled = true;
+
+
         /// Backing collection for available continuation policy options (gap27_12).
         /// </summary>
         private ObservableCollection<PolicyOption>? _continuationPolicies;
@@ -433,6 +452,40 @@ public string? InputText
             set => Set(ref _selectedCodeAction, value);
         }
 
+        /// <summary>
+        /// gap74: Gets the current context budget state (Safe/Caution/Locked).
+        /// Reflects the current conversation's token usage relative to model context window.
+        /// Updated when MessengerService.ContextBudgetStateChanged event fires.
+        /// </summary>
+        public ContextBudgetState CurrentBudgetState
+        {
+            get => _currentBudgetState;
+            set => Set(ref _currentBudgetState, value);
+        }
+
+        /// <summary>
+        /// gap74: Gets the computed text for the Optimize & Continue button.
+        /// Normal state: "Optimize & Continue"
+        /// Caution state: "⚠️ CAUTION: Optimize & Continue"
+        /// Locked state: "🔴 LOCKED: Optimize & Continue"
+        /// </summary>
+        public string OptimizeButtonText
+        {
+            get => _optimizeButtonText;
+            set => Set(ref _optimizeButtonText, value);
+        }
+
+        /// <summary>
+        /// gap74: Gets whether user input should be enabled.
+        /// False when budget is Locked; true otherwise.
+        /// Disables the message input field to prevent buffer overflow.
+        /// </summary>
+        public bool IsInputEnabled
+        {
+            get => _isInputEnabled;
+            set => Set(ref _isInputEnabled, value);
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -467,6 +520,13 @@ public string? InputText
         /// Placeholder for codeblock template wiring.
         /// </summary>
         public RelayCommand<string> ApplyCodeBlockCommand { get; }
+
+        /// <summary>
+        /// gap74: Command to backtrack and optimize conversation history.
+        /// Removes newest units until conversation fits within token budget.
+        /// Updates CurrentBudgetState to Safe after optimization.
+        /// </summary>
+        public RelayCommand OptimizeAndContinueCommand { get; }
 
         private Dictionary<string, TaskCompletionSource<string>> _pendingInlineQuestions = new();
 
@@ -552,6 +612,7 @@ public string? InputText
                 if (CanApplyCodeBlock())
                     ExecuteApplyCodeBlock(codeContent);
             });
+            OptimizeAndContinueCommand = new RelayCommand(() => _ = ExecuteOptimizeAndContinueAsync());
 
             _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
@@ -2594,6 +2655,60 @@ public string? InputText
                 LoggerService.Current.WriteError(
                     $"[gap60-agent-error] Unexpected error during agent command execution: {ex.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// gap74: Executes the Optimize and Continue action.
+        /// Backtracks conversation history to fit within token budget, then resets UI state.
+        /// </summary>
+        private async Task ExecuteOptimizeAndContinueAsync()
+        {
+            try
+            {
+                var session = _sessionService.GetCurrentSession();
+                if (session?.Messages == null || session.Messages.Count == 0)
+                {
+                    await _notificationService.ShowNotificationAsync("No Messages", "No messages to optimize.", NotificationType.Warning);
+                    return;
+                }
+
+                // Conservative defaults
+                int maxTokens = 4096;
+                int reserve = 512;
+
+                var (trimmedHistory, summary) = await _sessionService.BacktrackAndOptimizeAsync(
+                    session.Messages, maxTokens, reserve);
+
+                // Update session with trimmed history
+                session.Messages.Clear();
+                foreach (var msg in trimmedHistory)
+                {
+                    session.Messages.Add(msg);
+                }
+
+                // Update UI and persist
+                await _sessionService.SaveCurrentSessionAsync();
+
+                // Reset budget state
+                CurrentBudgetState = ContextBudgetState.Safe;
+                OptimizeButtonText = "Optimize & Continue";
+                IsInputEnabled = true;
+
+                // Show optimization summary
+                await _notificationService.ShowNotificationAsync("Optimized", summary, NotificationType.Information);
+
+                LoggerService.Current.WriteDebug($"[gap74-optimize] {summary}");
+            }
+            catch (InvalidOperationException ex)
+            {
+                LoggerService.Current.WriteError($"[gap74-error] Optimization failed: {ex.Message}");
+                await _notificationService.ShowErrorAsync($"Cannot optimize: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[gap74-error] Unexpected error: {ex.Message}");
+                await _notificationService.ShowErrorAsync("Optimization failed: " + ex.Message);
             }
         }
     }

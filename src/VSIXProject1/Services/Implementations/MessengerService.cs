@@ -30,6 +30,9 @@ namespace ContinueVS.Services.Implementations
         private readonly HttpClient _httpClient;
         private readonly IBridgeLogger? _logger;
         private readonly IContextDumpService _contextDumpService;
+        private ContextBudgetState _budgetState = ContextBudgetState.Safe;
+
+        public event EventHandler<ContextBudgetState>? ContextBudgetStateChanged;
 
         public MessengerService(
             IConfigService configService,
@@ -50,6 +53,15 @@ namespace ContinueVS.Services.Implementations
             _httpClient = httpClient;
             _logger = logger;
             _contextDumpService = contextDumpService ?? new NullContextDumpService();
+        }
+
+        protected virtual void OnContextBudgetStateChanged(ContextBudgetState newState)
+        {
+            if (_budgetState != newState)
+            {
+                _budgetState = newState;
+                ContextBudgetStateChanged?.Invoke(this, newState);
+            }
         }
 
         public Task<TResponse> RequestAsync<TRequest, TResponse>(
