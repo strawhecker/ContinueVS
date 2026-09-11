@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.Shell;
 using ContinueVS.Core.Types;
@@ -448,6 +449,121 @@ namespace ContinueVS.UI.Pages
 
             // Fire the OnCancelAsync callback
             _ = question.OnCancelAsync?.Invoke();
+        }
+
+
+        /// <summary>
+        /// Handles Copy All button click for thinking messages.
+        /// </summary>
+        private void ThinkingCopyAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn)
+                return;
+
+            var content = (btn.DataContext as ChatMessage)?.Content ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                try
+                {
+                    Clipboard.SetText(content);
+                    LoggerService.Current.WriteDebug("[thinking-copy-all] Thinking content copied to clipboard");
+                }
+                catch (Exception ex)
+                {
+                    LoggerService.Current.WriteError("[thinking-copy-all-error] Failed to copy", ex);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles Copy/Apply dropdown selection change for thinking messages.
+        /// </summary>
+        private void ThinkingCodeActionDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is not ComboBox comboBox || comboBox.DataContext is not ChatMessage message)
+                return;
+
+            var selectedItem = comboBox.SelectedItem as ComboBoxItem;
+            if (selectedItem == null)
+                return;
+
+            var content = message.Content ?? string.Empty;
+
+            if (selectedItem.Content.ToString()?.Contains("Copy") == true)
+            {
+                try
+                {
+                    Clipboard.SetText(content);
+                    LoggerService.Current.WriteDebug("[thinking-dropdown-copy] Thinking content copied via dropdown");
+                }
+                catch (Exception ex)
+                {
+                    LoggerService.Current.WriteError("[thinking-dropdown-copy-error] Failed to copy", ex);
+                }
+            }
+            else if (selectedItem.Content.ToString()?.Contains("Apply") == true)
+            {
+                LoggerService.Current.WriteDebug("[thinking-dropdown-apply] Apply selected from thinking dropdown");
+            }
+
+            // Reset to Copy
+            comboBox.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// Handles mouse enter on thinking message Grid to show controls.
+        /// </summary>
+        private void ThinkingMessageGrid_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is not Grid grid)
+                return;
+
+            try
+            {
+                var copyAllButton = grid.FindName("ThinkingCopyAllButton") as Button;
+                if (copyAllButton != null && copyAllButton.Visibility != Visibility.Collapsed)
+                    copyAllButton.Visibility = Visibility.Visible;
+
+                var dropdown = grid.FindName("ThinkingCodeActionDropdown") as ComboBox;
+                if (dropdown != null && dropdown.Visibility != Visibility.Collapsed)
+                    dropdown.Visibility = Visibility.Visible;
+
+                var deleteButton = grid.FindName("ThinkingDeleteButton") as Button;
+                if (deleteButton != null && deleteButton.Visibility != Visibility.Collapsed)
+                    deleteButton.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError("[thinking-controls-hover] Error on mouse enter", ex);
+            }
+        }
+
+        /// <summary>
+        /// Handles mouse leave on thinking message Grid to hide controls.
+        /// </summary>
+        private void ThinkingMessageGrid_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is not Grid grid)
+                return;
+
+            try
+            {
+                var copyAllButton = grid.FindName("ThinkingCopyAllButton") as Button;
+                if (copyAllButton != null && copyAllButton.Visibility != Visibility.Collapsed)
+                    copyAllButton.Visibility = Visibility.Hidden;
+
+                var dropdown = grid.FindName("ThinkingCodeActionDropdown") as ComboBox;
+                if (dropdown != null && dropdown.Visibility != Visibility.Collapsed)
+                    dropdown.Visibility = Visibility.Hidden;
+
+                var deleteButton = grid.FindName("ThinkingDeleteButton") as Button;
+                if (deleteButton != null && deleteButton.Visibility != Visibility.Collapsed)
+                    deleteButton.Visibility = Visibility.Hidden;
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError("[thinking-controls-hover] Error on mouse leave", ex);
+            }
         }
     }
 }

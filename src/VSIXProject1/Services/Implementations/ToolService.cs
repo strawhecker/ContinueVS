@@ -106,6 +106,10 @@ namespace ContinueVS.Services.Implementations
                 // Apply user settings filtering (second gate: per-tool enable/disable)
                 allTools = ApplyUserSettingsFilter(allTools).ToList();
 
+                // CRITICAL: Filter out disabled tools - they should never be returned to the LLM
+                allTools = allTools.Where(t => t.IsEnabled).ToList();
+                _logger?.WriteDebug($"[gap8_1-toolsvc-filter-disabled] After filtering disabled: {allTools.Count} tools remaining");
+
                 // Defensive: Log warning if tools are unexpectedly empty
                 if (allTools.Count == 0)
                 {
@@ -116,7 +120,23 @@ namespace ContinueVS.Services.Implementations
                     _logger?.WriteWarning(warningMessage);
                 }
 
-                return allTools;
+                // Deduplicate by tool name (if a tool appears twice due to combining registries,
+                // keep the first occurrence - built-in tools take precedence)
+                var dedupedTools = new Dictionary<string, ToolDefinition>();
+                foreach (var tool in allTools)
+                {
+                    if (!dedupedTools.ContainsKey(tool.Name))
+                    {
+                        dedupedTools[tool.Name] = tool;
+                        _logger?.WriteDebug($"[gap8_1-dedup] Tool '{tool.Name}' added to deduplicated list");
+                    }
+                    else
+                    {
+                        _logger?.WriteDebug($"[gap8_1-dedup] Duplicate tool '{tool.Name}' skipped (keeping first occurrence)");
+                    }
+                }
+
+                return dedupedTools.Values.ToList();
             }
         }
 
@@ -313,6 +333,7 @@ namespace ContinueVS.Services.Implementations
             return toolName switch
             {
                 "read_file" => await ReadFileInternalAsync(GetArgString(args, "filepath")),
+                "read_currently_open_file" => await ReadCurrentlyOpenFileInternalAsync(),
                 "write_file" => await WriteFileInternalAsync(
                     GetArgString(args, "filepath"),
                     GetArgString(args, "contents")),
@@ -327,6 +348,9 @@ namespace ContinueVS.Services.Implementations
                 "search_codebase" => await SearchCodebaseInternalAsync(
                     GetArgString(args, "query"),
                     GetArgInt(args, "maxResults", 10)),
+                "file_glob_search" => await FileGlobSearchInternalAsync(
+                    GetArgString(args, "glob"),
+                    GetArgInt(args, "maxResults", 100)),
                 "run_subprocess" => await RunSubprocessInternalAsync(
                     GetArgString(args, "command"),
                     GetArgString(args, "cwd", ".")),
@@ -520,6 +544,36 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
+        /// Internal wrapper for read currently open file as ToolResult.
+        /// </summary>
+        private async Task<ToolResult> ReadCurrentlyOpenFileInternalAsync()
+        {
+            try
+            {
+                var contents = await _ideService.ReadCurrentlyOpenFileAsync();
+                if (string.IsNullOrEmpty(contents))
+                {
+                    return new ToolResult
+                    {
+                        ToolName = "read_currently_open_file",
+                        Output = "No file is currently open in the IDE",
+                        IsSuccess = false
+                    };
+                }
+                return new ToolResult
+                {
+                    ToolName = "read_currently_open_file",
+                    Output = contents,
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("read_currently_open_file", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Internal wrapper for write file as ToolResult.
         /// </summary>
         private async Task<ToolResult> WriteFileInternalAsync(string filepath, string contents)
@@ -625,6 +679,34 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 return CreateErrorResult("search_codebase", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for file_glob_search.
+        /// Searches for files matching a glob pattern in the workspace.
+        /// </summary>
+        private Task<ToolResult> FileGlobSearchInternalAsync(string glob, int maxResults)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(glob))
+                    return Task.FromResult(CreateErrorResult("file_glob_search", "glob cannot be null or empty"));
+
+                var workspaceFiles = _ideService.GetWorkspaceFiles(glob);
+                var matchedFiles = workspaceFiles.Take(maxResults).ToList();
+
+                return Task.FromResult(new ToolResult
+                {
+                    ToolName = "file_glob_search",
+                    Output = $"Found {matchedFiles.Count} files matching pattern '{glob}'",
+                    RawOutput = matchedFiles,
+                    IsSuccess = true
+                });
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(CreateErrorResult("file_glob_search", ex.Message));
             }
         }
 
@@ -865,19 +947,31 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Ensures that core built-in tools have definitions, populated from BuiltInToolsRegistry.
+        /// ONLY adds tools that are NOT already in the registry, and respects config DisabledTools list.
+        /// If a tool is explicitly disabled in config, it is NOT added from defaults.
         /// </summary>
         private void EnsureBuiltInToolDefaults()
         {
             _logger?.WriteDebug("[gap8_1-toolsvc-defaults-start] EnsureBuiltInToolDefaults called");
             var defaultTools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+            var overrideConfig = _configService.GetToolOverrideConfig();
             int addedCount = 0;
 
             foreach (var tool in defaultTools)
             {
                 if (!_builtInToolRegistry.ContainsKey(tool.Name))
                 {
+                    // Check if tool is explicitly disabled in override config
+                    if (overrideConfig?.DisabledTools.Contains(tool.Name) ?? false)
+                    {
+                        _logger?.WriteDebug($"[gap8_1-toolsvc-defaults-skip] Tool '{tool.Name}' disabled in config, skipping default");
+                        // Don't add it - respect the disabled setting
+                        continue;
+                    }
+
                     _builtInToolRegistry[tool.Name] = tool;
                     addedCount++;
+                    _logger?.WriteDebug($"[gap8_1-toolsvc-defaults-added] Tool '{tool.Name}' added from defaults");
                 }
             }
             _logger?.WriteDebug($"[gap8_1-toolsvc-defaults-end] EnsureBuiltInToolDefaults: {defaultTools.Count} defaults checked, {addedCount} added");

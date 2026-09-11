@@ -23,6 +23,7 @@ namespace ContinueVS.Services.Tests
             public Func<Task<string>> OnGetGitRootPathAsync { get; set; } = () => Task.FromResult(string.Empty);
 
             public Task<string> GetActiveDocumentPathAsync() => OnGetActiveDocumentPath();
+            public Task<string> ReadCurrentlyOpenFileAsync() => Task.FromResult(string.Empty);
             public Task<string> GetBranchAsync() => OnGetBranchAsync();
             public Task<string> GetGitRootPathAsync() => OnGetGitRootPathAsync();
 

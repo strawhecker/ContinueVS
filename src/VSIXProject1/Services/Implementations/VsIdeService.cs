@@ -170,6 +170,24 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
+        public async Task<string> ReadCurrentlyOpenFileAsync()
+        {
+            try
+            {
+                var path = await GetActiveDocumentPathAsync();
+                if (path == "none" || string.IsNullOrWhiteSpace(path))
+                    return string.Empty;
+
+                var contents = await ReadFileAsync(path);
+                return contents;
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[read_currently_open_file] Error reading currently open file: {ex.Message}", ex);
+                return string.Empty;
+            }
+        }
+
         public Task<string> GetBranchAsync()
         {
             try

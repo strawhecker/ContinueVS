@@ -146,6 +146,7 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Collection of tool calls requested by the assistant.
         /// Null or empty if the message does not request tool execution.
+        /// Persisted in session history for LLM context, but NOT exposed in user-visible responses.
         /// </summary>
         [JsonProperty("toolCalls")]
         public List<ToolCall>? ToolCalls

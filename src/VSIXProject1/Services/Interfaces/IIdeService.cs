@@ -203,6 +203,12 @@ namespace ContinueVS.Services.Interfaces
         Task<string> GetActiveDocumentPathAsync();
 
         /// <summary>
+        /// Gets the contents of the currently open file in the IDE editor.
+        /// </summary>
+        /// <returns>The contents of the currently open file, or an empty string if no file is open.</returns>
+        Task<string> ReadCurrentlyOpenFileAsync();
+
+        /// <summary>
         /// Gets the current git branch.
         /// </summary>
         /// <returns>The branch name.</returns>

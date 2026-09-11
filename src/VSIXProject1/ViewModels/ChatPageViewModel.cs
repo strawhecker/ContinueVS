@@ -200,6 +200,13 @@ namespace ContinueVS.ViewModels
         public ObservableCollection<ModelInfo> AvailableModels { get; }
 
         /// <summary>
+        /// Filtered view of Messages for UI display (gap75: Hide internal messages from user).
+        /// Only includes User and Assistant messages with content.
+        /// System, Tool, and internal messages are excluded from user display but still persisted for LLM context.
+        /// </summary>
+        public ObservableCollection<ChatMessage> DisplayMessages { get; }
+
+        /// <summary>
         /// Gets the available chat mode options for the mode dropdown (gap27_1).
         /// </summary>
         public ObservableCollection<ModeOption> AvailableModes
@@ -590,6 +597,7 @@ public string? InputText
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
             AvailableModels = new ObservableCollection<ModelInfo>();
+            DisplayMessages = new ObservableCollection<ChatMessage>();
             _inputText = string.Empty;
             _streamingResponse = string.Empty;
 
@@ -598,6 +606,9 @@ public string? InputText
 
             // gap25_6: Subscribe to messages collection changes to sync onboarding card visibility
             Messages.CollectionChanged += OnMessages_CollectionChanged;
+
+            // gap75: Subscribe to messages changes to update DisplayMessages (filtered view for UI)
+            Messages.CollectionChanged += (s, e) => UpdateDisplayMessages();
 
             SendMessageCommand = new RelayCommand(ExecuteSendMessage, CanSendMessage);
             CancelCommand = new RelayCommand(ExecuteCancel, () => IsStreaming);
@@ -871,6 +882,32 @@ public string? InputText
                     LoggerService.Current.WriteDebug($"[gap49-detect] File path detected in response: {CurrentResponseHasFilePath}");
                 }
             }
+        }
+
+        /// <summary>
+        /// gap75: Updates DisplayMessages (UI display) to show user-visible messages.
+        /// Filters out System and Tool result messages (internal only).
+        /// Shows: User, Assistant, Thinking (reasoning) messages.
+        /// All messages (including internal) are still persisted in session for LLM context.
+        /// </summary>
+        private void UpdateDisplayMessages()
+        {
+            // Rebuild DisplayMessages from Messages, filtering for user-visible roles only
+            DisplayMessages.Clear();
+
+            foreach (var msg in Messages)
+            {
+                // Display User, Assistant, and Thinking (reasoning) messages
+                // Filter out System and Tool messages (internal/LLM-only)
+                if (msg.Role == ChatMessageRole.User || 
+                    msg.Role == ChatMessageRole.Assistant || 
+                    msg.Role == ChatMessageRole.Thinking)
+                {
+                    DisplayMessages.Add(msg);
+                }
+            }
+
+            LoggerService.Current.WriteDebug($"[gap75-filter] DisplayMessages updated: {DisplayMessages.Count} visible messages from {Messages.Count} total");
         }
 
         /// <summary>
@@ -1242,6 +1279,15 @@ public string? InputText
                 }
 
                 IsStreaming = true;
+                // Dispose old CancellationTokenSource before creating a new one
+                try
+                {
+                    _streamingCts?.Dispose();
+                }
+                catch (ObjectDisposedException)
+                {
+                    LoggerService.Current.WriteDebug("[ExecuteSendMessage] Previous _streamingCts already disposed");
+                }
                 _streamingCts = new CancellationTokenSource();
                 _pendingToolCalls.Clear();
                 _toolCallIterationCount = 0;
@@ -1393,6 +1439,10 @@ public string? InputText
                         ToolCalls = null
                     };
 
+                    // Add assistantMessage to UI collection immediately so binding updates work during streaming
+                    await SwitchToMainThreadAsync();
+                    Messages.Add(assistantMessage);
+
                     // Optional reasoning message to hold provider reasoning (separate from content)
                     ChatMessage? reasoningMessage = null;
 
@@ -1408,8 +1458,11 @@ public string? InputText
                         if (chunk.Type == ChunkType.Text)
                         {
                             // Handle reasoning content by creating a separate reasoning message
+                            // CRITICAL: Must marshal to UI thread for WPF binding updates to fire correctly
                             if (!string.IsNullOrEmpty(chunk.Reasoning))
                             {
+                                await SwitchToMainThreadAsync();
+
                                 // Create reasoning message on first reasoning chunk
                                 if (reasoningMessage == null)
                                 {
@@ -1420,7 +1473,9 @@ public string? InputText
                                         IsThinking = true,
                                         IsExpanded = false
                                     };
-                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning message created for provider reasoning");
+                                    // DEFER adding reasoningMessage to UI - we'll add it after thinking in correct order
+                                    // Messages.Add(reasoningMessage);
+                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning message created (deferred add to UI)");
                                 }
 
                                 // Append reasoning to reasoning message
@@ -1431,8 +1486,10 @@ public string? InputText
 
                             // Update the message content in place - this triggers PropertyChanged
                             // and the UI updates with the new content
+                            // CRITICAL: Must marshal to UI thread for WPF binding updates to fire correctly
                             if (!string.IsNullOrEmpty(chunk.Content))
                             {
+                                await SwitchToMainThreadAsync();
                                 assistantMessage.Content += chunk.Content;
                                 StreamingResponse += chunk.Content;
 
@@ -1599,27 +1656,35 @@ public string? InputText
                     await _sessionService.AddMessageAsync(assistantMessage);
                     LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
-                    // Add all messages to UI in the correct order: thinking, reasoning, content
-                    // This ensures the UI displays sections in the user's preferred order
+                    // Reorder messages to ensure correct display: thinking, reasoning, response
+                    // The assistant message was added first (for incremental streaming UI updates),
+                    // but we need to move it to the end, with thinking and reasoning before it
                     await SwitchToMainThreadAsync();
 
+                    // Remove assistant message from its current position (it should be the last item or near it)
+                    Messages.Remove(assistantMessage);
+
+                    // Add thinking message first (if present)
                     if (thinkingMessage != null && !string.IsNullOrEmpty(thinkingMessage.Content))
                     {
+                        // Add debug cookie to verify thinking content is present
+                        thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
                         Messages.Add(thinkingMessage);
                         LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
                     }
 
+                    // Add reasoning message second (if present)
                     if (reasoningMessage != null && !string.IsNullOrEmpty(reasoningMessage.Content))
                     {
+                        // Add debug cookie to verify reasoning content is present
+                        reasoningMessage.Content += "\n\n🍪 [DEBUG: Reasoning message cookie]";
                         Messages.Add(reasoningMessage);
                         LoggerService.Current.WriteDebug($"[UI-ordering] Reasoning message added to UI");
                     }
 
-                    if (!string.IsNullOrEmpty(assistantMessage.Content))
-                    {
-                        Messages.Add(assistantMessage);
-                        LoggerService.Current.WriteDebug($"[UI-ordering] Assistant message added to UI");
-                    }
+                    // Add the response (assistant message) last
+                    Messages.Add(assistantMessage);
+                    LoggerService.Current.WriteDebug($"[UI-ordering] Assistant message re-added to UI in correct position (response)");
 
                     // gap23_4_4: Check tool call limit and show banners
                     CheckToolCallLimit();
@@ -1661,19 +1726,19 @@ public string? InputText
                         {
                             var changeStackId = _changeStackService.CreateChangeStack();
                             var targetDir = System.Environment.CurrentDirectory;
-                            if (_ideService != null)
-                            {
-                                var gitRoot = await _ideService.GetGitRootPathAsync();
-                                if (!string.IsNullOrWhiteSpace(gitRoot))
-                                    targetDir = gitRoot;
-                            }
-                            var execInstruction = new ContinueVS.Core.Types.ExecutionInstruction
-                            {
-                                Text = assistantMessage.Content
-                            };
-                            LoggerService.Current.WriteDebug($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
-                            await _instructionExecutorService.ExecuteInstructionAsync(
-                                execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
+                             if (_ideService != null)
+                             {
+                                 var gitRoot = await _ideService.GetGitRootPathAsync();
+                                 if (!string.IsNullOrWhiteSpace(gitRoot))
+                                     targetDir = gitRoot;
+                             }
+                             var execInstruction = new ContinueVS.Core.Types.ExecutionInstruction
+                             {
+                                 Text = assistantMessage.Content
+                             };
+                             LoggerService.Current.WriteDebug($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
+                             await _instructionExecutorService.ExecuteInstructionAsync(
+                                 execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
                         }
 
                         break;
@@ -1689,7 +1754,7 @@ public string? InputText
             {
 #if DEBUG
                 //if (DebuggerHelper.ShouldBreakOnException("ServiceName"))
-                    Debugger.Break();
+                   Debugger.Break();
 #endif
 
                 LoggerService.Current.WriteError($"[ChatPageViewModel.ExecuteSendMessage] Exception caught: {ex.GetType().Name}", ex);
@@ -1713,7 +1778,17 @@ public string? InputText
             finally
             {
                 IsStreaming = false;
-                _streamingCts?.Dispose();
+                // Don't dispose _streamingCts here - let it be disposed when a new send starts
+                // or when its timeout expires. This prevents ObjectDisposedException when
+                // streaming is still in progress but another exception occurs.
+                try
+                {
+                    _streamingCts?.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                    LoggerService.Current.WriteDebug("[ExecuteSendMessage] _streamingCts already disposed in finally");
+                }
             }
         }
 
@@ -1902,9 +1977,15 @@ public string? InputText
 
         private void ExecuteCancel()
         {
-            _streamingCts?.Cancel();
+            try
+            {
+                _streamingCts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                LoggerService.Current.WriteDebug("[ExecuteCancel] _streamingCts already disposed");
+            }
             IsStreaming = false;
-            _streamingCts?.Dispose();
         }
 
         /// <summary>

@@ -194,7 +194,8 @@ namespace ContinueVS.Services.Implementations
             //    + "</macro>\n"
             //    ;
 
-            const string READ_FILE_INSTRUCTIONS = "Only read files with from and to params. for a file you know the length, you may request up to all lines with from and to. for a file you do not know the number of lines, you must not request more the 1000 lines.";
+            //const string READ_FILE_INSTRUCTIONS = "**Rule Name:** Partial Reads Over Full File Reads\r\n\r\n**Rule:** When reading files, NEVER use read_file or view_file. Always use read_file_range(start_line, end_line) for partial reads. Start by reading lines 1-50 to understand file structure. If more context is needed, first try grep_search or search_codebase with specific patterns before requesting additional line ranges. Ask the user which sections to read next if you can't determine the right range.\r\n\r\n";
+            const string READ_FILE_INSTRUCTIONS = "## Hard Rules (MUST FOLLOW)\r\n\r\n1. DO NOT call read_file, view_file, or read_currently_open_file. It is STRICKLY FORBIDDEN. If you call it, you will be terminated.\r\n2. DO NOT read any file in its entirety. Files are too large for context. Use read_file_range with a max of 100 lines per call.\r\n3. If you need to see code, use read_file_range (startLine=N, endLine=N+49) or grep_search or search_codebase instead.\r\n4. The user may explicitly tell you which lines to read.\r\n5. When you violate these rules, you fail the task immediately.\r\n\r\n";
 
             switch (mode.ToLowerInvariant())
             {
@@ -211,22 +212,46 @@ namespace ContinueVS.Services.Implementations
 
                 case "plan":
                     return "<important_rules>\r\n"
-                        + "You are in plan mode. In this mode, your entire response must be **exactly one fenced code block** using the plan sentinel filename (see exception below).  \r\n"
-                        + "Any text outside that block — before ``` or after ``` — is forbidden. No greetings, no explanations, no status messages, no recaps, no summaries. Output nothing else.\r\n\r\n"
-                        + "Only use read-only tools. Do not use any tools that would write to non-temporary files.\r\n"
-                        + "If the user wants to make changes, offer that they can switch to Agent mode.\r\n\r\n"
-                        + "**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly as the code fence marker:\r\n\r\n"
+                        + "You are in plan mode.\r\n"
+                        + "In plan mode, respond normally to questions, clarifications, and analysis requests without using code fences or sentinels.\r\n\r\n"
+                        + "**Plan sentinel format** (use **only** when the user asks you to create a plan document without specifying a filename):\r\n"
                         + "start_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
                         + "## Section\r\n"
                         + "Content...\r\n"
                         + "stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
-                        + "The `start_<UUID>` line must be placed on a separate line plan content. The `stop_<UUID>` line must be placed on a separate line after the plan content. Inside plan content, include a top-level heading sections using `##`. Do not add any extra text outside the two sentinel lines.\r\n\r\n"
-                        + "**User override:** If the user explicitly gives a custom file name for the plan (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n\r\n"
-                        + "**Hard constraint:**  \r\nIf you output even a single character (letter, number, punctuation, space) outside the fenced plan block (including newlines before or after), your output is invalid. You must self-correct and retry producing only the block.\r\n\r\n"
-                        + "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\r\n"
+                        + "The `start_<UUID>` line must be placed on a separate line. The `stop_<UUID>` line must be placed on a separate line after the plan content. Inside the plan content, include top-level heading sections using `##`.\r\n\r\n"
+                        + "**When to use the sentinel:**\r\n"
+                        + "- The user asks for \"a plan\" or \"a plan called something\" — if they specify a filename (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path. Do **not** replace it with the sentinel.\r\n"
+                        + "- The sentinel is used **only** when the user asks for a plan with no file name provided.\r\n\r\n**Hard constraint:** Do not wrap ordinary conversational responses or answers in code fences or sentinels. Only the unnamed-plan-document case uses the special sentinel format. Do not add extraneous text outside the sentinel lines when using that format."
+                        + "I operate in two phases:\r\n\r\n"
+                        + "**Phase 1 — Discuss (default):** We discuss, question, and refine ideas. I never create files during this phase. No words or phrases trigger file creation.\r\n\r\n"
+                        + "**Phase 2 — Commit:** Only when you use one of the following exact phrases do I write the plan to a file:\r\n\r\n"
+                        + "| Phrase | Usage |\r\n|--------|-------|\r\n"
+                        + "| `write_plan` | Commit the current plan to a file |\r\n"
+                        + "| `write plan` | Same as above |\r\n"
+                        + "| `finalize` or `finalize plan` | Same as above |\r\n\r\n"
+                        + "**Reminder:** If you ask how to save the plan to a file, I will respond with:\r\n\r\n"
+                        + "> *To commit this plan to a file, say one of: `write_plan`, `write plan`, `finalize`, or `finalize plan`.*\r\n\r\n"
                         + READ_FILE_INSTRUCTIONS + "\n\n"
                         + "</important_rules>" +
                            GetContextSuffix("plan");
+                    //return "<important_rules>\r\n"
+                    //    + "You are in plan mode. In this mode, your entire response must be **exactly one fenced code block** using the plan sentinel filename (see exception below).  \r\n"
+                    //    + "Any text outside that block — before ``` or after ``` — is forbidden. No greetings, no explanations, no status messages, no recaps, no summaries. Output nothing else.\r\n\r\n"
+                    //    + "Only use read-only tools. Do not use any tools that would write to non-temporary files.\r\n"
+                    //    + "If the user wants to make changes, offer that they can switch to Agent mode.\r\n\r\n"
+                    //    + "**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly as the code fence marker:\r\n\r\n"
+                    //    + "start_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
+                    //    + "## Section\r\n"
+                    //    + "Content...\r\n"
+                    //    + "stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
+                    //    + "The `start_<UUID>` line must be placed on a separate line plan content. The `stop_<UUID>` line must be placed on a separate line after the plan content. Inside plan content, include a top-level heading sections using `##`. Do not add any extra text outside the two sentinel lines.\r\n\r\n"
+                    //    + "**User override:** If the user explicitly gives a custom file name for the plan (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n\r\n"
+                    //    + "**Hard constraint:**  \r\nIf you output even a single character (letter, number, punctuation, space) outside the fenced plan block (including newlines before or after), your output is invalid. You must self-correct and retry producing only the block.\r\n\r\n"
+                    //    + "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\r\n"
+                    //    + READ_FILE_INSTRUCTIONS + "\n\n"
+                    //    + "</important_rules>" +
+                    //       GetContextSuffix("plan");
                     //return "<important_rules>\n" +
                     //       "You are in plan mode, in which you help the user understand and construct a plan.\n" +
                     //       "Only use read-only tools. Do not use any tools that would write to non-temporary files.\n" +

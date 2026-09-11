@@ -91,9 +91,11 @@
             <local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
                 <DataTemplate>
                     <Border BorderBrush="#A0A0A0" BorderThickness="1" CornerRadius="2" Margin="5" Padding="12" Background="#F5F5F5">
-                        <Grid>
+                        <Grid x:Name="ThinkingMessageGrid" MouseEnter="ThinkingMessageGrid_MouseEnter" MouseLeave="ThinkingMessageGrid_MouseLeave">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
@@ -102,14 +104,72 @@
                             </Grid.RowDefinitions>
                             <!-- Label Area -->
                             <TextBlock Grid.Column="0" Grid.Row="0" Text="Thinking" FontWeight="Bold" Foreground="#505050" Margin="0,0,0,6"/>
-                            <!-- Expand/Collapse Toggle Button -->
-                            <ToggleButton Grid.Column="1" Grid.Row="0" 
+                            <!-- Copy All Button (appears on hover) -->
+                            <Button x:Name="ThinkingCopyAllButton"
+                                    Grid.Column="1" Grid.Row="0"
+                                    Height="28"
+                                    Width="100"
+                                    Padding="4,2"
+                                    Background="#3E3E42"
+                                    Foreground="White"
+                                    BorderThickness="1"
+                                    BorderBrush="#5A5A5A"
+                                    FontSize="11"
+                                    Content="📋 Copy All"
+                                    ToolTip="Copy entire reasoning"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Top"
+                                    Margin="8,0,0,0"
+                                    Cursor="Hand"
+                                    Visibility="Hidden"
+                                    Click="ThinkingCopyAllButton_Click"/>
+                            <!-- Copy/Apply Dropdown (appears on hover) -->
+                            <ComboBox x:Name="ThinkingCodeActionDropdown"
+                                    Grid.Column="2" Grid.Row="0"
+                                    Height="28"
+                                    Width="120"
+                                    Background="#46464646"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    FontSize="11"
+                                    SelectedIndex="0"
+                                    SelectedValuePath="Content"
+                                    ToolTip="Copy or Apply code block"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Top"
+                                    Margin="4,0,0,0"
+                                    Cursor="Hand"
+                                    Visibility="Hidden"
+                                    SelectionChanged="ThinkingCodeActionDropdown_SelectionChanged">
+                                <ComboBoxItem Content="📋 Copy" IsSelected="True"/>
+                                <ComboBoxItem Content="✔ Apply"/>
+                            </ComboBox>
+                            <!-- Delete Button (appears on hover) -->
+                            <Button x:Name="ThinkingDeleteButton"
+                                    Grid.Column="3" Grid.Row="0"
+                                    Width="28" 
+                                    Height="28" 
+                                    Padding="2"
+                                    Visibility="Hidden"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    ToolTip="Delete message"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Margin="8,0,0,0">
+                                <TextBlock Text="✕" FontSize="14" Foreground="#A0A0A0" 
+                                          TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Button>
+                            <!-- Expand/Collapse Toggle Button with visual indicator -->
+                            <ToggleButton Grid.Column="3" Grid.Row="0" 
                                          IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                                          Width="20" Height="20"
                                          Background="Transparent" BorderThickness="0"
-                                         VerticalAlignment="Top" Margin="8,0,0,0"/>
+                                         VerticalAlignment="Top" Margin="8,0,0,0">
+                                <TextBlock Text="▼" Foreground="#505050" FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </ToggleButton>
                             <!-- Content Area -->
-                            <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
+                            <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4"
                                       Text="{Binding Content, Mode=OneWay}" 
                                       TextWrapping="Wrap" 
                                       Foreground="#404040"
@@ -421,7 +481,7 @@
 
         <!-- Messages (Chat List) with ScrollViewer -->
         <ScrollViewer Grid.Row="4" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{Binding Messages}" VerticalAlignment="Stretch"
+            <ItemsControl ItemsSource="{Binding DisplayMessages}" VerticalAlignment="Stretch"
                           ItemTemplateSelector="{StaticResource MessageTemplateSelector}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>

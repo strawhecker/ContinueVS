@@ -451,18 +451,34 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Gets the tool override configuration (disable, rename, validate).
-        /// Returns null if no overrides are configured.
+        /// Builds DisabledTools list from tools with IsEnabled = false.
+        /// Returns a ToolOverrideConfig instance with current disabled tools.
         /// </summary>
-        /// <returns>ToolOverrideConfig instance or null for no overrides</returns>
+        /// <returns>ToolOverrideConfig instance with disabled tools list</returns>
         public ToolOverrideConfig? GetToolOverrideConfig()
         {
             lock (_lock)
             {
                 ThrowIfNotInitialized();
 
-                // For now, return null (no overrides configured)
-                // This can be extended to load overrides from config file in the future
-                return null;
+                // Build DisabledTools list from tools with IsEnabled = false
+                var disabledTools = _currentConfig.Tools
+                    .Where(t => !t.IsEnabled && !string.IsNullOrWhiteSpace(t.Name))
+                    .Select(t => t.Name)
+                    .ToList();
+
+                _logger?.WriteDebug($"[gap8_1-configsvc-overrides] GetToolOverrideConfig: {disabledTools.Count} disabled tools");
+                if (disabledTools.Any())
+                {
+                    _logger?.WriteDebug($"[gap8_1-configsvc-overrides] Disabled tools: {string.Join(", ", disabledTools)}");
+                }
+
+                // Return ToolOverrideConfig with disabled tools
+                return new ToolOverrideConfig
+                {
+                    DisabledTools = disabledTools,
+                    ToolRenames = new Dictionary<string, string>()
+                };
             }
         }
 

@@ -268,7 +268,7 @@ namespace ContinueVS.Services.Implementations
 
             if (availableTools.Any())
             {
-                var toolSchemas = ConvertToolDefinitionsToSchema(availableTools);
+                var toolSchemas = ConvertToolsToSchema(availableTools);
                 requestObj["tools"] = toolSchemas;
                 _logger?.WriteDebug($"[gap71-messenger-openai-tools] Populated request.tools with {toolSchemas.Count} schemas for mode {options.Mode}");
             }
@@ -674,7 +674,7 @@ namespace ContinueVS.Services.Implementations
 
             if (availableTools.Any())
             {
-                var toolSchemas = ConvertToolDefinitionsToSchema(availableTools);
+                var toolSchemas = ConvertToolsToSchema(availableTools);
                 ollamaRequest.Tools = toolSchemas;
                 _logger?.WriteDebug($"[gap71-messenger-tools] Populated OllamaRequest.Tools with {toolSchemas.Count} schemas for mode {options.Mode}");
             }
@@ -866,10 +866,11 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Converts ToolDefinition objects to OpenAI-compatible ToolSchema format.
         /// Validates tool names and builds parameter schemas for LLM consumption.
+        /// Filters out disabled tools - they will not be exposed to the LLM.
         /// </summary>
         /// <param name="tools">Enumerable of tool definitions to convert.</param>
         /// <returns>List of ToolSchema objects in OpenAI function calling format.</returns>
-        private List<ToolSchema> ConvertToolDefinitionsToSchema(IEnumerable<ToolDefinition> tools)
+        public List<ToolSchema> ConvertToolsToSchema(IEnumerable<ToolDefinition> tools)
         {
             var schemas = new List<ToolSchema>();
 
@@ -880,6 +881,14 @@ namespace ContinueVS.Services.Implementations
 
             foreach (var tool in tools)
             {
+                // Skip disabled tools - they should not be exposed to the LLM
+                if (!tool.IsEnabled)
+                {
+                    LoggerService.Current.WriteDebug(
+                        $"[gap55_1-tool-disabled] Skipping disabled tool '{tool.Name}'");
+                    continue;
+                }
+
                 // Validate tool name matches OpenAI requirements: [a-z_][a-z0-9_]*
                 if (string.IsNullOrEmpty(tool.Name) || !toolNameRegex.IsMatch(tool.Name))
                 {
