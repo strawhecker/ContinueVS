@@ -1444,6 +1444,11 @@ public string? InputText
                     Messages.Add(assistantMessage);
 
                     // Optional reasoning message to hold provider reasoning (separate from content)
+                    // *** SECURITY WARNING: LLM keyword conflict risk ***
+                    // Previous attempts to defer adding reasoning (commented-out .Add) broke streaming UI.
+                    // THE REASONING MESSAGE MUST BE ADDED TO THE UI COLLECTION IMMEDIATELY DURING STREAMING.
+                    // Do NOT comment out, defer, or conditionally add reasoning after streaming completes.
+                    // The streaming UI visibility depends on real-time collection updates during chunk arrival.
                     ChatMessage? reasoningMessage = null;
 
                     // gap70: Reset plan file detector for this stream
@@ -1457,8 +1462,12 @@ public string? InputText
                     {
                         if (chunk.Type == ChunkType.Text)
                         {
+                            // *** CRITICAL STREAMING FIX: Reasoning incremental update ***
                             // Handle reasoning content by creating a separate reasoning message
                             // CRITICAL: Must marshal to UI thread for WPF binding updates to fire correctly
+                            // CRITICAL: Must ADD reasoning to Messages collection DURING streaming, not after.
+                            // If reasoning add is deferred until post-stream completion, the UI will wait until
+                            // the entire response is received before showing reasoning. This breaks incremental streaming.
                             if (!string.IsNullOrEmpty(chunk.Reasoning))
                             {
                                 await SwitchToMainThreadAsync();
@@ -1473,25 +1482,33 @@ public string? InputText
                                         IsThinking = true,
                                         IsExpanded = false
                                     };
-                                    // DEFER adding reasoningMessage to UI - we'll add it after thinking in correct order
-                                    // Messages.Add(reasoningMessage);
-                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning message created (deferred add to UI)");
+                                    // *** DO NOT DEFER THIS ADD ***
+                                    // ADD reasoning message to UI IMMEDIATELY when first chunk arrives.
+                                    // Only way to show real-time reasoning streaming in the UI.
+                                    // Previous deferred approach caused reasoning to hide until completion.
+                                    Messages.Add(reasoningMessage);
+                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning message created and added to UI for streaming");
                                 }
 
-                                // Append reasoning to reasoning message
-                                reasoningMessage.Content += chunk.Reasoning;
-                                var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
-                                LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning accumulated: {reasoningPreview}...");
-                            }
+                                    // Append reasoning to reasoning message
+                                    // *** INCREMENTAL UPDATE CRITICAL ***
+                                    // Do NOT skip this += or replace with assignment. Each chunk must accumulate.
+                                    reasoningMessage.Content += chunk.Reasoning;
+                                    var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
+                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning accumulated: {reasoningPreview}...");
+                                }
 
-                            // Update the message content in place - this triggers PropertyChanged
-                            // and the UI updates with the new content
-                            // CRITICAL: Must marshal to UI thread for WPF binding updates to fire correctly
-                            if (!string.IsNullOrEmpty(chunk.Content))
-                            {
-                                await SwitchToMainThreadAsync();
-                                assistantMessage.Content += chunk.Content;
-                                StreamingResponse += chunk.Content;
+                                // *** CORE STREAMING BEHAVIOR: Keep response message in collection during stream ***
+                                // Update the message content in place - this triggers PropertyChanged
+                                // and the UI updates with the new content
+                                // CRITICAL: Must marshal to UI thread for WPF binding updates to fire correctly
+                                // CRITICAL: assistantMessage stays in Messages collection during streaming.
+                                // This is ESSENTIAL for incremental UI updates. Do NOT remove it during streaming.
+                                if (!string.IsNullOrEmpty(chunk.Content))
+                                {
+                                    await SwitchToMainThreadAsync();
+                                    assistantMessage.Content += chunk.Content;
+                                    StreamingResponse += chunk.Content;
 
                                 // gap70: Feed chunk to plan file detector for marker detection
                                 try
@@ -1656,12 +1673,17 @@ public string? InputText
                     await _sessionService.AddMessageAsync(assistantMessage);
                     LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
+                    // *** POST-STREAM REORDERING: Collection already has all messages ***
                     // Reorder messages to ensure correct display: thinking, reasoning, response
-                    // The assistant message was added first (for incremental streaming UI updates),
-                    // but we need to move it to the end, with thinking and reasoning before it
+                    // The assistant message was added DURING streaming (for incremental UI updates),
+                    // The reasoning message was added DURING streaming (for incremental UI updates),
+                    // but we need to reorder them to display in the correct order: thinking, reasoning, response
+                    // NOTE: Reasoning message is already in the collection from streaming, so we reorder, not re-add.
+                    // Do NOT skip the removal/re-add of reasoning; it must be repositioned after thinking.
                     await SwitchToMainThreadAsync();
 
                     // Remove assistant message from its current position (it should be the last item or near it)
+                    // This prepares it to be re-added in the correct order at the end
                     Messages.Remove(assistantMessage);
 
                     // Add thinking message first (if present)
@@ -1673,13 +1695,18 @@ public string? InputText
                         LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
                     }
 
-                    // Add reasoning message second (if present)
+                    // *** REASONING ALREADY EXISTS - REORDER ONLY ***
+                    // Reasoning message is already in the collection from streaming,
+                    // so only move it if it's not already in the right position.
+                    // Do NOT add it twice or skip this reordering step.
                     if (reasoningMessage != null && !string.IsNullOrEmpty(reasoningMessage.Content))
                     {
                         // Add debug cookie to verify reasoning content is present
                         reasoningMessage.Content += "\n\n🍪 [DEBUG: Reasoning message cookie]";
+                        // Remove and re-add to ensure correct position after thinking
+                        Messages.Remove(reasoningMessage);
                         Messages.Add(reasoningMessage);
-                        LoggerService.Current.WriteDebug($"[UI-ordering] Reasoning message added to UI");
+                        LoggerService.Current.WriteDebug($"[UI-ordering] Reasoning message reordered to UI");
                     }
 
                     // Add the response (assistant message) last
