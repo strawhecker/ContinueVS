@@ -46,7 +46,7 @@ namespace ContinueVS.ViewModels
         public const string DEFAULT_PLAN_SYSTEM_MESSAGE = "You are a planning assistant in Plan mode. Generate detailed implementation plans and analysis in read-only mode. Suggest Agent Mode for executing code changes.";
     }
 
-     public class ChatPageViewModel : ViewModelBase
+    public class ChatPageViewModel : ViewModelBase
     {
         private readonly ILlmService _llmService;
         private readonly IContextService _contextService;
@@ -210,12 +210,12 @@ namespace ContinueVS.ViewModels
         /// Gets the available chat mode options for the mode dropdown (gap27_1).
         /// </summary>
         public ObservableCollection<ModeOption> AvailableModes
+        {
+            get
             {
-                get
+                if (_availableModes == null)
                 {
-                    if (_availableModes == null)
-                    {
-                        _availableModes = new ObservableCollection<ModeOption>
+                    _availableModes = new ObservableCollection<ModeOption>
                         {
                             new ModeOption("Ask", ChatMode.Ask, "Basic Q&A with optional Apply button for code suggestions.", "\U0001F4AC"),
                             new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "\U0001F916"),
@@ -223,31 +223,31 @@ namespace ContinueVS.ViewModels
                             new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "\U0001F527"),
                             new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "\U0001F9E0")
                         };
-                    }
-                    return _availableModes;
                 }
+                return _availableModes;
+            }
         }
 
-/// <summary>
-/// Gets the available continuation policy options for the policy dropdown (gap27_12).
-/// Lazy-initialized collection of policy choices: Auto, Interactive, Deferred.
-/// </summary>
-public ObservableCollection<PolicyOption> ContinuationPolicies
-{
-    get
-    {
-        if (_continuationPolicies == null)
+        /// <summary>
+        /// Gets the available continuation policy options for the policy dropdown (gap27_12).
+        /// Lazy-initialized collection of policy choices: Auto, Interactive, Deferred.
+        /// </summary>
+        public ObservableCollection<PolicyOption> ContinuationPolicies
         {
-            _continuationPolicies = new ObservableCollection<PolicyOption>
+            get
+            {
+                if (_continuationPolicies == null)
+                {
+                    _continuationPolicies = new ObservableCollection<PolicyOption>
             {
                 new PolicyOption("Automatically continue", ContinuationPolicy.Auto, "Continue to next tool without pause", "?"),
                 new PolicyOption("Ask before each action", ContinuationPolicy.Interactive, "Show UI prompt before each tool execution", "?"),
                 new PolicyOption("Defer for review", ContinuationPolicy.Deferred, "Queue execution for later review (safest)", "??")
             };
+                }
+                return _continuationPolicies;
+            }
         }
-        return _continuationPolicies;
-    }
-}
 
         /// <summary>
         /// Gets or sets the currently selected continuation policy (gap27_12, gap27_16).
@@ -271,10 +271,10 @@ public ObservableCollection<PolicyOption> ContinuationPolicies
             }
         }
 
-public string? InputText
-{
+        public string? InputText
+        {
             get => _inputText;
-            set 
+            set
             {
                 if (Set(ref _inputText, value))
                 {
@@ -286,7 +286,7 @@ public string? InputText
         public bool IsStreaming
         {
             get => _isStreaming;
-            set 
+            set
             {
                 if (Set(ref _isStreaming, value))
                 {
@@ -899,8 +899,8 @@ public string? InputText
             {
                 // Display User, Assistant, and Thinking (reasoning) messages
                 // Filter out System and Tool messages (internal/LLM-only)
-                if (msg.Role == ChatMessageRole.User || 
-                    msg.Role == ChatMessageRole.Assistant || 
+                if (msg.Role == ChatMessageRole.User ||
+                    msg.Role == ChatMessageRole.Assistant ||
                     msg.Role == ChatMessageRole.Thinking)
                 {
                     DisplayMessages.Add(msg);
@@ -1248,7 +1248,7 @@ public string? InputText
             }
         }
 
-        #pragma warning disable VSTHRD100
+#pragma warning disable VSTHRD100
         private async void ExecuteSendMessage()
 #pragma warning restore VSTHRD100
         {
@@ -1490,25 +1490,25 @@ public string? InputText
                                     LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning message created and added to UI for streaming");
                                 }
 
-                                    // Append reasoning to reasoning message
-                                    // *** INCREMENTAL UPDATE CRITICAL ***
-                                    // Do NOT skip this += or replace with assignment. Each chunk must accumulate.
-                                    reasoningMessage.Content += chunk.Reasoning;
-                                    var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
-                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning accumulated: {reasoningPreview}...");
-                                }
+                                // Append reasoning to reasoning message
+                                // *** INCREMENTAL UPDATE CRITICAL ***
+                                // Do NOT skip this += or replace with assignment. Each chunk must accumulate.
+                                reasoningMessage.Content += chunk.Reasoning;
+                                var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
+                                LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning accumulated: {reasoningPreview}...");
+                            }
 
-                                // *** CORE STREAMING BEHAVIOR: Keep response message in collection during stream ***
-                                // Update the message content in place - this triggers PropertyChanged
-                                // and the UI updates with the new content
-                                // CRITICAL: Must marshal to UI thread for WPF binding updates to fire correctly
-                                // CRITICAL: assistantMessage stays in Messages collection during streaming.
-                                // This is ESSENTIAL for incremental UI updates. Do NOT remove it during streaming.
-                                if (!string.IsNullOrEmpty(chunk.Content))
-                                {
-                                    await SwitchToMainThreadAsync();
-                                    assistantMessage.Content += chunk.Content;
-                                    StreamingResponse += chunk.Content;
+                            // *** CORE STREAMING BEHAVIOR: Keep response message in collection during stream ***
+                            // Update the message content in place - this triggers PropertyChanged
+                            // and the UI updates with the new content
+                            // CRITICAL: Must marshal to UI thread for WPF binding updates to fire correctly
+                            // CRITICAL: assistantMessage stays in Messages collection during streaming.
+                            // This is ESSENTIAL for incremental UI updates. Do NOT remove it during streaming.
+                            if (!string.IsNullOrEmpty(chunk.Content))
+                            {
+                                await SwitchToMainThreadAsync();
+                                assistantMessage.AppendChunk(chunk.Content!);
+                                StreamingResponse += chunk.Content;
 
                                 // gap70: Feed chunk to plan file detector for marker detection
                                 try
@@ -1578,7 +1578,7 @@ public string? InputText
                             // Remove plan file marker and content from response  
                             var markerStart = _planFileDetector.GetMarkerStart();
                             var markerStop = _planFileDetector.GetMarkerStop();
-                            if (!string.IsNullOrEmpty(markerStart) && !string.IsNullOrEmpty(markerStop) && 
+                            if (!string.IsNullOrEmpty(markerStart) && !string.IsNullOrEmpty(markerStop) &&
                                 assistantMessage.Content.Contains(markerStart) && assistantMessage.Content.Contains(markerStop))
                             {
                                 // Remove the entire plan block from response using start_/stop_ markers
@@ -1638,7 +1638,7 @@ public string? InputText
                     if (reasoningMessage == null)
                     {
                         var (parsedThinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
-                            assistantMessage.Content, 
+                            assistantMessage.Content,
                             _streamingCts.Token);
 
                         thinkingMessage = parsedThinkingMessage;
@@ -1669,6 +1669,12 @@ public string? InputText
                         var savedPath = await _planOutputService.SavePlanAsync(assistantMessage.Content, _streamingCts.Token);
                         LoggerService.Current.WriteDebug($"[gap43_3] Plan saved to: {savedPath}");
                     }
+
+                    // Finalize the assistant message streaming to convert buffer to cached string
+                    assistantMessage.FinalizeStreaming();
+
+                    // Finalize reasoning message streaming if present
+                    reasoningMessage?.FinalizeStreaming();
 
                     await _sessionService.AddMessageAsync(assistantMessage);
                     LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
@@ -1753,19 +1759,19 @@ public string? InputText
                         {
                             var changeStackId = _changeStackService.CreateChangeStack();
                             var targetDir = System.Environment.CurrentDirectory;
-                             if (_ideService != null)
-                             {
-                                 var gitRoot = await _ideService.GetGitRootPathAsync();
-                                 if (!string.IsNullOrWhiteSpace(gitRoot))
-                                     targetDir = gitRoot;
-                             }
-                             var execInstruction = new ContinueVS.Core.Types.ExecutionInstruction
-                             {
-                                 Text = assistantMessage.Content
-                             };
-                             LoggerService.Current.WriteDebug($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
-                             await _instructionExecutorService.ExecuteInstructionAsync(
-                                 execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
+                            if (_ideService != null)
+                            {
+                                var gitRoot = await _ideService.GetGitRootPathAsync();
+                                if (!string.IsNullOrWhiteSpace(gitRoot))
+                                    targetDir = gitRoot;
+                            }
+                            var execInstruction = new ContinueVS.Core.Types.ExecutionInstruction
+                            {
+                                Text = assistantMessage.Content
+                            };
+                            LoggerService.Current.WriteDebug($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
+                            await _instructionExecutorService.ExecuteInstructionAsync(
+                                execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
                         }
 
                         break;
@@ -1781,7 +1787,7 @@ public string? InputText
             {
 #if DEBUG
                 //if (DebuggerHelper.ShouldBreakOnException("ServiceName"))
-                   Debugger.Break();
+                Debugger.Break();
 #endif
 
                 LoggerService.Current.WriteError($"[ChatPageViewModel.ExecuteSendMessage] Exception caught: {ex.GetType().Name}", ex);
@@ -2170,7 +2176,7 @@ public string? InputText
                 // If service deletion fails, add message back and notify user
                 LoggerService.Current.WriteError($"[delete-service] Delete failed, restoring message: {ex.Message}", ex);
                 Messages.Add(messageToRestore);
-                await _notificationService.ShowNotificationAsync("Delete Failed", 
+                await _notificationService.ShowNotificationAsync("Delete Failed",
                     $"Could not delete message: {ex.Message}", NotificationType.Error);
                 LoggerService.Current.WriteError($"[delete-error] Service deletion failed: {ex.Message}", ex);
             }
@@ -2225,7 +2231,7 @@ public string? InputText
 
             if (!CurrentResponseHasFilePath)
             {
-                _ = _notificationService.ShowNotificationAsync("Warning", 
+                _ = _notificationService.ShowNotificationAsync("Warning",
                     "No file path detected in response. Unable to apply changes.", NotificationType.Warning);
                 LoggerService.Current.WriteDebug("[gap49-apply] No file path detected");
                 return;
@@ -2595,16 +2601,16 @@ public string? InputText
             // Pattern 1: Extract <thinking>...</thinking> blocks
             var thinkingPattern = @"<thinking>(.*?)</thinking>";
             var thinkingMatch = System.Text.RegularExpressions.Regex.Match(
-                responseContent, 
-                thinkingPattern, 
+                responseContent,
+                thinkingPattern,
                 System.Text.RegularExpressions.RegexOptions.Singleline);
 
             if (thinkingMatch.Success && thinkingMatch.Groups.Count > 1)
             {
                 var thinkingContent = thinkingMatch.Groups[1].Value.Trim();
                 var cleanedResponse = System.Text.RegularExpressions.Regex.Replace(
-                    responseContent, 
-                    thinkingPattern, 
+                    responseContent,
+                    thinkingPattern,
                     "",
                     System.Text.RegularExpressions.RegexOptions.Singleline).Trim();
 
@@ -2728,9 +2734,9 @@ public string? InputText
                     $"[gap60-agent-cmd] Executing agent command: {commandName}");
 
                 var result = await _agentCommandDispatcher.DispatchAgentCommandAsync(
-                    commandName, 
+                    commandName,
                     commandArguments ?? new Dictionary<string, object>(),
-                    CurrentMode, 
+                    CurrentMode,
                     ct);
 
                 // 5. Add to chat history for display only (not persisted to session)

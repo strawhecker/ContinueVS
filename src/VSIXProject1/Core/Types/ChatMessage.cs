@@ -114,6 +114,35 @@ namespace ContinueVS.Core.Types
         private bool _isExpanded = false;
 
         /// <summary>
+        /// Dynamic buffer for accumulating streaming content.
+        /// Starts at 1KB and doubles as needed. Used during active streaming to avoid PropertyChanged thrashing.
+        /// </summary>
+        private char[] _contentBuffer = new char[1024];
+
+        /// <summary>
+        /// Current write position in the content buffer.
+        /// </summary>
+        private int _writePosition = 0;
+
+        /// <summary>
+        /// Tracks the last position where content triggered a PropertyChanged update.
+        /// Used to determine segment boundaries for UI refresh frequency.
+        /// </summary>
+        private int _lastSegmentIndex = 0;
+
+        /// <summary>
+        /// Flag indicating whether streaming is complete and content has been finalized to _content string.
+        /// When true, Content getter returns cached _content; when false, returns buffer snapshot.
+        /// </summary>
+        private bool _isFinalized = false;
+
+        /// <summary>
+        /// Word boundary characters used for update throttling when lines exceed 50 chars
+        /// without encountering a newline.
+        /// </summary>
+        private static readonly char[] BoundaryTargets = { ' ', '\t', '\n', ',', '.', '!', '?', ';' };
+
+        /// <summary>
         /// Unique identifier for this message.
         /// </summary>
         [JsonProperty("id")]
@@ -135,12 +164,22 @@ namespace ContinueVS.Core.Types
 
         /// <summary>
         /// Text content of the message.
+        /// During streaming, returns a snapshot of the accumulated buffer. After finalization, returns cached string.
+        /// Suitable for JSON serialization and external API exchanges.
         /// </summary>
         [JsonProperty("content")]
         public string Content
         {
-            get => _content;
-            set => SetProperty(ref _content, value);
+            get => _isFinalized ? _content : new string(_contentBuffer, 0, _writePosition);
+            set
+            {
+                if (SetProperty(ref _content, value))
+                {
+                    _isFinalized = true;
+                    _writePosition = 0;
+                    _lastSegmentIndex = 0;
+                }
+            }
         }
 
         /// <summary>
@@ -255,6 +294,54 @@ namespace ContinueVS.Core.Types
             backingField = newValue;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             return true;
+        }
+
+        /// <summary>
+        /// Appends a chunk of streamed content to the message buffer.
+        /// Buffers content without firing PropertyChanged until complete lines or word boundaries arrive.
+        /// Fires PropertyChanged only at meaningful boundaries to optimize UI responsiveness.
+        /// </summary>
+        /// <param name="chunk">The text chunk to append from the stream. Null or empty chunks are safely ignored.</param>
+        public void AppendChunk(string chunk)
+        {
+            if (string.IsNullOrEmpty(chunk))
+                return;
+
+            // Resize buffer if needed (double capacity)
+            if (_writePosition + chunk.Length > _contentBuffer.Length)
+            {
+                Array.Resize(ref _contentBuffer, _contentBuffer.Length * 2);
+            }
+
+            // Write chunk to buffer (no PropertyChanged fired yet)
+            chunk.CopyTo(0, _contentBuffer, _writePosition, chunk.Length);
+            _writePosition += chunk.Length;
+
+            // Fire update on complete lines
+            if (_writePosition - _lastSegmentIndex > 50)
+            {
+                int lastBoundary = chunk.LastIndexOfAny(BoundaryTargets);
+                if (lastBoundary >= 0)
+                {
+                    _lastSegmentIndex = _writePosition - (chunk.Length - lastBoundary - 1);
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Content)));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finalizes streaming by converting the buffer to a cached string.
+        /// After finalization, the Content getter returns the string without allocating new strings on every access.
+        /// Call this when streaming ends, even if the response doesn't end with a newline.
+        /// </summary>
+        public void FinalizeStreaming()
+        {
+            if (!_isFinalized)
+            {
+                _content = new string(_contentBuffer, 0, _writePosition);
+                _isFinalized = true;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Content)));
+            }
         }
     }
 }
