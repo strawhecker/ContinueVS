@@ -4,5 +4,6 @@
       <Deploy Solution="Debug|*" />
     </Project>
   </Folder>
+  <Project Path="BenchmarkSuite1/BenchmarkSuite1.csproj" />
   <Project Path="src/VSIXProject1.Tests/VSIXProject1.Tests.csproj" />
 </Solution>

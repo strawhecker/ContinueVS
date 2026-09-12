@@ -1696,7 +1696,7 @@ namespace ContinueVS.ViewModels
                     if (thinkingMessage != null && !string.IsNullOrEmpty(thinkingMessage.Content))
                     {
                         // Add debug cookie to verify thinking content is present
-                        thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
+                        //thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
                         Messages.Add(thinkingMessage);
                         LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
                     }
@@ -1708,7 +1708,7 @@ namespace ContinueVS.ViewModels
                     if (reasoningMessage != null && !string.IsNullOrEmpty(reasoningMessage.Content))
                     {
                         // Add debug cookie to verify reasoning content is present
-                        reasoningMessage.Content += "\n\n🍪 [DEBUG: Reasoning message cookie]";
+                        //reasoningMessage.Content += "\n\n🍪 [DEBUG: Reasoning message cookie]";
                         // Remove and re-add to ensure correct position after thinking
                         Messages.Remove(reasoningMessage);
                         Messages.Add(reasoningMessage);

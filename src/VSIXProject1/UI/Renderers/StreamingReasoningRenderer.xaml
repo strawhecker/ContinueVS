@@ -1,0 +1,24 @@
+<UserControl x:Class="ContinueVS.UI.Renderers.StreamingReasoningRenderer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ContinueVS.UI.Renderers"
+             Margin="0">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <ItemsControl x:Name="TextBlocksItemsControl"
+                      ItemsSource="{Binding StreamingBlocks, RelativeSource={RelativeSource AncestorType={x:Type local:StreamingReasoningRenderer}}}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Vertical"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock x:Name="ContentTextBlock"
+                               TextWrapping="Wrap"
+                               Foreground="#FFFFFF"
+                               Margin="0,0,0,4"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>

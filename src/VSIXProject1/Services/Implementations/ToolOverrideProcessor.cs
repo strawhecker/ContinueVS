@@ -34,9 +34,9 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private readonly HashSet<string> _criticalTools = new()
         {
-            //"read_file",
-            //"create_new_file",
-            //"run_terminal_command"
+            "read_file",
+            "create_new_file",
+            "run_terminal_command"
         };
 
         /// <summary>

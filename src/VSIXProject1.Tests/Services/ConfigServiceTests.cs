@@ -143,9 +143,9 @@ namespace ContinueVS.Services.Tests
             await service.InitializeAsync();
 
             var selected = service.GetSelectedModel();
-            // Default config has DeepSeek-V4-Flash-Spark model; verify it's returned
+            // Default config has deepseek-v4-flash-dspark model; verify it's returned
             Assert.NotNull(selected);
-            Assert.Equal("DeepSeek-V4-Flash-Spark", selected.Name);
+            Assert.Equal("deepseek-v4-flash-dspark", selected.Name);
         }
 
         [Fact]

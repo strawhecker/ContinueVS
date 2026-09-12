@@ -35,7 +35,7 @@
 
             <Grid>
                 <Border Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
-                    <renderers:MarkdownBlockRenderer Content="{Binding Content}" />
+                    <renderers:StreamingReasoningRenderer Content="{Binding Content}" />
                 </Border>
 
                 <!-- Copy/Apply Dropdown (gap49) - replaces separate Copy All button -->
