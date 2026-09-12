@@ -125,14 +125,14 @@ namespace ContinueVS.Services.Implementations
                                 new CoreTypes.ModelInfo
                                 {
                                     Id = Guid.NewGuid().ToString(),
-                                    Name = "DeepSeek-V4-Flash-Spark",
+                                    Name = "deepseek-v4-flash-dspark",
                                     Provider = "openai",
                                     ApiKey = null,
-                                    BaseUrl = "http://10.3.3.101:18000",
-                                    ContextWindow = 200000,
+                                    BaseUrl = "http://10.3.3.101:8000",
+                                    ContextWindow = 1048576,
                                     SupportsFunctionCalling = true,
                                     SupportedToolFormats = new List<string>(),
-                                    OllamaModelId = "openai/DeepSeek-V4-Flash-Spark"
+                                    OllamaModelId = "openai/deepseek-v4-flash-dspark"
                                 }
                             };
                             _currentConfig.SelectedModelId = _currentConfig.Models[0].Id;
@@ -495,14 +495,14 @@ namespace ContinueVS.Services.Implementations
                 new CoreTypes.ModelInfo
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Name = "DeepSeek-V4-Flash-Spark",
+                    Name = "deepseek-v4-flash-dspark",
                     Provider = "openai",
                     ApiKey = null,
-                    BaseUrl = "http://10.3.3.101:18000",
-                    ContextWindow = 200000,
+                    BaseUrl = "http://10.3.3.101:8000",
+                    ContextWindow = 1048576,
                     SupportsFunctionCalling = true,
                     SupportedToolFormats = new List<string>(),
-                    OllamaModelId = "openai/DeepSeek-V4-Flash-Spark"
+                    OllamaModelId = "openai/deepseek-v4-flash-dspark"
                 }
             };
 

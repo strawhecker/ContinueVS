@@ -300,10 +300,10 @@ namespace ContinueVS.Services.Tests
             Assert.Single(config.Models);
 
             var defaultModel = config.Models[0];
-            Assert.Equal("DeepSeek-V4-Flash-Spark", defaultModel.Name);
+            Assert.Equal("deepseek-v4-flash-dspark", defaultModel.Name);
             Assert.Equal("openai", defaultModel.Provider);
-            Assert.Equal("http://10.3.3.101:18000", defaultModel.BaseUrl);
-            Assert.Equal(200000, defaultModel.ContextWindow);
+            Assert.Equal("http://10.3.3.101:8000", defaultModel.BaseUrl);
+            Assert.Equal(1048576, defaultModel.ContextWindow);
             Assert.True(defaultModel.SupportsFunctionCalling);
             Assert.Null(defaultModel.ApiKey);
             Assert.Empty(defaultModel.SupportedToolFormats);
