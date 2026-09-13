@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:ContinueVS.ViewModels.Converters"
              xmlns:renderers="clr-namespace:ContinueVS.UI.Renderers"
+             xmlns:behaviors="clr-namespace:ContinueVS.UI.Behaviors"
+             xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
              Margin="5">
     <UserControl.Resources>
         <local:RoleToAlignmentConverter x:Key="RoleToAlignmentConverter"/>
@@ -35,7 +37,7 @@
 
             <Grid>
                 <Border Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
-                    <renderers:MarkdownBlockRenderer Content="{Binding Content}" />
+                    <renderers:StreamingReasoningRenderer Content="{Binding Content}" />
                 </Border>
 
                 <!-- Copy/Apply Dropdown (gap49) - replaces separate Copy All button -->

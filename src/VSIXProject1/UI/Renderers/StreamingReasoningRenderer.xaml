@@ -1,0 +1,17 @@
+<UserControl x:Class="ContinueVS.UI.Renderers.StreamingReasoningRenderer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Margin="5">
+    <ItemsControl x:Name="TextBlocksItemsControl" ItemsSource="{Binding}">
+        <ItemsControl.ItemTemplate>
+            <DataTemplate>
+                <TextBlock x:Name="TextBlockLine" 
+                           Margin="0,0,0,4"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource VsBrush.WindowText}">
+                    <!-- Inlines populated in code-behind -->
+                </TextBlock>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>
