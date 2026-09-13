@@ -125,14 +125,14 @@ namespace ContinueVS.Services.Implementations
                                 new CoreTypes.ModelInfo
                                 {
                                     Id = Guid.NewGuid().ToString(),
-                                    Name = "deepseek-v4-flash-dspark",
+                                    Name = "deepseek-v4-flash-0731-nvfp4",
                                     Provider = "openai",
                                     ApiKey = null,
-                                    BaseUrl = "http://10.3.3.101:8000",
+                                    BaseUrl = "http://10.3.3.101:8891",
                                     ContextWindow = 1048576,
                                     SupportsFunctionCalling = true,
                                     SupportedToolFormats = new List<string>(),
-                                    OllamaModelId = "openai/deepseek-v4-flash-dspark"
+                                    OllamaModelId = "openai/deepseek-v4-flash-0731-nvfp4"
                                 }
                             };
                             _currentConfig.SelectedModelId = _currentConfig.Models[0].Id;
