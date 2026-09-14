@@ -5,45 +5,46 @@
              xmlns:renderers="clr-namespace:ContinueVS.UI.Renderers"
              xmlns:behaviors="clr-namespace:ContinueVS.UI.Behaviors"
              xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
-             Margin="5">
+             Margin="5"
+             MinWidth="0">
     <UserControl.Resources>
         <local:RoleToAlignmentConverter x:Key="RoleToAlignmentConverter"/>
         <local:RoleToColorConverter x:Key="RoleToColorConverter"/>
         <local:RoleToVisibilityConverter x:Key="RoleToVisibilityConverter"/>
+        <local:RoleToStreamingReasoningVisibility x:Key="RoleToStreamingReasoningVisibility"/>
+        <local:RoleToMarkdownBlockVisibility x:Key="RoleToMarkdownBlockVisibility"/>
     </UserControl.Resources>
-    <Grid x:Name="MessageGrid">
+    <Grid x:Name="MessageGrid" MinWidth="0">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Column="0" Orientation="Vertical" HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}" Margin="10,0">
-            <!-- Copy All button at response level (only for Assistant messages) -->
-            <Button x:Name="CopyAllButton"
-                    Height="28"
-                    Width="100"
-                    Padding="4,2"
-                    Background="#3E3E42"
-                    Foreground="White"
-                    BorderThickness="1"
-                    BorderBrush="#5A5A5A"
-                    FontSize="11"
-                    Content="📋 Copy All"
-                    Visibility="{Binding Role, Converter={StaticResource RoleToVisibilityConverter}}"
-                    ToolTip="Copy entire response"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Top"
-                    Margin="0,0,0,5"
-                    Cursor="Hand"/>
+        <StackPanel Grid.Column="0" Orientation="Vertical" Margin="10,0" MinWidth="0" HorizontalAlignment="Stretch">
+            <Grid HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}">
+                <Border x:Name="MessageBorder" Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
+                    <Grid MinWidth="0" HorizontalAlignment="Stretch">
+                        <!-- User/Thinking: lightweight text rendering -->
+                        <renderers:StreamingReasoningRenderer 
+                            x:Name="StreamingReasoningRenderer"
+                            Content="{Binding Content}" 
+                            Visibility="{Binding Role, Converter={StaticResource RoleToStreamingReasoningVisibility}}"
+                            HorizontalAlignment="Stretch"
+                            MinWidth="0" />
 
-            <Grid>
-                <Border Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
-                    <renderers:StreamingReasoningRenderer Content="{Binding Content}" />
+                        <!-- Assistant: rich markdown rendering (parses Content string internally with debouncing) -->
+                        <renderers:MarkdownBlockRenderer 
+                            x:Name="MarkdownBlockRenderer"
+                            Content="{Binding Content}" 
+                            Visibility="{Binding Role, Converter={StaticResource RoleToMarkdownBlockVisibility}}"
+                            HorizontalAlignment="Stretch"
+                            MinWidth="0" />
+                    </Grid>
                 </Border>
 
                 <!-- Copy/Apply Dropdown (gap49) - replaces separate Copy All button -->
                 <ComboBox x:Name="CodeActionDropdown"
-                        Height="28"
-                        Width="120"
+                        Height="22"
+                        Width="80"
                         Background="#46464646"
                         Foreground="White"
                         BorderThickness="0"
@@ -77,6 +78,23 @@
                     <TextBlock Text="✕" FontSize="14" Foreground="{DynamicResource VsBrush.WindowText}" 
                                TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Button>
+                <!-- Copy All button at response level (only for Assistant messages) -->
+                <Button x:Name="CopyAllButton"
+                    Height="18"
+                    Width="80"
+                    Padding="0,0"
+                    Background="#3E3E42"
+                    Foreground="White"
+                    BorderThickness="1"
+                    BorderBrush="#5A5A5A"
+                    FontSize="11"
+                    Content="📋 Copy All"
+                    Visibility="{Binding Role, Converter={StaticResource RoleToVisibilityConverter}}"
+                    ToolTip="Copy entire response"
+                    HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}"
+                    VerticalAlignment="Top"
+                    Margin="0,0,0,5"
+                    Cursor="Hand"/>
             </Grid>
         </StackPanel>
     </Grid>

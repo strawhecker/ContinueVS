@@ -195,6 +195,13 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private int _selectedCodeAction = 0; // 0=Copy, 1=Apply
 
+        /// <summary>
+        /// Available message width for text wrapping (calculated from ChatPage container).
+        /// Set by ChatPage.xaml.cs based on scrollviewer width minus scrollbar and padding.
+        /// Bound by StreamingReasoningRenderer and other message controls for proper text wrapping.
+        /// </summary>
+        private double _availableMessageWidth = 600; // Default fallback
+
         public ObservableCollection<ChatMessage> Messages { get; }
         public ObservableCollection<ContextItem> SelectedContext { get; }
         public ObservableCollection<ModelInfo> AvailableModels { get; }
@@ -301,6 +308,17 @@ namespace ContinueVS.ViewModels
         {
             get => _streamingResponse;
             set => Set(ref _streamingResponse, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the available message width for text wrapping.
+        /// Calculated by ChatPage.xaml.cs based on ScrollViewer width minus scrollbar and padding.
+        /// Bound by StreamingReasoningRenderer to constrain text wrapping.
+        /// </summary>
+        public double AvailableMessageWidth
+        {
+            get => _availableMessageWidth;
+            set => Set(ref _availableMessageWidth, value);
         }
 
         /// <summary>
@@ -1696,7 +1714,7 @@ namespace ContinueVS.ViewModels
                     if (thinkingMessage != null && !string.IsNullOrEmpty(thinkingMessage.Content))
                     {
                         // Add debug cookie to verify thinking content is present
-                        thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
+                        //thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
                         Messages.Add(thinkingMessage);
                         LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
                     }
@@ -1708,7 +1726,7 @@ namespace ContinueVS.ViewModels
                     if (reasoningMessage != null && !string.IsNullOrEmpty(reasoningMessage.Content))
                     {
                         // Add debug cookie to verify reasoning content is present
-                        reasoningMessage.Content += "\n\n🍪 [DEBUG: Reasoning message cookie]";
+                        //reasoningMessage.Content += "\n\n🍪 [DEBUG: Reasoning message cookie]";
                         // Remove and re-add to ensure correct position after thinking
                         Messages.Remove(reasoningMessage);
                         Messages.Add(reasoningMessage);
@@ -1719,6 +1737,15 @@ namespace ContinueVS.ViewModels
                     Messages.Add(assistantMessage);
                     LoggerService.Current.WriteDebug($"[UI-ordering] Assistant message re-added to UI in correct position (response)");
 
+                    // After assistant message completes:
+                    if (!string.IsNullOrWhiteSpace(assistantMessage.Content))
+                    {
+                        // This call is NOT optional—it's required for ScrollViewer + 
+                        // MarkdownBlockRenderer to function correctly
+                        assistantMessage.RenderedMarkdown = await _markdownService.ParseMarkdownAsync(
+                            assistantMessage.Content
+                        );
+                    }
                     // gap23_4_4: Check tool call limit and show banners
                     CheckToolCallLimit();
 

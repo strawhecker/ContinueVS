@@ -15,6 +15,9 @@
             <converters:ChatModeToBoolConverter x:Key="ChatModeToBoolConverter"/>
             <converters:ToolCallCounterColorConverter x:Key="ToolCallCounterColorConverter"/>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <Style x:Key="MessageContainerStyle" TargetType="{x:Type ContentPresenter}">
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            </Style>
             <local:ChatMessageTemplateSelector x:Key="MessageTemplateSelector">
             <local:ChatMessageTemplateSelector.UserMessageTemplate>
                 <DataTemplate>
@@ -115,11 +118,11 @@
                                     BorderThickness="1"
                                     BorderBrush="#5A5A5A"
                                     FontSize="11"
-                                    Content="📋 Copy All"
+                                    Content="📋 Copy All 2"
                                     ToolTip="Copy entire reasoning"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Top"
-                                    Margin="8,0,0,0"
+                                    Margin="8,20,0,0"
                                     Cursor="Hand"
                                     Visibility="Hidden"
                                     Click="ThinkingCopyAllButton_Click"/>
@@ -137,7 +140,7 @@
                                     ToolTip="Copy or Apply code block"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Top"
-                                    Margin="4,0,0,0"
+                                    Margin="0,20,10,0"
                                     Cursor="Hand"
                                     Visibility="Hidden"
                                     SelectionChanged="ThinkingCodeActionDropdown_SelectionChanged">
@@ -481,8 +484,15 @@
 
         <!-- Messages (Chat List) with ScrollViewer -->
         <ScrollViewer Grid.Row="4" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{Binding DisplayMessages}" VerticalAlignment="Stretch"
-                          ItemTemplateSelector="{StaticResource MessageTemplateSelector}">
+            <ItemsControl ItemsSource="{Binding DisplayMessages}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                          ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
+                          ItemContainerStyle="{StaticResource MessageContainerStyle}"
+                          x:Name="MessagesItemsControl">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Vertical" IsItemsHost="True"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <controls:ChatMessageControl DataContext="{Binding}"/>

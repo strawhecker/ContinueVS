@@ -8397,6 +8397,12 @@ Total parsing work: 1+2+3+...+100 = 5,050 KB for 100KB response Result: UI freez
 - [ ] Memory usage under 10MB for 1MB+ streaming response
 - [ ] Works on .NET Framework 4.7.2 (no .NET 6+ APIs)
 
+---
+
+### gap76 history not showing history, returning does not show most recent, get history working
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

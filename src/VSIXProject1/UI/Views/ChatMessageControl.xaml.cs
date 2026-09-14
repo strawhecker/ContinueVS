@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using ContinueVS.Core.Types;
 using ContinueVS.Services;
+using ContinueVS.UI.Pages;
+using ContinueVS.UI.Renderers;
 using Markdig;
 using Markdig.Syntax;
 
@@ -19,10 +21,57 @@ namespace ContinueVS.UI.Views
             this.Loaded += ChatMessageControl_Loaded;
         }
 
+        /// <summary>
+        /// Gets the message Border element so parent can constrain its width for text wrapping.
+        /// </summary>
+        public Border? GetMessageBorder() => FindName("MessageBorder") as Border;
+
         private void ChatMessageControl_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
             MessageGrid.MouseEnter += MessageGrid_MouseEnter;
             MessageGrid.MouseLeave += MessageGrid_MouseLeave;
+
+            // Set up binding for StreamingReasoningRenderer MaxMessageWidth from ChatPageViewModel
+            var streamingRenderer = FindName("StreamingReasoningRenderer") as StreamingReasoningRenderer;
+            if (streamingRenderer != null)
+            {
+                // Walk up the visual tree to find ItemsControl>>MessagesItemsControl>>ChatPage
+                var parent = this.Parent as FrameworkElement;
+                while (parent != null)
+                {
+                    if (parent is Pages.ChatPage)
+                    {
+                        var binding = new System.Windows.Data.Binding("AvailableMessageWidth")
+                        {
+                            Source = parent.DataContext
+                        };
+                        streamingRenderer.SetBinding(StreamingReasoningRenderer.MaxMessageWidthProperty, binding);
+                        break;
+                    }
+                    parent = parent.Parent as FrameworkElement;
+                }
+            }
+
+            // Set up binding for MarkdownBlockRenderer MaxMessageWidth from ChatPageViewModel
+            var markdownRenderer = FindName("MarkdownBlockRenderer") as MarkdownBlockRenderer;
+            if (markdownRenderer != null)
+            {
+                // Walk up the visual tree to find ItemsControl>>MessagesItemsControl>>ChatPage
+                var parent = this.Parent as FrameworkElement;
+                while (parent != null)
+                {
+                    if (parent is Pages.ChatPage)
+                    {
+                        var binding = new System.Windows.Data.Binding("AvailableMessageWidth")
+                        {
+                            Source = parent.DataContext
+                        };
+                        markdownRenderer.SetBinding(MarkdownBlockRenderer.MaxMessageWidthProperty, binding);
+                        break;
+                    }
+                    parent = parent.Parent as FrameworkElement;
+                }
+            }
 
             // Wire up Copy All button if it exists in the visual tree
             var copyAllButton = FindName("CopyAllButton") as Button;

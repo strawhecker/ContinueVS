@@ -212,6 +212,28 @@ namespace ContinueVS.UI.Pages
                 // Get reference to ScrollViewer
                 _messagesScrollViewer = this.FindName("MessagesScrollViewer") as ScrollViewer;
 
+                // Constrain ItemsControl width based on ScrollViewer dimensions
+                var messagesItemsControl = this.FindName("MessagesItemsControl") as ItemsControl;
+                if (_messagesScrollViewer != null && messagesItemsControl != null)
+                {
+                    // When ScrollViewer size changes, update all message MaxWidth
+                    _messagesScrollViewer.SizeChanged += (s, e) =>
+                    {
+                        if (e.NewSize.Width > 0 && this.DataContext is ChatPageViewModel vm)
+                        {
+                            // Account for scrollbar width (~17px) and padding
+                            double availableWidth = e.NewSize.Width - 20;
+
+                            // Set ViewModel's AvailableMessageWidth for data binding
+                            vm.AvailableMessageWidth = availableWidth;
+
+                            // Apply to ItemsControl for layout
+                            messagesItemsControl.MaxWidth = availableWidth;
+                            messagesItemsControl.Width = double.NaN; // Auto within max
+                        }
+                    };
+                }
+
                 // Hook into Messages collection changed event
                 if (this.DataContext is ChatPageViewModel vm && vm.Messages is ObservableCollection<ChatMessage> messages)
                 {
@@ -275,6 +297,39 @@ namespace ContinueVS.UI.Pages
                         if (item is ChatMessage msg && msg is System.ComponentModel.INotifyPropertyChanged notifiable)
                         {
                             notifiable.PropertyChanged += Message_PropertyChanged;
+                        }
+                    }
+
+                    // Also apply MaxWidth to newly added message containers
+                    if (_messagesScrollViewer != null && _messagesScrollViewer.ActualWidth > 0)
+                    {
+                        var messagesItemsControl = this.FindName("MessagesItemsControl") as ItemsControl;
+                        if (messagesItemsControl != null)
+                        {
+                            double availableWidth = _messagesScrollViewer.ActualWidth - 20;
+                            foreach (var item in e.NewItems)
+                            {
+                                var container = messagesItemsControl.ItemContainerGenerator.ContainerFromItem(item);
+                                if (container is FrameworkElement fe)
+                                {
+                                    fe.MaxWidth = availableWidth;
+
+                                    // Also set the message bubble border width for text wrapping
+                                    if (fe is ContentPresenter cp)
+                                    {
+                                        // The ContentPresenter's content should be the ChatMessageControl
+                                        var messageControl = cp.Content as UI.Views.ChatMessageControl;
+                                        if (messageControl != null)
+                                        {
+                                            var border = messageControl.GetMessageBorder();
+                                            if (border != null)
+                                            {
+                                                border.MaxWidth = availableWidth * 0.8; // 80% of available for visual balance
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

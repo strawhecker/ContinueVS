@@ -17,7 +17,56 @@ namespace ContinueVS.UI.Renderers
         public StreamingReasoningRenderer()
         {
             InitializeComponent();
-            this.Loaded += StreamingReasoningRenderer_Loaded;
+            this.DataContextChanged += StreamingReasoningRenderer_DataContextChanged;
+            // Force width constraint to propagate for text wrapping
+            this.MinWidth = 0;
+        }
+
+        /// <summary>
+        /// Dependency property for MaxMessageWidth, bound from parent ViewModel.
+        /// </summary>
+        public static readonly DependencyProperty MaxMessageWidthProperty =
+            DependencyProperty.Register(
+                "MaxMessageWidth",
+                typeof(double),
+                typeof(StreamingReasoningRenderer),
+                new PropertyMetadata(600.0, (d, e) => ((StreamingReasoningRenderer)d).OnMaxMessageWidthChanged((double)e.NewValue)));
+
+        public double MaxMessageWidth
+        {
+            get => (double)GetValue(MaxMessageWidthProperty);
+            set => SetValue(MaxMessageWidthProperty, value);
+        }
+
+        private void OnMaxMessageWidthChanged(double newWidth)
+        {
+            // Apply the width constraint to TextBlocksPanel so text can wrap
+            if (TextBlocksPanel != null && newWidth > 0)
+            {
+                TextBlocksPanel.MaxWidth = newWidth;
+                TextBlocksPanel.Width = newWidth;
+            }
+        }
+
+        private void StreamingReasoningRenderer_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // When DataContext changes (ChatMessage), try to get width from ancestor ViewModel
+            UpdateWidthFromDataContext();
+        }
+
+        private void UpdateWidthFromDataContext()
+        {
+            // Try to find the ViewModel in the parent hierarchy
+            var parent = this.Parent as FrameworkElement;
+            while (parent != null)
+            {
+                if (parent.DataContext is ViewModels.ChatPageViewModel vm)
+                {
+                    MaxMessageWidth = vm.AvailableMessageWidth;
+                    break;
+                }
+                parent = parent.Parent as FrameworkElement;
+            }
         }
 
         /// <summary>
@@ -36,123 +85,82 @@ namespace ContinueVS.UI.Renderers
             set => SetValue(ContentProperty, value);
         }
 
-        private StreamingTextBlockCollection? _textBlockCollection;
-
         private void OnContentChanged(string? content)
         {
+            TextBlocksPanel.Children.Clear();
+
             if (string.IsNullOrEmpty(content))
-            {
-                _textBlockCollection = new StreamingTextBlockCollection();
-            }
-            else
-            {
-                _textBlockCollection = new StreamingTextBlockCollection();
-                // Split content into lines and create TextBlockModels
-                var lines = content!.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-                foreach (var line in lines)
-                {
-                    var model = new TextBlockModel(line);
-                    _textBlockCollection.Add(model);
-                }
-            }
+                return;
 
-            TextBlocksItemsControl.ItemsSource = _textBlockCollection;
-            if (TextBlocksItemsControl.ItemContainerGenerator != null)
+            var lines = content!.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            foreach (var line in lines)
             {
-                TextBlocksItemsControl.ItemContainerGenerator.StatusChanged += ItemContainerGenerator_StatusChanged;
+                var model = new TextBlockModel(line);
+                TextBlocksPanel.Children.Add(MakeWrappingRichTextBox(model));
             }
         }
 
-        private void StreamingReasoningRenderer_Loaded(object sender, RoutedEventArgs e)
+        private static RichTextBox MakeWrappingRichTextBox(TextBlockModel model)
         {
-            // Ensure ItemsSource is set
-            if (TextBlocksItemsControl.ItemsSource == null && _textBlockCollection != null)
-            {
-                TextBlocksItemsControl.ItemsSource = _textBlockCollection;
-                if (TextBlocksItemsControl.ItemContainerGenerator != null)
-                {
-                    TextBlocksItemsControl.ItemContainerGenerator.StatusChanged += ItemContainerGenerator_StatusChanged;
-                }
-            }
-        }
+            var para = new Paragraph { Margin = new Thickness(0) };
 
-        private void ItemContainerGenerator_StatusChanged(object? sender, EventArgs e)
-        {
-            if (TextBlocksItemsControl.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+            if (model.InlineRuns != null && model.InlineRuns.Count > 0)
             {
-                // Populate Inlines for all visible TextBlock items
-                for (int i = 0; i < TextBlocksItemsControl.Items.Count; i++)
+                foreach (var run in model.InlineRuns)
                 {
-                    var container = TextBlocksItemsControl.ItemContainerGenerator.ContainerFromIndex(i) as ContentPresenter;
-                    if (container != null)
+                    var inlineRun = new Run { Text = run.Text };
+                    switch (run.Style)
                     {
-                        var textBlock = FindTextBlock(container);
-                        if (textBlock != null && TextBlocksItemsControl.Items[i] is TextBlockModel model)
-                        {
-                            PopulateInlines(textBlock, model);
-                        }
+                        case InlineStyle.Bold:
+                            inlineRun.FontWeight = FontWeights.Bold;
+                            break;
+                        case InlineStyle.Italic:
+                            inlineRun.FontStyle = FontStyles.Italic;
+                            break;
+                        case InlineStyle.Code:
+                            inlineRun.FontFamily = new FontFamily("Consolas, monospace");
+                            inlineRun.Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0));
+                            inlineRun.Foreground = new SolidColorBrush(Color.FromRgb(200, 100, 100));
+                            break;
                     }
+                    para.Inlines.Add(inlineRun);
                 }
             }
-        }
-
-        /// <summary>
-        /// Recursively find TextBlock inside visual tree.
-        /// </summary>
-        private TextBlock? FindTextBlock(FrameworkElement element)
-        {
-            if (element is TextBlock tb)
+            else if (!string.IsNullOrEmpty(model.Text))   // fallback if no parsed runs
             {
-                return tb;
+                para.Inlines.Add(new Run(model.Text));
             }
 
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
+            var doc = new FlowDocument(para)
             {
-                var child = VisualTreeHelper.GetChild(element, i) as FrameworkElement;
-                if (child != null)
-                {
-                    var found = FindTextBlock(child);
-                    if (found != null)
-                    {
-                        return found;
-                    }
-                }
-            }
+                PagePadding = new Thickness(0),
+                TextAlignment = TextAlignment.Left,
+                PageWidth = 9999   // defeats FlowDocument's default 200px column layout
+            };
 
-            return null;
-        }
-
-        /// <summary>
-        /// Populate TextBlock.Inlines from TextBlockModel.InlineRuns.
-        /// </summary>
-        private void PopulateInlines(TextBlock textBlock, TextBlockModel model)
-        {
-            textBlock.Inlines.Clear();
-
-            foreach (var run in model.InlineRuns)
+            var rtb = new RichTextBox(doc)
             {
-                Run inlineRun = new Run { Text = run.Text };
+                IsReadOnly = true,
+                IsTabStop = false,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+                IsDocumentEnabled = true,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Margin = new Thickness(0, 0, 0, 4),
+                Cursor = System.Windows.Input.Cursors.IBeam
+            };
+            rtb.SetResourceReference(RichTextBox.ForegroundProperty, "VsBrush.WindowText");
 
-                switch (run.Style)
-                {
-                    case InlineStyle.Bold:
-                        inlineRun.FontWeight = FontWeights.Bold;
-                        break;
-                    case InlineStyle.Italic:
-                        inlineRun.FontStyle = FontStyles.Italic;
-                        break;
-                    case InlineStyle.Code:
-                        inlineRun.FontFamily = new FontFamily("Consolas, monospace");
-                        inlineRun.Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0));
-                        inlineRun.Foreground = new SolidColorBrush(Color.FromRgb(200, 100, 100));
-                        break;
-                    default:
-                        // Plain style: no special formatting
-                        break;
-                }
+            // Keep PageWidth in sync with actual width so text wraps (markdown renderer's trick)
+            rtb.SizeChanged += (s, e) =>
+            {
+                if (e.NewSize.Width > 0)
+                    rtb.Document.PageWidth = e.NewSize.Width;
+            };
 
-                textBlock.Inlines.Add(inlineRun);
-            }
+            return rtb;
         }
     }
 }

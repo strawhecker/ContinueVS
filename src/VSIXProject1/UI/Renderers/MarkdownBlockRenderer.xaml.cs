@@ -43,6 +43,8 @@ namespace ContinueVS.UI.Renderers
         public MarkdownBlockRenderer()
         {
             InitializeComponent();
+            // Force width constraint to propagate for text wrapping
+            this.MinWidth = 0;
         }
 
         /// <summary>
@@ -59,6 +61,32 @@ namespace ContinueVS.UI.Renderers
         {
             get => (string?)GetValue(ContentProperty);
             set => SetValue(ContentProperty, value);
+        }
+
+        /// <summary>
+        /// Dependency property for MaxMessageWidth, bound from parent ViewModel.
+        /// </summary>
+        public static readonly DependencyProperty MaxMessageWidthProperty =
+            DependencyProperty.Register(
+                "MaxMessageWidth",
+                typeof(double),
+                typeof(MarkdownBlockRenderer),
+                new PropertyMetadata(600.0, (d, e) => ((MarkdownBlockRenderer)d).OnMaxMessageWidthChanged((double)e.NewValue)));
+
+        public double MaxMessageWidth
+        {
+            get => (double)GetValue(MaxMessageWidthProperty);
+            set => SetValue(MaxMessageWidthProperty, value);
+        }
+
+        private void OnMaxMessageWidthChanged(double newWidth)
+        {
+            // Apply the width constraint to RootPanel so text can wrap
+            if (RootPanel != null && newWidth > 0)
+            {
+                RootPanel.MaxWidth = newWidth;
+                RootPanel.Width = newWidth;
+            }
         }
 
         private void OnContentChanged(string? text)
@@ -537,6 +565,7 @@ namespace ContinueVS.UI.Renderers
                 IsDocumentEnabled = true,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Margin = new Thickness(0, 0, 0, 4),
                 Cursor = System.Windows.Input.Cursors.IBeam
             };
             rtb.SetResourceReference(RichTextBox.ForegroundProperty, "VsBrush.WindowText");
