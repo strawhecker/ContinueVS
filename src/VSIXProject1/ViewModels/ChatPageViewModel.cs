@@ -1493,7 +1493,7 @@ namespace ContinueVS.ViewModels
                                 // Append reasoning to reasoning message
                                 // *** INCREMENTAL UPDATE CRITICAL ***
                                 // Do NOT skip this += or replace with assignment. Each chunk must accumulate.
-                                reasoningMessage.Content += chunk.Reasoning;
+                                reasoningMessage.AppendChunk(chunk.Reasoning!);
                                 var reasoningPreview = chunk.Reasoning?.Substring(0, Math.Min(50, chunk.Reasoning?.Length ?? 0)) ?? string.Empty;
                                 LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning accumulated: {reasoningPreview}...");
                             }
@@ -1507,7 +1507,7 @@ namespace ContinueVS.ViewModels
                             if (!string.IsNullOrEmpty(chunk.Content))
                             {
                                 await SwitchToMainThreadAsync();
-                                assistantMessage.AppendChunk(chunk.Content!);
+                                assistantMessage.Content += chunk.Content;
                                 StreamingResponse += chunk.Content;
 
                                 // gap70: Feed chunk to plan file detector for marker detection
