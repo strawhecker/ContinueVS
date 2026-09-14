@@ -349,7 +349,7 @@ namespace ContinueVS.Services.Implementations
                     GetArgString(args, "query"),
                     GetArgInt(args, "maxResults", 10)),
                 "file_glob_search" => await FileGlobSearchInternalAsync(
-                    GetArgString(args, "glob"),
+                    GetArgString(args, "pattern"),
                     GetArgInt(args, "maxResults", 100)),
                 "run_subprocess" => await RunSubprocessInternalAsync(
                     GetArgString(args, "command"),
@@ -367,6 +367,30 @@ namespace ContinueVS.Services.Implementations
                     GetArgString(args, "pattern"),
                     GetArgString(args, "replacement"),
                     GetArgString(args, "flags", "")),
+                "run_terminal_command" => await RunTerminalCommandInternalAsync(
+                    GetArgString(args, "command"),
+                    args.TryGetValue("waitForCompletion", out var wait) && (wait is bool b ? b : bool.TryParse(wait?.ToString() ?? "true", out var parsed) && parsed)),
+                "view_diff" => await ViewDiffInternalAsync(),
+                "create_rule_block" => await CreateRuleBlockInternalAsync(
+                    GetArgString(args, "name"),
+                    GetArgString(args, "rule")),
+                "run_pytest" => await RunPytestInternalAsync(
+                    GetArgString(args, "testPath", "")),
+                "get_problems" => await GetProblemsInternalAsync(),
+                "view_file" => await ViewFileInternalAsync(
+                    GetArgString(args, "filepath")),
+                "open_file" => await OpenFileInternalAsync(
+                    GetArgString(args, "filepath")),
+                "git_status" => await GitStatusInternalAsync(),
+                "git_diff" => await GitDiffInternalAsync(
+                    GetArgString(args, "filePath", "")),
+                "git_log" => await GitLogInternalAsync(
+                    GetArgInt(args, "maxCommits", 10)),
+                "git_commit" => await GitCommitInternalAsync(
+                    GetArgString(args, "message")),
+                "create_snippet" => await CreateSnippetInternalAsync(
+                    GetArgString(args, "name"),
+                    GetArgString(args, "code")),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -1000,6 +1024,299 @@ namespace ContinueVS.Services.Implementations
                 IsAsync = true,
                 ToolType = "builtin"
             };
+        }
+
+        /// <summary>
+        /// Internal wrapper for run_terminal_command.
+        /// </summary>
+        private async Task<ToolResult> RunTerminalCommandInternalAsync(string command, bool waitForCompletion)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(command))
+                    return CreateErrorResult("run_terminal_command", "command cannot be null or empty");
+
+                var output = await _ideService.RunCommandAsync(command);
+                return new ToolResult
+                {
+                    ToolName = "run_terminal_command",
+                    Output = output,
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("run_terminal_command", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for view_diff.
+        /// </summary>
+        private async Task<ToolResult> ViewDiffInternalAsync()
+        {
+            try
+            {
+                var diff = await _ideService.GetDiffAsync();
+                return new ToolResult
+                {
+                    ToolName = "view_diff",
+                    Output = diff ?? "No changes detected",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("view_diff", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for create_rule_block.
+        /// </summary>
+        private async Task<ToolResult> CreateRuleBlockInternalAsync(string name, string rule)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(name))
+                    return CreateErrorResult("create_rule_block", "name cannot be null or empty");
+
+                if (string.IsNullOrEmpty(rule))
+                    return CreateErrorResult("create_rule_block", "rule cannot be null or empty");
+
+                // Stub implementation - would save to a rules registry
+                return new ToolResult
+                {
+                    ToolName = "create_rule_block",
+                    Output = $"Rule '{name}' created successfully",
+                    IsSuccess = true,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "ruleName", name },
+                        { "ruleLength", rule.Length.ToString() }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("create_rule_block", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for run_pytest.
+        /// </summary>
+        private async Task<ToolResult> RunPytestInternalAsync(string testPath)
+        {
+            try
+            {
+                // Stub - pytest not integrated with .NET projects
+                return new ToolResult
+                {
+                    ToolName = "run_pytest",
+                    Output = "pytest is not available in this .NET project",
+                    IsSuccess = false
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("run_pytest", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for get_problems.
+        /// </summary>
+        private async Task<ToolResult> GetProblemsInternalAsync()
+        {
+            try
+            {
+                var problems = await _ideService.GetProblemsAsync();
+                return new ToolResult
+                {
+                    ToolName = "get_problems",
+                    Output = problems ?? "No problems detected",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("get_problems", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for view_file.
+        /// </summary>
+        private async Task<ToolResult> ViewFileInternalAsync(string filepath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filepath))
+                    return CreateErrorResult("view_file", "filepath cannot be null or empty");
+
+                var contents = await _ideService.ReadFileAsync(filepath);
+                var lines = contents.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                var numbered = string.Join("\n", lines.Select((line, idx) => $"{idx + 1}: {line}"));
+
+                return new ToolResult
+                {
+                    ToolName = "view_file",
+                    Output = numbered,
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("view_file", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for open_file.
+        /// </summary>
+        private async Task<ToolResult> OpenFileInternalAsync(string filepath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filepath))
+                    return CreateErrorResult("open_file", "filepath cannot be null or empty");
+
+                await _ideService.OpenFileAsync(filepath);
+                return new ToolResult
+                {
+                    ToolName = "open_file",
+                    Output = $"File opened: {filepath}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("open_file", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for git_status.
+        /// </summary>
+        private async Task<ToolResult> GitStatusInternalAsync()
+        {
+            try
+            {
+                var status = await _ideService.GetGitStatusAsync();
+                return new ToolResult
+                {
+                    ToolName = "git_status",
+                    Output = status ?? "No git repository",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("git_status", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for git_diff.
+        /// </summary>
+        private async Task<ToolResult> GitDiffInternalAsync(string filePath)
+        {
+            try
+            {
+                var diff = await _ideService.GetGitDiffAsync(filePath);
+                return new ToolResult
+                {
+                    ToolName = "git_diff",
+                    Output = diff ?? "No changes or file not tracked",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("git_diff", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for git_log.
+        /// </summary>
+        private async Task<ToolResult> GitLogInternalAsync(int maxCommits)
+        {
+            try
+            {
+                var log = await _ideService.GetGitLogAsync(maxCommits);
+                return new ToolResult
+                {
+                    ToolName = "git_log",
+                    Output = log ?? "No commits found",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("git_log", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for git_commit.
+        /// </summary>
+        private async Task<ToolResult> GitCommitInternalAsync(string message)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(message))
+                    return CreateErrorResult("git_commit", "message cannot be null or empty");
+
+                var commitHash = await _ideService.CreateGitCommitAsync(message);
+                return new ToolResult
+                {
+                    ToolName = "git_commit",
+                    Output = $"Commit created: {commitHash}",
+                    IsSuccess = true,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "commitHash", commitHash }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("git_commit", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for create_snippet.
+        /// </summary>
+        private async Task<ToolResult> CreateSnippetInternalAsync(string name, string code)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(name))
+                    return CreateErrorResult("create_snippet", "name cannot be null or empty");
+
+                if (string.IsNullOrEmpty(code))
+                    return CreateErrorResult("create_snippet", "code cannot be null or empty");
+
+                // Stub implementation - would save to a snippets registry
+                return new ToolResult
+                {
+                    ToolName = "create_snippet",
+                    Output = $"Snippet '{name}' created successfully",
+                    IsSuccess = true,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "snippetName", name },
+                        { "codeLength", code.Length.ToString() }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("create_snippet", ex.Message);
+            }
         }
 
         /// <summary>

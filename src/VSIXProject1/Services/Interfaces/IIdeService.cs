@@ -364,6 +364,59 @@ namespace ContinueVS.Services.Interfaces
         /// <returns>Completed task; throws TimeoutException if execution takes too long.</returns>
         Task ResumeDebugAsync(CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Runs a terminal command and returns the output.
+        /// </summary>
+        /// <param name="command">The command to run.</param>
+        /// <returns>Standard output and error from the command.</returns>
+        Task<string> RunCommandAsync(string command);
+
+        /// <summary>
+        /// Gets the current git diff.
+        /// </summary>
+        /// <returns>The unified diff format of current changes.</returns>
+        Task<string> GetDiffAsync();
+
+        /// <summary>
+        /// Gets compiler problems (errors, warnings).
+        /// </summary>
+        /// <returns>Formatted list of problems.</returns>
+        Task<string> GetProblemsAsync();
+
+        /// <summary>
+        /// Gets git status of the repository.
+        /// </summary>
+        /// <returns>Git status output.</returns>
+        Task<string> GetGitStatusAsync();
+
+        /// <summary>
+        /// Gets git diff for a specific file.
+        /// </summary>
+        /// <param name="filePath">Path to the file (optional).</param>
+        /// <returns>Unified diff for the file.</returns>
+        Task<string> GetGitDiffAsync(string filePath);
+
+        /// <summary>
+        /// Gets git commit log.
+        /// </summary>
+        /// <param name="maxCommits">Maximum number of commits to return.</param>
+        /// <returns>Commit history.</returns>
+        Task<string> GetGitLogAsync(int maxCommits);
+
+        /// <summary>
+        /// Creates a git commit.
+        /// </summary>
+        /// <param name="message">Commit message.</param>
+        /// <returns>The commit hash.</returns>
+        Task<string> CreateGitCommitAsync(string message);
+
+        /// <summary>
+        /// Opens a file in the IDE.
+        /// </summary>
+        /// <param name="filepath">Path to the file to open.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task OpenFileAsync(string filepath);
+
         // Events
         /// <summary>
         /// Event raised when a file changes on disk.

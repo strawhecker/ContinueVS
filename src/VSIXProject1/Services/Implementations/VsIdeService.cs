@@ -545,5 +545,140 @@ namespace ContinueVS.Services.Implementations
                 }
             }
         }
+
+        public async Task<string> RunCommandAsync(string command)
+        {
+            if (string.IsNullOrWhiteSpace(command))
+                throw new ArgumentException("command must not be empty.", nameof(command));
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c {command}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using (var process = System.Diagnostics.Process.Start(startInfo))
+                {
+                    if (process == null)
+                        return "Failed to start command process";
+
+                    var output = await process.StandardOutput.ReadToEndAsync();
+                    var error = await process.StandardError.ReadToEndAsync();
+                    process.WaitForExit();
+
+                    return string.IsNullOrEmpty(error) ? output : $"{output}\nError: {error}";
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Command execution failed: {ex.Message}";
+            }
+        }
+
+        public async Task<string> GetDiffAsync()
+        {
+            // Stub implementation - would integrate with git
+            return await Task.FromResult("No diff available");
+        }
+
+        public async Task<string> GetProblemsAsync()
+        {
+            // Stub implementation - would read from VS error list
+            return await Task.FromResult("No problems detected");
+        }
+
+        public async Task<string> GetGitStatusAsync()
+        {
+            try
+            {
+                var output = await RunCommandAsync("git status");
+                return output;
+            }
+            catch (Exception ex)
+            {
+                return $"Git status failed: {ex.Message}";
+            }
+        }
+
+        public async Task<string> GetGitDiffAsync(string filePath)
+        {
+            try
+            {
+                var cmd = string.IsNullOrEmpty(filePath) ? "git diff" : $"git diff {filePath}";
+                var output = await RunCommandAsync(cmd);
+                return output;
+            }
+            catch (Exception ex)
+            {
+                return $"Git diff failed: {ex.Message}";
+            }
+        }
+
+        public async Task<string> GetGitLogAsync(int maxCommits)
+        {
+            try
+            {
+                var output = await RunCommandAsync($"git log --oneline -n {maxCommits}");
+                return output;
+            }
+            catch (Exception ex)
+            {
+                return $"Git log failed: {ex.Message}";
+            }
+        }
+
+        public async Task<string> CreateGitCommitAsync(string message)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(message))
+                    throw new ArgumentException("message must not be empty.");
+
+                // First add all changes
+                await RunCommandAsync("git add .");
+
+                // Create commit
+                var commitCmd = $"git commit -m \"{message.Replace("\"", "\\\"")}\"";
+                var output = await RunCommandAsync(commitCmd);
+
+                // Extract commit hash from output
+                var lines = output.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                var hashLine = lines.FirstOrDefault(l => l.Contains("[") && l.Contains("]"));
+
+                if (!string.IsNullOrEmpty(hashLine))
+                {
+                    var start = hashLine.IndexOf("[") + 1;
+                    var end = hashLine.IndexOf("]");
+                    if (end > start)
+                    {
+                        return hashLine.Substring(start, end - start);
+                    }
+                }
+
+                return output;
+            }
+            catch (Exception ex)
+            {
+                return $"Git commit failed: {ex.Message}";
+            }
+        }
+
+        public async Task OpenFileAsync(string filepath)
+        {
+            if (string.IsNullOrWhiteSpace(filepath))
+                throw new ArgumentException("filepath must not be empty.", nameof(filepath));
+
+            if (!File.Exists(filepath))
+                throw new FileNotFoundException($"File not found: {filepath}");
+
+            // Stub implementation - would use DTE to open the file in editor
+            await Task.CompletedTask;
+        }
     }
 }

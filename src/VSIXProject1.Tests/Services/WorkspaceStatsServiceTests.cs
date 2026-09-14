@@ -57,6 +57,14 @@ namespace ContinueVS.Services.Tests
             public Task<bool> ClearBreakpointAsync(string filePath, int lineNumber, CancellationToken cancellationToken = default) => Task.FromResult(false);
             public Task<RuntimeState?> StepAsync(DebugStepAction action, CancellationToken cancellationToken = default) => Task.FromResult<RuntimeState?>(null);
             public Task ResumeDebugAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<string> RunCommandAsync(string command) => Task.FromResult(string.Empty);
+            public Task<string> GetDiffAsync() => Task.FromResult(string.Empty);
+            public Task<string> GetProblemsAsync() => Task.FromResult(string.Empty);
+            public Task<string> GetGitStatusAsync() => Task.FromResult(string.Empty);
+            public Task<string> GetGitDiffAsync(string filePath) => Task.FromResult(string.Empty);
+            public Task<string> GetGitLogAsync(int maxCommits) => Task.FromResult(string.Empty);
+            public Task<string> CreateGitCommitAsync(string message) => Task.FromResult(string.Empty);
+            public Task OpenFileAsync(string filepath) => Task.CompletedTask;
         }
 
         private sealed class StubDebuggerService : IDebuggerService
