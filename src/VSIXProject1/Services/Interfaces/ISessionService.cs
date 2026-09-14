@@ -139,5 +139,20 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="reserve">Token buffer reserved for response; actual limit is (maxTokens - reserve).</param>
         /// <returns>Tuple of (trimmed history, truncation summary string).</returns>
         Task<(List<ChatMessage> trimmed, string summary)> BacktrackAndOptimizeAsync(List<ChatMessage> history, int maxTokens, int reserve);
+
+        /// <summary>
+        /// Gets the ID of the currently active session (gap76).
+        /// Used to restore active session on extension restart.
+        /// </summary>
+        /// <returns>The active session ID, or null if none is set.</returns>
+        Task<string?> GetCurrentSessionIdAsync();
+
+        /// <summary>
+        /// Sets the active session ID and persists it (gap76).
+        /// Used to restore active session on extension restart.
+        /// </summary>
+        /// <param name="sessionId">The session ID to mark as active.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task SetCurrentSessionIdAsync(string sessionId);
     }
 }

@@ -19,51 +19,51 @@
                 <Setter Property="HorizontalAlignment" Value="Stretch"/>
             </Style>
             <local:ChatMessageTemplateSelector x:Key="MessageTemplateSelector">
-            <local:ChatMessageTemplateSelector.UserMessageTemplate>
-                <DataTemplate>
-                    <controls:ChatMessageControl DataContext="{Binding}"/>
-                </DataTemplate>
-            </local:ChatMessageTemplateSelector.UserMessageTemplate>
-            <local:ChatMessageTemplateSelector.AssistantMessageTemplate>
-                <DataTemplate>
-                    <controls:ChatMessageControl DataContext="{Binding}"/>
-                </DataTemplate>
-            </local:ChatMessageTemplateSelector.AssistantMessageTemplate>
-            <local:ChatMessageTemplateSelector.ToolInvocationTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="#1E1E1E">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <TextBlock Text="Tool: " FontWeight="Bold" Foreground="#FFA500"/>
-                                <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="#FFA500"/>
-                                <TextBlock Margin="8,0,0,0">
-                                    <TextBlock.Text>
-                                        <MultiBinding StringFormat="{}[{0}]">
-                                            <Binding Path="InvocationStatus"/>
-                                        </MultiBinding>
-                                    </TextBlock.Text>
-                                </TextBlock>
+                <local:ChatMessageTemplateSelector.UserMessageTemplate>
+                    <DataTemplate>
+                        <controls:ChatMessageControl DataContext="{Binding}"/>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.UserMessageTemplate>
+                <local:ChatMessageTemplateSelector.AssistantMessageTemplate>
+                    <DataTemplate>
+                        <controls:ChatMessageControl DataContext="{Binding}"/>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.AssistantMessageTemplate>
+                <local:ChatMessageTemplateSelector.ToolInvocationTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="#1E1E1E">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                    <TextBlock Text="Tool: " FontWeight="Bold" Foreground="#FFA500"/>
+                                    <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="#FFA500"/>
+                                    <TextBlock Margin="8,0,0,0">
+                                        <TextBlock.Text>
+                                            <MultiBinding StringFormat="{}[{0}]">
+                                                <Binding Path="InvocationStatus"/>
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC"/>
                             </StackPanel>
-                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC"/>
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </local:ChatMessageTemplateSelector.ToolInvocationTemplate>
-            <local:ChatMessageTemplateSelector.SystemMessageTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="2" Margin="5" Padding="5" Background="#252526">
-                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#A0A0A0" FontSize="11"/>
-                    </Border>
-                </DataTemplate>
-            </local:ChatMessageTemplateSelector.SystemMessageTemplate>
-            <local:ChatMessageTemplateSelector.QuestionMessageTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="#6C5CE7" BorderThickness="2" CornerRadius="4" Margin="5" Padding="10" Background="#2D2D30">
-                        <StackPanel>
-                            <!-- Question Text -->
-                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#FFFFFF" FontWeight="Bold" Margin="0,0,0,8"/>
-                            <!-- Answer Input -->
-                            <TextBox x:Name="AnswerInput" 
+                        </Border>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.ToolInvocationTemplate>
+                <local:ChatMessageTemplateSelector.SystemMessageTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="2" Margin="5" Padding="5" Background="#252526">
+                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#A0A0A0" FontSize="11"/>
+                        </Border>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.SystemMessageTemplate>
+                <local:ChatMessageTemplateSelector.QuestionMessageTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#6C5CE7" BorderThickness="2" CornerRadius="4" Margin="5" Padding="10" Background="#2D2D30">
+                            <StackPanel>
+                                <!-- Question Text -->
+                                <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#FFFFFF" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <!-- Answer Input -->
+                                <TextBox x:Name="AnswerInput" 
                                      AcceptsReturn="False"
                                      Text="{Binding Path=QuestionAnswer, UpdateSourceTrigger=PropertyChanged}"
                                      Background="#1E1E1E"
@@ -73,42 +73,42 @@
                                      Padding="8"
                                      Margin="0,0,0,8"
                                      Height="32"/>
-                            <!-- Buttons -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
-                                <Button Content="Send" 
+                                <!-- Buttons -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
+                                    <Button Content="Send" 
                                         Background="#6C5CE7"
                                         Foreground="White"
                                         Padding="12,6"
                                         Margin="0,0,8,0"
                                         Click="QuestionAnswerButton_Click"/>
-                                <Button Content="Cancel"
+                                    <Button Content="Cancel"
                                         Background="#DC3545"
                                         Foreground="White"
                                         Padding="12,6"
                                         Click="QuestionCancelButton_Click"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </local:ChatMessageTemplateSelector.QuestionMessageTemplate>
-            <local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="#A0A0A0" BorderThickness="1" CornerRadius="2" Margin="5" Padding="12" Background="#F5F5F5">
-                        <Grid x:Name="ThinkingMessageGrid" MouseEnter="ThinkingMessageGrid_MouseEnter" MouseLeave="ThinkingMessageGrid_MouseLeave">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <!-- Label Area -->
-                            <TextBlock Grid.Column="0" Grid.Row="0" Text="Thinking" FontWeight="Bold" Foreground="#505050" Margin="0,0,0,6"/>
-                            <!-- Copy All Button (appears on hover) -->
-                            <Button x:Name="ThinkingCopyAllButton"
+                        </Border>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.QuestionMessageTemplate>
+                <local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#A0A0A0" BorderThickness="1" CornerRadius="2" Margin="5" Padding="12" Background="#F5F5F5">
+                            <Grid x:Name="ThinkingMessageGrid" MouseEnter="ThinkingMessageGrid_MouseEnter" MouseLeave="ThinkingMessageGrid_MouseLeave">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <!-- Label Area -->
+                                <TextBlock Grid.Column="0" Grid.Row="0" Text="Thinking" FontWeight="Bold" Foreground="#505050" Margin="0,0,0,6"/>
+                                <!-- Copy All Button (appears on hover) -->
+                                <Button x:Name="ThinkingCopyAllButton"
                                     Grid.Column="1" Grid.Row="0"
                                     Height="28"
                                     Width="100"
@@ -126,8 +126,8 @@
                                     Cursor="Hand"
                                     Visibility="Hidden"
                                     Click="ThinkingCopyAllButton_Click"/>
-                            <!-- Copy/Apply Dropdown (appears on hover) -->
-                            <ComboBox x:Name="ThinkingCodeActionDropdown"
+                                <!-- Copy/Apply Dropdown (appears on hover) -->
+                                <ComboBox x:Name="ThinkingCodeActionDropdown"
                                     Grid.Column="2" Grid.Row="0"
                                     Height="28"
                                     Width="120"
@@ -144,11 +144,11 @@
                                     Cursor="Hand"
                                     Visibility="Hidden"
                                     SelectionChanged="ThinkingCodeActionDropdown_SelectionChanged">
-                                <ComboBoxItem Content="📋 Copy" IsSelected="True"/>
-                                <ComboBoxItem Content="✔ Apply"/>
-                            </ComboBox>
-                            <!-- Delete Button (appears on hover) -->
-                            <Button x:Name="ThinkingDeleteButton"
+                                    <ComboBoxItem Content="📋 Copy" IsSelected="True"/>
+                                    <ComboBoxItem Content="✔ Apply"/>
+                                </ComboBox>
+                                <!-- Delete Button (appears on hover) -->
+                                <Button x:Name="ThinkingDeleteButton"
                                     Grid.Column="3" Grid.Row="0"
                                     Width="28" 
                                     Height="28" 
@@ -160,54 +160,54 @@
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Top"
                                     Margin="8,0,0,0">
-                                <TextBlock Text="✕" FontSize="14" Foreground="#A0A0A0" 
+                                    <TextBlock Text="✕" FontSize="14" Foreground="#A0A0A0" 
                                           TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            </Button>
-                            <!-- Expand/Collapse Toggle Button with visual indicator -->
-                            <ToggleButton Grid.Column="3" Grid.Row="0" 
+                                </Button>
+                                <!-- Expand/Collapse Toggle Button with visual indicator -->
+                                <ToggleButton Grid.Column="3" Grid.Row="0" 
                                          IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                                          Width="20" Height="20"
                                          Background="Transparent" BorderThickness="0"
                                          VerticalAlignment="Top" Margin="8,0,0,0">
-                                <TextBlock Text="▼" Foreground="#505050" FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            </ToggleButton>
-                            <!-- Content Area -->
-                            <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4"
+                                    <TextBlock Text="▼" Foreground="#505050" FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </ToggleButton>
+                                <!-- Content Area -->
+                                <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4"
                                       Text="{Binding Content, Mode=OneWay}" 
                                       TextWrapping="Wrap" 
                                       Foreground="#404040"
                                       FontFamily="Consolas"
                                       FontSize="11"
                                       IsEnabled="True"/>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
-            <local:ChatMessageTemplateSelector.ExecutionImpactTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="#228B22" BorderThickness="2" CornerRadius="4" Margin="5" Padding="12" Background="#1E1E1E">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="✓" FontWeight="Bold" FontSize="14" Margin="0,0,8,0" Foreground="#21A121"/>
-                                <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Foreground="#90EE90" Margin="0,0,0,8" FontSize="12" FontFamily="Consolas">
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
+                <local:ChatMessageTemplateSelector.ExecutionImpactTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#228B22" BorderThickness="2" CornerRadius="4" Margin="5" Padding="12" Background="#1E1E1E">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="✓" FontWeight="Bold" FontSize="14" Margin="0,0,8,0" Foreground="#21A121"/>
+                                    <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Foreground="#90EE90" Margin="0,0,0,8" FontSize="12" FontFamily="Consolas">
                                 <Run Text="{Binding GetSummaryText, Mode=OneWay}"/>
-                            </TextBlock>
-                            <Expander Header="Details" Background="#2D2D30" Foreground="#CCCCCC" Margin="0,8,0,0">
-                                <DataGrid AutoGenerateColumns="False" Background="#1E1E1E" Foreground="#CCCCCC" BorderBrush="#3E3E42" RowBackground="#1E1E1E" AlternatingRowBackground="#252526" ItemsSource="{Binding Phases, Mode=OneWay}">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Phase" Binding="{Binding PhaseId}" Width="*" Foreground="#CCCCCC"/>
-                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" Foreground="#CCCCCC"/>
-                                        <DataGridTextColumn Header="Duration (ms)" Binding="{Binding DurationMs}" Width="Auto" Foreground="#CCCCCC"/>
-                                        <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="*" Foreground="#CCCCCC"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Expander>
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </local:ChatMessageTemplateSelector.ExecutionImpactTemplate>
+                                </TextBlock>
+                                <Expander Header="Details" Background="#2D2D30" Foreground="#CCCCCC" Margin="0,8,0,0">
+                                    <DataGrid AutoGenerateColumns="False" Background="#1E1E1E" Foreground="#CCCCCC" BorderBrush="#3E3E42" RowBackground="#1E1E1E" AlternatingRowBackground="#252526" ItemsSource="{Binding Phases, Mode=OneWay}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Phase" Binding="{Binding PhaseId}" Width="*" Foreground="#CCCCCC"/>
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" Foreground="#CCCCCC"/>
+                                            <DataGridTextColumn Header="Duration (ms)" Binding="{Binding DurationMs}" Width="Auto" Foreground="#CCCCCC"/>
+                                            <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="*" Foreground="#CCCCCC"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Expander>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.ExecutionImpactTemplate>
             </local:ChatMessageTemplateSelector>
             <!-- Dark Mode ComboBox Style -->
             <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
@@ -385,155 +385,186 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Warning Banner (80% threshold) - gap23_4_4 -->
-        <Border Grid.Row="0" Background="#FFFACD" BorderBrush="#FFD700" BorderThickness="1" Margin="5,5,5,0" Padding="8" Visibility="{Binding ShowWarningBanner, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="⚠️ Approaching tool call limit (80/100 used). Consider starting a new session soon." TextWrapping="Wrap" Foreground="Black" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="✕" Width="24" Height="24" Background="Transparent" BorderThickness="0" Foreground="Black" FontSize="14" Margin="8,0,0,0" Click="DismissWarningBanner_Click" Cursor="Hand"/>
-            </Grid>
+        <!-- History Panel (collapsible side panel) - gap76 -->
+        <Border x:Name="HistoryPanel" 
+                Grid.Column="0"
+                Width="300"
+                Background="#1E1E1E"
+                BorderBrush="#3E3E42"
+                BorderThickness="0,0,1,0"
+                Visibility="Collapsed">
+            <controls:HistoryView DataContext="{Binding}"/>
         </Border>
 
-        <!-- Error Banner (100% threshold) - gap23_4_4 -->
-        <Border Grid.Row="1" Background="#FFB6C6" BorderBrush="#FF0000" BorderThickness="2" Margin="5,5,5,0" Padding="8" Visibility="{Binding ShowErrorBanner, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="❌ Tool call limit reached (100/100). Start a new session to continue." TextWrapping="Wrap" Foreground="DarkRed" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="✕" Width="24" Height="24" Background="Transparent" BorderThickness="0" Foreground="DarkRed" FontSize="14" Margin="8,0,0,0" Click="DismissErrorBanner_Click" Cursor="Hand"/>
-            </Grid>
-        </Border>
-
-        <!-- Context Panel -->
-        <Expander Grid.Row="2" Visibility="Collapsed" Header="Context" IsExpanded="False" Margin="5" Foreground="#CCCCCC">
-            <ItemsControl ItemsSource="{Binding SelectedContext}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <controls:ContextItemControl DataContext="{Binding}"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Expander>
-
-        <!-- Mode Selector - gap27_1/27_6/27_7 -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
-            <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,5,0" Foreground="#CCCCCC"/>
-            <ComboBox ItemsSource="{Binding AvailableModes}" SelectedItem="{Binding SelectedMode, Mode=TwoWay}" Width="120" Margin="0,0,10,0" Style="{StaticResource DarkComboBoxStyle}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Icon}" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="14" Foreground="White"/>
-                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="White"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBlock Visibility="Collapsed" Text="?" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="#A0A0A0" FontSize="12" FontWeight="Bold" ToolTip="{Binding SelectedMode.Description, StringFormat='Mode: {0}'}"/>
-
-            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
-
-            <TextBlock Text="Policy:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-            <ComboBox ItemsSource="{Binding ContinuationPolicies}" SelectedItem="{Binding SelectedPolicy, Mode=TwoWay}" DisplayMemberPath="Name" Width="160" Height="28" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-
-            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
-
-            <TextBlock Text="Model:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC"/>
-            <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="220" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}"/>
-
-            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
-
-            <TextBlock Text="{Binding ToolCallCounterDisplay}" VerticalAlignment="Center" Margin="5,0,0,5" FontSize="11" Foreground="{Binding ToolCallCounterDisplay, Converter={StaticResource ToolCallCounterColorConverter}}" ToolTip="Shows cumulative tool calls in current session (resets per-action)"/>
-
-            <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
-
-            <!-- gap47: New Chat button starts a fresh session -->
-            <Button Command="{Binding NewChatCommand}" Content="+" Padding="6,4" Margin="5,0,0,0" Foreground="White" Background="#0D0D0D" BorderBrush="#3E3E42" BorderThickness="1" Width="28" Height="24" ToolTip="Start a new chat session" FontSize="14" FontWeight="Bold"/>
-        </StackPanel>
-
-        <!-- Mode Description Helper Text - gap27_6 -->
-        <TextBlock Grid.Row="3" Text="{Binding SelectedMode.Description}" TextWrapping="Wrap" Foreground="#A0A0A0" FontSize="10" FontStyle="Italic" Margin="5,25,5,0" VerticalAlignment="Top"/>
-        <Border Grid.Row="4" Background="#252526" BorderBrush="#3E3E42" BorderThickness="1" Margin="5" Padding="15" VerticalAlignment="Top" Visibility="{Binding OnboardingCardVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <StackPanel>
-                <TextBlock Text="🎯 Getting Started" FontSize="16" FontWeight="Bold" Foreground="#CCCCCC" Margin="0,0,0,10"/>
-                <TextBlock Text="Welcome to Continue VS! Here's how to get started:" Foreground="#A0A0A0" Margin="0,0,0,8"/>
-
-                <StackPanel Margin="0,0,0,8">
-                    <TextBlock Text="• Select a mode (Ask, Agent, or Plan) above" Foreground="#A0A0A0" Margin="0,0,0,4"/>
-                    <TextBlock Text="• Choose a model from the dropdown" Foreground="#A0A0A0" Margin="0,0,0,4"/>
-                    <TextBlock Text="• Enter your prompt or question below" Foreground="#A0A0A0" Margin="0,0,0,4"/>
-                    <TextBlock Text="• Click Send to start the conversation" Foreground="#A0A0A0" Margin="0,0,0,4"/>
-                </StackPanel>
-
-                <TextBlock Text="💡 Tip: Switch to Agent mode to let Continue autonomously analyze and edit your code." Foreground="#A0A0A0" FontStyle="Italic"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Messages (Chat List) with ScrollViewer -->
-        <ScrollViewer Grid.Row="4" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{Binding DisplayMessages}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                          ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
-                          ItemContainerStyle="{StaticResource MessageContainerStyle}"
-                          x:Name="MessagesItemsControl">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Vertical" IsItemsHost="True"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <controls:ChatMessageControl DataContext="{Binding}"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-
-        <!-- Input Area -->
-        <Grid Grid.Row="5" Margin="5">
+        <!-- Main Chat Grid -->
+        <Grid Grid.Column="1">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- gap42_2: AcceptsReturn="True" enables newline preservation on Ctrl+V paste;
+            <!-- Warning Banner (80% threshold) - gap23_4_4 -->
+            <Border Grid.Row="0" Background="#FFFACD" BorderBrush="#FFD700" BorderThickness="1" Margin="5,5,5,0" Padding="8" Visibility="{Binding ShowWarningBanner, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="⚠️ Approaching tool call limit (80/100 used). Consider starting a new session soon." TextWrapping="Wrap" Foreground="Black" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="✕" Width="24" Height="24" Background="Transparent" BorderThickness="0" Foreground="Black" FontSize="14" Margin="8,0,0,0" Click="DismissWarningBanner_Click" Cursor="Hand"/>
+                </Grid>
+            </Border>
+
+            <!-- Error Banner (100% threshold) - gap23_4_4 -->
+            <Border Grid.Row="1" Background="#FFB6C6" BorderBrush="#FF0000" BorderThickness="2" Margin="5,5,5,0" Padding="8" Visibility="{Binding ShowErrorBanner, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="❌ Tool call limit reached (100/100). Start a new session to continue." TextWrapping="Wrap" Foreground="DarkRed" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="✕" Width="24" Height="24" Background="Transparent" BorderThickness="0" Foreground="DarkRed" FontSize="14" Margin="8,0,0,0" Click="DismissErrorBanner_Click" Cursor="Hand"/>
+                </Grid>
+            </Border>
+
+            <!-- Context Panel -->
+            <Expander Grid.Row="2" Visibility="Collapsed" Header="Context" IsExpanded="False" Margin="5" Foreground="#CCCCCC">
+                <ItemsControl ItemsSource="{Binding SelectedContext}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <controls:ContextItemControl DataContext="{Binding}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Expander>
+
+            <!-- Mode Selector - gap27_1/27_6/27_7 -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
+
+                <TextBlock Text="Model:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC"/>
+                <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="220" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}"/>
+
+                <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
+
+                <TextBlock Text="{Binding ToolCallCounterDisplay}" VerticalAlignment="Center" Margin="5,0,0,5" FontSize="11" Foreground="{Binding ToolCallCounterDisplay, Converter={StaticResource ToolCallCounterColorConverter}}" ToolTip="Shows cumulative tool calls in current session (resets per-action)"/>
+            </StackPanel>
+
+            <!-- Mode Description Helper Text - gap27_6 -->
+            <TextBlock Grid.Row="3" Text="{Binding SelectedMode.Description}" TextWrapping="Wrap" Foreground="#A0A0A0" FontSize="10" FontStyle="Italic" Margin="5,25,5,0" VerticalAlignment="Top"/>
+            <Border Grid.Row="4" Background="#252526" BorderBrush="#3E3E42" BorderThickness="1" Margin="5" Padding="15" VerticalAlignment="Top" Visibility="{Binding OnboardingCardVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="🎯 Getting Started" FontSize="16" FontWeight="Bold" Foreground="#CCCCCC" Margin="0,0,0,10"/>
+                    <TextBlock Text="Welcome to Continue VS! Here's how to get started:" Foreground="#A0A0A0" Margin="0,0,0,8"/>
+
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="• Select a mode (Ask, Agent, or Plan) above" Foreground="#A0A0A0" Margin="0,0,0,4"/>
+                        <TextBlock Text="• Choose a model from the dropdown" Foreground="#A0A0A0" Margin="0,0,0,4"/>
+                        <TextBlock Text="• Enter your prompt or question below" Foreground="#A0A0A0" Margin="0,0,0,4"/>
+                        <TextBlock Text="• Click Send to start the conversation" Foreground="#A0A0A0" Margin="0,0,0,4"/>
+                    </StackPanel>
+
+                    <TextBlock Text="💡 Tip: Switch to Agent mode to let Continue autonomously analyze and edit your code." Foreground="#A0A0A0" FontStyle="Italic"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Messages (Chat List) with ScrollViewer -->
+            <ScrollViewer Grid.Row="4" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding DisplayMessages}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                          ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
+                          ItemContainerStyle="{StaticResource MessageContainerStyle}"
+                          x:Name="MessagesItemsControl">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical" IsItemsHost="True"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <controls:ChatMessageControl DataContext="{Binding}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Input Area -->
+            <Grid Grid.Row="5" Margin="5">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- gap42_2: AcceptsReturn="True" enables newline preservation on Ctrl+V paste;
                  Enter key is still intercepted by InputTextBox_KeyDown (PreviewKeyDown, e.Handled=true) so no regression -->
-            <TextBox x:Name="InputTextBox" Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
+                <TextBox x:Name="InputTextBox" Grid.Row="0" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" 
                      TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="False" 
                      MinHeight="80" MaxHeight="200" VerticalScrollBarVisibility="Auto"
                      Margin="0,0,0,5" Foreground="White" Background="#1E1E1E" BorderBrush="#3E3E42"
                      PreviewKeyDown="InputTextBox_KeyDown"/>
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="1" Command="{Binding SendMessageCommand}" 
+                    <StackPanel Orientation="Horizontal" Grid.Column="1">
+                        <!-- gap76: History button to toggle session list panel -->
+                        <Button x:Name="HistoryButton" Content="⋯" Padding="6,4" Margin="5,0,0,0" Foreground="White" Background="#0D0D0D" BorderBrush="#3E3E42" BorderThickness="1" Width="28" Height="24" ToolTip="View session history" FontSize="14" FontWeight="Bold" Click="HistoryButton_Click"/>
+
+                        <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
+
+                        <!-- gap47: New Chat button starts a fresh session -->
+                        <Button Command="{Binding NewChatCommand}" Content="+" Padding="6,4" Margin="5,0,0,0" Foreground="White" Background="#0D0D0D" BorderBrush="#3E3E42" BorderThickness="1" Width="28" Height="24" ToolTip="Start a new chat session" FontSize="14" FontWeight="Bold"/>
+
+                        <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
+
+                        <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,5,0" Foreground="#CCCCCC"/>
+                        <ComboBox ItemsSource="{Binding AvailableModes}" SelectedItem="{Binding SelectedMode, Mode=TwoWay}" Width="120" Margin="0,0,10,0" Style="{StaticResource DarkComboBoxStyle}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Icon}" Margin="0,0,5,0" VerticalAlignment="Center" FontSize="14" Foreground="White"/>
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="White"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Visibility="Collapsed" Text="?" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="#A0A0A0" FontSize="12" FontWeight="Bold" ToolTip="{Binding SelectedMode.Description, StringFormat='Mode: {0}'}"/>
+
+                        <Separator Width="1" Margin="10,0" Background="#3E3E42"/>
+
+                        <TextBlock Text="Policy:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <ComboBox ItemsSource="{Binding ContinuationPolicies}" SelectedItem="{Binding SelectedPolicy, Mode=TwoWay}" DisplayMemberPath="Name" Width="160" Height="28" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+
+                    </StackPanel>
+
+                    <Button Grid.Column="2" Command="{Binding SendMessageCommand}" 
                         Content="▶" Style="{StaticResource GreenActionButtonStyle}" Width="32" Height="24" ToolTipService.ToolTip="Send Message"/>
-                <Button Grid.Column="2" Command="{Binding CancelCommand}" 
+                    <Button Grid.Column="3" Command="{Binding CancelCommand}" 
                         Content="✕" Style="{StaticResource RedActionButtonStyle}" Width="32" Height="24" ToolTipService.ToolTip="Cancel"/>
-                <Button Grid.Column="3" Command="{Binding PauseCommand}" 
+                    <Button Grid.Column="4" Command="{Binding PauseCommand}" 
                         Content="{Binding IsPausedDisplayIcon}" Style="{StaticResource RedActionButtonStyle}" Width="32" Height="24"
                         IsEnabled="{Binding IsStreaming}" ToolTipService.ToolTip="Pause/Resume"/>
-                <Button Grid.Column="4" Content="✔" Padding="10" Margin="5,0" Background="#28A745"
+                    <Button Grid.Column="5" Content="✔" Padding="10" Margin="5,0" Background="#28A745"
                         Visibility="Collapsed"
                         ToolTipService.ToolTip="Apply Changes"/>
+                </Grid>
             </Grid>
         </Grid>
     </Grid>

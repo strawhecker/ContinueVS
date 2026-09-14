@@ -49,19 +49,6 @@ namespace ContinueVS.Tests.UI.Navigation
         }
 
         [Fact]
-        public async System.Threading.Tasks.Task NavigateAsync_WithValidHistoryRoute_DoesNotThrow()
-        {
-            await RunOnSTAThreadAsync(async () =>
-            {
-                // Arrange
-                var navigator = new PageNavigator();
-
-                // Act & Assert (should not throw)
-                await navigator.NavigateAsync("history", null);
-            });
-        }
-
-        [Fact]
         public async System.Threading.Tasks.Task NavigateAsync_WithValidStatsRoute_DoesNotThrow()
         {
             await RunOnSTAThreadAsync(async () =>

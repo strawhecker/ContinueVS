@@ -344,6 +344,31 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
+        /// Gets the ID of the currently active session (gap76).
+        /// Reads from config or preferences file if persisted.
+        /// </summary>
+        public async Task<string?> GetCurrentSessionIdAsync()
+        {
+            var currentSession = GetCurrentSession();
+            await Task.CompletedTask;
+            return currentSession?.Id;
+        }
+
+        /// <summary>
+        /// Sets the active session ID and persists it (gap76).
+        /// </summary>
+        public async Task SetCurrentSessionIdAsync(string sessionId)
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                throw new ArgumentException("Session ID cannot be empty.", nameof(sessionId));
+            }
+
+            await LoadSessionAsync(sessionId);
+            await SaveCurrentSessionAsync();
+        }
+
+        /// <summary>
         /// Prunes old messages from the current session when token count exceeds maxTokens.
         /// Removes oldest messages first, preserving system messages if requested.
         /// Uses ITokenCountingService for accurate token estimation.

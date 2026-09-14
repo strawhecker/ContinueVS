@@ -196,6 +196,16 @@ namespace ContinueVS.ViewModels
         private int _selectedCodeAction = 0; // 0=Copy, 1=Apply
 
         /// <summary>
+        /// Backing field for current session metadata (gap76).
+        /// </summary>
+        private SessionMetadata? _currentSession;
+
+        /// <summary>
+        /// Backing collection for available sessions (gap76).
+        /// </summary>
+        private ObservableCollection<SessionMetadata>? _availableSessions;
+
+        /// <summary>
         /// Available message width for text wrapping (calculated from ChatPage container).
         /// Set by ChatPage.xaml.cs based on scrollviewer width minus scrollbar and padding.
         /// Bound by StreamingReasoningRenderer and other message controls for proper text wrapping.
@@ -212,6 +222,33 @@ namespace ContinueVS.ViewModels
         /// System, Tool, and internal messages are excluded from user display but still persisted for LLM context.
         /// </summary>
         public ObservableCollection<ChatMessage> DisplayMessages { get; }
+
+        /// <summary>
+        /// Gets or sets the currently active session metadata (gap76).
+        /// Updated when user selects a session from history or creates a new one.
+        /// </summary>
+        public SessionMetadata? CurrentSession
+        {
+            get => _currentSession;
+            set => Set(ref _currentSession, value);
+        }
+
+        /// <summary>
+        /// Gets the collection of available sessions (gap76).
+        /// Populated by RefreshSessionsAsync() and displayed in HistoryView.
+        /// Sorted by Most Recent first (LastModifiedAt descending).
+        /// </summary>
+        public ObservableCollection<SessionMetadata> AvailableSessions
+        {
+            get
+            {
+                if (_availableSessions == null)
+                {
+                    _availableSessions = new ObservableCollection<SessionMetadata>();
+                }
+                return _availableSessions;
+            }
+        }
 
         /// <summary>
         /// Gets the available chat mode options for the mode dropdown (gap27_1).
@@ -771,6 +808,9 @@ namespace ContinueVS.ViewModels
                 LoggerService.Current.WriteError($"[gap27_16-init-error] Failed to load default policy: {ex.Message}", ex);
                 // Default to Interactive (already set in field initialization)
             }
+
+            // gap76: Load available sessions for history view
+            await RefreshSessionsAsync();
 
             // Mark initialization as complete
             _isInitialized = true;
@@ -2061,12 +2101,89 @@ namespace ContinueVS.ViewModels
                 Messages.Clear();
                 InputText = string.Empty;
                 SelectedContext.Clear();
+                await RefreshSessionsAsync();
                 LoggerService.Current.WriteDebug("[gap47] New chat session started");
             }
             catch (Exception ex)
             {
                 LoggerService.Current.WriteError($"[gap47] ExecuteNewChatAsync failed: {ex.Message}", ex);
                 await _notificationService.ShowErrorAsync($"Failed to start new chat: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the list of available sessions from storage (gap76).
+        /// Called after session operations to update HistoryView.
+        /// </summary>
+        private async Task RefreshSessionsAsync()
+        {
+            try
+            {
+                var sessions = new List<SessionMetadata>();
+                await foreach (var sessionMeta in _sessionService.ListSessionsAsync(limit: 100))
+                {
+                    sessions.Add(sessionMeta);
+                }
+
+                // Update collection on UI thread
+                await SwitchToMainThreadAsync();
+
+                AvailableSessions.Clear();
+                foreach (var session in sessions.OrderByDescending(s => s.UpdatedAt))
+                {
+                    AvailableSessions.Add(session);
+                }
+
+                // Update current session reference
+                var currentSessionId = await _sessionService.GetCurrentSessionIdAsync();
+                if (currentSessionId != null)
+                {
+                    CurrentSession = sessions.FirstOrDefault(s => s.Id == currentSessionId);
+                }
+
+                LoggerService.Current.WriteDebug($"[gap76-refresh] Loaded {sessions.Count} sessions");
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[gap76-refresh] Failed to refresh sessions: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Loads a session by ID and switches to it (gap76).
+        /// Also updates DisplayMessages with the loaded session's messages.
+        /// </summary>
+        public async Task LoadSessionAsync(string sessionId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sessionId))
+                {
+                    LoggerService.Current.WriteError("[gap76-load] Session ID cannot be null or empty");
+                    return;
+                }
+
+                await _sessionService.LoadSessionAsync(sessionId);
+                await _sessionService.SetCurrentSessionIdAsync(sessionId);
+
+                // Refresh the message display
+                var currentSession = _sessionService.GetCurrentSession();
+                Messages.Clear();
+                foreach (var msg in currentSession.Messages)
+                {
+                    Messages.Add(msg);
+                }
+
+                InputText = string.Empty;
+                SelectedContext.Clear();
+
+                await RefreshSessionsAsync();
+                LoggerService.Current.WriteDebug($"[gap76-load] Loaded session {sessionId}");
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[gap76-load] Failed to load session: {ex.Message}", ex);
+                await _notificationService.ShowErrorAsync($"Failed to load session: {ex.Message}");
             }
         }
 

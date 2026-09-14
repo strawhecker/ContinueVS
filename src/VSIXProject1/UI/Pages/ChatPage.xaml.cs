@@ -394,6 +394,20 @@ namespace ContinueVS.UI.Pages
         }
 
         /// <summary>
+        /// Event handler for History button - toggles session history panel visibility (gap76).
+        /// </summary>
+        private void HistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            var historyPanel = this.FindName("HistoryPanel") as Border;
+            if (historyPanel != null)
+            {
+                historyPanel.Visibility = historyPanel.Visibility == Visibility.Visible
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+            }
+        }
+
+        /// <summary>
         /// gap42_2: PreviewExecuted handler for ApplicationCommands.Paste.
         /// Reads clipboard text and logs line/character count. e.Handled is NOT set,
         /// so WPF default paste proceeds and newlines are preserved (AcceptsReturn="True").
