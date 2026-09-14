@@ -8399,7 +8399,115 @@ Total parsing work: 1+2+3+...+100 = 5,050 KB for 100KB response Result: UI freez
 
 ---
 
-### gap76 history not showing history, returning does not show most recent, get history working
+### gap76: Session History Management & Selection (Complete Workflow)
+**Status:** ❌ Pending | Type: Session History, Selection & Navigation
+
+**Problem Statement:**
+- Users cannot view a list of previous chat sessions
+- There is no way to switch between sessions
+- Session context is lost when switching views or restarting the extension
+- New chats are not marked as "selected" after creation
+- Returning to chat after viewing history does not restore the correct session
+
+**Core Requirements:**
+
+#### A. History View / Session List
+- [ ] Create a "History" view (new XAML page or dialog) that displays sessions in a list
+- [ ] Each session shows: session ID, timestamp (created/last modified), preview of first message or summary
+- [ ] Sessions are sorted by most recent first
+- [ ] **User can click a session to select it**
+- [ ] **Selected session is highlighted/indicated visually**
+
+#### B. Session Selection & Navigation
+- [ ] When user selects a session from history list:
+  - [ ] Jump to Chat view
+  - [ ] Load all messages from that session into DisplayMessages
+  - [ ] Set the session as "current session"
+  - [ ] MessageBorder and renderers display the loaded history
+- [ ] When user clicks "Chat" without selecting a session from history:
+  - [ ] Show the most recently active session (or create a new one if none exists)
+  - [ ] Restore messages from that session into DisplayMessages
+  - [ ] Display the correct chat context
+
+#### C. New Chat Creation
+- [ ] When user creates a new chat (e.g., clicks "New Chat" button):
+  - [ ] Create a new session with a fresh SessionId
+  - [ ] Set this new session as "current/active"
+  - [ ] Clear DisplayMessages (new empty chat)
+  - [ ] Update ChatPageViewModel.CurrentSession to point to this new session
+  - [ ] UI should reflect that this session is now "selected"
+
+#### D. State Persistence
+- [ ] Persist which session is "currently active" in config or session store
+- [ ] On extension restart or page reload:
+  - [ ] Restore the active session
+  - [ ] Load its messages into ChatPage
+  - [ ] User sees their last chat context immediately
+
+**Data Model:**
+```csharp
+// Session metadata (stored per session)
+class SessionMetadata
+{
+    public string SessionId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastModifiedAt { get; set; }
+    public string? PreviewText { get; set; } // First message or summary
+    public int MessageCount { get; set; }
+}
+
+// In ChatPageViewModel
+public SessionMetadata? CurrentSession { get; set; }
+public ObservableCollection<SessionMetadata> AvailableSessions { get; set; }
+public async Task LoadSessionAsync(string sessionId);
+public async Task CreateNewSessionAsync();
+```
+
+**UI Changes:**
+- Add "History" button or menu item that opens session list (modal or side panel)
+- History view shows list of SessionMetadata sorted by LastModifiedAt descending
+- Clicking a session item:
+  1. Closes history view/panel
+  2. Calls ChatPageViewModel.LoadSessionAsync(sessionId)
+  3. Populates DisplayMessages with that session's messages
+- Add "New Chat" button that calls CreateNewSessionAsync()
+- Display current session ID/name in ChatPage title or header
+
+**Implementation Plan:**
+1. Extend ISessionService with methods:
+   - `GetAllSessionsAsync()` → returns List<SessionMetadata>
+   - `GetSessionMessagesAsync(sessionId)` → returns messages for that session
+   - `GetCurrentSessionAsync()` → returns active SessionMetadata
+   - `SetCurrentSessionAsync(sessionId)` → marks session as active
+   - `CreateNewSessionAsync()` → creates fresh session, returns SessionMetadata
+
+2. Update ChatPageViewModel:
+   - Add `CurrentSession` property (bindable)
+   - Add `AvailableSessions` collection
+   - Add `LoadSessionAsync(sessionId)` → calls ISessionService + populates DisplayMessages
+   - Add `CreateNewSessionAsync()` → calls ISessionService + sets as current + clears messages
+   - Refresh sessions list on app load and after each new session creation
+
+3. Create HistoryView.xaml (or history panel):
+   - ItemsControl or ListBox with sessions
+   - Each item shows session metadata (timestamp, preview)
+   - Click handler calls ChatPageViewModel.LoadSessionAsync()
+
+4. Modify ChatPage.xaml:
+   - Add History button → shows/hides history view
+   - Add New Chat button → calls CreateNewSessionAsync()
+   - Display CurrentSession.SessionId in header
+
+**Files Affected:**
+- src/VSIXProject1/Services/ISessionService.cs (add new methods)
+- src/VSIXProject1/Services/Implementations/SessionService.cs (implement history retrieval)
+- src/VSIXProject1/ViewModels/ChatPageViewModel.cs (add session selection logic)
+- src/VSIXProject1/UI/Pages/ChatPage.xaml (add History/New Chat buttons)
+- src/VSIXProject1/UI/Pages/ChatPage.xaml.cs (wire history button/new chat handlers)
+- src/VSIXProject1/UI/Views/HistoryView.xaml (NEW - history panel/dialog)
+- src/VSIXProject1/UI/Views/HistoryView.xaml.cs (NEW)
+
+**Dependencies:** gap2 (ChatPage binding), gap5_5 (model selection), gap1 (config/session storage exists)
 
 ---
 
