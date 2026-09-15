@@ -31,7 +31,7 @@ namespace ContinueVS.Services.Implementations
             get
             {
                 var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                return Path.Combine(userProfile, ".continue", "sessions");
+                return Path.Combine(userProfile, ".continueVS", "sessions");
             }
         }
 

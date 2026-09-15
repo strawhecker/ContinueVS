@@ -67,7 +67,7 @@ namespace ContinueVS.Services
         private static string GetSettingsDirectory()
         {
             string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return Path.Combine(home, ".continue");
+            return Path.Combine(home, ".continueVS");
         }
 
         /// <summary>

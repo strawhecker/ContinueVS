@@ -211,7 +211,7 @@ namespace ContinueVS.Services
         private static string GetContinueConfigPath()
         {
             string profilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return Path.Combine(profilePath, ".continue", "config.json");
+            return Path.Combine(profilePath, ".continueVS", "config.json");
         }
 
         /// <summary>
