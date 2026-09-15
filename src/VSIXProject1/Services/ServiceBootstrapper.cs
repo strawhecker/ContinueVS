@@ -130,6 +130,9 @@ namespace ContinueVS.Services
                 return new AgentCommandDispatcher(toolService, llmService, modeConfigRegistry, logger);
             });
 
+            // gap78: Tool call aggregator for buffering streaming tool call fragments
+            services.AddSingleton<IToolCallAggregator, ToolCallAggregator>();
+
             // Stack trace parsing service and parsers (gap29_1)
             services.AddSingleton<IDotNetFrameworkParser, DotNetFrameworkStackTraceParser>();
             services.AddSingleton<IDotNetCoreParser, DotNetCoreStackTraceParser>();

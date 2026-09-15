@@ -62,12 +62,13 @@ namespace ContinueVS.Core.Types
         public ChatMessageRole? Role { get; set; }
 
         /// <summary>
-        /// List of tool calls accumulated from the response.
-        /// Present when the LLM invokes multiple tools or when streaming completes with tool calls.
-        /// Null if no tool calls are present.
+        /// Raw JSON text of tool calls accumulated from the response.
+        /// This is the unparsed JSON string fragment (may be incomplete until completion signal).
+        /// Present when the LLM invokes tool calls during streaming.
+        /// Null if no tool call fragments are present.
         /// </summary>
-        [JsonProperty("toolCalls")]
-        public List<ToolCallSchema>? ToolCalls { get; set; }
+        [JsonProperty("toolCallsText")]
+        public string? ToolCallsText { get; set; }
 
         /// <summary>
         /// Indicates whether this chunk marks the end of the stream.

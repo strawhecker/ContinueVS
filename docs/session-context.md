@@ -8550,6 +8550,73 @@ public async Task CreateNewSessionAsync();
 
 ---
 
+### gap78 Handle streaming tool calls (ToolCallAggregator with String Buffer)
+
+**Status:** ✅ Complete | Type: Tool Call Streaming Buffering
+
+**Problem Statement:**
+- Tool calls stream incompletely from LLM providers (malformed JSON chunks like `{"index":0,"function":{"arguments":"{\"query\": "`)
+- Attempting to deserialize incomplete JSON produces corrupted `ToolCallSchema` objects with null/empty names
+- Invalid tool calls accumulate in `_pendingToolCalls` and cause cascading failures downstream
+- Root cause: Tool calls arrive fragmented across multiple streaming chunks; each fragment cannot be parsed independently
+
+**Solution Architecture:**
+
+**1. MessengerService Change - Rename & Pass Raw Text**
+- Rename field: `ToolCalls` → `ToolCallsText` (signals it's raw JSON string, not parsed list)
+- Assignment: `ToolCallsText = JsonConvert.SerializeObject(toolCallsArray)` (raw JSON text)
+- Also pass: `DoneReason = finishReason` (so aggregator knows the completion signal value)
+- MessengerService has no buffering responsibility, just streams the raw text
+
+**2. IToolCallAggregator Interface - Accumulate & Decide**
+- Constructor: accepts `ToolCallsText` (string fragment) and `DoneReason` (finish_reason value)
+- Methods:
+  - `AccumulateToolCallsText(string toolCallsJsonFragment)` - concatenate fragments (simple)
+  - `CheckCompletion(string doneReason)` - check if `doneReason == "tool_calls"` 
+  - `TryGetCompleteToolCalls(out List<ToolCallSchema>? validToolCalls)` - parse accumulated string + validate
+  - `Clear()` - reset buffer (called on user cancel)
+
+**3. ChatPageViewModel Routing - Order Matters**
+- Accumulate first: `_toolCallAggregator.AccumulateToolCallsText(chunk.ToolCallsText)`
+- Check second: `if (_toolCallAggregator.CheckCompletion(chunk.DoneReason))`
+- Get results: `if (_toolCallAggregator.TryGetCompleteToolCalls(out var validCalls)) { _pendingToolCalls.AddRange(validCalls); }`
+- On cancel: `_toolCallAggregator.Clear()`
+
+**Key Design Decisions:**
+
+| Aspect | Decision |
+|--------|----------|
+| **Field Name** | `ToolCallsText` (clarity: it's a string) |
+| **Fragmentation Strategy** | Simple concatenation (no parsing until completion) |
+| **Completion Info** | Pass both `ToolCallsText` AND `DoneReason` to aggregator |
+| **Decision Logic** | Aggregator receives all info needed; no assumptions |
+| **State Lifecycle** | Reset on cancel; no assumptions about ordering |
+| **Real-time UI** | Accept incomplete text display until completion signal |
+
+**Files to Create:**
+- `src\VSIXProject1\Services\Interfaces\IToolCallAggregator.cs`
+- `src\VSIXProject1\Services\Implementations\ToolCallAggregator.cs`
+
+**Files to Modify:**
+- `src\VSIXProject1\Core\Types\CompletionChunk.cs` - Rename `ToolCalls` to `ToolCallsText` (type `string?`)
+- `src\VSIXProject1\Services\Implementations\MessengerService.cs` - Assign raw JSON string to `ToolCallsText`, pass `DoneReason`
+- `src\VSIXProject1\ViewModels\ChatPageViewModel.cs` - Inject `IToolCallAggregator`, call methods in order (accumulate → check → get)
+- `src\VSIXProject1\Services\ServiceBootstrapper.cs` - Register `IToolCallAggregator` singleton
+
+**Dependencies:**
+- gap59: AgentCommandDispatcher (validates at execution layer)
+- gap72: Tool call schema conversion (provider format)
+- gap73: Tool result persistence (execution tracking)
+
+**Benefits:**
+- ✅ Clear field semantics (Text = string, not list)
+- ✅ Simple fragment handling (just concatenate)
+- ✅ All completion info available to aggregator (no hidden assumptions)
+- ✅ Deterministic state management (clear order: accumulate → check → parse)
+- ✅ Cancellation handled (clear buffer on user cancel)
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |

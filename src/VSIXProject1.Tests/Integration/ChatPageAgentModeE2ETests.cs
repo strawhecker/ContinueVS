@@ -166,7 +166,7 @@ namespace ContinueVS.Tests.Integration
                 var firstChunks = new List<CompletionChunk>
                 {
                     new CompletionChunk { Type = ChunkType.Text, Content = "I'll read that file" },
-                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } } }
+                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } }) }
                 };
 
             // Create async enumerable for first LLM response
@@ -255,7 +255,7 @@ namespace ContinueVS.Tests.Integration
                 var chunks = new List<CompletionChunk>
                 {
                     new CompletionChunk { Type = ChunkType.Text, Content = "I'll try to read that file" },
-                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } } }
+                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } }) }
                 };
 
             _mockLlmService.Setup(x => x.StreamAsync(
@@ -323,9 +323,9 @@ namespace ContinueVS.Tests.Integration
             var chunks = new List<CompletionChunk>
             {
                 new CompletionChunk { Type = ChunkType.Text, Content = "I'll analyze the code" },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall1.Id, Function = new ToolCallFunction { Name = toolCall1.Name, Arguments = JsonConvert.SerializeObject(toolCall1.Arguments) } } } },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall2.Id, Function = new ToolCallFunction { Name = toolCall2.Name, Arguments = JsonConvert.SerializeObject(toolCall2.Arguments) } } } },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCalls = new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall3.Id, Function = new ToolCallFunction { Name = toolCall3.Name, Arguments = JsonConvert.SerializeObject(toolCall3.Arguments) } } } }
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall1.Id, Function = new ToolCallFunction { Name = toolCall1.Name, Arguments = JsonConvert.SerializeObject(toolCall1.Arguments) } } }) },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall2.Id, Function = new ToolCallFunction { Name = toolCall2.Name, Arguments = JsonConvert.SerializeObject(toolCall2.Arguments) } } }) },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall3.Id, Function = new ToolCallFunction { Name = toolCall3.Name, Arguments = JsonConvert.SerializeObject(toolCall3.Arguments) } } }) }
             };
 
             int callCount = 0;

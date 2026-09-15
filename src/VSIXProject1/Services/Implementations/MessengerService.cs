@@ -432,34 +432,29 @@ namespace ContinueVS.Services.Implementations
                 var reasoning = delta["reasoning"]?.Value<string>();
 
                 // Extract tool_calls from delta if present (gap70: tool streaming)
-                List<ToolCallSchema>? toolCalls = null;
+                string? toolCallsText = null;
                 var toolCallsArray = delta["tool_calls"] as JArray;
                 if (toolCallsArray != null && toolCallsArray.Count > 0)
                 {
-                    try
-                    {
-                        toolCalls = toolCallsArray.ToObject<List<ToolCallSchema>>();
-                        LoggerService.Current.WriteDebug(
-                            $"[ParseOpenAiChunk] Extracted tool_calls: {toolCalls?.Count ?? 0} calls");
-                    }
-                    catch (Exception toolEx)
-                    {
-                        LoggerService.Current.WriteWarning(
-                            $"[ParseOpenAiChunk] Failed to deserialize tool_calls: {toolEx.Message}");
-                    }
+                    // gap78: Capture raw JSON text of tool calls, don't parse yet
+                    // Tool calls may stream in fragments; we buffer and parse on completion
+                    toolCallsText = JsonConvert.SerializeObject(toolCallsArray);
+                    LoggerService.Current.WriteDebug(
+                        $"[ParseOpenAiChunk] Captured tool_calls fragment: {toolCallsText}");
                 }
 
-                // If neither content nor reasoning nor tool_calls, skip this chunk
-                if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(reasoning) && (toolCalls == null || toolCalls.Count == 0))
+                var finishReason = choice["finish_reason"]?.Value<string>();
+
+                // If neither content nor reasoning nor tool_calls AND no completion signal, skip this chunk
+                if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(reasoning) && string.IsNullOrEmpty(toolCallsText) && string.IsNullOrEmpty(finishReason))
                     return null;
 
-                var finishReason = choice["finish_reason"]?.Value<string>();
                 var chunk = new CompletionChunk
                 {
-                    Type = toolCalls != null && toolCalls.Count > 0 ? ChunkType.ToolCall : ChunkType.Text,
+                    Type = (finishReason == "tool_calls" || !string.IsNullOrEmpty(toolCallsText)) ? ChunkType.ToolCall : ChunkType.Text,
                     Content = content,
                     Reasoning = reasoning,
-                    ToolCalls = toolCalls,
+                    ToolCallsText = toolCallsText,
                     Role = ChatMessageRole.Assistant,
                     IsDone = finishReason == "stop",
                     DoneReason = finishReason,
@@ -828,6 +823,13 @@ namespace ContinueVS.Services.Implementations
                                 // If this is the final response, yield tool calls in a final chunk
                                 if (ollamaResponse.Done)
                                 {
+                                    // gap78: For Ollama, serialize tool calls to JSON text
+                                    string? toolCallsText = null;
+                                    if (ollamaResponse.Message.ToolCalls != null && ollamaResponse.Message.ToolCalls.Count > 0)
+                                    {
+                                        toolCallsText = JsonConvert.SerializeObject(ollamaResponse.Message.ToolCalls);
+                                    }
+
                                     var toolChunk = new CompletionChunk
                                     {
                                         Type = ChunkType.ToolCall,
@@ -835,7 +837,7 @@ namespace ContinueVS.Services.Implementations
                                         Role = ChatMessageRole.Assistant,
                                         IsDone = true,
                                         DoneReason = ollamaResponse.DoneReason,
-                                        ToolCalls = ollamaResponse.Message.ToolCalls,
+                                        ToolCallsText = toolCallsText,
                                         Timestamp = DateTime.UtcNow
                                     };
 
@@ -844,7 +846,7 @@ namespace ContinueVS.Services.Implementations
                                         yield return (TChunk)(object)toolChunk;
                                     }
 
-                                    LoggerService.Current.WriteDebug($"[gap55_3-completion] Done with reason={ollamaResponse.DoneReason}, toolCalls={ollamaResponse.Message.ToolCalls.Count}");
+                                    LoggerService.Current.WriteDebug($"[gap55_3-completion] Done with reason={ollamaResponse.DoneReason}, toolCalls={ollamaResponse.Message.ToolCalls?.Count ?? 0}");
                                 }
                             }
                         }

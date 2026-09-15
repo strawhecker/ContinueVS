@@ -64,7 +64,16 @@ namespace ContinueVS.Tests.UI
                 uiStateMock.Object,
                 new Mock<IInstructionExecutorService>().Object,
                 new Mock<IChangeStackService>().Object,
-                new Mock<IMarkdownService>().Object);
+                new Mock<IMarkdownService>().Object,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new ToolCallAggregator());
         }
 
         [Fact]

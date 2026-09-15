@@ -70,6 +70,8 @@ namespace ContinueVS.ViewModels
         private readonly IAgentCommandDispatcher _agentCommandDispatcher;
         // gap72: MessengerService for tool call schema conversion (optional; used when present)
         private readonly IMessengerService? _messengerService;
+        // gap78: Tool call aggregator for buffering streaming tool call fragments
+        private readonly IToolCallAggregator _toolCallAggregator;
         private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -611,7 +613,8 @@ namespace ContinueVS.ViewModels
             IModeConfigRegistry? modeConfigRegistry = null,
             IPlanOutputService? planOutputService = null,
             IAgentCommandDispatcher? agentCommandDispatcher = null,
-            IMessengerService? messengerService = null)
+            IMessengerService? messengerService = null,
+            IToolCallAggregator? toolCallAggregator = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -648,6 +651,8 @@ namespace ContinueVS.ViewModels
             _agentCommandDispatcher = agentCommandDispatcher ?? new AgentCommandDispatcher(_toolService, _llmService, _modeConfigRegistry, LoggerService.Current);
             // gap72: MessengerService for tool call schema conversion (optional; used when present)
             _messengerService = messengerService;
+            // gap78: Tool call aggregator; fall back to create default if none supplied
+            _toolCallAggregator = toolCallAggregator ?? new ToolCallAggregator();
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -1579,27 +1584,58 @@ namespace ContinueVS.ViewModels
                                 }
                             }
                         }
-                        else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCalls != null && chunk.ToolCalls.Count > 0)
+                        else if (chunk.Type == ChunkType.ToolCall)
                         {
-                            // gap72: Convert provider schemas to canonical ToolCall objects
-                            // Iterate through batch tool calls from streaming response
-                            foreach (var toolCallSchema in chunk.ToolCalls)
+                            // gap78: Accumulate tool call text fragments
+                            _toolCallAggregator.AccumulateToolCallsText(chunk.ToolCallsText);
+
+                            // gap78: Check if completion signal received
+                            if (_toolCallAggregator.CheckCompletion(chunk.DoneReason))
                             {
-                                ToolCall toolCall;
-                                if (_messengerService != null)
+                                // gap78: Attempt to parse and validate accumulated tool calls
+                                if (_toolCallAggregator.TryGetCompleteToolCalls(out var validToolCalls) && validToolCalls != null)
                                 {
-                                    // Use MessengerService converter if available
-                                    toolCall = _messengerService.ConvertToolCallSchemaToToolCall(toolCallSchema);
+                                    LoggerService.Current.WriteDebug(
+                                        $"[gap78-parsed] Successfully parsed {validToolCalls.Count} tool calls from accumulated stream");
+
+                                    // gap72: Convert provider schemas to canonical ToolCall objects
+                                    // Integrate with existing _pendingToolCalls handling
+                                    foreach (var toolCallSchema in validToolCalls)
+                                    {
+                                        ToolCall toolCall;
+                                        if (_messengerService != null)
+                                        {
+                                            // Use MessengerService converter if available
+                                            toolCall = _messengerService.ConvertToolCallSchemaToToolCall(toolCallSchema);
+                                        }
+                                        else
+                                        {
+                                            // Fallback: manual conversion if MessengerService not injected
+                                            toolCall = ConvertToolCallSchemaManually(toolCallSchema);
+                                        }
+
+                                        // gap72: Validate tool call before queuing
+                                        if (toolCall == null || string.IsNullOrWhiteSpace(toolCall.Name))
+                                        {
+                                            LoggerService.Current.WriteWarning(
+                                                $"[gap78-convert] Skipping incomplete tool call after aggregation: Name is null or empty (id={toolCall?.Id})");
+                                            continue;
+                                        }
+
+                                        _pendingToolCalls.Add(toolCall);
+                                        LoggerService.Current.WriteDebug(
+                                            $"[gap78-queue] Queued tool: {toolCall.Name} (id={toolCall.Id})");
+                                    }
+
+                                    // gap78: Reset aggregator for next batch
+                                    _toolCallAggregator.Clear();
                                 }
                                 else
                                 {
-                                    // Fallback: manual conversion if MessengerService not injected
-                                    toolCall = ConvertToolCallSchemaManually(toolCallSchema);
+                                    LoggerService.Current.WriteWarning(
+                                        "[gap78-parse] Failed to parse accumulated tool calls or validation failed");
+                                    _toolCallAggregator.Clear();
                                 }
-
-                                _pendingToolCalls.Add(toolCall);
-                                LoggerService.Current.WriteDebug(
-                                    $"[gap72-toolcall] Queued tool: {toolCall.Name} (id={toolCall.Id})");
                             }
                         }
                     }
@@ -1965,6 +2001,15 @@ namespace ContinueVS.ViewModels
 
             foreach (var toolCall in toolCalls)
             {
+                // Validate tool call before execution
+                if (toolCall == null || string.IsNullOrWhiteSpace(toolCall.Name))
+                {
+                    LoggerService.Current.WriteWarning(
+                        $"[gap59-dispatch] Skipping invalid tool call: Name is null or empty (id={toolCall?.Id})");
+                    failureCount++;
+                    continue;
+                }
+
                 try
                 {
                     LoggerService.Current.WriteDebug(
@@ -2085,6 +2130,8 @@ namespace ContinueVS.ViewModels
             {
                 LoggerService.Current.WriteDebug("[ExecuteCancel] _streamingCts already disposed");
             }
+            // gap78: Clear tool call aggregator buffer on user cancel
+            _toolCallAggregator.Clear();
             IsStreaming = false;
         }
 
@@ -2595,30 +2642,53 @@ namespace ContinueVS.ViewModels
                             continuation.Append(chunk.Content);
                         }
                     }
-                    else if (chunk.Type == ChunkType.ToolCall && chunk.ToolCalls != null && chunk.ToolCalls.Count > 0)
+                    else if (chunk.Type == ChunkType.ToolCall && !string.IsNullOrEmpty(chunk.ToolCallsText))
                     {
-                        // gap72: Handle batch tool calls in continuation path
-                        // (if secondary streaming yields tool calls this way)
-                        foreach (var toolCallSchema in chunk.ToolCalls)
+                        // gap78: Accumulate tool call text fragments in Ollama continuation path
+                        _toolCallAggregator.AccumulateToolCallsText(chunk.ToolCallsText);
+
+                        // gap78: Check if completion signal received
+                        if (_toolCallAggregator.CheckCompletion(chunk.DoneReason))
                         {
-                            ToolCall toolCall;
-                            if (_messengerService != null)
+                            // gap78: Attempt to parse and validate accumulated tool calls
+                            if (_toolCallAggregator.TryGetCompleteToolCalls(out var validToolCalls) && validToolCalls != null)
                             {
-                                toolCall = _messengerService.ConvertToolCallSchemaToToolCall(toolCallSchema);
+                                LoggerService.Current.WriteDebug(
+                                    $"[gap78-parsed-continuation] Successfully parsed {validToolCalls.Count} tool calls from accumulated stream");
+
+                                // gap72: Handle batch tool calls in continuation path
+                                foreach (var toolCallSchema in validToolCalls)
+                                {
+                                    ToolCall toolCall;
+                                    if (_messengerService != null)
+                                    {
+                                        toolCall = _messengerService.ConvertToolCallSchemaToToolCall(toolCallSchema);
+                                    }
+                                    else
+                                    {
+                                        toolCall = ConvertToolCallSchemaManually(toolCallSchema);
+                                    }
+                                    LoggerService.Current.WriteDebug(
+                                        $"[gap78-continuation-toolcall] Queued tool: {toolCall.Name} (id={toolCall.Id})");
+                                }
+
+                                // gap78: Reset aggregator for next batch
+                                _toolCallAggregator.Clear();
                             }
                             else
                             {
-                                toolCall = ConvertToolCallSchemaManually(toolCallSchema);
+                                LoggerService.Current.WriteWarning(
+                                    "[gap78-parse-continuation] Failed to parse accumulated tool calls or validation failed");
+                                _toolCallAggregator.Clear();
                             }
-                            LoggerService.Current.WriteDebug(
-                                $"[gap72-continuation-toolcall] Queued tool: {toolCall.Name} (id={toolCall.Id})");
                         }
                     }
 
                     if (chunk.IsDone)
                     {
-                        // Check if completion chunk has tool calls
-                        if (chunk.ToolCalls?.Count > 0)
+                        // Check if completion chunk has tool calls (from ToolCallsText aggregation)
+                        // Note: in Ollama path, tool calls are accumulated via aggregator and stored in _pendingToolCalls
+                        if (_pendingToolCalls.Count > 0)
                         {
                             // Add the continuation text (if any) as assistant message
                             if (!string.IsNullOrEmpty(continuation.ToString()))
@@ -2632,8 +2702,24 @@ namespace ContinueVS.ViewModels
                                 await _sessionService.AddMessageAsync(continuationMsg);
                             }
 
-                            // Another round of tool calls - execute them
-                            var moreResults = await ExecuteToolCallsFromOllamaAsync(chunk.ToolCalls, ct);
+                            // Another round of tool calls - execute them from _pendingToolCalls
+                            var moreResults = new List<ToolResult>();
+                            foreach (var toolCall in _pendingToolCalls)
+                            {
+                                try
+                                {
+                                    LoggerService.Current.WriteDebug(
+                                        $"[gap78-continuation-execute] Executing tool={toolCall.Name}, id={toolCall.Id}");
+                                    var result = await _toolService.InvokeAsync(toolCall.Name, toolCall.Arguments ?? new Dictionary<string, object>(), ct);
+                                    moreResults.Add(result);
+                                }
+                                catch (Exception toolEx)
+                                {
+                                    LoggerService.Current.WriteWarning(
+                                        $"[gap78-continuation-error] Failed to execute tool {toolCall.Name}: {toolEx.Message}");
+                                }
+                            }
+                            _pendingToolCalls.Clear();
 
                             // Add results to session
                             foreach (var result in moreResults)
@@ -2652,18 +2738,15 @@ namespace ContinueVS.ViewModels
                             var executionImpact = new ExecutionImpactMessage();
                             // Create phase results from tool execution
                             var phases = new List<PhaseExecutionResult>();
-                            for (int i = 0; i < chunk.ToolCalls.Count; i++)
+                            for (int i = 0; i < moreResults.Count; i++)
                             {
                                 var phase = new PhaseExecutionResult
                                 {
                                     PhaseId = $"tool_{i}",
-                                    Status = i < moreResults.Count ? ExecutionStatus.Succeeded : ExecutionStatus.Failed,
-                                    Evidence = i < moreResults.Count ? moreResults[i].ToolName ?? "tool" : "Tool execution failed"
+                                    Status = ExecutionStatus.Succeeded,
+                                    Evidence = moreResults[i].ToolName ?? "tool"
                                 };
-                                if (i < moreResults.Count && moreResults[i] is ToolResult tr)
-                                {
-                                    phase.EndTime = DateTime.UtcNow;
-                                }
+                                phase.EndTime = DateTime.UtcNow;
                                 phases.Add(phase);
                             }
                             executionImpact.Initialize(phases);
