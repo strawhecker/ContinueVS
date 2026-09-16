@@ -1230,26 +1230,28 @@ namespace ContinueVS.ViewModels
         /// </summary>
         private double GetToolCallPercentage()
         {
-            try
-            {
-                var session = _sessionService?.GetCurrentSession();
-                var config = _configService?.GetCurrentConfig();
+            // gap79 will fix this.
+            return 0.0;
+            //try
+            //{
+            //    var session = _sessionService?.GetCurrentSession();
+            //    var config = _configService?.GetCurrentConfig();
 
-                if (session == null || config == null)
-                    return 0.0;
+            //    if (session == null || config == null)
+            //        return 0.0;
 
-                object? maxVal = null;
-                config.CustomSettings?.TryGetValue(UserSettings.Agent_MaxToolCallsPerSession, out maxVal);
-                int maxToolCalls = (int)(maxVal ?? 100);
-                if (maxToolCalls <= 0)
-                    maxToolCalls = 100;
+            //    object? maxVal = null;
+            //    config.CustomSettings?.TryGetValue(UserSettings.Agent_MaxToolCallsPerSession, out maxVal);
+            //    int maxToolCalls = (int)(maxVal ?? 100);
+            //    if (maxToolCalls <= 0)
+            //        maxToolCalls = 100;
 
-                return (session.ToolCallsExecuted / (double)maxToolCalls) * 100.0;
-            }
-            catch
-            {
-                return 0.0;
-            }
+            //    return (session.ToolCallsExecuted / (double)maxToolCalls) * 100.0;
+            //}
+            //catch
+            //{
+            //    return 0.0;
+            //}
         }
 
         /// <summary>
@@ -1764,12 +1766,13 @@ namespace ContinueVS.ViewModels
                         LoggerService.Current.WriteDebug($"[gap43_3] Plan saved to: {savedPath}");
                     }
 
-                    // Finalize the assistant message streaming to convert buffer to cached string
-                    assistantMessage.FinalizeStreaming();
-
                     // Finalize reasoning message streaming if present
                     reasoningMessage?.FinalizeStreaming();
+                    if (reasoningMessage != null)
+                        await _sessionService.AddMessageAsync(reasoningMessage);
 
+                    // Finalize the assistant message streaming to convert buffer to cached string
+                    assistantMessage.FinalizeStreaming();
                     await _sessionService.AddMessageAsync(assistantMessage);
                     LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
 
@@ -1825,12 +1828,25 @@ namespace ContinueVS.ViewModels
                     // gap23_4_4: Check tool call limit and show banners
                     CheckToolCallLimit();
 
+                    // gap78: Add assistant message with tool call definitions to messages array BEFORE tool execution/collection
+                    // This ensures the LLM sees the full context: [System, User, Assistant(toolCalls=[...]), Tool(result1), Tool(result2), ...]
+                    if (_pendingToolCalls.Count > 0)
+                    {
+                        messages.Add(assistantMessage);
+                        LoggerService.Current.WriteDebug($"[gap78-context] Added assistant message with {assistantMessage.ToolCalls?.Count ?? 0} tool calls to LLM context");
+                    }
+
                     // Execute all pending tool calls (no orchestration gate; tool availability controlled by mode registry + user settings)
                     if (_pendingToolCalls.Count > 0)
                     {
                         LoggerService.Current.WriteDebug($"[a9-command-toolexec] Executing tools in Agent mode");
+
+                        // gap78-fix: Capture how many Tool messages already exist BEFORE this
+                        // iteration's execution, so we can collect ONLY the results produced now.
+                        int existingToolMessageCount = Messages.Count(m => m.Role == ChatMessageRole.Tool);
+
                         _toolFailureCount = await ExecuteToolCallsAsync(_pendingToolCalls);
-                        LoggerService.Current.WriteDebug($"[gap23_3-loop] Iteration {_toolCallIterationCount}: {_pendingToolCalls.Count} tools executed, {_toolFailureCount} failures");
+                        LoggerService.Current.WriteDebug($"[gap23_3-loop] Iteration {_toolCallIterationCount}: {_toolFailureCount} failures");
 
                         // Check error accumulation: 2+ failures trigger loop termination
                         if (_toolFailureCount >= 2)
@@ -1839,11 +1855,19 @@ namespace ContinueVS.ViewModels
                             break;
                         }
 
-                        // Collect tool results for next iteration
+                        // Collect ONLY the tool results created in THIS iteration (gap78-fix).
+                        // Previously ALL Tool messages in the UI collection were re-added on every
+                        // iteration, causing duplicate results (and duplicate tool_call_ids) to
+                        // accumulate in the LLM context. Ids are preserved so each result still
+                        // correlates 1:1 back to its assistant tool call.
                         var toolResultMessages = new List<ChatMessage>();
-                        foreach (var toolMsg in Messages.Where(m => m.Role == ChatMessageRole.Tool))
+                        foreach (var toolMsg in Messages
+                            .Where(m => m.Role == ChatMessageRole.Tool)
+                            .Skip(existingToolMessageCount))
                         {
                             toolResultMessages.Add(toolMsg);
+                            LoggerService.Current.WriteDebug(
+                                $"[gap78-fix-collect] Collected tool result for id={toolMsg.ToolCallId}");
                         }
 
                         // Add tool results to messages for next loop iteration
@@ -1999,7 +2023,10 @@ namespace ContinueVS.ViewModels
             int failureCount = 0;
             var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
 
-            foreach (var toolCall in toolCalls)
+            var toolCallsTem = toolCalls.ToList();
+            toolCalls.Clear();
+
+            foreach (var toolCall in toolCallsTem)
             {
                 // Validate tool call before execution
                 if (toolCall == null || string.IsNullOrWhiteSpace(toolCall.Name))

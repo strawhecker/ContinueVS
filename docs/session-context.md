@@ -8615,6 +8615,15 @@ public async Task CreateNewSessionAsync();
 - ✅ Deterministic state management (clear order: accumulate → check → parse)
 - ✅ Cancellation handled (clear buffer on user cancel)
 
+**Debugging:*
+- session store now stores the reasoning.
+- rewrote user/reasoning and they now show white text, specific background, select and copy test, and they wrap.
+- handled the streaming reasoning text thru a FlowDucument, only altering the last inline.
+
+---
+
+### gap79 tool calls limit is about stopping an endless loop, not limiting at all the tools calls in a session. the counter is reset on the action of the user pressing send.
+
 ---
 
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**

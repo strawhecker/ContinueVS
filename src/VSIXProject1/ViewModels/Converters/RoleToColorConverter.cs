@@ -18,9 +18,9 @@ namespace ContinueVS.ViewModels.Converters
                 {
                     ChatMessageRole.User => TryGetResourceBrush("AccentBrush") ?? new SolidColorBrush(Color.FromRgb(0, 120, 215)),
                     ChatMessageRole.Assistant => TryGetResourceBrush("SecondaryTextBrush") ?? new SolidColorBrush(Color.FromRgb(96, 96, 96)),
+                    ChatMessageRole.Thinking => TryGetResourceBrush("InfoBrush") ?? new SolidColorBrush(Color.FromRgb(0, 90, 120)),
                     ChatMessageRole.System => TryGetResourceBrush("SecondaryTextBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                     ChatMessageRole.Tool => TryGetResourceBrush("WarningBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
-                    ChatMessageRole.Thinking => TryGetResourceBrush("InfoBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                     _ => new SolidColorBrush(Colors.White)
                 };
                 LoggerService.Current.WriteDebug($"[a6-converter] RoleToColorConverter.Convert: Role={role}");

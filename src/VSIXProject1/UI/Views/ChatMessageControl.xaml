@@ -20,13 +20,13 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel Grid.Column="0" Orientation="Vertical" Margin="10,0" MinWidth="0" HorizontalAlignment="Stretch">
-            <Grid HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}">
+            <Grid HorizontalAlignment="Stretch" MinWidth="0">
                 <Border x:Name="MessageBorder" Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
                     <Grid MinWidth="0" HorizontalAlignment="Stretch">
                         <!-- User/Thinking: lightweight text rendering -->
                         <renderers:StreamingReasoningRenderer 
                             x:Name="StreamingReasoningRenderer"
-                            Content="{Binding Content}" 
+                            RendererContent="{Binding Content}" 
                             Visibility="{Binding Role, Converter={StaticResource RoleToStreamingReasoningVisibility}}"
                             HorizontalAlignment="Stretch"
                             MinWidth="0" />
@@ -89,7 +89,7 @@
                     BorderBrush="#5A5A5A"
                     FontSize="11"
                     Content="📋 Copy All"
-                    Visibility="{Binding Role, Converter={StaticResource RoleToVisibilityConverter}}"
+                    Visibility="Visible"
                     ToolTip="Copy entire response"
                     HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}"
                     VerticalAlignment="Top"

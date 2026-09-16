@@ -131,6 +131,13 @@ namespace ContinueVS.Core.Types
         private int _lastSegmentIndex = 0;
 
         /// <summary>
+        /// Tracks how far into the buffer the incremental TokenAppended path has already emitted.
+        /// Always &lt;= _writePosition. This lets consumers receive only the NEW text each time,
+        /// without the producer assembling a full cumulative string on every addition.
+        /// </summary>
+        private int _tokenEmittedIndex = 0;
+
+        /// <summary>
         /// Flag indicating whether streaming is complete and content has been finalized to _content string.
         /// When true, Content getter returns cached _content; when false, returns buffer snapshot.
         /// </summary>
@@ -141,6 +148,15 @@ namespace ContinueVS.Core.Types
         /// without encountering a newline.
         /// </summary>
         private static readonly char[] BoundaryTargets = { ' ', '\t', '\n', ',', '.', '!', '?', ';' };
+
+        /// <summary>
+        /// Raised during streaming when a new segment of content is available.
+        /// The handler receives ONLY the newly arrived portion (passed through directly
+        /// from the buffer, never a cumulative reassembly of the whole message).
+        /// This is the incremental path; it complements the full-replacement Path
+        /// (RendererContent / Content) used for new-user messages and session reopen.
+        /// </summary>
+        public event Action<string>? TokenAppended;
 
         /// <summary>
         /// Unique identifier for this message.
@@ -178,6 +194,7 @@ namespace ContinueVS.Core.Types
                     _isFinalized = true;
                     _writePosition = 0;
                     _lastSegmentIndex = 0;
+                    _tokenEmittedIndex = 0;
                 }
             }
         }
@@ -297,9 +314,24 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// Raises TokenAppended with ONLY the buffer content not yet emitted, advancing
+        /// _tokenEmittedIndex to the current write position. Safe to call multiple times.
+        /// </summary>
+        private void EmitPendingTokens()
+        {
+            if (_tokenEmittedIndex >= _writePosition)
+                return;
+
+            string segment = new string(_contentBuffer, _tokenEmittedIndex, _writePosition - _tokenEmittedIndex);
+            _tokenEmittedIndex = _writePosition;
+            TokenAppended?.Invoke(segment);
+        }
+
+        /// <summary>
         /// Appends a chunk of streamed content to the message buffer.
         /// Buffers content without firing PropertyChanged until complete lines or word boundaries arrive.
-        /// Fires PropertyChanged only at meaningful boundaries to optimize UI responsiveness.
+        /// Fires PropertyChanged (full replacement) at boundaries AND raises TokenAppended
+        /// with only the new segment (incremental, passed through — no cumulative build).
         /// </summary>
         /// <param name="chunk">The text chunk to append from the stream. Null or empty chunks are safely ignored.</param>
         public void AppendChunk(string chunk)
@@ -317,7 +349,10 @@ namespace ContinueVS.Core.Types
             chunk.CopyTo(0, _contentBuffer, _writePosition, chunk.Length);
             _writePosition += chunk.Length;
 
-            // Fire update on complete lines
+            // Emit the new text through the incremental path (pass-through only).
+            EmitPendingTokens();
+
+            // Fire full-replacement update on complete lines / word boundaries
             if (_writePosition - _lastSegmentIndex > 50)
             {
                 int lastBoundary = chunk.LastIndexOfAny(BoundaryTargets);
@@ -332,6 +367,7 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Finalizes streaming by converting the buffer to a cached string.
         /// After finalization, the Content getter returns the string without allocating new strings on every access.
+        /// Flushes any remaining un-emitted tokens through the incremental path.
         /// Call this when streaming ends, even if the response doesn't end with a newline.
         /// </summary>
         public void FinalizeStreaming()
@@ -340,6 +376,10 @@ namespace ContinueVS.Core.Types
             {
                 _content = new string(_contentBuffer, 0, _writePosition);
                 _isFinalized = true;
+
+                // Flush any trailing content that was never emitted through the incremental path.
+                EmitPendingTokens();
+
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Content)));
             }
         }

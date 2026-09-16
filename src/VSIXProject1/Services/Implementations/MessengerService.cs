@@ -221,14 +221,72 @@ namespace ContinueVS.Services.Implementations
                         ChatMessageRole.User => "user",
                         ChatMessageRole.Assistant => "assistant",
                         ChatMessageRole.System => "system",
+                        ChatMessageRole.Tool => "tool",
                         _ => "user"
                     };
 
-                    messages.Add(new Dictionary<string, object>
+                    var msgDict = new Dictionary<string, object>
                     {
-                        { "role", role },
-                        { "content", msg.Content ?? string.Empty }
-                    });
+                        { "role", role }
+                    };
+
+                    // gap78-openai-content: OpenAI requires that assistant messages carrying
+                    // only tool_calls (no text) OMIT the content field rather than send an
+                    // empty string. Some OpenAI-compatible servers (vLLM) reject an empty
+                    // content on a tool-calling assistant message.
+                    bool isToolCallAssistant = msg.Role == ChatMessageRole.Assistant &&
+                                               msg.ToolCalls != null &&
+                                               msg.ToolCalls.Count > 0;
+
+                    if (isToolCallAssistant)
+                    {
+                        if (!string.IsNullOrEmpty(msg.Content))
+                        {
+                            msgDict["content"] = msg.Content!;
+                        }
+                    }
+                    else
+                    {
+                        msgDict["content"] = msg.Content ?? string.Empty;
+                    }
+
+                    // gap78-openai-wire: Serialize assistant tool calls back to the model
+                    // so it can correlate tool_call_id results to the originating calls.
+                    if (msg.Role == ChatMessageRole.Assistant && msg.ToolCalls != null && msg.ToolCalls.Count > 0)
+                    {
+                        var toolCallList = new List<object>();
+                        foreach (var toolCall in msg.ToolCalls)
+                        {
+                            try
+                            {
+                                var schema = ConvertToolCallToSchema(toolCall);
+                                toolCallList.Add(new Dictionary<string, object>
+                                {
+                                    { "id", schema.Id ?? toolCall.Id! },
+                                    { "type", "function" },
+                                    { "function", new Dictionary<string, object>
+                                        {
+                                            { "name", schema.Function?.Name ?? toolCall.Name },
+                                            { "arguments", schema.Function?.Arguments ?? "{}" }
+                                        }
+                                    }
+                                });
+                            }
+                            catch (JsonSerializationException ex)
+                            {
+                                LoggerService.Current.WriteWarning(
+                                    $"[gap78-openai-wire] Failed to serialize tool call '{toolCall.Name}' ({toolCall.Id}): {ex.Message}");
+                            }
+                        }
+
+                        if (toolCallList.Count > 0)
+                        {
+                            msgDict["tool_calls"] = toolCallList;
+                        }
+                    }
+
+
+                    messages.Add(msgDict);
                 }
             }
 
@@ -293,7 +351,8 @@ namespace ContinueVS.Services.Implementations
             if (_logger != null)
                 _logger?.WriteDebug($"MessengerService: POST to {endpoint}");
 
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}...");
+            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}: {content}");
+            //LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}...");
             // ResponseHeadersRead prevents HttpClient from buffering the entire response body before returning.
             var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
 
@@ -307,7 +366,7 @@ namespace ContinueVS.Services.Implementations
             try
             {
                 response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Response status code: {response.StatusCode}");
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Response : status code: {response.StatusCode}");
 
                 if (!response.IsSuccessStatusCode)
                 {

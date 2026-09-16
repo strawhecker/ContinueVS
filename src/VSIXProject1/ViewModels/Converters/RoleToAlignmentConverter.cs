@@ -17,17 +17,17 @@ namespace ContinueVS.ViewModels.Converters
                 {
                     ChatMessageRole.User => HorizontalAlignment.Right,
                     ChatMessageRole.Assistant => HorizontalAlignment.Left,
-                    ChatMessageRole.System => HorizontalAlignment.Stretch,
-                    ChatMessageRole.Tool => HorizontalAlignment.Stretch,
-                    ChatMessageRole.Thinking => HorizontalAlignment.Stretch,
-                    _ => HorizontalAlignment.Stretch
+                    ChatMessageRole.System => HorizontalAlignment.Left,
+                    ChatMessageRole.Tool => HorizontalAlignment.Left,
+                    ChatMessageRole.Thinking => HorizontalAlignment.Left,
+                    _ => HorizontalAlignment.Left
                 };
                 LoggerService.Current.WriteDebug($"[a6-converter] RoleToAlignmentConverter.Convert: Role={role}, Alignment={alignment}");
                 return alignment;
             }
 
             LoggerService.Current.WriteDebug($"[a6-converter] RoleToAlignmentConverter.Convert: value is null, returning Stretch");
-            return HorizontalAlignment.Stretch;
+            return HorizontalAlignment.Left;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

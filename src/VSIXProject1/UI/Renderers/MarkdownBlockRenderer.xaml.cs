@@ -85,7 +85,6 @@ namespace ContinueVS.UI.Renderers
             if (RootPanel != null && newWidth > 0)
             {
                 RootPanel.MaxWidth = newWidth;
-                RootPanel.Width = newWidth;
             }
         }
 

@@ -260,13 +260,14 @@ namespace ContinueVS.Services.Implementations
                         var session = _sessionService.GetCurrentSession();
                         if (session != null)
                         {
-                            var config = _configService?.GetCurrentConfig();
-                            if (config != null && session.ToolCallsExecuted >= config.MaxToolCallsPerSession)
-                            {
-                                var limitMessage = $"Max tool calls ({config.MaxToolCallsPerSession}) reached. Start a new session to continue.";
-                                _logger?.WriteWarning($"[gap23_4_3-limit] {limitMessage}");
-                                throw new InvalidOperationException(limitMessage);
-                            }
+                            //// gap79 will fix this
+                            //var config = _configService?.GetCurrentConfig();
+                            //if (config != null && session.ToolCallsExecuted >= config.MaxToolCallsPerSession)
+                            //{
+                            //    var limitMessage = $"Max tool calls ({config.MaxToolCallsPerSession}) reached. Start a new session to continue.";
+                            //    _logger?.WriteWarning($"[gap23_4_3-limit] {limitMessage}");
+                            //    throw new InvalidOperationException(limitMessage);
+                            //}
                         }
                     }
                     catch (InvalidOperationException)

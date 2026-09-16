@@ -1,15 +1,16 @@
-﻿using System;
+﻿using ContinueVS.Core.Types;
+using ContinueVS.Services.Events;
+using ContinueVS.Services.Interfaces;
+using EnvDTE;
+using Microsoft.VisualStudio.RpcContracts.Logging;
+using Microsoft.VisualStudio.Shell;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using ContinueVS.Core.Types;
-using ContinueVS.Services.Events;
-using ContinueVS.Services.Interfaces;
-using EnvDTE;
-using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Services.Implementations
 {
@@ -27,7 +28,7 @@ namespace ContinueVS.Services.Implementations
             _dteProvider = dteProvider ?? throw new ArgumentNullException(nameof(dteProvider));
         }
 
-        #pragma warning disable CS0067 // Events are part of IIdeService contract; raised by future VS automation wiring
+#pragma warning disable CS0067 // Events are part of IIdeService contract; raised by future VS automation wiring
         public event EventHandler<FileChangedEventArgs>? FileChanged;
         public event EventHandler<ActiveFileChangedEventArgs>? ActiveFileChanged;
 #pragma warning restore CS0067
@@ -128,12 +129,27 @@ namespace ContinueVS.Services.Implementations
                 if (!Directory.Exists(dirPath))
                     return result.AsEnumerable();
 
+                // Get directories, excluding any that start with "."
+                var dirs = Directory.GetDirectories(dirPath)
+                                    .Where(d => !new DirectoryInfo(d).Name.StartsWith(".")
+                                    && new DirectoryInfo(d).Name.ToLower() != "bin"
+                                    && new DirectoryInfo(d).Name.ToLower() != "obj"
+                                    && (new DirectoryInfo(d).Attributes & FileAttributes.ReparsePoint) == 0
+                                    )
+                                    .ToList();
+
                 // Add directories
-                var dirs = Directory.GetDirectories(dirPath);
                 result.AddRange(dirs.Select(d => new DirectoryInfo(d).Name + "/"));
 
+                // Get files, excluding any that start with "."
+                var files = Directory.GetFiles(dirPath)
+                                     .Where(f => !new FileInfo(f).Name.StartsWith(".")
+                                     && !f.EndsWith(".obj")
+                                     && !f.EndsWith(".tmp")
+                                     && !f.EndsWith(".bak")
+                                     );
+
                 // Add files
-                var files = Directory.GetFiles(dirPath);
                 result.AddRange(files.Select(f => new FileInfo(f).Name));
 
                 // Recursively add subdirectory contents if requested

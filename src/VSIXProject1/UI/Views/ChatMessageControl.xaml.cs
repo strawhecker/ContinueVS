@@ -15,10 +15,13 @@ namespace ContinueVS.UI.Views
         private static readonly MarkdownPipeline _pipeline =
             new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
+        private ChatMessage? _boundMessage;
+
         public ChatMessageControl()
         {
             InitializeComponent();
             this.Loaded += ChatMessageControl_Loaded;
+            this.DataContextChanged += ChatMessageControl_DataContextChanged;
         }
 
         /// <summary>
@@ -26,52 +29,38 @@ namespace ContinueVS.UI.Views
         /// </summary>
         public Border? GetMessageBorder() => FindName("MessageBorder") as Border;
 
+        private void ChatMessageControl_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // Unsubscribe from the previous message's token stream to avoid leaks.
+            if (_boundMessage != null)
+            {
+                _boundMessage.TokenAppended -= OnTokenAppended;
+                _boundMessage = null;
+            }
+
+            // Subscribe to the new message's token stream so the streaming
+            // reasoning renderer receives each incremental segment directly,
+            // without the caller having to assemble a cumulative string.
+            if (DataContext is ChatMessage message)
+            {
+                _boundMessage = message;
+                message.TokenAppended += OnTokenAppended;
+            }
+        }
+
+        private void OnTokenAppended(string token)
+        {
+            var renderer = FindName("StreamingReasoningRenderer") as StreamingReasoningRenderer;
+            if (renderer != null)
+            {
+                renderer.AppendToken(token);
+            }
+        }
+
         private void ChatMessageControl_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
             MessageGrid.MouseEnter += MessageGrid_MouseEnter;
             MessageGrid.MouseLeave += MessageGrid_MouseLeave;
-
-            // Set up binding for StreamingReasoningRenderer MaxMessageWidth from ChatPageViewModel
-            var streamingRenderer = FindName("StreamingReasoningRenderer") as StreamingReasoningRenderer;
-            if (streamingRenderer != null)
-            {
-                // Walk up the visual tree to find ItemsControl>>MessagesItemsControl>>ChatPage
-                var parent = this.Parent as FrameworkElement;
-                while (parent != null)
-                {
-                    if (parent is Pages.ChatPage)
-                    {
-                        var binding = new System.Windows.Data.Binding("AvailableMessageWidth")
-                        {
-                            Source = parent.DataContext
-                        };
-                        streamingRenderer.SetBinding(StreamingReasoningRenderer.MaxMessageWidthProperty, binding);
-                        break;
-                    }
-                    parent = parent.Parent as FrameworkElement;
-                }
-            }
-
-            // Set up binding for MarkdownBlockRenderer MaxMessageWidth from ChatPageViewModel
-            var markdownRenderer = FindName("MarkdownBlockRenderer") as MarkdownBlockRenderer;
-            if (markdownRenderer != null)
-            {
-                // Walk up the visual tree to find ItemsControl>>MessagesItemsControl>>ChatPage
-                var parent = this.Parent as FrameworkElement;
-                while (parent != null)
-                {
-                    if (parent is Pages.ChatPage)
-                    {
-                        var binding = new System.Windows.Data.Binding("AvailableMessageWidth")
-                        {
-                            Source = parent.DataContext
-                        };
-                        markdownRenderer.SetBinding(MarkdownBlockRenderer.MaxMessageWidthProperty, binding);
-                        break;
-                    }
-                    parent = parent.Parent as FrameworkElement;
-                }
-            }
 
             // Wire up Copy All button if it exists in the visual tree
             var copyAllButton = FindName("CopyAllButton") as Button;
@@ -210,3 +199,4 @@ namespace ContinueVS.UI.Views
         }
     }
 }
+

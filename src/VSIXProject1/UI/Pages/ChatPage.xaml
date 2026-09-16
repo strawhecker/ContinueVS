@@ -29,6 +29,11 @@
                         <controls:ChatMessageControl DataContext="{Binding}"/>
                     </DataTemplate>
                 </local:ChatMessageTemplateSelector.AssistantMessageTemplate>
+                <local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
+                    <DataTemplate>
+                        <controls:ChatMessageControl DataContext="{Binding}"/>
+                    </DataTemplate>
+                </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
                 <local:ChatMessageTemplateSelector.ToolInvocationTemplate>
                     <DataTemplate>
                         <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="#1E1E1E">
@@ -91,7 +96,7 @@
                         </Border>
                     </DataTemplate>
                 </local:ChatMessageTemplateSelector.QuestionMessageTemplate>
-                <local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
+                <!--<local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
                     <DataTemplate>
                         <Border BorderBrush="#A0A0A0" BorderThickness="1" CornerRadius="2" Margin="5" Padding="12" Background="#F5F5F5">
                             <Grid x:Name="ThinkingMessageGrid" MouseEnter="ThinkingMessageGrid_MouseEnter" MouseLeave="ThinkingMessageGrid_MouseLeave">
@@ -105,9 +110,9 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <!-- Label Area -->
+                                --><!-- Label Area --><!--
                                 <TextBlock Grid.Column="0" Grid.Row="0" Text="Thinking" FontWeight="Bold" Foreground="#505050" Margin="0,0,0,6"/>
-                                <!-- Copy All Button (appears on hover) -->
+                                --><!-- Copy All Button (appears on hover) --><!--
                                 <Button x:Name="ThinkingCopyAllButton"
                                     Grid.Column="1" Grid.Row="0"
                                     Height="28"
@@ -126,7 +131,7 @@
                                     Cursor="Hand"
                                     Visibility="Hidden"
                                     Click="ThinkingCopyAllButton_Click"/>
-                                <!-- Copy/Apply Dropdown (appears on hover) -->
+                                --><!-- Copy/Apply Dropdown (appears on hover) --><!--
                                 <ComboBox x:Name="ThinkingCodeActionDropdown"
                                     Grid.Column="2" Grid.Row="0"
                                     Height="28"
@@ -147,7 +152,7 @@
                                     <ComboBoxItem Content="📋 Copy" IsSelected="True"/>
                                     <ComboBoxItem Content="✔ Apply"/>
                                 </ComboBox>
-                                <!-- Delete Button (appears on hover) -->
+                                --><!-- Delete Button (appears on hover) --><!--
                                 <Button x:Name="ThinkingDeleteButton"
                                     Grid.Column="3" Grid.Row="0"
                                     Width="28" 
@@ -163,7 +168,7 @@
                                     <TextBlock Text="✕" FontSize="14" Foreground="#A0A0A0" 
                                           TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </Button>
-                                <!-- Expand/Collapse Toggle Button with visual indicator -->
+                                --><!-- Expand/Collapse Toggle Button with visual indicator --><!--
                                 <ToggleButton Grid.Column="3" Grid.Row="0" 
                                          IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                                          Width="20" Height="20"
@@ -171,7 +176,7 @@
                                          VerticalAlignment="Top" Margin="8,0,0,0">
                                     <TextBlock Text="▼" Foreground="#505050" FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </ToggleButton>
-                                <!-- Content Area -->
+                                --><!-- Content Area --><!--
                                 <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4"
                                       Text="{Binding Content, Mode=OneWay}" 
                                       TextWrapping="Wrap" 
@@ -182,7 +187,7 @@
                             </Grid>
                         </Border>
                     </DataTemplate>
-                </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
+                </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>-->
                 <local:ChatMessageTemplateSelector.ExecutionImpactTemplate>
                     <DataTemplate>
                         <Border BorderBrush="#228B22" BorderThickness="2" CornerRadius="4" Margin="5" Padding="12" Background="#1E1E1E">
