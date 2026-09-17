@@ -177,5 +177,26 @@ namespace ContinueVS.Core.Tests
             Assert.True(config.CustomSettings.ContainsKey("_schemaVersion"));
             Assert.Equal(1, config.CustomSettings["_schemaVersion"]);
         }
+
+        [Fact]
+        public void MigrateCustomSettings_SessionToolBudget_RenamedToPerActionAndOldDropped()
+        {
+            // Arrange: v0 config carrying the legacy session-based budget (gap79)
+            var config = new CoreTypes.ContinueConfig
+            {
+                CustomSettings = new Dictionary<string, object>
+                {
+                    { "agent.maxToolCallsPerSession", 250 }
+                }
+            };
+
+            // Act
+            CoreTypes.SettingsMigration.MigrateCustomSettings(config);
+
+            // Assert: value carried forward to per-action key, old key removed
+            Assert.Equal(250, config.CustomSettings["agent.maxToolCallsPerAction"]);
+            Assert.False(config.CustomSettings.ContainsKey("agent.maxToolCallsPerSession"));
+            Assert.Equal(1, config.CustomSettings["_schemaVersion"]);
+        }
     }
 }

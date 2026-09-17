@@ -37,7 +37,7 @@ namespace ContinueVS.Core.Types
         public const string Experimental_DumpResponseAfterReceive = "experimental.dumpResponseAfterReceive";
 
         // Agent/Tool Settings
-        public const string Agent_MaxToolCallsPerSession = "agent.maxToolCallsPerSession";
+        public const string Agent_MaxToolCallsPerAction = "agent.maxToolCallsPerAction";
 
         // Tool-Specific Enabled/Disabled Settings (Read-Only Tools - All MODES)
         public const string Tool_ReadFileEnabled = "tool.readFileEnabled";
@@ -102,7 +102,7 @@ namespace ContinueVS.Core.Types
                 { Experimental_DumpResponseAfterReceive, false },
 
                 // Agent/Tool defaults
-                { Agent_MaxToolCallsPerSession, 100 },
+                { Agent_MaxToolCallsPerAction, 100 },
 
                 // Tool-Specific defaults (Read-Only - default true, safe to auto-execute)
                 { Tool_ReadFileEnabled, true },
@@ -143,6 +143,39 @@ namespace ContinueVS.Core.Types
             var defaults = GetDefaults();
             defaults.TryGetValue(key, out var value);
             return value;
+        }
+
+        /// <summary>
+        /// Reads an integer setting from a CustomSettings dictionary, returning the
+        /// supplied fallback when the key is absent, the value is not an integer,
+        /// or the dictionary is null. Shared by ToolService and ChatPageViewModel
+        /// so both enforce the same per-action budget (gap79).
+        /// </summary>
+        public static int DefaultsAsInt(Dictionary<string, object>? customSettings, string key, int fallback)
+        {
+            if (customSettings == null || !customSettings.TryGetValue(key, out var raw))
+                return fallback;
+
+            // Values may be stored as int, long, or numeric string after JSON round-trip.
+            switch (raw)
+            {
+                case int i:
+                    return i;
+                case long l:
+                    return (int)l;
+                case short s:
+                    return s;
+                case byte b:
+                    return b;
+                case double d:
+                    return (int)d;
+                case float f:
+                    return (int)f;
+                case string str when int.TryParse(str, out var parsed):
+                    return parsed;
+                default:
+                    return fallback;
+            }
         }
     }
 }

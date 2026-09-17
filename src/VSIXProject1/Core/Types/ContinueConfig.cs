@@ -81,14 +81,6 @@ namespace ContinueVS.Core.Types
         public DebugSettings Debug { get; set; } = new DebugSettings();
 
         /// <summary>
-        /// Maximum tool calls allowed per session (gap23_4_3).
-        /// When ToolCallsExecuted reaches this limit, no further tool executions are allowed.
-        /// Default: 100 calls per session.
-        /// </summary>
-        [JsonProperty("maxToolCallsPerSession")]
-        public int MaxToolCallsPerSession { get; set; } = 100;
-
-        /// <summary>
         /// Maximum retry attempts per change (gap29_8_7).
         /// When a change fails, LLM analyzes and generates refined change; retried up to this limit.
         /// On threshold hit, execution halts without automatic rollback; user controls resume.

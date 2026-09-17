@@ -45,11 +45,6 @@ namespace ContinueVS.Services.Events
         public Session? Session { get; set; }
 
         /// <summary>
-        /// True if this change represents a new session being created (gap23_4_3).
-        /// </summary>
-        public bool IsNewSession => ChangeType == SessionChangeType.Created;
-
-        /// <summary>
         /// Current mode if this change is a mode change (gap27_3).
         /// </summary>
         public int? CurrentMode { get; set; }

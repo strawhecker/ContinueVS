@@ -113,7 +113,7 @@ namespace ContinueVS.Services.Implementations
                 // Defensive: Log warning if tools are unexpectedly empty
                 if (allTools.Count == 0)
                 {
-                    string warningMessage = 
+                    string warningMessage =
                         $"[WARNING-gap8_1] GetAvailableTools returned ZERO tools. " +
                         $"Built-in: {_builtInToolRegistry.Count}, MCP: {_mcpToolRegistry.Count}. " +
                         $"The AI system will have no tools available for this request.";
@@ -236,7 +236,8 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Invokes a tool with the given arguments.
         /// Routes based on tool type: built-in, MCP, or HTTP.
-        /// Checks limit before execution and increments tool call counter in current session.
+        /// Checks the per-action budget before execution (resets on Send; auto-continuations
+        /// accumulate but never reset - gap79) and increments the per-action tool call counter.
         /// </summary>
         public async Task<ToolResult> InvokeAsync(
             string toolName,
@@ -252,7 +253,7 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
-                // Check limit before executing tool (gap23_4_3)
+                // Check per-action budget before executing tool (gap79)
                 if (_sessionService != null)
                 {
                     try
@@ -260,14 +261,21 @@ namespace ContinueVS.Services.Implementations
                         var session = _sessionService.GetCurrentSession();
                         if (session != null)
                         {
-                            //// gap79 will fix this
-                            //var config = _configService?.GetCurrentConfig();
-                            //if (config != null && session.ToolCallsExecuted >= config.MaxToolCallsPerSession)
-                            //{
-                            //    var limitMessage = $"Max tool calls ({config.MaxToolCallsPerSession}) reached. Start a new session to continue.";
-                            //    _logger?.WriteWarning($"[gap23_4_3-limit] {limitMessage}");
-                            //    throw new InvalidOperationException(limitMessage);
-                            //}
+                            var config = _configService?.GetCurrentConfig();
+                            if (config != null)
+                            {
+                                int maxToolCalls = UserSettings.DefaultsAsInt(
+                                    config.CustomSettings,
+                                    UserSettings.Agent_MaxToolCallsPerAction,
+                                    100);
+
+                                if (session.ToolCallsExecuted >= maxToolCalls)
+                                {
+                                    var limitMessage = $"Per-action tool budget ({maxToolCalls}) reached. Press Send again for a fresh budget.";
+                                    _logger?.WriteWarning($"[gap79-limit] {limitMessage}");
+                                    throw new InvalidOperationException(limitMessage);
+                                }
+                            }
                         }
                     }
                     catch (InvalidOperationException)
@@ -950,7 +958,7 @@ namespace ContinueVS.Services.Implementations
                 // Fail-fast diagnostic check for zero tools
                 if (totalTools == 0)
                 {
-                    string diagnosticMessage = 
+                    string diagnosticMessage =
                         "[CRITICAL-gap8_1] Tool registry is EMPTY after initialization! " +
                         "This indicates a configuration or initialization failure. " +
                         "Built-in tools: 0, MCP tools: 0. " +

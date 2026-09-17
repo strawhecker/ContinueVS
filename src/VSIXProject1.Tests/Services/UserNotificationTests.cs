@@ -56,7 +56,7 @@ namespace ContinueVS.Tests.Services
             {
                 CustomSettings = new Dictionary<string, object>
                 {
-                    { UserSettings.Agent_MaxToolCallsPerSession, 100 }
+                    { UserSettings.Agent_MaxToolCallsPerAction, 100 }
                 }
             };
 
@@ -107,7 +107,7 @@ namespace ContinueVS.Tests.Services
             {
                 CustomSettings = new Dictionary<string, object>
                 {
-                    { UserSettings.Agent_MaxToolCallsPerSession, 100 }
+                    { UserSettings.Agent_MaxToolCallsPerAction, 100 }
                 }
             };
 
@@ -160,7 +160,7 @@ namespace ContinueVS.Tests.Services
             {
                 CustomSettings = new Dictionary<string, object>
                 {
-                    { UserSettings.Agent_MaxToolCallsPerSession, 100 }
+                    { UserSettings.Agent_MaxToolCallsPerAction, 100 }
                 }
             };
 
@@ -214,7 +214,7 @@ namespace ContinueVS.Tests.Services
             {
                 CustomSettings = new Dictionary<string, object>
                 {
-                    { UserSettings.Agent_MaxToolCallsPerSession, 100 }
+                    { UserSettings.Agent_MaxToolCallsPerAction, 100 }
                 }
             };
 
@@ -265,7 +265,7 @@ namespace ContinueVS.Tests.Services
             {
                 CustomSettings = new Dictionary<string, object>
                 {
-                    { UserSettings.Agent_MaxToolCallsPerSession, 100 }
+                    { UserSettings.Agent_MaxToolCallsPerAction, 100 }
                 }
             };
 

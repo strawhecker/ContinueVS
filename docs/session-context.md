@@ -2845,7 +2845,7 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 **Status:** ✓ COMPLETE | Type: User Settings
 **Implementation Date:** [Completed 2026-08-22]
 **Completion Summary:**
-- ✓ Added `Agent_MaxToolCallsPerSession` setting key constant to UserSettings.cs
+- ✓ Added `Agent_MaxToolCallsPerAction` setting key constant to UserSettings.cs
 - ✓ Added default value (100) to GetDefaults() dictionary in UserSettings.cs
 - ✓ Added `MaxToolCallsPerSession` int property to SettingsViewModel with validation setter (coerces to range 1-1000)
 - ✓ Added load logic in SettingsViewModel.LoadSettings() with GetIntFromConfig() helper
@@ -2862,18 +2862,18 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 
 **Files Modified:**
 1. **Core/Types/UserSettings.cs**
-   - Added constant: `public const string Agent_MaxToolCallsPerSession = "agent.maxToolCallsPerSession"`
-   - Added to GetDefaults(): `{ Agent_MaxToolCallsPerSession, 100 }`
+   - Added constant: `public const string ResetToolCallLimitForAction = "agent.maxToolCallsPerSession"`
+   - Added to GetDefaults(): `{ ResetToolCallLimitForAction, 100 }`
 
 2. **ViewModels/SettingsViewModel.cs**
    - Added field: `private int _maxToolCallsPerSession`
    - Added property: `MaxToolCallsPerSession` with validation setter (coerces [1, 1000])
-   - Added constructor initialization: `_maxToolCallsPerSession = GetInt(UserSettings.Agent_MaxToolCallsPerSession, defaults)`
-   - Added to LoadSettings(): `MaxToolCallsPerSession = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerSession, config.CustomSettings)`
-   - Added to SaveSettingsAsync(): `SetOrRemove(UserSettings.Agent_MaxToolCallsPerSession, MaxToolCallsPerSession)`
+   - Added constructor initialization: `_ResetToolCallLimitForAction= GetInt(UserSettings.ResetToolCallLimitForAction, defaults)`
+   - Added to LoadSettings(): `ResetToolCallLimitForAction= GetIntFromConfig(UserSettings.ResetToolCallLimitForAction, config.CustomSettings)`
+   - Added to SaveSettingsAsync(): `SetOrRemove(UserSettings.ResetToolCallLimitForAction, MaxToolCallsPerSession)`
 
 3. **UI/Pages/SettingsControl.xaml**
-   - Added TextBlock header "Max Tool Calls Per Session" to Appearance tab
+   - Added TextBlock header "Max Tool Calls Per Session" to Appearance tab This is a per-action loop guard, not a session quota. It resets on a real Send click; auto-continuations accumulate but never reset.
    - Added DockPanel with Slider (1-1000) and value TextBlock display
    - Added description: "Maximum tool function calls allowed per agent session (1-1000)."
 
@@ -2889,9 +2889,9 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 
 **Next Steps:** gap23_4_2 (Tool Call Counter in Session State)
 
-##### gap23_4_2: Tool Call Counter in Session State
+##### gap23_4_2: Tool Call Counter per user-action
 - **Status:** ✓ Complete | Type: Session State Tracking
-- **Action:** Track cumulative tool calls in the current session
+- **Action:** Track cumulative tool calls in the current user-action
 - **Implementation:**
   - Added to Session.cs: `public int ToolCallsExecuted { get; set; } = 0;` with [JsonProperty("toolCallsExecuted")]
   - Incremented in ToolService.InvokeAsync() before tool execution via _sessionService.GetCurrentSession()
@@ -2921,10 +2921,9 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
     * Example: Max 100 tools/action; if ask exhausts 100, next send gets 100 fresh tools
   - **Reset Timing:** Resets in `ExecuteSendMessage()` when user clicks Send
   - **Limit Behavior:** If tool calls reach max during an action, execution stops → user sees message → user can ask again
-  - **No Session Reload:** Stopping due to limit does NOT require new session; same session continues
-- **Implementation:**
+  **Implementation:**
   - ToolService.InvokeAsync() checks `session.ToolCallsExecuted >= config.MaxToolCallsPerSession` before execution
-  - Throws `InvalidOperationException` with message: "Max tool calls (N) reached. Start a new session to continue."
+  - Throws `InvalidOperationException` with message: "Per-action tool budget (N) reached; send again for a fresh budget."
   - ChatPageViewModel.ExecuteSendMessage() calls ResetToolCallLimitForAction() at start
   - ResetToolCallLimitForAction() resets `_limitReachedFlag`, clears banners, and re-enables send button
   - CheckToolCallLimit() called after streaming to show 80%/100% banners
@@ -2950,7 +2949,6 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 - User sees error banner "Tool call limit reached (100/100)"
 - User clicks Send again → `ResetToolCallLimitForAction()` runs, counter resets, banners clear, send re-enabled
 - Next action runs with fresh tool budget
-- No session reload required; same session continues across multiple actions
 
 **Reset Mechanism:**
 - `ResetToolCallLimitForAction()` called at start of `ExecuteSendMessage()` when user clicks Send
@@ -3062,7 +3060,7 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 - ✅ Added TextBlock to ChatPage.xaml Row 3 (Mode Selector row)
   - Dual binding: Text="{Binding ToolCallCounterDisplay}", Foreground via ToolCallCounterColorConverter
   - Font: 11pt, VerticalAlignment Center
-  - Tooltip: "Shows cumulative tool calls in current session (resets per-action)"
+  - Tooltip: "Shows tool calls used by the current action (resets on Send)"
   - Positioned after Model selector with Separator dividers
 - ✅ Registered ToolCallCounterColorConverter in ChatPage.xaml resources
 - ✅ Created 6 xUnit tests in ToolCallCounterColorConverterTests.cs
@@ -3078,7 +3076,7 @@ Extend `ChatPageViewModel.ExecuteSendMessage()` loop logic:
 
 **Files Modified:**
 - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
-  - Added _toolCallCounterDisplay field = "0 / 0 tool calls"
+  - Added _toolCallCounterDisplay field = "0 / Agent_MaxToolCallsPerAction tool calls"
   - Added ToolCallCounterDisplay property (public read-only with private set)
   - Added GetToolCallCounterDisplay() → lazy string formatting
   - Added RefreshToolCallCounter() → updates display on session changes
@@ -4308,7 +4306,7 @@ private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChanged
   - src/VSIXProject1.Tests/Services/ChangeStackServiceTests.cs (7 tests, all passing)
 - **Files Modified:**
   - src/VSIXProject1/Services/ServiceBootstrapper.cs (added IChangeStackService singleton registration)
-- **Blocking Resolved:** gap29_8_4 (phase execution now has ChangeStack API), gap29_8_7 (retry loop can manage changes per-change rollback)
+- **Blocking Resolved:** gap29_8_4 (phase execution now has ChangeStack API), gap29_8_7 (retry loop can manage changes per-change rollback), gap79 supersedes the per-session framing: the counter is per-action, reset on Send only; IsNewSession removed; ResetToolCallLimitForActionreplaced by Agent_MaxToolCallsPerAction
 
 **gap29_8_3: Debug Mode UI & Mode Selector**
 - **Status:** ✅ COMPLETE | Type: UI Mode Selection & Visual Indicator
@@ -8656,6 +8654,8 @@ Replace the GetToolCallPercentage() stub (currently `return 0.0;`, tagged as
 "gap79 will fix this") with a real implementation that computes the percentage
 against the current per-action budget, so that an exhausted turn stops cleanly
 rather than permanently blocking the session.
+The per-action budget is now agent.maxToolCallsPerAction (default 100) sourced from CustomSettings.
+
 
 #### Related / tension to keep in mind
 
@@ -8664,58 +8664,145 @@ rather than permanently blocking the session.
 - CanSendMessage() disables Send when the limit flag or error banner is set, and
   ResetToolCallLimitForAction() clears those on a button click — consistent with
   reset-on-send.
-- The gap23_4_3 SessionChanged handler also resets on a new session; gap79's
-  "reset only on real button click" must be reconciled with that so the two rules
-  do not conflict.
+- The gap23_4_3 SessionChanged handler no longer resets limit state on IsNewSession.
+  The only reset is a real user Send click
+  (ExecuteSendMessage → ResetToolCallLimitForAction).
+  The IsNewSession member has been removed from SessionChangedEventArgs and
+  the new-session reset branch deleted from the handler.
 
--
 
-### gap80 — Smart Tool Calls Management
+---
+
+Understood. Here are the two fully written sections — the revised **gap80** (existing ID + limit scaffolding retained, softened-delete/version-retaining dedup merged in) and the new **gap81** — ready to apply.
+
+---
+
+### gap80 — Smart Tool Calls Management (Soft-Delete + Version-Retaining Dedup)
 
 #### Status
 
-Planned and finalized. Implementation follows gap79.
+Planned and finalized. Implementation follows gap79. This is the governing gap
+for deliberate, governed tool-call execution: deterministic tool-call IDs,
+user-configurable loop limits, and soft-delete semantics that turn read
+deduplication into version retention instead of discard.
 
 #### What the gap is
 
-Makes tool-call execution deliberate and governed: own tool-call IDs end-to-end,
-replace LLM-provided random IDs, and make the tool-loop iteration limits
-user-configurable.
+Three capabilities, one coherent design:
+
+1. **Own tool-call IDs end-to-end** — replace LLM-provided random IDs with our
+   own so correlation and pruning are deterministic.
+2. **Make the tool-loop iteration limits user-configurable** — broad failure
+   gate and recursion-depth bound, both exposed as user settings.
+3. **Soft-delete instead of destructive prune** — mark context/tool results
+   Deleted and exclude them at serialize time; never hard-remove. Read
+   deduplication *retains file versions* rather than throwing them away.
 
 #### Decided behavior
 
-1. Tool-call ID correlation.
-   LLM-provided tool IDs are random and do not correlate to results. We assign our
-   own IDs: base = time-of-day to 100 ns precision; increment by 1 for each
-   additional tool in a parallel batch. Replace the ID the LLM sent, track the call
-   and its result under our ID, and prune obsolete tool calls by our ID. This avoids
-   random asymmetry when pruning.
+**Tool-call ID correlation**
+- LLM-provided tool IDs are random and don't correlate to results.
+- We assign our own IDs: base = time-of-day to 100 ns precision; increment by 1
+  for each additional tool in a parallel batch.
+- Replace the ID the LLM sent, track the call and its result under our ID, and
+  prune obsolete tool calls by our ID. Avoids random asymmetry when pruning.
 
-2. Configurable tool-loop iteration limits (user settings).
-   - 10: the broad failure gate — stops when things are failing so we do not
-     accumulate LLM/token time (tokens are expensive). Intentionally generous.
-   - 5: the recursion-depth bound (gap55_4's Ollama continuation loop). Each depth
-     is roughly one more model round-trip + tool execution chaining on the prior
-     result. 5 is a reasonable default: most fixes converge by depth 2-3, 5 leaves
-     headroom for cascading fixes, and beyond ~5 a failing change is almost never
-     salvageable, so continuing would only burn tokens. Exposed as a user setting so
-     users can tighten (2-3 for safety-sensitive) or loosen (7-8 for large multi-file
-     refactors) as needed.
-   Both 10 and 5 are exposed as user settings; add the settings if they do not
-   exist.
+**Configurable tool-loop iteration limits (user settings)**
+- **10** — the broad failure gate: stops when things are failing so we don't
+  accumulate LLM/token time (tokens are expensive). Intentionally generous.
+- **5** — the recursion-depth bound (gap55_4's Ollama continuation loop).
+  Each depth is roughly one more model round-trip + tool execution chaining on
+  the prior result. Most fixes converge by depth 2-3; 5 leaves headroom for
+  cascading fixes; beyond ~5 a failing change is almost never salvageable.
+- Both exposed as user settings; add the settings if they don't exist.
 
-3. Sequencing.
-   Implement after gap79. gap79 defines the per-action budget and reset-on-send
-   semantics that this gap's limits and ID-based pruning operate on; landing it
-   first avoids fighting over _pendingToolCalls and revert state.
+**Soft-delete tombstone**
+- Mark Deleted, never remove. At JSON serialization exclude Deleted entries
+  from the LLM payload while keeping the retained bytes accessible.
+- Same primitive serves auto-dedup (this gap) and user-prune (gap81, manual).
+
+**Version-retaining read dedup (the "smart" core)**
+- Restrict auto-dedup to pure read tools only. **Never** auto-dedup mutating
+  tools (`edit_file`, `run_terminal_command`, …) — two edits are not duplicates
+  and merging them would corrupt the change/rollback chain.
+- Same path, first read → store version v1.
+- Same path read again → mark v1 request + response Deleted for the LLM, retain
+  v1 as an accessible past version alongside v2.
+- Keying uses our own deterministic tool-call IDs, so "was this exact read
+  already done" is a stable, cheap check and pruning correlates by our ID —
+  never random LLM IDs.
+- Restore is explicitly out of scope here: we retain versions and leave the
+  access/restore story open for a later gap. Reuse `ChangeStackService` /
+  `ChangeBaseline` (gap29_8_2) for byte snapshots the restore path will need;
+  do not build a parallel snapshot system.
+
+#### Sequencing
+
+- Implement after gap79. gap79 defines the per-action budget and reset-on-send
+  semantics this gap's limits and ID-based pruning operate on; landing it first
+  avoids fighting over `_pendingToolCalls` and revert state.
 
 #### Notes
 
-- Pending tool-call list ownership: the consumer must not mutate the shared buffer
-  the producer fills (the existing double-clear is a bug this gap resolves).
-- gap19 relationship: parallel, with a shared dependency on the change-execution /
-  revert machinery that the 5-limit protects; sequence so the two do not contend
-  over _pendingToolCalls or revert decisions.
+- **Pending tool-call list ownership:** the consumer must not mutate the shared
+  buffer the producer fills (the existing double-clear is a bug this gap
+  resolves).
+- **gap19 relationship:** parallel, with a shared dependency on the
+  change-execution / revert machinery that the 5-limit protects; sequence so
+  the two do not contend over `_pendingToolCalls` or revert decisions.
+
+---
+
+### New gap81 — User-Selectable Prune of History Q&A (with Undelete, no Restore)
+
+#### Status
+
+Planned and finalized. Implements Idea 3 of the soft-delete understanding: let
+the user prune question/answer entries from history to save context size.
+Manual counterpart to gap80's auto-dedup. Builds on gap80's tombstone
+primitive. **Includes undelete; does NOT include restore.**
+
+#### What the gap is
+
+gap80's tombstones are produced automatically (read dedup). This gap adds the
+manual path: the user selects a Q&A entry in history to mark deleted.
+
+History shows the *request* lines (e.g. `read path/to/file.ext`) as first-class
+entries. The user may mark an entry deleted to shrink what serializes to the
+LLM — the retained version (if it was a read) lives on via gap80, just no
+longer fed to the model.
+
+#### Decided behavior
+
+1. **Request lines in history.**
+   - Surface tool-request lines (e.g. `read path/to/file.ext`) in history so
+     the user sees exactly what occupies context.
+   - The user elects to mark such an entry (or any Q&A pair) deleted.
+
+2. **Delete = mark deleted (reuse gap80 tombstone).**
+   - Never hard-remove; reuse the same mark-deleted / exclude-on-serialize
+     primitive as gap80's auto-dedup.
+
+3. **Undelete.**
+   - A deleted entry can be un-deleted (toggle tombstone back), restoring it to
+     the serialized context. Visibility only; no file-state operation.
+
+4. **No restore.**
+   - Explicitly out of scope. gap81 moves lines in/out of the LLM payload.
+     Picking among retained read-versions to put bytes back into the working
+     tree is a separate future gap.
+
+#### Sequencing
+
+- Depends on gap80 (tombstone primitive + version retention). Can land after
+  gap80; does not conflict with gap80's loop limits.
+
+#### Notes
+
+- Scope is visibility/context-size management, not recovery. If the user needs
+  to recover an earlier file state, that is the future restore gap.
+- gap17 (delete a send/response) already hard-removes; this gap is the
+  soft/undoable counterpart and must not regress gap17's behavior.
 
 ---
 

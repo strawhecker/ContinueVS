@@ -29,6 +29,102 @@ namespace ContinueVS.Tests.Services
             return mock;
         }
 
+        // Default 100 tool calls can execute before the per-action budget is hit (gap79)
+        [Fact]
+        public async Task InvokeAsync_DefaultBudget_AllowsUpTo100ToolCalls()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var session = new Session();
+            var sessionServiceMock = new Mock<ISessionService>();
+            sessionServiceMock.Setup(s => s.GetCurrentSession()).Returns(session);
+
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object, sessionServiceMock.Object);
+
+            // Execute 100 tool calls - all should succeed and increment
+            for (int i = 0; i < 100; i++)
+            {
+                var result = await service.InvokeAsync("read_file", new Dictionary<string, object> { { "filepath", "test.cs" } });
+                Assert.True(result.IsSuccess);
+                Assert.Equal(i + 1, session.ToolCallsExecuted);
+            }
+
+            Assert.Equal(100, session.ToolCallsExecuted);
+        }
+
+        [Fact]
+        public async Task InvokeAsync_WhenBudgetExceeded_ThrowsAndDoesNotIncrement()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = new Mock<IConfigService>();
+            configServiceMock.Setup(s => s.GetEnabledTools())
+                .Returns(BuiltInToolsRegistry.GetAllBuiltInTools() as IEnumerable<ToolDefinition>);
+            configServiceMock.Setup(s => s.GetCurrentConfig()).Returns(new ContinueConfig());
+
+            var session = new Session { ToolCallsExecuted = 100 };
+            var sessionServiceMock = new Mock<ISessionService>();
+            sessionServiceMock.Setup(s => s.GetCurrentSession()).Returns(session);
+
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object, sessionServiceMock.Object);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                service.InvokeAsync("read_file", new Dictionary<string, object> { { "filepath", "test.cs" } }));
+
+            // Counter must NOT be incremented when the budget guard stops execution
+            Assert.Equal(100, session.ToolCallsExecuted);
+        }
+
+        [Fact]
+        public async Task InvokeAsync_WhenCustomBudgetConfigured_UsesCustomLimit()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = new Mock<IConfigService>();
+            configServiceMock.Setup(s => s.GetEnabledTools())
+                .Returns(BuiltInToolsRegistry.GetAllBuiltInTools() as IEnumerable<ToolDefinition>);
+            var config = new ContinueConfig
+            {
+                CustomSettings = new Dictionary<string, object>
+                {
+                    { UserSettings.Agent_MaxToolCallsPerAction, 5 }
+                }
+            };
+            configServiceMock.Setup(s => s.GetCurrentConfig()).Returns(config);
+            configServiceMock.Setup(s => s.GetToolOverrideConfig()).Returns(new ToolOverrideConfig());
+
+            var session = new Session();
+            var sessionServiceMock = new Mock<ISessionService>();
+            sessionServiceMock.Setup(s => s.GetCurrentSession()).Returns(session);
+
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object, sessionServiceMock.Object);
+
+            // Execute 5 tool calls - all should succeed
+            for (int i = 0; i < 5; i++)
+            {
+                var result = await service.InvokeAsync("read_file", new Dictionary<string, object> { { "filepath", "test.cs" } });
+                Assert.True(result.IsSuccess);
+            }
+
+            Assert.Equal(5, session.ToolCallsExecuted);
+
+            // 6th call should be blocked by the per-action budget
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                service.InvokeAsync("read_file", new Dictionary<string, object> { { "filepath", "test.cs" } }));
+
+            Assert.Equal(5, session.ToolCallsExecuted);
+        }
+
+        [Fact]
+        public async Task InvokeAsync_WithNoSessionService_IncrementsNothingAndSucceeds()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var result = await service.InvokeAsync("read_file", new Dictionary<string, object> { { "filepath", "test.cs" } });
+
+            Assert.True(result.IsSuccess);
+        }
+
         [Fact]
         public void Constructor_WithValidDependencies_Succeeds()
         {
@@ -62,15 +158,15 @@ namespace ContinueVS.Tests.Services
         public void GetAvailableTools_ReturnsAllBuiltInTools()
         {
             var ideServiceMock = CreateMockIdeService();
-                var configServiceMock = CreateMockConfigService();
-                var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
 
-                var tools = service.GetAvailableTools().ToList();
+            var tools = service.GetAvailableTools().ToList();
 
-                Assert.NotEmpty(tools);
-                // Now 17 tools (git tools disabled by default in UserSettings)
-                Assert.Equal(17, tools.Count);
-            }
+            Assert.NotEmpty(tools);
+            // Now 17 tools (git tools disabled by default in UserSettings)
+            Assert.Equal(17, tools.Count);
+        }
 
         [Fact]
         public void GetAvailableTools_ContainsExpectedToolNames()
@@ -332,8 +428,8 @@ namespace ContinueVS.Tests.Services
             var planModeTools = service.GetAvailableTools(ChatMode.Plan).ToList();
 
             // Plan mode should NOT have any write tools
-            var writeToolNames = new[] 
-            { 
+            var writeToolNames = new[]
+            {
                 "edit_file", "create_new_file", "create_folder", "run_terminal_command",
                 "git_commit", "single_find_and_replace", "run_pytest"
             };
@@ -354,8 +450,8 @@ namespace ContinueVS.Tests.Services
             var planModeTools = service.GetAvailableTools(ChatMode.Plan).ToList();
 
             // Plan mode SHOULD have core read-only tools (git tools are disabled by default)
-            var readOnlyToolNames = new[] 
-            { 
+            var readOnlyToolNames = new[]
+            {
                 "read_file", "search_codebase", "grep_search", "file_glob_search",
                 "view_diff", "get_problems"
             };

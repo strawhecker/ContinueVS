@@ -78,17 +78,16 @@ namespace ContinueVS.Core.Types
         {
             LoggerService.Current.WriteDebug("[SettingsMigration] Applying v0→v1 migration...");
 
-            // Example v0→v1 migrations (based on Redux-persist pattern):
-            // Rename old keys to new location structure
-
             // Old key format: "ui.someKey" or "sessionId"
             // New key format: "ui.someKey" or "session.id"
 
             var keysToRename = new Dictionary<string, string>
             {
-                // { "oldSessionId", "session.id" },        // Example placeholder
-                // { "oldTheme", "ui.theme" },              // Example placeholder
-                // { "oldFontSize", "ui.fontSize" },        // Example placeholder
+                // Rename legacy session-based tool budget to the per-action budget (gap79).
+                // A user who had configured agent.maxToolCallsPerSession carries their
+                // chosen value forward to agent.maxToolCallsPerAction; the old key is
+                // dropped in the same pass so no session-based setting persists.
+                { "agent.maxToolCallsPerSession", "agent.maxToolCallsPerAction" },
             };
 
             foreach (var kvp in keysToRename)

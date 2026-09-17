@@ -44,7 +44,7 @@ namespace ContinueVS.ViewModels
         private bool _dumpResponseAfterReceive;
 
         // Agent/Tool settings
-        private int _maxToolCallsPerSession;
+        private int _maxToolCallsPerAction;
 
         public bool ShowSessionTabs
         {
@@ -176,14 +176,22 @@ namespace ContinueVS.ViewModels
         }
 
         // Agent/Tool Properties
-        public int MaxToolCallsPerSession
+        /// <summary>
+        /// Maximum tool calls allowed per user action (gap79). Resets on Send;
+        /// auto-continuations accumulate but never reset. Range-coerced to [1, 1000].
+        /// Persisted immediately on change via SaveSettingsAsync.
+        /// </summary>
+        public int MaxToolCallsPerAction
         {
-            get => _maxToolCallsPerSession;
+            get => _maxToolCallsPerAction;
             set
             {
                 // Coerce value to valid range [1, 1000]
                 int coercedValue = value < 1 ? 1 : (value > 1000 ? 1000 : value);
-                Set(ref _maxToolCallsPerSession, coercedValue);
+                if (Set(ref _maxToolCallsPerAction, coercedValue))
+                {
+                    _ = PersistMaxToolCallsAsync();
+                }
             }
         }
 
@@ -232,7 +240,7 @@ namespace ContinueVS.ViewModels
             _dumpContextBeforeSend = GetBool(UserSettings.Experimental_DumpContextBeforeSend, defaults);
             _dumpResponseAfterReceive = GetBool(UserSettings.Experimental_DumpResponseAfterReceive, defaults);
 
-            _maxToolCallsPerSession = GetInt(UserSettings.Agent_MaxToolCallsPerSession, defaults);
+            _maxToolCallsPerAction = GetInt(UserSettings.Agent_MaxToolCallsPerAction, defaults);
 
             LoggerService.Current.WriteDebug("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR COMPLETE");
         }
@@ -281,7 +289,7 @@ namespace ContinueVS.ViewModels
                 DumpResponseAfterReceive = GetBoolFromConfig(UserSettings.Experimental_DumpResponseAfterReceive, config.CustomSettings);
 
                 // Load Agent/Tool settings
-                MaxToolCallsPerSession = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerSession, config.CustomSettings);
+                MaxToolCallsPerAction = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerAction, config.CustomSettings);
 
                 LoggerService.Current.WriteDebug("[SettingsViewModel.LoadSettings] Settings loaded successfully");
             }
@@ -352,7 +360,7 @@ namespace ContinueVS.ViewModels
                 SetOrRemove(UserSettings.Experimental_DumpResponseAfterReceive, DumpResponseAfterReceive);
 
                 // Save Agent/Tool settings
-                SetOrRemove(UserSettings.Agent_MaxToolCallsPerSession, MaxToolCallsPerSession);
+                SetOrRemove(UserSettings.Agent_MaxToolCallsPerAction, MaxToolCallsPerAction);
 
                 // Persist to disk
                 await _configService.SaveConfigAsync();
@@ -361,6 +369,41 @@ namespace ContinueVS.ViewModels
             catch (Exception ex)
             {
                 LoggerService.Current.WriteError($"[SettingsViewModel.SaveSettingsAsync] Error: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Persists the per-action max tool calls to CustomSettings (gap79).
+        /// Fire-and-forget save so the slider update feels instant; writes only if
+        /// the value differs from its default (delta-based persistence).
+        /// </summary>
+        private async System.Threading.Tasks.Task PersistMaxToolCallsAsync()
+        {
+            try
+            {
+                var config = _configService.GetCurrentConfig();
+                if (config?.CustomSettings == null)
+                {
+                    LoggerService.Current.WriteDebug("[SettingsViewModel.PersistMaxToolCallsAsync] Config or CustomSettings is null");
+                    return;
+                }
+
+                var defaultValue = UserSettings.GetDefault(UserSettings.Agent_MaxToolCallsPerAction);
+                if (Equals(MaxToolCallsPerAction, defaultValue))
+                {
+                    config.CustomSettings.Remove(UserSettings.Agent_MaxToolCallsPerAction);
+                }
+                else
+                {
+                    config.CustomSettings[UserSettings.Agent_MaxToolCallsPerAction] = MaxToolCallsPerAction;
+                }
+
+                await _configService.SaveConfigAsync();
+                LoggerService.Current.WriteDebug($"[SettingsViewModel.PersistMaxToolCallsAsync] Persisted per-action max tool calls = {MaxToolCallsPerAction}");
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[SettingsViewModel.PersistMaxToolCallsAsync] Error: {ex.Message}", ex);
             }
         }
 

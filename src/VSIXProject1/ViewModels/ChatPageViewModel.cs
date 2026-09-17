@@ -691,15 +691,6 @@ namespace ContinueVS.ViewModels
             // gap23_4_3: Reset limit flag when session changes
             _sessionService.SessionChanged += (s, e) =>
             {
-                if (e.IsNewSession)
-                {
-                    _limitReachedFlag = false;
-                    ShowWarningBanner = false;
-                    ShowErrorBanner = false;
-                    DismissWarningBanner();
-                    SendMessageCommand.RaiseCanExecuteChanged();
-                    LoggerService.Current.WriteDebug("[gap23_4_3-reset] Limit flag cleared on new session");
-                }
                 // gap23_4_5: Refresh counter display on any session change
                 RefreshToolCallCounter();
 
@@ -713,6 +704,34 @@ namespace ContinueVS.ViewModels
             };
         }
 
+        /// <summary>
+        /// Resets tool call limit state when a new user action (send) begins (gap79).
+        /// The tool budget is per-action: ONLY a real user Send resets the counter.
+        /// Auto-continuations (ContinueConversationWithOllamaAsync) never call this,
+        /// so they accumulate toward the loop-stopper.
+        /// </summary>
+        private void ResetToolCallLimitForAction()
+        {
+            _limitReachedFlag = false;
+            ShowWarningBanner = false;
+            ShowErrorBanner = false;
+            DismissWarningBanner(); // Stop any active dismissal timer
+            SendMessageCommand.RaiseCanExecuteChanged();
+
+            // gap79: Reset the per-action counter on a real Send click
+            try
+            {
+                var session = _sessionService?.GetCurrentSession();
+                if (session != null)
+                    session.ToolCallsExecuted = 0;
+            }
+            catch
+            {
+                // Ignore session access errors in unit test contexts
+            }
+
+            LoggerService.Current.WriteDebug("[gap79-reset] Per-action tool budget reset for new user action. Fresh budget allocated.");
+        }
         /// <summary>
         /// Records the action selection for a specific code block (gap53).
         /// Called from MarkdownBlockRenderer when per-block dropdown selection changes.
@@ -1161,21 +1180,6 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
-        /// Resets tool call limit state when a new user action (send) begins (gap23_4_4).
-        /// The tool limit is per-action: each send resets the counter.
-        /// If an ask/agent/plan exhausts tools, it stops. User can send again with fresh budget.
-        /// </summary>
-        private void ResetToolCallLimitForAction()
-        {
-            _limitReachedFlag = false;
-            ShowWarningBanner = false;
-            ShowErrorBanner = false;
-            DismissWarningBanner(); // Stop any active dismissal timer
-            SendMessageCommand.RaiseCanExecuteChanged();
-            LoggerService.Current.WriteDebug("[gap23_4_4-reset] Tool call limit reset for new user action. Fresh budget allocated.");
-        }
-
-        /// <summary>
         /// Refreshes the tool call counter display (gap23_4_5).
         /// Called when session changes or tool calls increment.
         /// </summary>
@@ -1209,9 +1213,7 @@ namespace ContinueVS.ViewModels
                     return "0 / 0 tool calls";
 
                 int toolCallsExecuted = session.ToolCallsExecuted;
-                object? maxVal = null;
-                config.CustomSettings?.TryGetValue(UserSettings.Agent_MaxToolCallsPerSession, out maxVal);
-                int maxToolCalls = (int)(maxVal ?? 100);
+                int maxToolCalls = UserSettings.DefaultsAsInt(config.CustomSettings, UserSettings.Agent_MaxToolCallsPerAction, 100);
                 if (maxToolCalls <= 0)
                     maxToolCalls = 100;
 
@@ -1225,33 +1227,30 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
-        /// Calculates the percentage of tool calls used in the current session (gap23_4_4).
+        /// Calculates the percentage of the per-action tool budget used (gap79).
         /// Returns null-safe value; defaults to 0 if session or settings not available.
+        /// Reset happens only on a real Send (ResetToolCallLimitForAction).
         /// </summary>
         private double GetToolCallPercentage()
         {
-            // gap79 will fix this.
-            return 0.0;
-            //try
-            //{
-            //    var session = _sessionService?.GetCurrentSession();
-            //    var config = _configService?.GetCurrentConfig();
+            try
+            {
+                var session = _sessionService?.GetCurrentSession();
+                var config = _configService?.GetCurrentConfig();
 
-            //    if (session == null || config == null)
-            //        return 0.0;
+                if (session == null || config == null)
+                    return 0.0;
 
-            //    object? maxVal = null;
-            //    config.CustomSettings?.TryGetValue(UserSettings.Agent_MaxToolCallsPerSession, out maxVal);
-            //    int maxToolCalls = (int)(maxVal ?? 100);
-            //    if (maxToolCalls <= 0)
-            //        maxToolCalls = 100;
+                int maxToolCalls = UserSettings.DefaultsAsInt(config.CustomSettings, UserSettings.Agent_MaxToolCallsPerAction, 100);
+                if (maxToolCalls <= 0)
+                    maxToolCalls = 100;
 
-            //    return (session.ToolCallsExecuted / (double)maxToolCalls) * 100.0;
-            //}
-            //catch
-            //{
-            //    return 0.0;
-            //}
+                return (session.ToolCallsExecuted / (double)maxToolCalls) * 100.0;
+            }
+            catch
+            {
+                return 0.0;
+            }
         }
 
         /// <summary>
@@ -1277,7 +1276,7 @@ namespace ContinueVS.ViewModels
                         LoggerService.Current.WriteError("[gap23_4_4-error] Tool call limit reached (100%). Error banner shown.", new InvalidOperationException());
 
                         // Log analytics event
-                        _notificationService.ShowError("Tool call limit reached (100/100). Start a new session to continue.");
+                        _notificationService.ShowError($"Per-action tool limit reached (100/100). Send again for a fresh budget.");
                     }
                 }
                 else if (percentage >= 80.0)
@@ -1298,7 +1297,7 @@ namespace ContinueVS.ViewModels
                         _warningDismissTimer.Start();
 
                         // Log analytics event
-                        _notificationService.ShowError($"Approaching tool call limit ({(int)percentage}/100 used). Consider starting a new session soon.");
+                        _notificationService.ShowError($"Approaching per-action tool limit ({(int)percentage}/100 used). Sending again grants a fresh budget.");
                     }
                 }
                 else
@@ -1361,9 +1360,8 @@ namespace ContinueVS.ViewModels
                 _llmService.ClearStreamBuffer();
                 _instructionExecutorService.ClearPauseCheckpoint();
 
-                // Reset tool limit state for this action (gap23_4_4)
-                // Each user-initiated send action gets its own tool call budget
-                ResetToolCallLimitForAction();
+                // gap79: Disable send while limit exceeded. A real Send resets the budget via
+                // ResetToolCallLimitForAction, so this only blocks during the active turn.
 
                 var userMessage = new ChatMessage
                 {
@@ -1483,9 +1481,23 @@ namespace ContinueVS.ViewModels
                 // Loop until no more tool calls or max iterations reached
                 while (_toolCallIterationCount < MaxToolCallIterations)
                 {
-                    _toolCallIterationCount++;
-                    _toolFailureCount = 0;  // Reset failure counter for this iteration
-                    _pendingToolCalls.Clear();
+                    // gap79: Per-action budget guard — stop the turn cleanly if the loop-stopper is hit.
+                    // Auto-continuations accumulate here; a real Send (ResetToolCallLimitForAction) resets.
+                    var budgetSession = _sessionService.GetCurrentSession();
+                    if (budgetSession != null)
+                    {
+                        var budgetConfig = _configService?.GetCurrentConfig();
+                        int perActionMax = budgetConfig == null ? 100
+                            : UserSettings.DefaultsAsInt(budgetConfig.CustomSettings, UserSettings.Agent_MaxToolCallsPerAction, 100);
+                        if (budgetSession.ToolCallsExecuted >= perActionMax)
+                        {
+                            _limitReachedFlag = true;
+                            ShowErrorBanner = true;
+                            SendMessageCommand.RaiseCanExecuteChanged();
+                            LoggerService.Current.WriteWarning($"[gap79-loop] Per-action budget ({perActionMax}) exhausted; stopping turn cleanly. Send again for a fresh budget.");
+                            break;
+                        }
+                    }
 
                     var streamOptions = new StreamOptions
                     {

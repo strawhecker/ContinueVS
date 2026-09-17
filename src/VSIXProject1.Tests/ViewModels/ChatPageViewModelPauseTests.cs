@@ -71,7 +71,7 @@ namespace ContinueVS.Tests.ViewModels
                 },
                 CustomSettings = new Dictionary<string, object>
                 {
-                    { UserSettings.Agent_MaxToolCallsPerSession, 100 }
+                    { UserSettings.Agent_MaxToolCallsPerAction, 100 }
                 }
             };
             var mock = new Mock<IConfigService>();
