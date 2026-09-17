@@ -8668,6 +8668,55 @@ rather than permanently blocking the session.
   "reset only on real button click" must be reconciled with that so the two rules
   do not conflict.
 
+-
+
+### gap80 — Smart Tool Calls Management
+
+#### Status
+
+Planned and finalized. Implementation follows gap79.
+
+#### What the gap is
+
+Makes tool-call execution deliberate and governed: own tool-call IDs end-to-end,
+replace LLM-provided random IDs, and make the tool-loop iteration limits
+user-configurable.
+
+#### Decided behavior
+
+1. Tool-call ID correlation.
+   LLM-provided tool IDs are random and do not correlate to results. We assign our
+   own IDs: base = time-of-day to 100 ns precision; increment by 1 for each
+   additional tool in a parallel batch. Replace the ID the LLM sent, track the call
+   and its result under our ID, and prune obsolete tool calls by our ID. This avoids
+   random asymmetry when pruning.
+
+2. Configurable tool-loop iteration limits (user settings).
+   - 10: the broad failure gate — stops when things are failing so we do not
+     accumulate LLM/token time (tokens are expensive). Intentionally generous.
+   - 5: the recursion-depth bound (gap55_4's Ollama continuation loop). Each depth
+     is roughly one more model round-trip + tool execution chaining on the prior
+     result. 5 is a reasonable default: most fixes converge by depth 2-3, 5 leaves
+     headroom for cascading fixes, and beyond ~5 a failing change is almost never
+     salvageable, so continuing would only burn tokens. Exposed as a user setting so
+     users can tighten (2-3 for safety-sensitive) or loosen (7-8 for large multi-file
+     refactors) as needed.
+   Both 10 and 5 are exposed as user settings; add the settings if they do not
+   exist.
+
+3. Sequencing.
+   Implement after gap79. gap79 defines the per-action budget and reset-on-send
+   semantics that this gap's limits and ID-based pruning operate on; landing it
+   first avoids fighting over _pendingToolCalls and revert state.
+
+#### Notes
+
+- Pending tool-call list ownership: the consumer must not mutate the shared buffer
+  the producer fills (the existing double-clear is a bug this gap resolves).
+- gap19 relationship: parallel, with a shared dependency on the change-execution /
+  revert machinery that the 5-limit protects; sequence so the two do not contend
+  over _pendingToolCalls or revert decisions.
+
 ---
 
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
