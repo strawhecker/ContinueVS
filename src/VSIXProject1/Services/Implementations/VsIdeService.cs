@@ -134,6 +134,7 @@ namespace ContinueVS.Services.Implementations
                                     .Where(d => !new DirectoryInfo(d).Name.StartsWith(".")
                                     && new DirectoryInfo(d).Name.ToLower() != "bin"
                                     && new DirectoryInfo(d).Name.ToLower() != "obj"
+                                    && new DirectoryInfo(d).Name.ToLower() != "node_modules"
                                     && (new DirectoryInfo(d).Attributes & FileAttributes.ReparsePoint) == 0
                                     )
                                     .ToList();

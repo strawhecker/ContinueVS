@@ -8622,7 +8622,51 @@ public async Task CreateNewSessionAsync();
 
 ---
 
-### gap79 tool calls limit is about stopping an endless loop, not limiting at all the tools calls in a session. the counter is reset on the action of the user pressing send.
+### gap79 — Tool Call Limit as a Per-Action Loop Guard
+
+#### Status
+
+Formatted as a gap per the session-context.md convention. Implementation pending.
+
+#### What the gap is
+
+The tool call limit exists to stop an endless loop, not to impose a session-wide
+quota on how many tool calls the model may make. The limit is a per-action budget,
+not a lifetime counter.
+
+#### Why it matters (the semantics that must hold)
+
+The counter resets when the user presses Send — a real button click. That reset
+grants a fresh execution budget for the new action.
+
+Auto-responses and auto-continuations (for example
+ContinueConversationWithOllamaAsync) do NOT reset the counter. They accumulate
+toward the loop-stopper. This prevents the model from silently self-extending its
+own turn by internally triggering "resets" that were only meant to happen on a
+genuine user action.
+
+So the reset points are:
+
+- Reset ON: a real user button click (ExecuteSendMessage → ResetToolCallLimitForAction).
+- Reset OFF: auto-response / auto-continuation paths.
+
+#### What needs to change
+
+Replace the GetToolCallPercentage() stub (currently `return 0.0;`, tagged as
+"gap79 will fix this") with a real implementation that computes the percentage
+against the current per-action budget, so that an exhausted turn stops cleanly
+rather than permanently blocking the session.
+
+#### Related / tension to keep in mind
+
+- gap23_4_4 sets up the per-action budget and the ResetToolCallLimitForAction
+  method; gap79 is the corrected implementation of that same intent.
+- CanSendMessage() disables Send when the limit flag or error banner is set, and
+  ResetToolCallLimitForAction() clears those on a button click — consistent with
+  reset-on-send.
+- The gap23_4_3 SessionChanged handler also resets on a new session; gap79's
+  "reset only on real button click" must be reconciled with that so the two rules
+  do not conflict.
 
 ---
 

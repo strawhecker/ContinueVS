@@ -78,8 +78,10 @@
                     <TextBlock Text="✕" FontSize="14" Foreground="{DynamicResource VsBrush.WindowText}" 
                                TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Button>
-                <!-- Copy All button at response level (only for Assistant messages) -->
-                <Button x:Name="CopyAllButton"
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}">
+                    <!-- Copy All button at response level (only for Assistant messages) -->
+                    <Separator Width="100"/>
+                    <Button x:Name="CopyAllButton"
                     Height="18"
                     Width="80"
                     Padding="0,0"
@@ -91,10 +93,11 @@
                     Content="📋 Copy All"
                     Visibility="Visible"
                     ToolTip="Copy entire response"
-                    HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}"
                     VerticalAlignment="Top"
                     Margin="0,0,0,5"
                     Cursor="Hand"/>
+                    <Separator Width="100"/>
+                </StackPanel>
             </Grid>
         </StackPanel>
     </Grid>
