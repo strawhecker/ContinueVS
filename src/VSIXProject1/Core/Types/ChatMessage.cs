@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -112,6 +112,7 @@ namespace ContinueVS.Core.Types
         private MarkdownNode? _renderedMarkdown;
         private bool _isThinking = false;
         private bool _isExpanded = false;
+        private bool _isDeleted = false;
 
         /// <summary>
         /// Dynamic buffer for accumulating streaming content.
@@ -296,6 +297,19 @@ namespace ContinueVS.Core.Types
         {
             get => _isExpanded;
             set => SetProperty(ref _isExpanded, value);
+        }
+
+        /// <summary>
+        /// Soft-delete tombstone (gap80). A message marked Deleted is retained in the session
+        /// (bytes stay accessible for version retention / undelete), but is EXCLUDED from the
+        /// payload serialized to the LLM at request time. Never hard-remove a soft-deleted entry.
+        /// Serves both auto-dedup (this gap) and manual user-prune (gap81).
+        /// </summary>
+        [JsonProperty("isDeleted")]
+        public bool IsDeleted
+        {
+            get => _isDeleted;
+            set => SetProperty(ref _isDeleted, value);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

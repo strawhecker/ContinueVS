@@ -131,7 +131,18 @@ namespace ContinueVS.Services
             });
 
             // gap78: Tool call aggregator for buffering streaming tool call fragments
-            services.AddSingleton<IToolCallAggregator, ToolCallAggregator>();
+            // gap80: registered with deterministic own-ID allocator, version-retaining snapshot
+            // store (pure-read dedup), and read-tool classifier.
+            services.AddSingleton<IToolCallIdAllocator, ToolCallIdAllocator>();
+            services.AddSingleton<IToolCallSnapshotStore, ToolCallSnapshotStore>();
+            services.AddSingleton<IReadDeduplicator, ReadDeduplicator>();
+            services.AddSingleton<IToolCallAggregator>(sp =>
+            {
+                var idAllocator = sp.GetRequiredService<IToolCallIdAllocator>();
+                var snapshotStore = sp.GetRequiredService<IToolCallSnapshotStore>();
+                var readDeduplicator = sp.GetRequiredService<IReadDeduplicator>();
+                return new ToolCallAggregator(idAllocator, snapshotStore, readDeduplicator);
+            });
 
             // Stack trace parsing service and parsers (gap29_1)
             services.AddSingleton<IDotNetFrameworkParser, DotNetFrameworkStackTraceParser>();

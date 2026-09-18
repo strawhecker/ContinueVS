@@ -75,6 +75,22 @@
                         </DockPanel>
                         <TextBlock Text="Maximum tool calls allowed in one user action (1-1000). Resets on Send." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
                     </StackPanel>
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Max Tool Failure Gate" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <DockPanel>
+                            <TextBlock Text="{Binding MaxToolFailureGate}" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center" Width="40" TextAlignment="Right"/>
+                            <Slider Value="{Binding MaxToolFailureGate, Mode=TwoWay}" Minimum="1" Maximum="1000" DockPanel.Dock="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="Broad failure gate: stops the tool loop when things keep failing (1-1000, default 10)." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Max Tool Recursion Depth" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <DockPanel>
+                            <TextBlock Text="{Binding MaxToolRecursionDepth}" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center" Width="40" TextAlignment="Right"/>
+                            <Slider Value="{Binding MaxToolRecursionDepth, Mode=TwoWay}" Minimum="1" Maximum="50" DockPanel.Dock="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="Caps the Ollama continuation loop depth for cascading tool fixes (1-50, default 5)." Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                    </StackPanel>
                 </StackPanel>
             </TabItem>
             <!-- Autocomplete Settings Tab -->

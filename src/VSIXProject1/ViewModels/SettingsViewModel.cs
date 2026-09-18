@@ -45,6 +45,9 @@ namespace ContinueVS.ViewModels
 
         // Agent/Tool settings
         private int _maxToolCallsPerAction;
+        // gap80: tool-loop iteration limits
+        private int _maxToolFailureGate;
+        private int _maxToolRecursionDepth;
 
         public bool ShowSessionTabs
         {
@@ -195,6 +198,43 @@ namespace ContinueVS.ViewModels
             }
         }
 
+        // gap80: tool-loop iteration limits
+
+        /// <summary>
+        /// Broad failure gate (default 10): stops the tool loop when things are failing so we
+        /// don't accumulate LLM/token time. Range-coerced to [1, 1000]. Persisted immediately.
+        /// </summary>
+        public int MaxToolFailureGate
+        {
+            get => _maxToolFailureGate;
+            set
+            {
+                int coercedValue = value < 1 ? 1 : (value > 1000 ? 1000 : value);
+                if (Set(ref _maxToolFailureGate, coercedValue))
+                {
+                    _ = PersistToolIterationLimitsAsync();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Recursion-depth bound (default 5): caps the Ollama continuation loop depth
+        /// (gap55_4's ContinueConversationWithOllamaAsync). Range-coerced to [1, 50].
+        /// Persisted immediately.
+        /// </summary>
+        public int MaxToolRecursionDepth
+        {
+            get => _maxToolRecursionDepth;
+            set
+            {
+                int coercedValue = value < 1 ? 1 : (value > 50 ? 50 : value);
+                if (Set(ref _maxToolRecursionDepth, coercedValue))
+                {
+                    _ = PersistToolIterationLimitsAsync();
+                }
+            }
+        }
+
         public SettingsViewModel(IConfigService configService)
         {
             if (configService == null) throw new ArgumentNullException(nameof(configService));
@@ -241,6 +281,9 @@ namespace ContinueVS.ViewModels
             _dumpResponseAfterReceive = GetBool(UserSettings.Experimental_DumpResponseAfterReceive, defaults);
 
             _maxToolCallsPerAction = GetInt(UserSettings.Agent_MaxToolCallsPerAction, defaults);
+            // gap80: tool-loop iteration limits
+            _maxToolFailureGate = GetInt(UserSettings.Agent_MaxToolFailureGate, defaults);
+            _maxToolRecursionDepth = GetInt(UserSettings.Agent_MaxToolRecursionDepth, defaults);
 
             LoggerService.Current.WriteDebug("[SettingsViewModel-ctor] SettingsViewModel CONSTRUCTOR COMPLETE");
         }
@@ -290,6 +333,9 @@ namespace ContinueVS.ViewModels
 
                 // Load Agent/Tool settings
                 MaxToolCallsPerAction = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerAction, config.CustomSettings);
+                // gap80: tool-loop iteration limits
+                MaxToolFailureGate = GetIntFromConfig(UserSettings.Agent_MaxToolFailureGate, config.CustomSettings);
+                MaxToolRecursionDepth = GetIntFromConfig(UserSettings.Agent_MaxToolRecursionDepth, config.CustomSettings);
 
                 LoggerService.Current.WriteDebug("[SettingsViewModel.LoadSettings] Settings loaded successfully");
             }
@@ -361,6 +407,9 @@ namespace ContinueVS.ViewModels
 
                 // Save Agent/Tool settings
                 SetOrRemove(UserSettings.Agent_MaxToolCallsPerAction, MaxToolCallsPerAction);
+                // gap80: tool-loop iteration limits
+                SetOrRemove(UserSettings.Agent_MaxToolFailureGate, MaxToolFailureGate);
+                SetOrRemove(UserSettings.Agent_MaxToolRecursionDepth, MaxToolRecursionDepth);
 
                 // Persist to disk
                 await _configService.SaveConfigAsync();
@@ -407,6 +456,50 @@ namespace ContinueVS.ViewModels
             }
         }
 
+        /// <summary>
+        /// Persists the gap80 tool-loop iteration limits (failure gate + recursion depth)
+        /// to CustomSettings using delta-based persistence. Fire-and-forget from the setters.
+        /// </summary>
+        private async System.Threading.Tasks.Task PersistToolIterationLimitsAsync()
+        {
+            try
+            {
+                var config = _configService.GetCurrentConfig();
+                if (config?.CustomSettings == null)
+                {
+                    LoggerService.Current.WriteDebug("[SettingsViewModel.PersistToolIterationLimitsAsync] Config or CustomSettings is null");
+                    return;
+                }
+
+                // Delta-based persistence: only store values that differ from their defaults.
+                var failureGateDefault = UserSettings.GetDefault(UserSettings.Agent_MaxToolFailureGate);
+                if (Equals(MaxToolFailureGate, failureGateDefault))
+                {
+                    config.CustomSettings.Remove(UserSettings.Agent_MaxToolFailureGate);
+                }
+                else
+                {
+                    config.CustomSettings[UserSettings.Agent_MaxToolFailureGate] = MaxToolFailureGate;
+                }
+
+                var recursionDepthDefault = UserSettings.GetDefault(UserSettings.Agent_MaxToolRecursionDepth);
+                if (Equals(MaxToolRecursionDepth, recursionDepthDefault))
+                {
+                    config.CustomSettings.Remove(UserSettings.Agent_MaxToolRecursionDepth);
+                }
+                else
+                {
+                    config.CustomSettings[UserSettings.Agent_MaxToolRecursionDepth] = MaxToolRecursionDepth;
+                }
+
+                await _configService.SaveConfigAsync();
+                LoggerService.Current.WriteDebug($"[SettingsViewModel.PersistToolIterationLimitsAsync] Persisted failure gate={MaxToolFailureGate}, recursion depth={MaxToolRecursionDepth}");
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[SettingsViewModel.PersistToolIterationLimitsAsync] Error: {ex.Message}", ex);
+            }
+        }
 
         // Helper methods for type conversion
         private bool GetBool(string key, System.Collections.Generic.Dictionary<string, object> defaults)

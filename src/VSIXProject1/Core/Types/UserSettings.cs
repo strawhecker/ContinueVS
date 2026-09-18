@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ContinueVS.Core.Types
@@ -38,6 +38,19 @@ namespace ContinueVS.Core.Types
 
         // Agent/Tool Settings
         public const string Agent_MaxToolCallsPerAction = "agent.maxToolCallsPerAction";
+
+        // gap80: Configurable tool-loop iteration limits
+        /// <summary>
+        /// Broad failure gate (default 10): stops the tool loop when things are failing so we
+        /// don't accumulate LLM/token time. Intentionally generous.
+        /// </summary>
+        public const string Agent_MaxToolFailureGate = "agent.maxToolFailureGate";
+
+        /// <summary>
+        /// Recursion-depth bound (default 5): caps the Ollama continuation loop depth.
+        /// Most fixes converge by 2-3; 5 leaves headroom for cascading fixes.
+        /// </summary>
+        public const string Agent_MaxToolRecursionDepth = "agent.maxToolRecursionDepth";
 
         // Tool-Specific Enabled/Disabled Settings (Read-Only Tools - All MODES)
         public const string Tool_ReadFileEnabled = "tool.readFileEnabled";
@@ -103,6 +116,9 @@ namespace ContinueVS.Core.Types
 
                 // Agent/Tool defaults
                 { Agent_MaxToolCallsPerAction, 100 },
+                // gap80: tool-loop iteration limits
+                { Agent_MaxToolFailureGate, 10 },
+                { Agent_MaxToolRecursionDepth, 5 },
 
                 // Tool-Specific defaults (Read-Only - default true, safe to auto-execute)
                 { Tool_ReadFileEnabled, true },

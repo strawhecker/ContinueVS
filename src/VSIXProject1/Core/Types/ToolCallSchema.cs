@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using Newtonsoft.Json;
 
@@ -13,9 +13,18 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Unique identifier for this tool call instance.
         /// Used to correlate the call with its result in multi-turn conversations.
+        /// May be an LLM-provided random value; do NOT use this for pruning.
         /// </summary>
         [JsonProperty("id")]
         public string? Id { get; set; }
+
+        /// <summary>
+        /// Deterministic, own tool-call ID (gap80). Assigned by IToolCallIdAllocator at
+        /// aggregation time, replacing the LLM's random ID for correlation and pruning.
+        /// Never relies on the LLM-provided random <see cref="Id"/>.
+        /// </summary>
+        [JsonProperty("ownId")]
+        public string? OwnId { get; set; }
 
         /// <summary>
         /// Type of invocation. Always "function" for tool calls.

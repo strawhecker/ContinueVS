@@ -39,5 +39,18 @@ namespace ContinueVS.Services.Interfaces
         /// Called when user cancels operation or needs to start fresh aggregation.
         /// </summary>
         void Clear();
+
+        /// <summary>
+        /// gap80: Resets the per-action ID allocator base and the version-retaining snapshot
+        /// store. Called ONLY on a real user Send (per-action scope, matching the tool budget).
+        /// </summary>
+        void ResetPerAction();
+
+        /// <summary>
+        /// gap80: Evaluates a completed pure-read invocation; returns true when the read should
+        /// be suppressed from the LLM payload (duplicate, or an older retained version) while its
+        /// bytes remain accessible. Never applied to mutating tools.
+        /// </summary>
+        bool ShouldSuppressReadResult(Core.Types.ToolCall toolCall, string retrievedContent);
     }
 }

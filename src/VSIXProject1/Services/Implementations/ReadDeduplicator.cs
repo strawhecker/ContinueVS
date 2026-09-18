@@ -1,0 +1,92 @@
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using ContinueVS.Core.Types;
+using ContinueVS.Services.Interfaces;
+
+namespace ContinueVS.Services.Implementations
+{
+    /// <summary>
+    /// Identifies pure read tools and extracts their file-path identity (gap80).
+    ///
+    /// Auto-dedup is restricted to pure read tools. Never dedup mutating tools
+    /// (edit_file, run_terminal_command, write_file, create_new_file, git_commit,
+    /// single_find_and_replace, run_pytest, create_rule_block, create_snippet, open_file):
+    /// two edits are not duplicates and merging them would corrupt the change/rollback chain.
+    /// </summary>
+    public class ReadDeduplicator : IReadDeduplicator
+    {
+        private static readonly HashSet<string> PureReadTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "read_file",
+            "view_file",
+            "read_file_range",
+            "grep_search",
+            "git_status",
+            "git_diff",
+            "git_log",
+            "view_diff",
+            "get_problems",
+            "read_currently_open_file"
+        };
+
+        private static readonly HashSet<string> MutatingTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "edit_file",
+            "write_file",
+            "create_new_file",
+            "create_folder",
+            "run_terminal_command",
+            "run_subprocess",
+            "git_commit",
+            "single_find_and_replace",
+            "run_pytest",
+            "create_rule_block",
+            "create_snippet",
+            "open_file"
+        };
+
+        /// <inheritdoc />
+        public bool IsPureReadTool(string toolName)
+        {
+            if (string.IsNullOrEmpty(toolName))
+                return false;
+            // If it's explicitly a mutating tool, never dedup.
+            if (MutatingTools.Contains(toolName))
+                return false;
+            return PureReadTools.Contains(toolName);
+        }
+
+        /// <inheritdoc />
+        public string? ExtractKeyPath(ToolCall toolCall)
+        {
+            if (toolCall?.Arguments == null)
+                return null;
+
+            // These tools carry a single file identity in "filepath".
+            if (toolCall.Arguments.TryGetValue("filepath", out var fp) && fp != null)
+            {
+                var path = fp.ToString();
+                if (!string.IsNullOrWhiteSpace(path))
+                    return Normalize(path);
+            }
+
+            // read_currently_open_file has no argument; dedup by its literal name (the
+            // active file identity changes only via explicit file ops we don't intercept).
+            if (string.Equals(toolCall.Name, "read_currently_open_file", StringComparison.OrdinalIgnoreCase))
+                return "read_currently_open_file";
+
+            return null;
+        }
+
+        private static string Normalize(string path)
+        {
+            // Treat directory separators equivalently so C:\a\b and C:/a/b key the same.
+            var normalized = path.Replace('\\', '/');
+            if (normalized.StartsWith("./", StringComparison.Ordinal))
+                normalized = normalized.Substring(2);
+            return normalized.Trim();
+        }
+    }
+}

@@ -216,6 +216,12 @@ namespace ContinueVS.Services.Implementations
             {
                 foreach (var msg in options.Messages)
                 {
+                    // gap80: soft-delete tombstone exclusion. Messages marked IsDeleted
+                    // (deduped duplicate reads / user-pruned in gap81) are excluded from the
+                    // LLM payload while remaining retained in the session.
+                    if (msg.IsDeleted)
+                        continue;
+
                     var role = msg.Role switch
                     {
                         ChatMessageRole.User => "user",
@@ -226,17 +232,17 @@ namespace ContinueVS.Services.Implementations
                     };
 
                     var msgDict = new Dictionary<string, object>
-                    {
-                        { "role", role }
-                    };
+                        {
+                            { "role", role }
+                        };
 
                     // gap78-openai-content: OpenAI requires that assistant messages carrying
                     // only tool_calls (no text) OMIT the content field rather than send an
                     // empty string. Some OpenAI-compatible servers (vLLM) reject an empty
                     // content on a tool-calling assistant message.
                     bool isToolCallAssistant = msg.Role == ChatMessageRole.Assistant &&
-                                               msg.ToolCalls != null &&
-                                               msg.ToolCalls.Count > 0;
+                                           msg.ToolCalls != null &&
+                                           msg.ToolCalls.Count > 0;
 
                     if (isToolCallAssistant)
                     {
@@ -288,168 +294,168 @@ namespace ContinueVS.Services.Implementations
 
                     messages.Add(msgDict);
                 }
-            }
 
-            // If no messages provided, add a default placeholder
-            if (messages.Count == 0)
-            {
-                messages.Add(new Dictionary<string, object>
+                // If no messages provided, add a default placeholder
+                if (messages.Count == 0)
+                {
+                    messages.Add(new Dictionary<string, object>
                 {
                     { "role", "user" },
                     { "content", "Hello" }
                 });
-            }
+                }
 
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Message count: {messages.Count}");
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Message count: {messages.Count}");
 
-            // Build OpenAI request as JSON object
-            var modelId = model.Name ?? "unknown";
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Model name: {model.Name}, Using: {modelId}");
+                // Build OpenAI request as JSON object
+                var modelId = model.Name ?? "unknown";
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Model name: {model.Name}, Using: {modelId}");
 
-            var requestObj = new Dictionary<string, object>
+                var requestObj = new Dictionary<string, object>
             {
                 { "model", modelId },
                 { "stream", true },
                 { "messages", messages }
             };
 
-            if (options.Temperature.HasValue)
-                requestObj["temperature"] = options.Temperature.Value;
-            if (options.MaxTokens.HasValue)
-                requestObj["max_tokens"] = options.MaxTokens.Value;
-            if (options.TopP.HasValue)
-                requestObj["top_p"] = options.TopP.Value;
+                if (options.Temperature.HasValue)
+                    requestObj["temperature"] = options.Temperature.Value;
+                if (options.MaxTokens.HasValue)
+                    requestObj["max_tokens"] = options.MaxTokens.Value;
+                if (options.TopP.HasValue)
+                    requestObj["top_p"] = options.TopP.Value;
 
-            // Populate tools filtered by current ChatMode (gap71)
-            var availableTools = _toolService.GetAvailableTools(options.Mode);
-            _logger?.WriteDebug($"[gap71-messenger-openai-tools] Mode={options.Mode}, filtering tools: {availableTools.Count()} available");
+                // Populate tools filtered by current ChatMode (gap71)
+                var availableTools = _toolService.GetAvailableTools(options.Mode);
+                _logger?.WriteDebug($"[gap71-messenger-openai-tools] Mode={options.Mode}, filtering tools: {availableTools.Count()} available");
 
-            if (availableTools.Any())
-            {
-                var toolSchemas = ConvertToolsToSchema(availableTools);
-                requestObj["tools"] = toolSchemas;
-                _logger?.WriteDebug($"[gap71-messenger-openai-tools] Populated request.tools with {toolSchemas.Count} schemas for mode {options.Mode}");
-            }
-
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Building request - Model: {modelId}, Stream: true, Temperature: {options.Temperature}");
-
-            // Dump context before sending if debug flag is enabled
-            if (options.Messages != null)
-            {
-                var messageList = options.Messages.ToList();
-                await _contextDumpService.DumpContextBeforeSendAsync(messageList);
-            }
-
-            // POST to OpenAI chat completions endpoint
-            var endpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/v1/chat/completions";
-            var json = JsonConvert.SerializeObject(requestObj);
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Endpoint: {endpoint}");
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Request JSON: {json}");
-
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            if (_logger != null)
-                _logger?.WriteDebug($"MessengerService: POST to {endpoint}");
-
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}: {content}");
-            //LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}...");
-            // ResponseHeadersRead prevents HttpClient from buffering the entire response body before returning.
-            var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
-
-            // Add API key header if provided (some vLLM instances don't require it)
-            if (!string.IsNullOrWhiteSpace(model.ApiKey) && model.ApiKey != "not-required")
-            {
-                request.Headers.Add("Authorization", $"Bearer {model.ApiKey}");
-            }
-
-            HttpResponseMessage response;
-            try
-            {
-                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Response : status code: {response.StatusCode}");
-
-                if (!response.IsSuccessStatusCode)
+                if (availableTools.Any())
                 {
-                    string responseBodyText = "[Unable to read response]";
-                    try
-                    {
-                        responseBodyText = await response.Content.ReadAsStringAsync();
-                    }
-                    catch (Exception readEx)
-                    {
-                        LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Failed to read error response body: {readEx.Message}");
-                    }
-
-                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
-                    throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {responseBodyText}");
+                    var toolSchemas = ConvertToolsToSchema(availableTools);
+                    requestObj["tools"] = toolSchemas;
+                    _logger?.WriteDebug($"[gap71-messenger-openai-tools] Populated request.tools with {toolSchemas.Count} schemas for mode {options.Mode}");
                 }
 
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Status code confirmed successful");
-            }
-            catch (HttpRequestException ex)
-            {
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] HttpRequestException: {ex.Message}");
-                throw new LlmException($"HTTP request to OpenAI-compatible endpoint failed: {ex.Message}", ex);
-            }
-            catch (TaskCanceledException ex)
-            {
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] TaskCanceledException: {ex.Message}");
-                throw new LlmException(
-                    $"OpenAI-compatible request timeout or was cancelled. " +
-                    $"Ensure endpoint is running at {model.BaseUrl}/v1/chat/completions and model '{model.Name}' is available. " +
-                    $"The request may have taken too long to complete.", ex);
-            }
-            catch (Exception ex)
-            {
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
-                throw new LlmException($"Unexpected error during OpenAI-compatible streaming: {ex.Message}", ex);
-            }
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Building request - Model: {modelId}, Stream: true, Temperature: {options.Temperature}");
 
-            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Starting to read response stream...");
-
-            // Read response stream line-by-line (SSE format with "data: " prefix)
-            using (var stream = await response.Content.ReadAsStreamAsync())
-            using (var reader = new StreamReader(stream, Encoding.UTF8))
-            {
-                string? line;
-                int lineCount = 0;
-                while ((line = await reader.ReadLineAsync()) != null)
+                // Dump context before sending if debug flag is enabled
+                if (options.Messages != null)
                 {
-                    ct.ThrowIfCancellationRequested();
+                    var messageList = options.Messages.ToList();
+                    await _contextDumpService.DumpContextBeforeSendAsync(messageList);
+                }
 
-                    // Skip empty lines
-                    if (string.IsNullOrWhiteSpace(line))
-                        continue;
+                // POST to OpenAI chat completions endpoint
+                var endpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/v1/chat/completions";
+                var json = JsonConvert.SerializeObject(requestObj);
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Endpoint: {endpoint}");
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Request JSON: {json}");
 
-                    lineCount++;
-                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Received line {lineCount}: {line}");
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    // Parse SSE format: "data: {json}"
-                    if (!line.StartsWith("data: "))
+                if (_logger != null)
+                    _logger?.WriteDebug($"MessengerService: POST to {endpoint}");
+
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}: {content}");
+                //LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}...");
+                // ResponseHeadersRead prevents HttpClient from buffering the entire response body before returning.
+                var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
+
+                // Add API key header if provided (some vLLM instances don't require it)
+                if (!string.IsNullOrWhiteSpace(model.ApiKey) && model.ApiKey != "not-required")
+                {
+                    request.Headers.Add("Authorization", $"Bearer {model.ApiKey}");
+                }
+
+                HttpResponseMessage response;
+                try
+                {
+                    response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Response : status code: {response.StatusCode}");
+
+                    if (!response.IsSuccessStatusCode)
                     {
-                        LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Skipping non-data line: {line}");
-                        continue;
+                        string responseBodyText = "[Unable to read response]";
+                        try
+                        {
+                            responseBodyText = await response.Content.ReadAsStringAsync();
+                        }
+                        catch (Exception readEx)
+                        {
+                            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Failed to read error response body: {readEx.Message}");
+                        }
+
+                        LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
+                        throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {responseBodyText}");
                     }
 
-                    var jsonData = line.Substring("data: ".Length);
+                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Status code confirmed successful");
+                }
+                catch (HttpRequestException ex)
+                {
+                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] HttpRequestException: {ex.Message}");
+                    throw new LlmException($"HTTP request to OpenAI-compatible endpoint failed: {ex.Message}", ex);
+                }
+                catch (TaskCanceledException ex)
+                {
+                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] TaskCanceledException: {ex.Message}");
+                    throw new LlmException(
+                        $"OpenAI-compatible request timeout or was cancelled. " +
+                        $"Ensure endpoint is running at {model.BaseUrl}/v1/chat/completions and model '{model.Name}' is available. " +
+                        $"The request may have taken too long to complete.", ex);
+                }
+                catch (Exception ex)
+                {
+                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
+                    throw new LlmException($"Unexpected error during OpenAI-compatible streaming: {ex.Message}", ex);
+                }
 
-                    // Check for stream termination marker
-                    if (jsonData == "[DONE]")
-                    {
-                        LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Stream terminated with [DONE] marker");
-                        break;
-                    }
+                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Starting to read response stream...");
 
-                    // Parse JSON response and extract chunk
-                    var chunk = ParseOpenAiChunk(jsonData);
-                    if (chunk != null && typeof(TChunk) == typeof(CompletionChunk))
+                // Read response stream line-by-line (SSE format with "data: " prefix)
+                using (var stream = await response.Content.ReadAsStreamAsync())
+                using (var reader = new StreamReader(stream, Encoding.UTF8))
+                {
+                    string? line;
+                    int lineCount = 0;
+                    while ((line = await reader.ReadLineAsync()) != null)
                     {
-                        yield return (TChunk)(object)chunk;
+                        ct.ThrowIfCancellationRequested();
+
+                        // Skip empty lines
+                        if (string.IsNullOrWhiteSpace(line))
+                            continue;
+
+                        lineCount++;
+                        LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Received line {lineCount}: {line}");
+
+                        // Parse SSE format: "data: {json}"
+                        if (!line.StartsWith("data: "))
+                        {
+                            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Skipping non-data line: {line}");
+                            continue;
+                        }
+
+                        var jsonData = line.Substring("data: ".Length);
+
+                        // Check for stream termination marker
+                        if (jsonData == "[DONE]")
+                        {
+                            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Stream terminated with [DONE] marker");
+                            break;
+                        }
+
+                        // Parse JSON response and extract chunk
+                        var chunk = ParseOpenAiChunk(jsonData);
+                        if (chunk != null && typeof(TChunk) == typeof(CompletionChunk))
+                        {
+                            yield return (TChunk)(object)chunk;
+                        }
                     }
                 }
-            }
 
-            response?.Dispose();
+                response?.Dispose();
+            }
         }
 
         /// <summary>
@@ -634,6 +640,10 @@ namespace ContinueVS.Services.Implementations
             {
                 foreach (var msg in options.Messages)
                 {
+                    // gap80: soft-delete tombstone exclusion (see OpenAI path).
+                    if (msg.IsDeleted)
+                        continue;
+
                     var role = msg.Role switch
                     {
                         ChatMessageRole.User => "user",

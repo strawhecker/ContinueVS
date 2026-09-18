@@ -830,7 +830,7 @@ namespace ContinueVS.Services.Implementations
                 var matches = new List<string>();
                 var regex = new System.Text.RegularExpressions.Regex(pattern);
 
-                foreach (var filePath in workspaceFiles.Take(100))
+                foreach (var filePath in workspaceFiles.Take(700))
                 {
                     try
                     {
