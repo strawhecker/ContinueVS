@@ -1360,8 +1360,7 @@ namespace ContinueVS.ViewModels
                 _llmService.ClearStreamBuffer();
                 _instructionExecutorService.ClearPauseCheckpoint();
 
-                // gap79: Disable send while limit exceeded. A real Send resets the budget via
-                // ResetToolCallLimitForAction, so this only blocks during the active turn.
+                ResetToolCallLimitForAction();
 
                 var userMessage = new ChatMessage
                 {
