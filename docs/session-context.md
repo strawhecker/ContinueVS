@@ -7708,7 +7708,7 @@ String comparisons use `==` or `string.Equals(a, b)` with default case-sensitive
 
 ---
 
-### gap70: Planning Mode Keyword "finalize" Does Not Produce and Display Preview of Plan MD File
+### gap70a: Planning Mode Keyword "finalize" Does Not Produce and Display Preview of Plan MD File
 
 **Status:** ⋯ Pending | Type: Planning Mode Enhancement
 
@@ -7770,7 +7770,7 @@ Users running the planning protocol need a persistent, retrievable record of app
 
 ---
 
-### gap70: LLM Plan File Output Detection & Multi-Mode Preview Integration
+### gap70b: LLM Plan File Output Detection & Multi-Mode Preview Integration
 
 **Status:** ✅ Complete | Type: Cross-Mode Enhancement | Blocking: None | Related: gap43_2, gap27_1
 
@@ -8624,7 +8624,7 @@ public async Task CreateNewSessionAsync();
 
 #### Status
 
-Formatted as a gap per the session-context.md convention. Implementation pending.
+Formatted as a gap per the session-context.md convention. Implementation completed.
 
 #### What the gap is
 
@@ -8669,11 +8669,6 @@ The per-action budget is now agent.maxToolCallsPerAction (default 100) sourced f
   (ExecuteSendMessage → ResetToolCallLimitForAction).
   The IsNewSession member has been removed from SessionChangedEventArgs and
   the new-session reset branch deleted from the handler.
-
-
----
-
-Understood. Here are the two fully written sections — the revised **gap80** (existing ID + limit scaffolding retained, softened-delete/version-retaining dedup merged in) and the new **gap81** — ready to apply.
 
 ---
 
