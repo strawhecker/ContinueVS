@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.IO;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Implementations;
@@ -9,27 +10,41 @@ namespace ContinueVS.Services.Tests
     /// <summary>
     /// Unit tests for policy persistence and restoration (gap27_16).
     /// Tests verify that continuation policy preferences are saved to and loaded from configuration.
-    /// Note: Tests use try-finally for cleanup to ensure isolation despite shared config file access.
+    ///
+    /// Each test uses a unique temp directory so it is fully isolated from the real user
+    /// config (~/.continueVS/continueVS.json) and from other tests that share it, eliminating
+    /// file-lock/state races that could cause intermittent failures.
     /// </summary>
     [Collection("ConfigService Collection")]
     public class PolicyPersistenceTests : IDisposable
     {
+        private readonly string _testConfigDir;
+
+        public PolicyPersistenceTests()
+        {
+            // Create a unique temp directory for this test instance to isolate config file I/O.
+            _testConfigDir = Path.Combine(Path.GetTempPath(), "ContinueVSTests", Guid.NewGuid().ToString());
+            Directory.CreateDirectory(_testConfigDir);
+        }
+
         /// <summary>
-        /// Cleans up the policy setting from config to ensure test isolation.
-        /// Includes small delay to allow file handles to close.
+        /// Creates a ConfigService pointing at the test's isolated temp directory.
         /// </summary>
-        private static async Task CleanupPolicyAsync()
+        private ConfigService CreateConfigService()
+        {
+            return new ConfigService(null, _testConfigDir);
+        }
+
+        /// <summary>
+        /// Cleans up the isolated temp directory and ensures no file handles are left open.
+        /// </summary>
+        public void Dispose()
         {
             try
             {
-                await Task.Delay(50); // Allow file handles to close
-                var service = new ConfigService();
-                await service.InitializeAsync();
-                var config = service.GetCurrentConfig();
-                if (config.CustomSettings.ContainsKey("defaultContinuationPolicy"))
+                if (Directory.Exists(_testConfigDir))
                 {
-                    config.CustomSettings.Remove("defaultContinuationPolicy");
-                    await service.SaveConfigAsync();
+                    Directory.Delete(_testConfigDir, true);
                 }
             }
             catch
@@ -39,46 +54,26 @@ namespace ContinueVS.Services.Tests
         }
 
         /// <summary>
-        /// Disposes and cleans up.
-        /// </summary>
-        public void Dispose()
-        {
-            // Cleanup default policy on dispose
-            _ = CleanupPolicyAsync();
-        }
-
-        /// <summary>
         /// Test 1: SavePolicy_Persists_To_Config
         /// Verifies that SaveDefaultPolicyAsync persists policy to config.json.
         /// </summary>
         [Fact]
         public async Task SavePolicy_Persists_To_Config()
         {
-            try
-            {
-                // Arrange: Clean up initial state
-                await CleanupPolicyAsync();
+            // Arrange: Create ConfigService in isolated temp dir
+            var service = CreateConfigService();
+            await service.InitializeAsync();
 
-                var service = new ConfigService();
-                await service.InitializeAsync();
+            // Act: Save policy as Auto
+            await service.SaveDefaultPolicyAsync(ContinuationPolicy.Auto);
 
-                // Act: Save policy as Auto
-                await service.SaveDefaultPolicyAsync(ContinuationPolicy.Auto);
+            // Create new ConfigService instance to load same config file
+            var service2 = CreateConfigService();
+            await service2.InitializeAsync();
 
-                // Create new ConfigService instance to load same config file
-                await Task.Delay(50);
-                var service2 = new ConfigService();
-                await service2.InitializeAsync();
-
-                // Assert: Verify Auto policy was restored
-                var restoredPolicy = await service2.GetDefaultPolicyAsync();
-                Assert.Equal(ContinuationPolicy.Auto, restoredPolicy);
-            }
-            finally
-            {
-                // Cleanup
-                await CleanupPolicyAsync();
-            }
+            // Assert: Verify Auto policy was restored
+            var restoredPolicy = await service2.GetDefaultPolicyAsync();
+            Assert.Equal(ContinuationPolicy.Auto, restoredPolicy);
         }
 
         /// <summary>
@@ -88,26 +83,15 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task GetPolicy_Returns_InteractiveByDefault()
         {
-            try
-            {
-                // Arrange: Create ConfigService and initialize (no prior policy saved)
-                // Clear any previous policy from config to ensure clean state
-                await CleanupPolicyAsync();
+            // Arrange: Create ConfigService in isolated temp dir (no prior policy saved)
+            var service = CreateConfigService();
+            await service.InitializeAsync();
 
-                var service = new ConfigService();
-                await service.InitializeAsync();
+            // Act: Call GetDefaultPolicyAsync without prior SaveDefaultPolicyAsync
+            var policy = await service.GetDefaultPolicyAsync();
 
-                // Act: Call GetDefaultPolicyAsync without prior SaveDefaultPolicyAsync
-                var policy = await service.GetDefaultPolicyAsync();
-
-                // Assert: Returns Interactive as safe default
-                Assert.Equal(ContinuationPolicy.Interactive, policy);
-            }
-            finally
-            {
-                // Cleanup
-                await CleanupPolicyAsync();
-            }
+            // Assert: Returns Interactive as safe default
+            Assert.Equal(ContinuationPolicy.Interactive, policy);
         }
 
         /// <summary>
@@ -118,29 +102,18 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task RestorePolicy_On_Startup()
         {
-            try
-            {
-                // Arrange: Clean up initial state
-                await CleanupPolicyAsync();
+            // Arrange: Create ConfigService and save policy
+            var service1 = CreateConfigService();
+            await service1.InitializeAsync();
+            await service1.SaveDefaultPolicyAsync(ContinuationPolicy.Deferred);
 
-                var service1 = new ConfigService();
-                await service1.InitializeAsync();
-                await service1.SaveDefaultPolicyAsync(ContinuationPolicy.Deferred);
+            // Act: ConfigService 2 loads same config (simulating restart)
+            var service2 = CreateConfigService();
+            await service2.InitializeAsync();
+            var restoredPolicy = await service2.GetDefaultPolicyAsync();
 
-                // Act: ConfigService 2 loads same config (simulating restart)
-                await Task.Delay(50);
-                var service2 = new ConfigService();
-                await service2.InitializeAsync();
-                var restoredPolicy = await service2.GetDefaultPolicyAsync();
-
-                // Assert: Policy is restored
-                Assert.Equal(ContinuationPolicy.Deferred, restoredPolicy);
-            }
-            finally
-            {
-                // Cleanup
-                await CleanupPolicyAsync();
-            }
+            // Assert: Policy is restored
+            Assert.Equal(ContinuationPolicy.Deferred, restoredPolicy);
         }
 
         /// <summary>
@@ -150,29 +123,19 @@ namespace ContinueVS.Services.Tests
         [Fact]
         public async Task InvalidPolicy_DefaultsToInteractive()
         {
-            try
-            {
-                // Arrange: Create ConfigService and manually inject invalid policy value
-                await CleanupPolicyAsync();
+            // Arrange: Create ConfigService and manually inject invalid policy value
+            var service = CreateConfigService();
+            await service.InitializeAsync();
 
-                var service = new ConfigService();
-                await service.InitializeAsync();
+            // Corrupt the config by setting invalid policy value
+            var config = service.GetCurrentConfig();
+            config.CustomSettings["defaultContinuationPolicy"] = "InvalidValue";
 
-                // Corrupt the config by setting invalid policy value
-                var config = service.GetCurrentConfig();
-                config.CustomSettings["defaultContinuationPolicy"] = "InvalidValue";
+            // Act: Attempt to retrieve policy
+            var policy = await service.GetDefaultPolicyAsync();
 
-                // Act: Attempt to retrieve policy
-                var policy = await service.GetDefaultPolicyAsync();
-
-                // Assert: Falls back to Interactive
-                Assert.Equal(ContinuationPolicy.Interactive, policy);
-            }
-            finally
-            {
-                // Cleanup
-                await CleanupPolicyAsync();
-            }
+            // Assert: Falls back to Interactive
+            Assert.Equal(ContinuationPolicy.Interactive, policy);
         }
 
         /// <summary>
@@ -185,33 +148,19 @@ namespace ContinueVS.Services.Tests
         [InlineData(ContinuationPolicy.Deferred)]
         public async Task AllPolicies_Persist_Correctly(ContinuationPolicy policy)
         {
-            try
-            {
-                // Arrange
-                await CleanupPolicyAsync();
+            // Arrange
+            var service1 = CreateConfigService();
+            await service1.InitializeAsync();
 
-                var service1 = new ConfigService();
-                await service1.InitializeAsync();
+            // Act
+            await service1.SaveDefaultPolicyAsync(policy);
 
-                // Act
-                await service1.SaveDefaultPolicyAsync(policy);
+            var service2 = CreateConfigService();
+            await service2.InitializeAsync();
+            var restored = await service2.GetDefaultPolicyAsync();
 
-                await Task.Delay(50);
-                var service2 = new ConfigService();
-                await service2.InitializeAsync();
-                var restored = await service2.GetDefaultPolicyAsync();
-
-                // Assert
-                Assert.Equal(policy, restored);
-            }
-            finally
-            {
-                // Cleanup
-                await CleanupPolicyAsync();
-            }
+            // Assert
+            Assert.Equal(policy, restored);
         }
     }
 }
-
-
-

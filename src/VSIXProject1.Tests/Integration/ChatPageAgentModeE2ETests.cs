@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -151,8 +151,8 @@ namespace ContinueVS.Tests.Integration
         {
             // Arrange
             var viewModel = CreateChatPageViewModelWithMocks();
+            await viewModel.InitializeAsync();
             viewModel.CurrentMode = ChatMode.Agent;
-
             var userMessage = "Read the file at path /test.txt";
 
             // Mock first LLM response: assistant message with tool call
@@ -166,7 +166,7 @@ namespace ContinueVS.Tests.Integration
                 var firstChunks = new List<CompletionChunk>
                 {
                     new CompletionChunk { Type = ChunkType.Text, Content = "I'll read that file" },
-                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } }) }
+                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = BuildToolCallFragment(0, toolCall), DoneReason = "tool_calls" }
                 };
 
             // Create async enumerable for first LLM response
@@ -241,8 +241,8 @@ namespace ContinueVS.Tests.Integration
         {
             // Arrange
             var viewModel = CreateChatPageViewModelWithMocks();
+            await viewModel.InitializeAsync();
             viewModel.CurrentMode = ChatMode.Agent;
-
             var userMessage = "Read a non-existent file";
 
             var toolCall = new ToolCall
@@ -255,7 +255,7 @@ namespace ContinueVS.Tests.Integration
                 var chunks = new List<CompletionChunk>
                 {
                     new CompletionChunk { Type = ChunkType.Text, Content = "I'll try to read that file" },
-                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall.Id, Function = new ToolCallFunction { Name = toolCall.Name, Arguments = JsonConvert.SerializeObject(toolCall.Arguments) } } }) }
+                    new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = BuildToolCallFragment(0, toolCall), DoneReason = "tool_calls" }
                 };
 
             _mockLlmService.Setup(x => x.StreamAsync(
@@ -295,8 +295,8 @@ namespace ContinueVS.Tests.Integration
         {
             // Arrange
             var viewModel = CreateChatPageViewModelWithMocks();
+            await viewModel.InitializeAsync();
             viewModel.CurrentMode = ChatMode.Agent;
-
             var userMessage = "Analyze this code file";
 
             var toolCall1 = new ToolCall
@@ -323,9 +323,9 @@ namespace ContinueVS.Tests.Integration
             var chunks = new List<CompletionChunk>
             {
                 new CompletionChunk { Type = ChunkType.Text, Content = "I'll analyze the code" },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall1.Id, Function = new ToolCallFunction { Name = toolCall1.Name, Arguments = JsonConvert.SerializeObject(toolCall1.Arguments) } } }) },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall2.Id, Function = new ToolCallFunction { Name = toolCall2.Name, Arguments = JsonConvert.SerializeObject(toolCall2.Arguments) } } }) },
-                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = JsonConvert.SerializeObject(new List<ToolCallSchema> { new ToolCallSchema { Id = toolCall3.Id, Function = new ToolCallFunction { Name = toolCall3.Name, Arguments = JsonConvert.SerializeObject(toolCall3.Arguments) } } }) }
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = BuildToolCallFragment(0, toolCall1) },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = BuildToolCallFragment(1, toolCall2) },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = BuildToolCallFragment(2, toolCall3), DoneReason = "tool_calls" }
             };
 
             int callCount = 0;
@@ -418,13 +418,36 @@ namespace ContinueVS.Tests.Integration
         /// <summary>
         /// Helper to create async enumerable from chunks.
         /// </summary>
-        private async IAsyncEnumerable<CompletionChunk> GenerateChunksAsync(List<CompletionChunk> chunks, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        private static async IAsyncEnumerable<CompletionChunk> GenerateChunksAsync(List<CompletionChunk> chunks, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
             foreach (var chunk in chunks)
             {
                 yield return chunk;
                 await Task.Delay(1, ct);
             }
+        }
+
+        /// <summary>
+        /// Builds an Ollama/OpenAI-style tool call fragment JSON with an explicit
+        /// index field, matching the format the ToolCallAggregator expects so it
+        /// can distinguish and merge multiple tool calls in a batch.
+        /// </summary>
+        private static string BuildToolCallFragment(int index, ToolCall toolCall)
+        {
+            return JsonConvert.SerializeObject(new object[]
+            {
+                new
+                {
+                    index,
+                    id = toolCall.Id,
+                    type = "function",
+                    function = new
+                    {
+                        name = toolCall.Name,
+                        arguments = JsonConvert.SerializeObject(toolCall.Arguments)
+                    }
+                }
+            });
         }
     }
 }
