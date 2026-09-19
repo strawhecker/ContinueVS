@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -42,6 +42,16 @@ namespace ContinueVS.UI.Navigation
                     return;
                 }
 
+                // If the requested route's page is already hosted, do NOT recreate it.
+                // Re-creating on every tab-return discards the fully-rendered visual tree
+                // (hundreds of markdown/code-block messages) and forces a full, costly redraw
+                // for zero benefit. The existing page + ViewModel retains all its state.
+                if (IsCurrentContent(frame, pageType))
+                {
+                    LoggerService.Current.WriteDebug($"[g7-nav-skip] PageNavigator: '{route}' already hosted ({pageType.Name}) — skipping recreation (no redraw).");
+                    return;
+                }
+
                 var instance = Activator.CreateInstance(pageType);
                 if (instance == null)
                 {
@@ -71,6 +81,25 @@ namespace ContinueVS.UI.Navigation
             }
 
             await Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Determines whether the given page type is already the current content of the frame.
+        /// Used to avoid re-creating (and fully re-rendering) a page that is already hosted,
+        /// which otherwise happens on every tab-return and discards all rendered state.
+        /// </summary>
+        private static bool IsCurrentContent(Frame? frame, Type pageType)
+        {
+            var content = frame?.Content;
+            if (content == null)
+                return false;
+
+            // Frame.Content holds the exact page/control instance we created.
+            if (content.GetType() == pageType)
+                return true;
+
+            // A navigated Page may be wrapped in a journal entry host; fall back to type name.
+            return content.GetType().Name == pageType.Name;
         }
     }
 }
