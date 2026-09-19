@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -245,6 +245,65 @@ namespace ContinueVS.Services.Implementations
                 }
 
                 session.Messages.Remove(message);
+                session.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await SaveSessionToFileAsync(session);
+        }
+
+        /// <summary>
+        /// <summary>
+        /// Soft-deletes a message in the current session (gap81).
+        /// Marks the message IsDeleted = true (gap80 tombstone), persists, and NEVER
+        /// hard-removes the bytes. The entry stays in the session so the user can undelete it.
+        /// </summary>
+        public async Task SoftDeleteMessageAsync(string messageId)
+        {
+            if (string.IsNullOrWhiteSpace(messageId))
+            {
+                throw new ArgumentException("Message ID cannot be null or empty.", nameof(messageId));
+            }
+
+            var session = GetCurrentSession();
+
+            lock (_lockObj)
+            {
+                var message = session.Messages.FirstOrDefault(m => m.Id == messageId);
+                if (message == null)
+                {
+                    throw new InvalidOperationException($"Message with ID '{messageId}' not found in current session.");
+                }
+
+                message.IsDeleted = true;
+                session.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await SaveSessionToFileAsync(session);
+        }
+
+        /// <summary>
+        /// Undeletes a previously soft-deleted message in the current session (gap81).
+        /// Clears the gap80 tombstone (IsDeleted = false) and persists. Visibility only;
+        /// no file-state/restore operation is performed (restore is a separate future gap).
+        /// </summary>
+        public async Task UndeleteMessageAsync(string messageId)
+        {
+            if (string.IsNullOrWhiteSpace(messageId))
+            {
+                throw new ArgumentException("Message ID cannot be null or empty.", nameof(messageId));
+            }
+
+            var session = GetCurrentSession();
+
+            lock (_lockObj)
+            {
+                var message = session.Messages.FirstOrDefault(m => m.Id == messageId);
+                if (message == null)
+                {
+                    throw new InvalidOperationException($"Message with ID '{messageId}' not found in current session.");
+                }
+
+                message.IsDeleted = false;
                 session.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -505,7 +564,7 @@ namespace ContinueVS.Services.Implementations
             // Retrieve User/Assistant history ordered oldest-first
             var session = GetCurrentSession();
             var history = session.Messages
-                .Where(m => m.Role == ChatMessageRole.User || m.Role == ChatMessageRole.Assistant)
+                .Where(m => !m.IsDeleted && (m.Role == ChatMessageRole.User || m.Role == ChatMessageRole.Assistant))
                 .OrderBy(m => m.Timestamp ?? DateTime.MinValue)
                 .ToList();
 
@@ -567,9 +626,9 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Gets the current context budget state based on estimated token usage.
-        /// Safe: tokens ≤ (maxTokens - reserve) * 0.85
-        /// Caution: tokens ∈ ((maxTokens - reserve) * 0.85, maxTokens - reserve)
-        /// Locked: tokens ≥ (maxTokens - reserve)
+        /// Safe: tokens = (maxTokens - reserve) * 0.85
+        /// Caution: tokens ? ((maxTokens - reserve) * 0.85, maxTokens - reserve)
+        /// Locked: tokens = (maxTokens - reserve)
         /// Assumes default maxTokens of 4096, reserve of 512 if not configured.
         /// </summary>
         public ContextBudgetState GetContextBudgetState()

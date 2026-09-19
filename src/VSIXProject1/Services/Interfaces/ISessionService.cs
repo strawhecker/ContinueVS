@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
@@ -59,6 +59,29 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="messageId">The ID of the message to delete.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task DeleteMessageAsync(string messageId);
+
+        /// <summary>
+        /// Soft-deletes a message in the current session (gap81).
+        /// Marks the message IsDeleted = true (gap80 tombstone); retains the bytes in the
+        /// session so the user can undelete it. The tombstone excludes the entry from the
+        /// payload serialized to the LLM at request time (see PackageMessages). Never hard-removes.
+        /// </summary>
+        /// <param name="messageId">The ID of the message to soft-delete.</param>
+        /// <exception cref="ArgumentException">Thrown when messageId is null or whitespace.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the message is not found in the current session.</exception>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task SoftDeleteMessageAsync(string messageId);
+
+        /// <summary>
+        /// Undeletes a previously soft-deleted message in the current session (gap81).
+        /// Clears the gap80 tombstone (IsDeleted = false), restoring the entry to the payload
+        /// serialized to the LLM. Visibility-only; performs no file-state/restore operation.
+        /// </summary>
+        /// <param name="messageId">The ID of the message to undelete.</param>
+        /// <exception cref="ArgumentException">Thrown when messageId is null or whitespace.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the message is not found in the current session.</exception>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task UndeleteMessageAsync(string messageId);
 
         /// <summary>
         /// Lists all available sessions.
