@@ -8949,6 +8949,54 @@ nothing is ever mutated in place — the log only grows.
 
 ---
 
+### gap84: User-Defined Custom Tools (LLM-Invented Action Surface)
+
+**Status:** 🔴 Proposed | Type: Tool System / Agent Capability Extension
+
+**Problem:**
+The current tool system is a fixed, closed set — the extension author defines every tool (BuiltInToolsRegistry + SupportsFunctionCalling), and the LLM may only call what is declared. This means the "action surface" available to the LLM is hard-coded at build time. There is no mechanism for the extension author (the person running this VS extension) to inject a tool the LLM has never seen, with a custom name, a custom argument, and instructions for when/how to use it.
+
+**Core Idea (write_plan example):**
+- The author invents a tool the LLM has never encountered: `write_plan` with a single `plan` argument.
+- In a "Planning Mode" that exposes **readonly tools only**, this one write-capable tool is the sole exception.
+- The author gives instructions: *"When the user requests that you save the plan without giving you a file, use the write_plan tool."*
+- The LLM should treat `write_plan` as a first-class action exactly like any built-in tool — inferring usage from the supplied schema + instruction and emitting a structured tool call on demand.
+
+**What must hold (the semantics):**
+1. **The LLM only emits the call** — it never performs I/O. The extension's ToolService (or a custom handler) actually executes `write_plan` and writes the file.
+2. **Results are a two-hop loop:** model → tool call (`write_plan(plan="...")`) → extension executes → returns a result message ("Plan saved to ~/.continueVS/plans/...") → model reads result and reports to the user.
+3. **Blocking a tool = removing it from the schema** = removing that action from the model's world entirely. Restricting to readonly tools + `write_plan` genuinely constrains behavior; there is no conceptual bypass.
+
+**Decided behavior:**
+- Custom tools are defined by the extension author, not the LLM. Author supplies: name, description, parameter schema (single `plan` arg for write_plan), and trigger instructions.
+- Mode-gating must work: a custom tool can be exposed in only certain modes (e.g. `write_plan` only in Plan mode) via existing `SupportedModes` / `ModeConfig` plumbing.
+- Runtime gatekeeping: the extension must reject unknown/hallucinated tool names (strict allowlist); the model's filter is best-effort, the runtime is the real gatekeeper.
+- Tool execution routes through the existing `IToolService.InvokeAsync()` / `IAgentCommandDispatcher` pipeline so policy, audit logging, and tool-loop limits still apply.
+
+**Files to Modify (candidates):**
+- `src/VSIXProject1/Core/Types/ToolDefinition.cs` — support author-defined (non-builtin) tools (partially supported; extend for custom runtime handlers)
+- `src/VSIXProject1/Services/Implementations/ToolService.cs` — register + route custom tools whose execution is handled by the extension
+- `src/VSIXProject1/Services/Interfaces/IToolService.cs` — add registration API for custom tools
+- `src/VSIXProject1/Services/Implementations/AgentCommandDispatcher.cs` — allow custom tools through mode validation
+- New handler for `write_plan` reuse/route to existing `IPlanOutputService.SavePlanAsync`
+
+**Testing Strategy:**
+- Register `write_plan` as a custom tool; verify it appears in available tools for Plan mode only
+- Verify LLM emits `write_plan(plan="...")` when instructed (and a plan file is persisted with correct content)
+- Verify readonly tools remain the only others available in Planning Mode
+- Verify unknown tool names are rejected and do not execute
+- Verify result message flows back into chat ("Plan saved to ...")
+
+**Risks & Decisions:**
+- **Hallucinated tool names:** model may invent a tool not declared; runtime must reject with strict allowlist.
+- **Vague instructions** cause the model to ask clarifying questions instead of invoking the tool; keep trigger conditions explicit, include negative guidance.
+- **Empty/missing result message:** if the extension returns nothing, the model may fabricate a confirmation — always return concrete result text.
+- The LLM "has never seen the tool" — this is intentional; it infers usage from schema + instructions per-conversation, which is the whole point.
+
+**Blocking / Unblocks:** None (new capability). Reuses gap43/`PlanOutputService` for the `write_plan` execution side.
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
