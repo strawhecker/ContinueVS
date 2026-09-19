@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -2210,20 +2210,60 @@ namespace ContinueVS.ViewModels
                     sessions.Add(sessionMeta);
                 }
 
-                // Update collection on UI thread
-                await SwitchToMainThreadAsync();
+                var orderedSessions = sessions.OrderByDescending(s => s.UpdatedAt).ToList();
 
-                AvailableSessions.Clear();
-                foreach (var session in sessions.OrderByDescending(s => s.UpdatedAt))
+                // Resolve the current session id on a worker/async context before touching the UI collection.
+                string? currentSessionId = null;
+                try
                 {
-                    AvailableSessions.Add(session);
+                    currentSessionId = await _sessionService.GetCurrentSessionIdAsync();
+                }
+                catch (Exception ex)
+                {
+                    LoggerService.Current.WriteError($"[gap76-refresh] Failed to read current session id: {ex.Message}", ex);
                 }
 
-                // Update current session reference
-                var currentSessionId = await _sessionService.GetCurrentSessionIdAsync();
-                if (currentSessionId != null)
+                // gap76-fix: Mutate the ObservableCollection on the Dispatcher thread deterministically.
+                // Simply awaiting SwitchToMainThreadAsync() and mutating afterward is NOT reliable here:
+                // ListSessionsAsync()/GetCurrentSessionIdAsync() may break the WPF SynchronizationContext,
+                // so the continuation after those awaits can resume on a thread-pool thread where there is
+                // no DispatcherSynchronizationContext to route back to. Await a DispatcherOperation alone
+                // resumes on the caller's captured context, not necessarily the dispatcher — leading to
+                // "CollectionView does not support changes to its SourceCollection from a thread different
+                // from the Dispatcher thread" when AvailableSessions is bound to a CollectionView.
+                // Running the mutation inside Dispatcher.Invoke guarantees it executes on the UI thread.
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
                 {
-                    CurrentSession = sessions.FirstOrDefault(s => s.Id == currentSessionId);
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
+                    dispatcher.Invoke(() =>
+#pragma warning restore VSTHRD001
+                    {
+                        AvailableSessions.Clear();
+                        foreach (var session in orderedSessions)
+                        {
+                            AvailableSessions.Add(session);
+                        }
+
+                        if (currentSessionId != null)
+                        {
+                            CurrentSession = orderedSessions.FirstOrDefault(s => s.Id == currentSessionId);
+                        }
+                    });
+                }
+                else
+                {
+                    // No dispatcher (unit test contexts) or already on the dispatcher thread: update directly.
+                    AvailableSessions.Clear();
+                    foreach (var session in orderedSessions)
+                    {
+                        AvailableSessions.Add(session);
+                    }
+
+                    if (currentSessionId != null)
+                    {
+                        CurrentSession = orderedSessions.FirstOrDefault(s => s.Id == currentSessionId);
+                    }
                 }
 
                 LoggerService.Current.WriteDebug($"[gap76-refresh] Loaded {sessions.Count} sessions");
