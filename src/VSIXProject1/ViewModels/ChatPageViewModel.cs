@@ -562,6 +562,19 @@ namespace ContinueVS.ViewModels
         /// </summary>
         public RelayCommand<string> DeleteMessageCommand { get; }
         /// <summary>
+        /// Command to soft-delete (prune) a message by ID (gap81).
+        /// Marks the message IsDeleted = true so it is excluded from the LLM payload,
+        /// but retains the bytes in the session for undelete. Never hard-removes.
+        /// </summary>
+        public RelayCommand<string> SoftDeleteMessageCommand { get; }
+
+        /// <summary>
+        /// Command to undelete a previously soft-deleted message by ID (gap81).
+        /// Clears the IsDeleted tombstone, restoring the entry to the LLM payload.
+        /// Visibility only; performs no file-state/restore operation.
+        /// </summary>
+        public RelayCommand<string> UndeleteMessageCommand { get; }
+        /// <summary>
         /// Command to toggle pause state (gap31_1).
         /// </summary>
         public RelayCommand PauseCommand { get; }
@@ -675,6 +688,8 @@ namespace ContinueVS.ViewModels
             AddContextCommand = new RelayCommand<string>(ExecuteAddContext);
             SetModeCommand = new RelayCommand<ChatMode>(mode => CurrentMode = mode);
             DeleteMessageCommand = new RelayCommand<string>(ExecuteDeleteMessage);
+            SoftDeleteMessageCommand = new RelayCommand<string>(ExecuteSoftDeleteMessage);
+            UndeleteMessageCommand = new RelayCommand<string>(ExecuteUndeleteMessage);
             PauseCommand = new RelayCommand(ExecutePause, () => IsStreaming);
             NewChatCommand = new RelayCommand(() => _ = ExecuteNewChatAsync(), () => !IsStreaming);
             CopyCodeBlockCommand = new RelayCommand<string>(ExecuteCopyCodeBlock);
@@ -2451,6 +2466,107 @@ namespace ContinueVS.ViewModels
             }
         }
 
+        /// <summary>
+        /// Executes the soft-delete (prune) command (gap81).
+        /// Marks the message IsDeleted = true in place (retains the element in the collection
+        /// so the user can undelete it) and persists asynchronously. Never removes the element.
+        /// </summary>
+        private void ExecuteSoftDeleteMessage(string messageId)
+        {
+            LoggerService.Current.WriteDebug($"[gap81-softdelete-cmd] ExecuteSoftDeleteMessage called with ID: {messageId}");
+
+            if (string.IsNullOrWhiteSpace(messageId))
+            {
+                LoggerService.Current.WriteDebug("[gap81-softdelete-cmd] messageId is null/empty, aborting");
+                return;
+            }
+
+            var message = Messages.FirstOrDefault(m => m.Id == messageId);
+            if (message == null)
+            {
+                LoggerService.Current.WriteDebug($"[gap81-softdelete-cmd] Message with ID {messageId} not found in collection.");
+                return;
+            }
+
+            message.IsDeleted = true;
+            LoggerService.Current.WriteDebug($"[gap81-softdelete-cmd] Message {messageId} marked soft-deleted.");
+
+            // Persist asynchronously (fire-and-forget with error handling)
+            _ = ExecuteSoftDeleteMessageAsync(messageId, message);
+        }
+
+        /// <summary>
+        /// Asynchronously persists message soft-deletion to the service (gap81).
+        /// If persistence fails, rolls back the in-memory tombstone to false and notifies the user.
+        /// </summary>
+        private async Task ExecuteSoftDeleteMessageAsync(string messageId, ChatMessage messageToRollback)
+        {
+            try
+            {
+                LoggerService.Current.WriteDebug($"[gap81-softdelete-service] Calling SoftDeleteMessageAsync for ID: {messageId}");
+                await _sessionService.SoftDeleteMessageAsync(messageId);
+                LoggerService.Current.WriteDebug($"[gap81-softdelete-service] Successfully soft-deleted message ID: {messageId}");
+            }
+            catch (Exception ex)
+            {
+                // If persistence fails, roll back the tombstone and notify
+                messageToRollback.IsDeleted = false;
+                LoggerService.Current.WriteError($"[gap81-softdelete-error] Soft-delete failed, rolling back: {ex.Message}", ex);
+                await _notificationService.ShowNotificationAsync("Prune Failed",
+                    $"Could not prune message: {ex.Message}", NotificationType.Error);
+            }
+        }
+
+        /// <summary>
+        /// Executes the undelete command (gap81).
+        /// Clears the IsDeleted tombstone in place (restores visibility / LLM payload inclusion)
+        /// and persists asynchronously. Visibility only; performs no file-state/restore operation.
+        /// </summary>
+        private void ExecuteUndeleteMessage(string messageId)
+        {
+            LoggerService.Current.WriteDebug($"[gap81-undelete-cmd] ExecuteUndeleteMessage called with ID: {messageId}");
+
+            if (string.IsNullOrWhiteSpace(messageId))
+            {
+                LoggerService.Current.WriteDebug("[gap81-undelete-cmd] messageId is null/empty, aborting");
+                return;
+            }
+
+            var message = Messages.FirstOrDefault(m => m.Id == messageId);
+            if (message == null)
+            {
+                LoggerService.Current.WriteDebug($"[gap81-undelete-cmd] Message with ID {messageId} not found in collection.");
+                return;
+            }
+
+            message.IsDeleted = false;
+            LoggerService.Current.WriteDebug($"[gap81-undelete-cmd] Message {messageId} cleared soft-deleted tombstone.");
+
+            // Persist asynchronously (fire-and-forget with error handling)
+            _ = ExecuteUndeleteMessageAsync(messageId, message);
+        }
+
+        /// <summary>
+        /// Asynchronously persists message undelete to the service (gap81).
+        /// If persistence fails, rolls back the in-memory tombstone to true and notifies the user.
+        /// </summary>
+        private async Task ExecuteUndeleteMessageAsync(string messageId, ChatMessage messageToRollback)
+        {
+            try
+            {
+                LoggerService.Current.WriteDebug($"[gap81-undelete-service] Calling UndeleteMessageAsync for ID: {messageId}");
+                await _sessionService.UndeleteMessageAsync(messageId);
+                LoggerService.Current.WriteDebug($"[gap81-undelete-service] Successfully undeleted message ID: {messageId}");
+            }
+            catch (Exception ex)
+            {
+                // If persistence fails, roll back the tombstone and notify
+                messageToRollback.IsDeleted = true;
+                LoggerService.Current.WriteError($"[gap81-undelete-error] Undelete failed, rolling back: {ex.Message}", ex);
+                await _notificationService.ShowNotificationAsync("Undelete Failed",
+                    $"Could not undelete message: {ex.Message}", NotificationType.Error);
+            }
+        }
         /// <summary>
         /// Executes copy command for code blocks (gap49).
         /// Copies the code block content to clipboard.

@@ -8752,10 +8752,39 @@ Three capabilities, one coherent design:
 
 #### Status
 
-Planned and finalized. Implements Idea 3 of the soft-delete understanding: let
-the user prune question/answer entries from history to save context size.
-Manual counterpart to gap80's auto-dedup. Builds on gap80's tombstone
-primitive. **Includes undelete; does NOT include restore.**
+✅ **Complete** | Type: User-Selectable History Prune / Soft-Delete (with Undelete, no Restore)
+
+Implemented as the manual counterpart to gap80's auto-dedup, reusing the gap80
+tombstone primitive (ChatMessage.IsDeleted). The user can soft-delete (prune) any
+Q&A entry from history — marked IsDeleted = true so it is excluded from the LLM
+payload at request time — and undelete it (toggle tombstone back, restoring it to
+the serialized context). Pruning NEVER hard-removes and NEVER performs a
+file-state restore; gap17 (hard-remove) behavior is preserved.
+
+**Decided behavior implemented**
+1. **Soft-delete (prune)** — marks IsDeleted = true; retains bytes; excluded from
+   the payload serialized to the LLM via PackageMessages.
+2. **Undelete** — clears the tombstone (IsDeleted = false), restoring the entry to
+   the serialized context. Visibility only; no file-state operation.
+3. **No restore** — out of scope (future gap). gap81 only moves lines in/out of
+   the LLM payload.
+4. **PackageMessages excludes pruned entries** — soft-deleted User/Assistant turns
+   are filtered out of the LLM payload; system + new user turn always included.
+
+**Files changed:**
+- `src/VSIXProject1/Services/Interfaces/ISessionService.cs` — added
+  `SoftDeleteMessageAsync`, `UndeleteMessageAsync`.
+- `src/VSIXProject1/Services/Implementations/SessionService.cs` — implemented both
+  methods (tombstone toggle + persist); `PackageMessages` now excludes `IsDeleted`.
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — added `SoftDeleteMessageCommand`
+  and `UndeleteMessageCommand` plus handlers with error rollback + notification.
+
+**Tests added:**
+- `src/VSIXProject1.Tests/Services/SessionServicePruneUndeleteGap81Tests.cs` (8 tests)
+- `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelGap81PruneTests.cs` (6 tests)
+
+**Validation:** Build succeeded (0 warnings, 0 errors); full test suite: 1340 passed,
+0 failed, 0 skipped.
 
 #### What the gap is
 
