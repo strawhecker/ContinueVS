@@ -1,32 +1,41 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
-using ContinueVS.Services;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
-using Newtonsoft.Json;
 
 namespace ContinueVS.Services.Implementations
 {
     /// <summary>
     /// Implementation of ISessionService that manages conversation sessions.
-    /// Handles creation, persistence, and navigation of sessions with file-based storage.
+    ///
+    /// gap83 — Persistence is a write-only, append-only JSONL delta log. There is no
+    /// full-file rewrite: each mutation serializes ONE tagged delta line to a dedicated
+    /// background writer thread, and the session is reconstructed by replaying the log
+    /// from the beginning on reopen. An O(1) dictionary holds the SAME ChatMessage
+    /// references as <see cref="Session.Messages"/>, so updates are O(1) and
+    /// INotifyPropertyChanged is preserved. <see cref="Session.Messages"/> is the live
+    /// LLM surface. Reads (reopen) run on a pooled worker thread via Task.Run so the
+    /// UI is never blocked by a long session.
     /// </summary>
-    public class SessionService : ISessionService
+    public class SessionService : ISessionService, IDisposable
     {
         private Session? _currentSession;
         private readonly object _lockObj = new object();
         private readonly ITokenCountingService _tokenCountingService;
+        private readonly SessionDeltaLog _deltaLog;
+        private readonly Dictionary<string, ChatMessage> _messageIndex = new Dictionary<string, ChatMessage>();
+        private readonly HashSet<string> _initializedSessions = new HashSet<string>();
         private ContextBudgetState _cachedBudgetState = ContextBudgetState.Safe;
+        private bool _disposed;
 
         /// <summary>
-        /// Computes the base directory for session storage: ~/.continue/sessions/
+        /// Computes the base directory for session storage: ~/.continueVS/sessions/
         /// </summary>
-        private string SessionStoragePath
+        private static string DefaultSessionStoragePath
         {
             get
             {
@@ -35,17 +44,26 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
-        public event EventHandler<SessionChangedEventArgs>? SessionChanged;
-        public event EventHandler<MessageAddedEventArgs>? MessageAdded;
+        /// <summary>
+        /// Creates a SessionService using the default ~/.continueVS/sessions directory.
+        /// </summary>
+        public SessionService(ITokenCountingService tokenCountingService)
+            : this(tokenCountingService, DefaultSessionStoragePath)
+        {
+        }
 
         /// <summary>
-        /// Initializes a new instance of the SessionService with token counting dependency.
+        /// Creates a SessionService writing to an explicit storage directory (used by
+        /// tests for isolation; the default constructor preserves DI compatibility).
         /// </summary>
-        /// <param name="tokenCountingService">Service for estimating message tokens</param>
-        public SessionService(ITokenCountingService tokenCountingService)
+        public SessionService(ITokenCountingService tokenCountingService, string storageDirectory)
         {
             _tokenCountingService = tokenCountingService ?? throw new ArgumentNullException(nameof(tokenCountingService));
+            _deltaLog = new SessionDeltaLog(storageDirectory);
         }
+
+        public event EventHandler<SessionChangedEventArgs>? SessionChanged;
+        public event EventHandler<MessageAddedEventArgs>? MessageAdded;
 
         /// <summary>
         /// Gets the currently active session.
@@ -89,12 +107,13 @@ namespace ContinueVS.Services.Implementations
                 ToolCallsExecuted = 0
             };
 
-            await SaveSessionToFileAsync(newSession);
-
             lock (_lockObj)
             {
                 _currentSession = newSession;
+                RebuildIndexFor(newSession);
             }
+
+            await SaveSessionToFileAsync(newSession);
 
             SessionChanged?.Invoke(this, new SessionChangedEventArgs
             {
@@ -106,7 +125,8 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Saves the current session to persistent storage.
+        /// Saves the current session to the JSONL delta log: guarantees the init header
+        /// is present and flushes all pending deltas to disk.
         /// </summary>
         public async Task SaveCurrentSessionAsync()
         {
@@ -125,7 +145,9 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Loads a session by ID and sets it as the current session.
-        /// Restores mode from Session.Mode if present (gap27_5).
+        /// Replays the JSONL log from the beginning on a background worker thread so the
+        /// UI is never blocked by a long session; the async continuation wires results.
+        /// Restores mode from the replayed init delta (gap27_5).
         /// </summary>
         public async Task LoadSessionAsync(string sessionId)
         {
@@ -134,11 +156,15 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Session ID cannot be null or empty.", nameof(sessionId));
             }
 
+            // Flush any in-flight writes so the reader sees an ordered, complete log.
+            _deltaLog.FlushSync();
+
             var session = await LoadSessionFromFileAsync(sessionId);
 
             lock (_lockObj)
             {
                 _currentSession = session;
+                RebuildIndexFor(session);
             }
 
             SessionChanged?.Invoke(this, new SessionChangedEventArgs
@@ -152,7 +178,10 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Adds a message to the current session and fires MessageAdded event.
+        /// Adds a message to the current session: mutates in-memory O(1), enqueues an
+        /// "add" delta, and flushes so the message is durable before returning. The
+        /// instance stored in Session.Messages is the SAME reference tracked by the
+        /// O(1) dictionary (INPC preserved).
         /// </summary>
         public async Task AddMessageAsync(ChatMessage message)
         {
@@ -177,10 +206,16 @@ namespace ContinueVS.Services.Implementations
             lock (_lockObj)
             {
                 session.Messages.Add(message);
+                _messageIndex[message.Id!] = message;
                 session.UpdatedAt = DateTime.UtcNow;
             }
 
-            await SaveSessionToFileAsync(session);
+            await AppendDeltaAndFlushAsync(new SessionDeltaAdd
+            {
+                SessionId = session.Id,
+                MessageId = message.Id,
+                Message = message
+            });
 
             MessageAdded?.Invoke(this, new MessageAddedEventArgs
             {
@@ -193,6 +228,8 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Updates a message in the current session by ID.
+        /// Mutates the SAME instance held by the dictionary/list (O(1), INPC preserved)
+        /// and appends an "update" delta.
         /// </summary>
         public async Task UpdateMessageAsync(string messageId, ChatMessage updatedMessage)
         {
@@ -207,25 +244,32 @@ namespace ContinueVS.Services.Implementations
             }
 
             var session = GetCurrentSession();
+            ChatMessage existing;
 
             lock (_lockObj)
             {
-                var index = session.Messages.FindIndex(m => m.Id == messageId);
-                if (index < 0)
+                if (!_messageIndex.TryGetValue(messageId, out existing!))
                 {
                     throw new InvalidOperationException($"Message with ID '{messageId}' not found in current session.");
                 }
 
                 updatedMessage.Id = messageId; // Preserve ID
-                session.Messages[index] = updatedMessage;
+                SessionDeltaLog.MergeInto(existing, updatedMessage);
                 session.UpdatedAt = DateTime.UtcNow;
             }
 
-            await SaveSessionToFileAsync(session);
+            await AppendDeltaAndFlushAsync(new SessionDeltaUpdate
+            {
+                SessionId = session.Id,
+                MessageId = messageId,
+                Message = existing
+            });
         }
 
         /// <summary>
-        /// Deletes a message from the current session by ID.
+        /// Deletes a message from the current session by ID: removes it from the
+        /// in-memory index/list and appends a "delete" delta (bytes are never erased
+        /// from the log — append-only).
         /// </summary>
         public async Task DeleteMessageAsync(string messageId)
         {
@@ -238,24 +282,27 @@ namespace ContinueVS.Services.Implementations
 
             lock (_lockObj)
             {
-                var message = session.Messages.FirstOrDefault(m => m.Id == messageId);
-                if (message == null)
+                if (!_messageIndex.TryGetValue(messageId, out var message))
                 {
                     throw new InvalidOperationException($"Message with ID '{messageId}' not found in current session.");
                 }
 
                 session.Messages.Remove(message);
+                _messageIndex.Remove(messageId);
                 session.UpdatedAt = DateTime.UtcNow;
             }
 
-            await SaveSessionToFileAsync(session);
+            await AppendDeltaAndFlushAsync(new SessionDeltaDelete
+            {
+                SessionId = session.Id,
+                MessageId = messageId
+            });
         }
 
         /// <summary>
-        /// <summary>
-        /// Soft-deletes a message in the current session (gap81).
-        /// Marks the message IsDeleted = true (gap80 tombstone), persists, and NEVER
-        /// hard-removes the bytes. The entry stays in the session so the user can undelete it.
+        /// Soft-deletes a message in the current session (gap81): marks IsDeleted = true
+        /// (gap80 tombstone) on the SAME instance, appends a "softDelete" delta, and
+        /// NEVER hard-removes the bytes. The entry stays in the session for undelete.
         /// </summary>
         public async Task SoftDeleteMessageAsync(string messageId)
         {
@@ -268,8 +315,7 @@ namespace ContinueVS.Services.Implementations
 
             lock (_lockObj)
             {
-                var message = session.Messages.FirstOrDefault(m => m.Id == messageId);
-                if (message == null)
+                if (!_messageIndex.TryGetValue(messageId, out var message))
                 {
                     throw new InvalidOperationException($"Message with ID '{messageId}' not found in current session.");
                 }
@@ -278,13 +324,16 @@ namespace ContinueVS.Services.Implementations
                 session.UpdatedAt = DateTime.UtcNow;
             }
 
-            await SaveSessionToFileAsync(session);
+            await AppendDeltaAndFlushAsync(new SessionDeltaSoftDelete
+            {
+                SessionId = session.Id,
+                MessageId = messageId
+            });
         }
 
         /// <summary>
         /// Undeletes a previously soft-deleted message in the current session (gap81).
-        /// Clears the gap80 tombstone (IsDeleted = false) and persists. Visibility only;
-        /// no file-state/restore operation is performed (restore is a separate future gap).
+        /// Clears the gap80 tombstone (IsDeleted = false) and appends an "undelete" delta.
         /// </summary>
         public async Task UndeleteMessageAsync(string messageId)
         {
@@ -297,8 +346,7 @@ namespace ContinueVS.Services.Implementations
 
             lock (_lockObj)
             {
-                var message = session.Messages.FirstOrDefault(m => m.Id == messageId);
-                if (message == null)
+                if (!_messageIndex.TryGetValue(messageId, out var message))
                 {
                     throw new InvalidOperationException($"Message with ID '{messageId}' not found in current session.");
                 }
@@ -307,11 +355,15 @@ namespace ContinueVS.Services.Implementations
                 session.UpdatedAt = DateTime.UtcNow;
             }
 
-            await SaveSessionToFileAsync(session);
+            await AppendDeltaAndFlushAsync(new SessionDeltaUndelete
+            {
+                SessionId = session.Id,
+                MessageId = messageId
+            });
         }
 
         /// <summary>
-        /// Lists all available sessions asynchronously.
+        /// Lists all available sessions by scanning the *.jsonl delta logs.
         /// </summary>
         public async IAsyncEnumerable<SessionMetadata> ListSessionsAsync(int limit = 50)
         {
@@ -321,7 +373,7 @@ namespace ContinueVS.Services.Implementations
                 yield break;
             }
 
-            var files = directory.GetFiles("*.json")
+            var files = directory.GetFiles("*.jsonl")
                 .OrderByDescending(f => f.LastWriteTimeUtc)
                 .Take(limit);
 
@@ -366,7 +418,7 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Deletes a session by ID.
+        /// Deletes a session's JSONL log by ID.
         /// </summary>
         public async Task DeleteSessionAsync(string sessionId)
         {
@@ -375,7 +427,7 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Session ID cannot be null or empty.", nameof(sessionId));
             }
 
-            var filePath = Path.Combine(SessionStoragePath, $"{sessionId}.json");
+            var filePath = SessionDeltaLog.GetPath(SessionStoragePath, sessionId);
 
             if (File.Exists(filePath))
             {
@@ -388,6 +440,7 @@ namespace ContinueVS.Services.Implementations
                 if (_currentSession?.Id == sessionId)
                 {
                     _currentSession = null;
+                    _messageIndex.Clear();
                 }
             }
 
@@ -404,7 +457,6 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Gets the ID of the currently active session (gap76).
-        /// Reads from config or preferences file if persisted.
         /// </summary>
         public async Task<string?> GetCurrentSessionIdAsync()
         {
@@ -429,8 +481,9 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Prunes old messages from the current session when token count exceeds maxTokens.
-        /// Removes oldest messages first, preserving system messages if requested.
-        /// Uses ITokenCountingService for accurate token estimation.
+        /// Removes oldest non-system messages first. Each pruned message is removed from
+        /// the in-memory index/list and logged as a "delete" delta (append-only; bytes in
+        /// the log are never erased). Uses ITokenCountingService for token estimation.
         /// </summary>
         public async Task<(int RemovedCount, List<ChatMessage> Pruned)> PruneOldMessagesAsync(int maxTokens, bool keepSystemMessages = true)
         {
@@ -468,6 +521,10 @@ namespace ContinueVS.Services.Implementations
                         {
                             prunedMessages.Add(msg);
                             removedCount++;
+                            if (!string.IsNullOrEmpty(msg.Id))
+                            {
+                                _messageIndex.Remove(msg.Id!);
+                            }
                             // Recalculate tokens after removal
                             int msgTokens = _tokenCountingService.CountMessageTokens(msg);
                             currentTokens -= msgTokens;
@@ -480,7 +537,14 @@ namespace ContinueVS.Services.Implementations
 
             if (removedCount > 0)
             {
-                await SaveSessionToFileAsync(session);
+                foreach (var msg in prunedMessages)
+                {
+                    await AppendDeltaAndFlushAsync(new SessionDeltaDelete
+                    {
+                        SessionId = session.Id,
+                        MessageId = msg.Id
+                    });
+                }
             }
 
             return (removedCount, prunedMessages);
@@ -501,44 +565,126 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Saves a session to disk as JSON.
+        /// Persists a session to the JSONL delta log. If the init header for this
+        /// session has not yet been written, it is appended first; pending deltas are
+        /// then flushed synchronously so the operation is durable before returning.
         /// </summary>
         private async Task SaveSessionToFileAsync(Session session)
         {
             await EnsureSessionsDirectoryAsync();
 
-            var filePath = Path.Combine(SessionStoragePath, $"{session.Id}.json");
-            var json = JsonConvert.SerializeObject(session, Formatting.Indented);
-
-            using (var writer = new StreamWriter(filePath, false))
+            // Always persist the header (first write creates the file; subsequent
+            // writes re-assert title/mode so replay reconstructs the latest intent).
+            await AppendDeltaAndFlushAsync(new SessionDeltaInit
             {
-                await writer.WriteAsync(json);
-            }
+                SessionId = session.Id,
+                Id = session.Id,
+                Title = session.Title ?? "New Conversation",
+                CreatedAt = session.CreatedAt,
+                Mode = session.Mode
+            });
         }
 
         /// <summary>
-        /// Loads a session from disk by ID.
+        /// Returns the storage directory for the current service (defaults to
+        /// ~/.continueVS/sessions unless an explicit dir was supplied in the constructor).
+        /// </summary>
+        private string SessionStoragePath => _deltaLog.StorageDirectory;
+
+        /// <summary>
+        /// Appends a delta line and flushes it to disk, guaranteeing durability/order.
+        /// </summary>
+        private async Task AppendDeltaAndFlushAsync(SessionDelta delta)
+        {
+            await EnsureInitAsync(delta.SessionId);
+            await _deltaLog.EnqueueAndFlushAsync(delta);
+        }
+
+        /// <summary>
+        /// Writes (once per session) the init header delta. Subsequent real deltas are
+        /// ordered strictly after it so replay sees a valid session header first.
+        /// </summary>
+        private async Task EnsureInitAsync(string? sessionId)
+        {
+            if (string.IsNullOrEmpty(sessionId)) return;
+
+            bool needInit;
+            lock (_initializedSessions)
+            {
+                needInit = _initializedSessions.Add(sessionId!);
+            }
+
+            if (!needInit) return;
+
+            Session session = GetCurrentSession();
+            await _deltaLog.EnqueueAndFlushAsync(new SessionDeltaInit
+            {
+                SessionId = session.Id,
+                Id = session.Id,
+                Title = session.Title ?? "New Conversation",
+                CreatedAt = session.CreatedAt,
+                Mode = session.Mode
+            });
+        }
+
+        /// <summary>
+        /// Loads a session by replaying its JSONL log from the first line. The replay
+        /// (file read + apply) runs on a pooled background thread via Task.Run so the
+        /// UI/awaiting caller is never blocked. Malformed tail lines are skipped.
         /// </summary>
         private async Task<Session> LoadSessionFromFileAsync(string sessionId)
         {
-            var filePath = Path.Combine(SessionStoragePath, $"{sessionId}.json");
-
+            var filePath = SessionDeltaLog.GetPath(SessionStoragePath, sessionId);
             if (!File.Exists(filePath))
             {
                 throw new FileNotFoundException($"Session file not found: {filePath}");
             }
 
-            using (var reader = new StreamReader(filePath))
+            var index = new Dictionary<string, ChatMessage>();
+            var order = new List<ChatMessage>();
+
+            // File read + replay on a worker thread; async continuation only wires results.
+            var result = await Task.Run(() => _deltaLog.ReplayInto(sessionId, index, order));
+
+            if (string.IsNullOrEmpty(result.Id))
             {
-                var json = await reader.ReadToEndAsync();
-                var session = JsonConvert.DeserializeObject<Session>(json);
+                throw new InvalidOperationException($"Failed to replay session log at {filePath}");
+            }
 
-                if (session == null)
+            var session = new Session
+            {
+                Id = result.Id ?? sessionId,
+                Title = result.Title ?? "New Conversation",
+                Messages = order,
+                CreatedAt = result.CreatedAt ?? DateTime.UtcNow,
+                UpdatedAt = File.GetLastWriteTimeUtc(filePath),
+                IsActive = false,
+                Mode = result.Mode
+            };
+
+            _messageIndex.Clear();
+            foreach (var kvp in index)
+            {
+                _messageIndex[kvp.Key] = kvp.Value;
+            }
+
+            return session;
+        }
+
+        /// <summary>
+        /// Rebuilds the O(1) dictionary index so it references the same instances as
+        /// the session's Messages list (used when creating/loading a session).
+        /// </summary>
+        private void RebuildIndexFor(Session session)
+        {
+            _messageIndex.Clear();
+            if (session.Messages == null) return;
+            foreach (var msg in session.Messages)
+            {
+                if (!string.IsNullOrEmpty(msg.Id))
                 {
-                    throw new InvalidOperationException($"Failed to deserialize session from {filePath}");
+                    _messageIndex[msg.Id!] = msg;
                 }
-
-                return session;
             }
         }
 
@@ -593,10 +739,6 @@ namespace ContinueVS.Services.Implementations
                 }
             }
 
-            int totalEstimated = systemTokens + historyTokens + newUserTokens;
-            LoggerService.Current.WriteDebug(
-                $"[gap34-package] sending {1 + fittingHistory.Count + 1} messages, est. tokens: {totalEstimated}, model context: {contextWindow}");
-
             var result = new List<ChatMessage>();
             result.Add(systemMessage);
             result.AddRange(fittingHistory);
@@ -606,13 +748,15 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Sets the current chat mode and fires SessionChanged event for mode-change propagation (gap27_3).
-        /// Also updates Session.Mode for persistence (gap27_5).
+        /// Persists a new init delta so the mode change survives replay (gap27_5).
         /// </summary>
         public async Task SetCurrentModeAsync(int newMode)
         {
             var session = GetCurrentSession();
-            session.Mode = newMode;  // Persist mode to current session (gap27_5)
-            await SaveCurrentSessionAsync();
+            session.Mode = newMode;
+
+            // Mode is carried by the init delta; append a fresh one so replay sees it.
+            await SaveSessionToFileAsync(session);
 
             SessionChanged?.Invoke(this, new SessionChangedEventArgs
             {
@@ -626,17 +770,12 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Gets the current context budget state based on estimated token usage.
-        /// Safe: tokens = (maxTokens - reserve) * 0.85
-        /// Caution: tokens ? ((maxTokens - reserve) * 0.85, maxTokens - reserve)
-        /// Locked: tokens = (maxTokens - reserve)
-        /// Assumes default maxTokens of 4096, reserve of 512 if not configured.
         /// </summary>
         public ContextBudgetState GetContextBudgetState()
         {
             var session = GetCurrentSession();
             int used = EstimateTokensUsed(session.Messages);
 
-            // Conservative defaults: model context window 4096, reserve 512
             int maxTokens = 4096;
             int reserve = 512;
 
@@ -661,9 +800,6 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Estimates total tokens used by a message history using conservative heuristics.
-        /// User message: content.Length / 4
-        /// Assistant response: content.Length / 4 + tool_calls.Count * 150
-        /// Tool result: content.Length / 4 + 50
         /// </summary>
         public int EstimateTokensUsed(List<ChatMessage> history)
         {
@@ -676,14 +812,11 @@ namespace ContinueVS.Services.Implementations
             {
                 if (message.Role == ChatMessageRole.User)
                 {
-                    // User message: simple character-based estimation
                     totalTokens += (message.Content?.Length ?? 0) / 4;
                 }
                 else if (message.Role == ChatMessageRole.Assistant)
                 {
-                    // Assistant response: content + tool call overhead
                     totalTokens += (message.Content?.Length ?? 0) / 4;
-
                     if (message.ToolCalls != null && message.ToolCalls.Count > 0)
                     {
                         totalTokens += message.ToolCalls.Count * 150;
@@ -691,13 +824,11 @@ namespace ContinueVS.Services.Implementations
                 }
                 else if (message.Role == ChatMessageRole.Tool)
                 {
-                    // Tool result: content + metadata overhead
                     totalTokens += (message.Content?.Length ?? 0) / 4;
-                    totalTokens += 50; // Metadata overhead
+                    totalTokens += 50;
                 }
                 else
                 {
-                    // System or other roles: simple estimation
                     totalTokens += (message.Content?.Length ?? 0) / 4;
                 }
             }
@@ -707,14 +838,12 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Helper method to find the newest conversation unit (Assistant message + following ToolResults).
-        /// Returns the start index and count of messages to remove.
         /// </summary>
         private (int startIndex, int count) FindNewestConversationUnit(List<ChatMessage> history)
         {
             if (history == null || history.Count == 0)
                 return (-1, 0);
 
-            // Find last Assistant message
             int lastAssistantIndex = -1;
             for (int i = history.Count - 1; i >= 0; i--)
             {
@@ -727,11 +856,9 @@ namespace ContinueVS.Services.Implementations
 
             if (lastAssistantIndex == -1)
             {
-                // No assistant message; return last message (likely user message)
                 return (history.Count - 1, 1);
             }
 
-            // Count subsequent tool results
             int toolResultCount = 0;
             for (int i = lastAssistantIndex + 1; i < history.Count; i++)
             {
@@ -741,7 +868,7 @@ namespace ContinueVS.Services.Implementations
                 }
                 else
                 {
-                    break; // Stop at first non-tool message
+                    break;
                 }
             }
 
@@ -750,8 +877,6 @@ namespace ContinueVS.Services.Implementations
 
         /// <summary>
         /// Backtracks and optimizes conversation history by removing newest units until budget fits.
-        /// Preserves oldest foundational context; removes newest work units first.
-        /// Throws ContextBudgetException if history becomes empty and still exceeds budget.
         /// </summary>
         public async Task<(List<ChatMessage> trimmed, string summary)> BacktrackAndOptimizeAsync(List<ChatMessage> history, int maxTokens, int reserve)
         {
@@ -782,6 +907,12 @@ namespace ContinueVS.Services.Implementations
             string summary = $"Removed {removedCount} messages; preserved {workingHistory.Count} foundational context.";
             return await Task.FromResult((workingHistory, summary));
         }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _deltaLog.Dispose();
+        }
     }
 }
-

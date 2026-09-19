@@ -8888,7 +8888,7 @@ The `SessionService` singleton remains the durable/persistent store (crash recov
 
 #### Status
 
-🔴 Open | Type: Session Persistence Architecture. Not yet implemented.
+🟢 Implemented | Type: Session Persistence Architecture. Single JSONL delta log.
 
 #### What the gap is
 
@@ -8913,14 +8913,26 @@ nothing is ever mutated in place — the log only grows.
 
 #### Decided behavior
 
-- Deltas apply into the in-memory dictionary/list; the file stays append-only.
+- **One file, no second/migration file.** Persistence is a single {sessionId}.jsonl
+  log under ~/.continueVS/sessions/; the JSON session file is eliminated.
+- **JSONL line format.** Each line is a single JSON object with a first-class type
+  tag (init, add, update, delete, softDelete, undelete). A dedicated background
+  writer thread drains a queue and is the only component that touches the file, so
+  disk I/O never runs on the UI/streaming caller path.
+- **Single-pass replay off the UI thread.** Reopen runs the file read + replay on
+  a pooled worker thread (Task.Run), preserving async without blocking the UI.
+- **Delete = appended line (tombstone).** softDelete/undelete toggle the gap80
+  tombstone; hard-remove appends a delete line. Bytes are never erased.
+- **O(1) same-reference dictionary.** The index holds the same ChatMessage
+  instances as Session.Messages, so updates are O(1) and INotifyPropertyChanged
+  is preserved.
 - The `Messages` list is rebuilt by replaying deltas from the beginning on reopen.
 
-#### Open questions (still need decision)
+#### Open questions RESOLVED (still need decision)
 
-- **Per-line JSON tagging** — if we store lines of JSON, is it possible to tag
+- **Per-line JSON tagging [RESOLVED — possible]** — if we store lines of JSON, is it possible to tag
   `{}` per line (a per-line type/delta discriminator)?
-- **Tagged reading** — if JSON, can a line be read into a *generic* JSON object,
+- **Tagged reading [RESOLVED — possible]** — if JSON, can a line be read into a *generic* JSON object,
   then into a *specific* typed object based on its tag (discriminated
   deserialization per line)?
 
