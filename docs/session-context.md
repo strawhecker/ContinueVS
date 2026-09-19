@@ -8801,6 +8801,60 @@ longer fed to the model.
 
 ---
 
+### gap82 — Preserve Chat List State Across Tool-Window Tab Switches (Eliminate Full Redraw)
+
+#### Status
+
+✅ **Complete** | Type: UI / Navigation Lifecycle Fix
+
+#### Symptom
+
+When navigating away from ContinueVS (e.g. to Solution Explorer, Test Explorer, or Git Changes) and back, the chat message list appeared empty / was lost. The conversation should have remained visible. With large debugging sessions (200–500 messages, mostly markdown with significant code blocks), the workaround of reloading from the session store was extremely heavy — every return triggered a full re-render of hundreds of rich, code-syntax-highlighted blocks, freezing the UI (mouse could not move inside devenv.exe).
+
+#### Root Cause
+
+1. **The tool-window host persists** — `ContinueToolWindowControl` (the content of the VS tool-window pane) survives tab switches; VS only hides/shows it. That part was never the problem.
+2. **`Loaded` re-fires on every tab return.** Because `ContinueToolWindowControl` is a `UserControl`, WPF raises `Loaded`/`Unloaded` each time it enters/leaves the connected visual tree — which happens every time the tab is shown again, even though the same object persists.
+3. **`OnLoaded` re-navigates unconditionally.** `OnLoaded` → `NavigateToRoute(...)` → `PageNavigator.NavigateAsync(route, frame)`.
+4. **`NavigateAsync` always recreated the page.** It did `Activator.CreateInstance(pageType)` and `frame.Navigate(element)` on every call, producing a brand-new `ChatPage` and a brand-new `ChatPageViewModel` with an **empty `Messages`/`DisplayMessages`** collection.
+5. **Nothing re-projected the session messages.** `ChatPageViewModel.InitializeAsync()` only loads settings/models/modes/policies and refreshes the session list; it never re-populates `Messages` from the current session. So the freshly-built page showed nothing until an explicit reload-from-store path ran — which re-rendered all 300–500 items.
+
+Net effect: every tab return discarded the fully-rendered visual tree and forced an expensive full re-render of hundreds of markdown/code-block messages, tying up the UI thread.
+
+#### Fix Implemented
+
+**`src/VSIXProject1/UI/Navigation/PageNavigator.cs`**
+
+Added a guard in `NavigateAsync` so it is a **no-op when the requested route's page is already hosted** in the frame:
+
+- New helper `IsCurrentContent(Frame?, Type)` checks whether `frame.Content` is already an instance of the target page type (with a type-name fallback for navigated `Page` journal wrappers).
+- Before `Activator.CreateInstance`, if `IsCurrentContent` returns true, navigation is skipped with a debug trace — **no recreation, no redraw**.
+
+This keeps the existing `ChatPage` + `ChatPageViewModel` and its live `ObservableCollection<ChatMessage>` alive across tab switches. Tabbing away and back no longer tears down the visual tree; real navigation (chat ↔ config) still recreates because the target differs from the current content.
+
+#### Why Not Reload-From-Store
+
+Earlier proposals favored re-populating the ViewModel's `Messages` from the `SessionService` singleton on initialization. Analysis rejected this for the user's load:
+
+- **Idempotent re-display is still a re-display.** Re-running the same 300–500 markdown/code-block renders "correctly" still burns identical time and CPU. Idempotency helps correctness, not performance.
+- **The visual tree is the expensive artifact.** Markdown + code syntax highlighting is the dominant UI cost; throwing away the already-rendered tree and reconstructing it from a data singleton is waste.
+- **The single `ObservableCollection` is the retained state.** Because the page/VM now survive, new messages are handled as **delta inserts** (`INotifyCollectionChanged`) — only the newly added row renders, matching the user's "delta on the container" intent.
+
+The `SessionService` singleton remains the durable/persistent store (crash recovery), but the **live `ChatPageViewModel` + collection + mounted page** are now retained UI state that is not recreated on tab switch.
+
+#### Files Modified
+
+- `src/VSIXProject1/UI/Navigation/PageNavigator.cs` — added `IsCurrentContent` guard; skip recreation when the requested page is already hosted.
+
+#### Validation
+
+- ✅ Build succeeds (zero errors, zero warnings).
+- ✅ No tests depend on the navigator's previous always-recreate behavior.
+- ✅ `ChatPageViewModel.InitializeAsync()` confirmed not to clear `Messages`, so nothing is lost during the retained lifetime.
+- ✅ Real route changes (chat ↔ config) still navigate/recreate correctly.
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
