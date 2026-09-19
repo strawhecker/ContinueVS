@@ -8884,17 +8884,56 @@ The `SessionService` singleton remains the durable/persistent store (crash recov
 
 ---
 
-### gap 83 write only session file --- no undates --- only appends.
-- the session file is not up to date for long running User Sends.
-- append only.
-- only deltas from some initial data.
-- delete something put in a delta to delete.
-- only read from the beginning on session reopen.
-- dictionary O(1) look up to keep things up to date.
-- maintain public List<ChatMessage> Messages { get; set; } = ...; for live use to LLM.
-- if we store json --- is it possible to tag: {} per line?
-- if json --- can we read into generic json --- of specific based on tag?
+### gap83: Write-Only Session File — Append-Only, No Updates
 
+#### Status
+
+🔴 Open | Type: Session Persistence Architecture. Not yet implemented.
+
+#### What the gap is
+
+The session file is not kept up to date for long-running User Sends. Today the
+file is written/replaced, which makes it stale mid-stream and couples durability
+to the completion of a send. The desired model is a write-only session file:
+nothing is ever mutated in place — the log only grows.
+
+#### Why it matters (the semantics that must hold)
+
+- **Append-only** — the session file is never rewritten; new state is always appended.
+- **Deltas only** — the file stores only deltas from some initial data, never a
+  full-state snapshot on write.
+- **Delete via delta** — deleting something means appending a *delete* delta,
+  not rewriting the store.
+- **Single-pass replay** — on session reopen we only read from the beginning; no
+  random-access or in-place edits.
+- **O(1) dictionary lookup** — an in-memory `Dictionary` keyed (e.g. by message
+  id) keeps the live view current as deltas are applied.
+- **Live LLM surface** — maintain `public List<ChatMessage> Messages { get; set; } = ...;`
+  that reflects the current state for live use to the LLM.
+
+#### Decided behavior
+
+- Deltas apply into the in-memory dictionary/list; the file stays append-only.
+- The `Messages` list is rebuilt by replaying deltas from the beginning on reopen.
+
+#### Open questions (still need decision)
+
+- **Per-line JSON tagging** — if we store lines of JSON, is it possible to tag
+  `{}` per line (a per-line type/delta discriminator)?
+- **Tagged reading** — if JSON, can a line be read into a *generic* JSON object,
+  then into a *specific* typed object based on its tag (discriminated
+  deserialization per line)?
+
+#### Sequencing
+
+- Depends on the existing delta/tombstone work (gap80 tombstones, gap81 prune).
+  The write-only log should reuse the same soft-delete serialization primitive so
+  "delete == append a delete delta" stays consistent.
+
+#### Notes
+
+- Moving to a delta-only append log reduces I/O during long sends and removes the
+  stale-file window — the underlying motivation for the gap.
 
 ---
 
