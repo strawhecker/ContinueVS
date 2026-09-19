@@ -8855,6 +8855,20 @@ The `SessionService` singleton remains the durable/persistent store (crash recov
 
 ---
 
+### gap 83 write only session file --- no undates --- only appends.
+- the session file is not up to date for long running User Sends.
+- append only.
+- only deltas from some initial data.
+- delete something put in a delta to delete.
+- only read from the beginning on session reopen.
+- dictionary O(1) look up to keep things up to date.
+- maintain public List<ChatMessage> Messages { get; set; } = ...; for live use to LLM.
+- if we store json --- is it possible to tag: {} per line?
+- if json --- can we read into generic json --- of specific based on tag?
+
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
