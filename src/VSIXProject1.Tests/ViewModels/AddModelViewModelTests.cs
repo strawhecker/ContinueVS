@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using ContinueVS.Core.Types;
 using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.ViewModels;
+using ContinueVS.Tests.Infrastructure;
 
 namespace ContinueVS.Tests.ViewModels
 {
@@ -113,7 +114,7 @@ namespace ContinueVS.Tests.ViewModels
         }
 
         [Fact]
-        public void AutodetectCommand_LoadsDefaultModelsForProvider()
+        public async Task AutodetectCommand_LoadsDefaultModelsForProvider()
         {
             // Arrange
             var providerMetadata = ContinueVS.Services.ProviderCatalog.GetProviderMetadata(ModelProvider.Ollama);
@@ -122,14 +123,12 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             _viewModel.AutodetectCommand.Execute(null);
 
-            // Assert - wait for async operation to complete and UI to update
-            int maxAttempts = 20;
-            int attempt = 0;
-            while (_viewModel.AvailableModels.Count == 0 && attempt < maxAttempts)
-            {
-                System.Threading.Thread.Sleep(100);
-                attempt++;
-            }
+            // Assert - wait for async operation to complete and UI to update.
+            // Poll without a short fixed sleep loop: under full-suite (parallel) load
+            // the background Task.Run can take longer than the previous 2s cap.
+            await AsyncTestHelper.WaitForAsync(
+                () => _viewModel.AvailableModels.Count > 0,
+                timeoutMs: TestConstants.DefaultTimeoutMs);
 
             // Should have default models from catalog for Ollama
             Assert.True(_viewModel.AvailableModels.Count > 0, "Default models should be populated from catalog");

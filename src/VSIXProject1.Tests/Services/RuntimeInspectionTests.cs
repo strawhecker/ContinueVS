@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
@@ -122,7 +122,9 @@ namespace ContinueVS.Tests.Services
                         linkedCts.CancelAfter(TimeSpan.FromMilliseconds(100)); // Short timeout for test
                         try
                         {
-                            await Task.Delay(1000, linkedCts.Token);
+                            // Infinite delay that only completes via cancellation, so the timeout is
+                            // deterministic and immune to thread-pool starvation under parallel load.
+                            await Task.Delay(Timeout.InfiniteTimeSpan, linkedCts.Token);
                         }
                         catch (OperationCanceledException)
                         {

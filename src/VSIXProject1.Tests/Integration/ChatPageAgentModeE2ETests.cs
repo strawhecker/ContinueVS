@@ -223,7 +223,7 @@ namespace ContinueVS.Tests.Integration
             if (viewModel.SendMessageCommand.CanExecute(null))
             {
                 viewModel.SendMessageCommand.Execute(null);
-                await Task.Delay(500);  // Allow async work to complete
+                await WaitForToolInvocationAsync();
             }
 
             // Assert: Tool service should have been invoked
@@ -277,7 +277,7 @@ namespace ContinueVS.Tests.Integration
             if (viewModel.SendMessageCommand.CanExecute(null))
             {
                 viewModel.SendMessageCommand.Execute(null);
-                await Task.Delay(500);
+                await WaitForToolInvocationAsync();
             }
 
             // Assert: Tool service was called and threw
@@ -385,7 +385,7 @@ namespace ContinueVS.Tests.Integration
             if (viewModel.SendMessageCommand.CanExecute(null))
             {
                 viewModel.SendMessageCommand.Execute(null);
-                await Task.Delay(500);
+                await WaitForToolInvocationAsync();
             }
 
             // Assert: All tools should have been invoked
@@ -413,6 +413,22 @@ namespace ContinueVS.Tests.Integration
             // Assert: Default agent mode allows write tools
             Assert.NotNull(modeConfig);
             Assert.True(modeConfig.AllowWriteTools);
+        }
+
+        /// <summary>
+        /// Waits (polling) for the mock IToolService to receive any InvokeAsync invocation.
+        /// The SendMessageCommand is fire-and-forget (async void); a fixed sleep is flaky
+        /// because under full-suite parallel load the async agent pipeline can take longer
+        /// than a fixed delay to reach tool execution. Polling makes this deterministic.
+        /// </summary>
+        private async Task WaitForToolInvocationAsync()
+        {
+            await AsyncTestHelper.WaitForAsync(
+                () => _mockToolService.Invocations.Any(i =>
+                    i.Method.Name == nameof(IToolService.InvokeAsync) &&
+                    i.Arguments.Count > 0 &&
+                    i.Arguments[0] is string),
+                timeoutMs: TestConstants.DefaultTimeoutMs);
         }
 
         /// <summary>

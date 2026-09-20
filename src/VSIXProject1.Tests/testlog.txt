@@ -1,0 +1,6 @@
+MSBUILD : error MSB1008: Only one project can be specified.
+    Full command line: 'C:\Program Files\dotnet\sdk\10.0.401\MSBuild.exe -maxcpucount --verbosity:m -tlp:default=auto --property:VSTestNoBuild=true --property:VSTestNoLogo=true --property:NuGetInteractive=false --property:VSTestArtifactsProcessingMode=collect --property:VSTestSessionCorrelationId=43608_9eb84940-40ee-4789-8f94-ebee0017ce89 --target:VSTest --nologo -nodereuse:false ; findstr /n /c:[FAIL] /c:Passed! /c:Failed! testlog.txt -distributedlogger:Microsoft.DotNet.Cli.Commands.MSBuild.MSBuildLogger,C:\Program Files\dotnet\sdk\10.0.401\dotnet.dll*Microsoft.DotNet.Cli.Commands.MSBuild.MSBuildForwardingLogger,C:\Program Files\dotnet\sdk\10.0.401\dotnet.dll'
+  Switches appended by response files:
+Switch: findstr
+
+For switch syntax, type "MSBuild -help"
