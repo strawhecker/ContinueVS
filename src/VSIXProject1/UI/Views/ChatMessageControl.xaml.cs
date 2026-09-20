@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using ContinueVS.Core.Types;
@@ -17,6 +18,12 @@ namespace ContinueVS.UI.Views
 
         private ChatMessage? _boundMessage;
 
+        // gap53: cache last analyzed content + count so we only re-parse/re-log when
+        // the content (and thus code-block count) actually changes. Kept on the control
+        // so it survives visual-tree reloads (e.g. tab switches) without re-logging.
+        private string? _lastAnalyzedContent;
+        private int _lastCodeBlockCount;
+
         public ChatMessageControl()
         {
             InitializeComponent();
@@ -32,20 +39,27 @@ namespace ContinueVS.UI.Views
 
         private void ChatMessageControl_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            // Unsubscribe from the previous message's token stream to avoid leaks.
+            // Unsubscribe from the previous message to avoid leaks.
             if (_boundMessage != null)
             {
                 _boundMessage.TokenAppended -= OnTokenAppended;
+                _boundMessage.PropertyChanged -= OnMessagePropertyChanged;
                 _boundMessage = null;
             }
 
             // Subscribe to the new message's token stream so the streaming
             // reasoning renderer receives each incremental segment directly,
-            // without the caller having to assemble a cumulative string.
+            // and to its PropertyChanged so code-block state is evaluated the
+            // moment Content changes (not deferred until the next Loaded).
             if (DataContext is ChatMessage message)
             {
                 _boundMessage = message;
                 message.TokenAppended += OnTokenAppended;
+                message.PropertyChanged += OnMessagePropertyChanged;
+
+                // Evaluate immediately at bind time (runs on the UI thread here).
+                ReevaluateCodeBlockState();
+                ApplyDropdownVisibility();
             }
         }
 
@@ -58,16 +72,74 @@ namespace ContinueVS.UI.Views
             }
         }
 
-        private void ChatMessageControl_Unloaded(object sender, System.Windows.RoutedEventArgs e)
+        /// <summary>
+        /// Fired when any property on the bound message changes. We only care about
+        /// Content. During streaming this runs on the streaming (likely background)
+        /// thread, so the parse/log happen here but the UI update is dispatched.
+        /// </summary>
+        private void OnMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // Unsubscribe from the bound message's token stream and unwire Loaded-time
-            // handlers so a live message/user control doesn't keep references after the
-            // control is unloaded (session switch / list virtualization). This is the
-            // missing-unsubscribe counterpart to ChatMessageControl_Loaded and
-            // ChatMessageControl_DataContextChanged.
+            if (e.PropertyName != nameof(ChatMessage.Content))
+                return;
+
+            ReevaluateCodeBlockState();
+
+            if (Dispatcher.CheckAccess())
+            {
+                ApplyDropdownVisibility();
+            }
+            else
+            {
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
+                Dispatcher.Invoke(
+                    new Action(ApplyDropdownVisibility));
+#pragma warning restore VSTHRD001
+            }
+        }
+
+        /// <summary>
+        /// Re-parses code-block state only when Content actually changed, and logs
+        /// only when the code-block count changed. Thread-agnostic: only touches the
+        /// message content and our cached fields (no UI).
+        /// </summary>
+        private void ReevaluateCodeBlockState()
+        {
+            var message = DataContext as ChatMessage;
+            if (message == null || string.IsNullOrEmpty(message.Content))
+                return;
+
+            if (_lastAnalyzedContent == message.Content)
+                return; // nothing changed (covers tab-switch reloads)
+
+            _lastAnalyzedContent = message.Content;
+            int newCount = CountCodeBlocks(message.Content);
+
+            if (newCount != _lastCodeBlockCount)
+            {
+                _lastCodeBlockCount = newCount;
+                LoggerService.Current.WriteDebug($"[gap53-dropdown-visibility] Message now has {newCount} code block(s); message-level dropdown {(newCount > 0 ? "hidden" : "shown")}");
+            }
+        }
+
+        /// <summary>
+        /// Applies dropdown visibility from the current (cached) code-block count.
+        /// Must be called on the UI thread.
+        /// </summary>
+        private void ApplyDropdownVisibility()
+        {
+            var comboBox = FindName("CodeActionDropdown") as ComboBox;
+            if (comboBox != null && _lastCodeBlockCount > 0)
+                comboBox.Visibility = Visibility.Collapsed;
+        }
+
+        private void ChatMessageControl_Unloaded(object sender, RoutedEventArgs e)
+        {
+            // Unsubscribe so a live message doesn't keep references after the control
+            // is unloaded (session switch / list virtualization).
             if (_boundMessage != null)
             {
                 _boundMessage.TokenAppended -= OnTokenAppended;
+                _boundMessage.PropertyChanged -= OnMessagePropertyChanged;
                 _boundMessage = null;
             }
 
@@ -87,7 +159,7 @@ namespace ContinueVS.UI.Views
             }
         }
 
-        private void ChatMessageControl_Loaded(object sender, System.Windows.RoutedEventArgs e)
+        private void ChatMessageControl_Loaded(object sender, RoutedEventArgs e)
         {
             MessageGrid.MouseEnter += MessageGrid_MouseEnter;
             MessageGrid.MouseLeave += MessageGrid_MouseLeave;
@@ -100,24 +172,17 @@ namespace ContinueVS.UI.Views
             }
 
             // Wire up dropdown if it exists in the visual tree
-            // Gap53: Conditionally show message-level dropdown only if no code blocks present
             var comboBox = FindName("CodeActionDropdown") as ComboBox;
             if (comboBox != null)
             {
                 comboBox.SelectionChanged += CodeActionDropdown_SelectionChanged;
-
-                // Detect if content has code blocks; if it does, hide message-level dropdown (gap53)
-                var message = DataContext as ChatMessage;
-                if (message != null && !string.IsNullOrEmpty(message.Content))
-                {
-                    int codeBlockCount = CountCodeBlocks(message.Content);
-                    if (codeBlockCount > 0)
-                    {
-                        comboBox.Visibility = Visibility.Collapsed;
-                        LoggerService.Current.WriteDebug($"[gap53-dropdown-visibility] Message has {codeBlockCount} code block(s); message-level dropdown hidden");
-                    }
-                }
             }
+
+            // No parsing/logging here anymore (gap53): code-block state is evaluated in
+            // DataContextChanged / OnMessagePropertyChanged at the moment Content changes.
+            // Loaded only re-applies the already-computed visibility, in case the control
+            // was bound before its template finished materializing.
+            ApplyDropdownVisibility();
         }
 
         private void MessageGrid_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
@@ -229,4 +294,3 @@ namespace ContinueVS.UI.Views
         }
     }
 }
-
