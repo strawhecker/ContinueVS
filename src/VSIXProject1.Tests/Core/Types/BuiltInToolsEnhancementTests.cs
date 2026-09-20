@@ -106,11 +106,12 @@ namespace ContinueVS.Tests.Core.Types
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
             var disabledTools = tools.Where(t => !t.IsEnabled).ToList();
 
-            // create_rule_block and create_snippet should be disabled  
-            Assert.Equal(2, disabledTools.Count);
+            // create_rule_block, create_snippet, and run_pytest should be disabled
+            Assert.Equal(3, disabledTools.Count);
             var disabledNames = disabledTools.Select(t => t.Name).ToList();
             Assert.Contains("create_rule_block", disabledNames);
             Assert.Contains("create_snippet", disabledNames);
+            Assert.Contains("run_pytest", disabledNames);
         }
     }
 }

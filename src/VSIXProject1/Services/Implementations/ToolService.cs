@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -354,6 +355,10 @@ namespace ContinueVS.Services.Implementations
                 "create_new_file" => await CreateNewFileInternalAsync(
                     GetArgString(args, "filepath"),
                     GetArgString(args, "contents")),
+                "edit_file" => await EditFileInternalAsync(
+                    GetArgString(args, "filepath"),
+                    GetArgString(args, "oldText"),
+                    GetArgString(args, "newText")),
                 "create_folder" => await CreateFolderInternalAsync(
                     GetArgString(args, "folderpath")),
                 "ls" => await ListDirectoryInternalAsync(
@@ -672,6 +677,44 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 return CreateErrorResult("create_folder", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Internal wrapper for edit_file.
+        /// Replaces the first occurrence of oldText with newText in the given file.
+        /// </summary>
+        private async Task<ToolResult> EditFileInternalAsync(string filepath, string oldText, string newText)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filepath))
+                    return CreateErrorResult("edit_file", "filepath cannot be null or empty");
+
+                if (string.IsNullOrEmpty(oldText))
+                    return CreateErrorResult("edit_file", "oldText cannot be null or empty");
+
+                if (!File.Exists(filepath))
+                    return CreateErrorResult("edit_file", $"File not found: {filepath}");
+
+                var contents = await _ideService.ReadFileAsync(filepath);
+                int index = contents.IndexOf(oldText, StringComparison.Ordinal);
+                if (index < 0)
+                    return CreateErrorResult("edit_file", "oldText not found in file");
+
+                var newContents = contents.Substring(0, index) + (newText ?? string.Empty) + contents.Substring(index + oldText.Length);
+                await _ideService.WriteFileAsync(filepath, newContents);
+
+                return new ToolResult
+                {
+                    ToolName = "edit_file",
+                    Output = $"File edited: {filepath}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("edit_file", ex.Message);
             }
         }
 

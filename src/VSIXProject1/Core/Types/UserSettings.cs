@@ -147,7 +147,8 @@ namespace ContinueVS.Core.Types
                 { Tool_CreateSnippetEnabled, true },
                 { Tool_OpenFileEnabled, true },
                 { Tool_SingleFindAndReplaceEnabled, true },
-                { Tool_RunPytestEnabled, true },
+                // run_pytest is disabled by default: no pytest tests exist in this .NET project
+                { Tool_RunPytestEnabled, false },
                 { Tool_WritePlanEnabled, true }
             };
         }

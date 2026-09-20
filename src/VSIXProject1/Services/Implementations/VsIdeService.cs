@@ -332,7 +332,85 @@ namespace ContinueVS.Services.Implementations
         }
 
         public IEnumerable<string> GetWorkspaceFiles(string pattern = "*")
-            => Enumerable.Empty<string>();
+        {
+            var root = ResolveWorkspaceRoot();
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+                return Enumerable.Empty<string>();
+
+            try
+            {
+                // SearchOption.AllDirectories can throw on access-denied dirs; fall back to
+                // a degenerate non-recursive search of the root in that case.
+                IEnumerable<string> files;
+                try
+                {
+                    files = Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories);
+                }
+                catch
+                {
+                    files = Directory.EnumerateFiles(root, pattern, SearchOption.TopDirectoryOnly);
+                }
+
+                return files.Where(f => !IsExcludedPath(f)).ToList();
+            }
+            catch
+            {
+                return Enumerable.Empty<string>();
+            }
+        }
+
+        /// <summary>
+        /// Resolves the directory used as the workspace root for file searches.
+        /// Prefers the git repository root (when the folder is a git repo), then the
+        /// solution directory, then the current working directory.
+        /// </summary>
+        private string ResolveWorkspaceRoot()
+        {
+            try
+            {
+                var gitRoot = RunGitRootSync();
+                if (!string.IsNullOrWhiteSpace(gitRoot) && Directory.Exists(gitRoot))
+                    return gitRoot!;
+
+                var solutionDir = _dteProvider.GetSolutionDirectory();
+                if (!string.IsNullOrWhiteSpace(solutionDir) && Directory.Exists(solutionDir))
+                    return solutionDir;
+            }
+            catch { /* fall through */ }
+
+            return Directory.GetCurrentDirectory();
+        }
+
+        /// <summary>
+        /// Determines whether a path should be excluded from workspace file searches
+        /// (build output, package managers, source control, hidden folders, etc.).
+        /// </summary>
+        private static bool IsExcludedPath(string fullPath)
+        {
+            var part = Path.GetDirectoryName(fullPath) ?? string.Empty;
+            var parts = part.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            foreach (var segment in parts)
+            {
+                if (string.IsNullOrEmpty(segment))
+                    continue;
+
+                var lower = segment.ToLowerInvariant();
+                if (lower == "bin" || lower == "obj" || lower == "node_modules"
+                    || lower == ".git" || lower == ".vs" || lower == ".cache"
+                    || lower == ".vscode")
+                {
+                    return true;
+                }
+
+                if (segment.StartsWith(".") && lower != "..")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         // VS Editor Operations
 

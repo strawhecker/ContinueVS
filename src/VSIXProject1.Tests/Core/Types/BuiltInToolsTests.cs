@@ -134,7 +134,8 @@ namespace ContinueVS.Tests.Core.Types
             Assert.NotNull(tool);
             Assert.Equal("run_pytest", tool.Name);
             Assert.Single(tool.Parameters);
-            Assert.True(tool.IsEnabled);
+            // run_pytest is disabled by default: no pytest tests exist in this .NET project
+            Assert.False(tool.IsEnabled);
         }
 
         [Fact]

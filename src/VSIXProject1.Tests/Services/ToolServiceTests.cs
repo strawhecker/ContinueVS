@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -164,8 +164,9 @@ namespace ContinueVS.Tests.Services
             var tools = service.GetAvailableTools().ToList();
 
             Assert.NotEmpty(tools);
-            // Now 17 tools (git tools disabled by default in UserSettings)
-            Assert.Equal(18, tools.Count);
+            // 24 total - 4 git (git_status/diff/log/commit, UserSettings default off)
+            // - create_rule_block - create_snippet - run_pytest (IsEnabled=false) = 17
+            Assert.Equal(17, tools.Count);
         }
 
         [Fact]
@@ -400,8 +401,8 @@ namespace ContinueVS.Tests.Services
             var agentTools = service.GetAvailableTools(ChatMode.Agent).ToList();
 
             // Without mode parameter, should return all tools (backward compatibility)
-            // Now 17 tools (git tools disabled by default in UserSettings)
-            Assert.Equal(18, tools.Count);
+            // 24 total - 4 git (UserSettings off) - create_rule_block - create_snippet - run_pytest = 17
+            Assert.Equal(17, tools.Count);
             Assert.Equal(tools.Count, agentTools.Count);
         }
 

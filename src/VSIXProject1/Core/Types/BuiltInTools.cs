@@ -356,7 +356,9 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Test results including passed, failed, and skipped counts",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug },
+                // Disabled by default: no pytest tests exist in this .NET project
+                isEnabled: false);
         }
 
         /// <summary>
