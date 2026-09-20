@@ -266,7 +266,7 @@
       "name": "git_status",
       "description": "Show git status of the repository including modified files, staged changes, and untracked files",
       "category": "Built-In",
-      "isEnabled": true,
+      "isEnabled": false,
       "isAsync": true,
       "toolType": "builtin",
       "parameters": [],
@@ -276,7 +276,7 @@
       "name": "git_diff",
       "description": "Show git diff of current changes in the repository",
       "category": "Built-In",
-      "isEnabled": true,
+      "isEnabled": false,
       "isAsync": true,
       "toolType": "builtin",
       "parameters": [
@@ -293,7 +293,7 @@
       "name": "git_log",
       "description": "Show git commit history of the repository",
       "category": "Built-In",
-      "isEnabled": true,
+      "isEnabled": false,
       "isAsync": true,
       "toolType": "builtin",
       "parameters": [
@@ -311,7 +311,7 @@
       "name": "git_commit",
       "description": "Create a git commit with the given message",
       "category": "Built-In",
-      "isEnabled": true,
+      "isEnabled": false,
       "isAsync": true,
       "toolType": "builtin",
       "parameters": [

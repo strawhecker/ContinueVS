@@ -101,17 +101,21 @@ namespace ContinueVS.Tests.Core.Types
         }
 
         [Fact]
-        public void GetAllBuiltInTools_AllToolsEnabledExceptRuleBlock()
+        public void GetAllBuiltInTools_AllToolsEnabledExceptRuleBlockAndGit()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
             var disabledTools = tools.Where(t => !t.IsEnabled).ToList();
 
-            // create_rule_block, create_snippet, and run_pytest should be disabled
-            Assert.Equal(3, disabledTools.Count);
+            // create_rule_block, create_snippet, run_pytest, and the four git_* tools should be disabled
+            Assert.Equal(7, disabledTools.Count);
             var disabledNames = disabledTools.Select(t => t.Name).ToList();
             Assert.Contains("create_rule_block", disabledNames);
             Assert.Contains("create_snippet", disabledNames);
             Assert.Contains("run_pytest", disabledNames);
+            Assert.Contains("git_status", disabledNames);
+            Assert.Contains("git_diff", disabledNames);
+            Assert.Contains("git_log", disabledNames);
+            Assert.Contains("git_commit", disabledNames);
         }
     }
 }

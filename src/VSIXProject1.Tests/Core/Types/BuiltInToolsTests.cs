@@ -179,7 +179,7 @@ namespace ContinueVS.Tests.Core.Types
             Assert.NotNull(tool);
             Assert.Equal("git_status", tool.Name);
             Assert.Empty(tool.Parameters);
-            Assert.True(tool.IsEnabled);
+            Assert.False(tool.IsEnabled);
         }
 
         [Fact]
@@ -190,7 +190,7 @@ namespace ContinueVS.Tests.Core.Types
             Assert.NotNull(tool);
             Assert.Equal("git_diff", tool.Name);
             Assert.Equal(3, tool.Parameters.Count);
-            Assert.True(tool.IsEnabled);
+            Assert.False(tool.IsEnabled);
         }
 
         [Fact]
@@ -201,7 +201,7 @@ namespace ContinueVS.Tests.Core.Types
             Assert.NotNull(tool);
             Assert.Equal("git_log", tool.Name);
             Assert.Single(tool.Parameters);
-            Assert.True(tool.IsEnabled);
+            Assert.False(tool.IsEnabled);
         }
 
         [Fact]
@@ -212,7 +212,7 @@ namespace ContinueVS.Tests.Core.Types
             Assert.NotNull(tool);
             Assert.Equal("git_commit", tool.Name);
             Assert.Single(tool.Parameters);
-            Assert.True(tool.IsEnabled);
+            Assert.False(tool.IsEnabled);
         }
 
         [Fact]

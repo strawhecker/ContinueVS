@@ -432,6 +432,7 @@ namespace ContinueVS.Core.Types
                 description: "Show git status of the repository including modified files, staged changes, and untracked files",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "Git status output showing current branch and file changes",
+                isEnabled: false,
                 supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
@@ -470,6 +471,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Unified diff format showing additions and deletions",
+                isEnabled: false,
                 supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
@@ -494,6 +496,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Commit history with hashes, authors, dates, and messages",
+                isEnabled: false,
                 supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
         }
 
@@ -519,6 +522,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation of the commit with commit hash",
+                isEnabled: false,
                 supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
         }
 
