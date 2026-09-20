@@ -385,7 +385,10 @@ namespace ContinueVS.Tests.Integration
             if (viewModel.SendMessageCommand.CanExecute(null))
             {
                 viewModel.SendMessageCommand.Execute(null);
-                await WaitForToolInvocationAsync();
+                // This scenario issues 3 sequential tool calls (read_file, grep_search,
+                // find_symbol). Wait for all 3 to be recorded so the assertion below does not
+                // race the still-running agent pipeline.
+                await WaitForToolInvocationAsync(expectedCount: 3);
             }
 
             // Assert: All tools should have been invoked
@@ -416,19 +419,30 @@ namespace ContinueVS.Tests.Integration
         }
 
         /// <summary>
-        /// Waits (polling) for the mock IToolService to receive any InvokeAsync invocation.
+        /// Waits (polling) for the mock IToolService to receive at least expectedCount
+        /// InvokeAsync invocations.
+        ///
+        /// WHY A GENEROUS, COUNT-AWARE TIMEOUT (do not revert to a short/fixed sleep):
         /// The SendMessageCommand is fire-and-forget (async void); a fixed sleep is flaky
-        /// because under full-suite parallel load the async agent pipeline can take longer
-        /// than a fixed delay to reach tool execution. Polling makes this deterministic.
+        /// because under full-suite parallel load the async agent pipeline can take far longer
+        /// than a fixed delay to reach tool execution. Moreover, waiting for merely "any"
+        /// invocation is insufficient for the multi-tool scenario: the agent must execute
+        /// several tools SEQUENTIALLY, then run a continuation LLM round-trip. If we only wait
+        /// for the first invocation and then assert, the assertion races the rest of the
+        /// pipeline. So we poll until expectedCount tool invocations have actually been
+        /// recorded, with a generous timeout that absorbs parallel-load scheduling delays.
         /// </summary>
-        private async Task WaitForToolInvocationAsync()
+        /// <param name="expectedCount">Number of tool InvokeAsync calls to wait for (default: 1).</param>
+        /// <param name="timeoutMs">Maximum time to wait (default: LongTimeoutMs — the sequential
+        /// multi-tool agent loop can exceed DefaultTimeoutMs under parallel load).</param>
+        private async Task WaitForToolInvocationAsync(int expectedCount = 1, int timeoutMs = TestConstants.LongTimeoutMs)
         {
             await AsyncTestHelper.WaitForAsync(
-                () => _mockToolService.Invocations.Any(i =>
+                () => _mockToolService.Invocations.Count(i =>
                     i.Method.Name == nameof(IToolService.InvokeAsync) &&
                     i.Arguments.Count > 0 &&
-                    i.Arguments[0] is string),
-                timeoutMs: TestConstants.DefaultTimeoutMs);
+                    i.Arguments[0] is string) >= expectedCount,
+                timeoutMs: timeoutMs);
         }
 
         /// <summary>
