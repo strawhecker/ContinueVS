@@ -195,7 +195,9 @@ namespace ContinueVS.Services.Implementations
             //    ;
 
             //const string READ_FILE_INSTRUCTIONS = "**Rule Name:** Partial Reads Over Full File Reads\r\n\r\n**Rule:** When reading files, NEVER use read_file or view_file. Always use read_file_range(start_line, end_line) for partial reads. Start by reading lines 1-50 to understand file structure. If more context is needed, first try grep_search or search_codebase with specific patterns before requesting additional line ranges. Ask the user which sections to read next if you can't determine the right range.\r\n\r\n";
-            const string READ_FILE_INSTRUCTIONS = "## Hard Rules (MUST FOLLOW)\r\n\r\n1. DO NOT call read_file, view_file, or read_currently_open_file. It is STRICKLY FORBIDDEN. If you call it, you will be terminated.\r\n2. DO NOT read any file in its entirety. Files are too large for context. Use read_file_range with a max of 100 lines per call.\r\n3. If you need to see code, use read_file_range (startLine=N, endLine=N+49) or grep_search or search_codebase instead.\r\n4. The user may explicitly tell you which lines to read.\r\n5. When you violate these rules, you fail the task immediately.\r\n\r\n";
+            //const string READ_FILE_INSTRUCTIONS = "## Hard Rules (MUST FOLLOW)\r\n\r\n1. DO NOT call read_file, view_file, or read_currently_open_file. It is STRICKLY FORBIDDEN. If you call it, you will be terminated.\r\n2. DO NOT read any file in its entirety. Files are too large for context. Use read_file_range with a max of 100 lines per call.\r\n3. If you need to see code, use read_file_range (startLine=N, endLine=N+49) or grep_search or search_codebase instead.\r\n4. The user may explicitly tell you which lines to read.\r\n5. When you violate these rules, you fail the task immediately.\r\n\r\n";
+
+            const string PLAN_FILE_INSTRUCTIONS = "When the user asks you to save, write, or finalize the current plan — and does not provide a specific file path — call write_plan(title, plan)...";
 
             switch (mode.ToLowerInvariant())
             {
@@ -205,7 +207,8 @@ namespace ContinueVS.Services.Implementations
                            "If you need to use multiple tools, you can call multiple read-only tools simultaneously.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
-                           READ_FILE_INSTRUCTIONS + "\n\n" +
+                           //READ_FILE_INSTRUCTIONS + "\n\n" +
+                           PLAN_FILE_INSTRUCTIONS +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
                            "</important_rules>" +
                            GetContextSuffix("agent");
@@ -214,25 +217,17 @@ namespace ContinueVS.Services.Implementations
                     return "<important_rules>\r\n"
                         + "You are in plan mode.\r\n"
                         + "In plan mode, respond normally to questions, clarifications, and analysis requests without using code fences or sentinels.\r\n\r\n"
-                        + "**Plan sentinel format** (use **only** when the user asks you to create a plan document without specifying a filename):\r\n"
-                        + "start_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
-                        + "## Section\r\n"
-                        + "Content...\r\n"
-                        + "stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
-                        + "The `start_<UUID>` line must be placed on a separate line. The `stop_<UUID>` line must be placed on a separate line after the plan content. Inside the plan content, include top-level heading sections using `##`.\r\n\r\n"
-                        + "**When to use the sentinel:**\r\n"
-                        + "- The user asks for \"a plan\" or \"a plan called something\" — if they specify a filename (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path. Do **not** replace it with the sentinel.\r\n"
-                        + "- The sentinel is used **only** when the user asks for a plan with no file name provided.\r\n\r\n**Hard constraint:** Do not wrap ordinary conversational responses or answers in code fences or sentinels. Only the unnamed-plan-document case uses the special sentinel format. Do not add extraneous text outside the sentinel lines when using that format."
-                        + "I operate in two phases:\r\n\r\n"
-                        + "**Phase 1 — Discuss (default):** We discuss, question, and refine ideas. I never create files during this phase. No words or phrases trigger file creation.\r\n\r\n"
-                        + "**Phase 2 — Commit:** Only when you use one of the following exact phrases do I write the plan to a file:\r\n\r\n"
-                        + "| Phrase | Usage |\r\n|--------|-------|\r\n"
-                        + "| `write_plan` | Commit the current plan to a file |\r\n"
-                        + "| `write plan` | Same as above |\r\n"
-                        + "| `finalize` or `finalize plan` | Same as above |\r\n\r\n"
-                        + "**Reminder:** If you ask how to save the plan to a file, I will respond with:\r\n\r\n"
-                        + "> *To commit this plan to a file, say one of: `write_plan`, `write plan`, `finalize`, or `finalize plan`.*\r\n\r\n"
-                        + READ_FILE_INSTRUCTIONS + "\n\n"
+                        //+ "I operate in two phases:\r\n\r\n"
+                        //+ "**Phase 1 — Discuss (default):** We discuss, question, and refine ideas. I never create files during this phase. No words or phrases trigger file creation.\r\n\r\n"
+                        //+ "**Phase 2 — Commit:** Only when you use one of the following exact phrases do I write the plan to a file:\r\n\r\n"
+                        //+ "| Phrase | Usage |\r\n|--------|-------|\r\n"
+                        //+ "| `write_plan` | Commit the current plan to a file |\r\n"
+                        //+ "| `write plan` | Same as above |\r\n"
+                        //+ "| `finalize` or `finalize plan` | Same as above |\r\n\r\n"
+                        //+ "**Reminder:** If you ask how to save the plan to a file, I will respond with:\r\n\r\n"
+                        //+ "> *To commit this plan to a file, say one of: `write_plan`, `write plan`, `finalize`, or `finalize plan`.*\r\n\r\n"
+                        // + READ_FILE_INSTRUCTIONS + "\n\n"
+                        + PLAN_FILE_INSTRUCTIONS + "\n\n"
                         + "</important_rules>" +
                            GetContextSuffix("plan");
                     //return "<important_rules>\r\n"
@@ -271,7 +266,8 @@ namespace ContinueVS.Services.Implementations
                            "You operate as in agent mode so all tools are available. prompt user for changes, on accept, make the changes.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
-                           READ_FILE_INSTRUCTIONS + "\n\n" +
+                           //READ_FILE_INSTRUCTIONS + "\n\n" +
+                           PLAN_FILE_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("debug");
 
@@ -283,7 +279,8 @@ namespace ContinueVS.Services.Implementations
                            "Only use read-only tools. If the user wants changes implemented, suggest switching to Agent mode.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
-                           READ_FILE_INSTRUCTIONS + "\n\n" +
+                           //READ_FILE_INSTRUCTIONS + "\n\n" +
+                           PLAN_FILE_INSTRUCTIONS + "\n\n" + 
                            "</important_rules>" +
                            GetContextSuffix("reason");
 
@@ -293,7 +290,8 @@ namespace ContinueVS.Services.Implementations
                            "If the user asks to make changes to files offer that they can use the Apply Button on the code block, or switch to Agent Mode to make the suggested updates automatically.\n" +
                            "If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.\n\n" +
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
-                           READ_FILE_INSTRUCTIONS + "\n\n" +
+                           //READ_FILE_INSTRUCTIONS + "\n\n" +
+                           PLAN_FILE_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("ask");
                     //EDIT_CODE_INSTRUCTIONS + "\n" +
