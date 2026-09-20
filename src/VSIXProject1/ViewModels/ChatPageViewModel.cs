@@ -681,7 +681,7 @@ namespace ContinueVS.ViewModels
             Messages.CollectionChanged += OnMessages_CollectionChanged;
 
             // gap75: Subscribe to messages changes to update DisplayMessages (filtered view for UI)
-            Messages.CollectionChanged += (s, e) => UpdateDisplayMessages();
+            Messages.CollectionChanged += (s, e) => UpdateDisplayMessages(e);
 
             SendMessageCommand = new RelayCommand(ExecuteSendMessage, CanSendMessage);
             CancelCommand = new RelayCommand(ExecuteCancel, () => IsStreaming);
@@ -987,20 +987,39 @@ namespace ContinueVS.ViewModels
         /// Shows: User, Assistant, Thinking (reasoning) messages.
         /// All messages (including internal) are still persisted in session for LLM context.
         /// </summary>
-        private void UpdateDisplayMessages()
+        private void UpdateDisplayMessages(NotifyCollectionChangedEventArgs? e = null)
         {
-            // Rebuild DisplayMessages from Messages, filtering for user-visible roles only
-            DisplayMessages.Clear();
-
-            foreach (var msg in Messages)
+            // Fall back to a full rebuild when we have no event info or on Reset/Move/Replace.
+            if (e == null ||
+                e.Action == NotifyCollectionChangedAction.Reset ||
+                e.Action == NotifyCollectionChangedAction.Move ||
+                e.Action == NotifyCollectionChangedAction.Replace)
             {
-                // Display User, Assistant, and Thinking (reasoning) messages
-                // Filter out System and Tool messages (internal/LLM-only)
-                if (msg.Role == ChatMessageRole.User ||
-                    msg.Role == ChatMessageRole.Assistant ||
-                    msg.Role == ChatMessageRole.Thinking)
+                RebuildDisplayMessages();
+                return;
+            }
+
+            if (e.Action == NotifyCollectionChangedAction.Add &&
+                e.NewItems != null && e.NewStartingIndex >= 0)
+            {
+                int displayIndex = CountVisibleBefore(e.NewStartingIndex);
+                foreach (var item in e.NewItems)
                 {
-                    DisplayMessages.Add(msg);
+                    if (item is ChatMessage msg && IsVisibleMessage(msg))
+                    {
+                        DisplayMessages.Insert(
+                            displayIndex <= DisplayMessages.Count ? displayIndex : DisplayMessages.Count,
+                            msg);
+                        displayIndex++;
+                    }
+                }
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems != null)
+            {
+                foreach (var item in e.OldItems)
+                {
+                    if (item is ChatMessage msg)
+                        DisplayMessages.Remove(msg);
                 }
             }
 
@@ -1008,10 +1027,43 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
-        /// Detects if a response string contains file path markers (gap49).
-        /// Regex scans for patterns: "path":", path:, file:, filepath:, filename:, /path/to/file, C:\path\to\file
-        /// Returns true if any pattern is found, false otherwise.
+        /// gap75: Full rebuild of DisplayMessages from Messages (filtering user-visible roles).
+        /// Used for resets, moves, replaces, and on session load.
         /// </summary>
+        private void RebuildDisplayMessages()
+        {
+            DisplayMessages.Clear();
+
+            foreach (var msg in Messages)
+            {
+                if (IsVisibleMessage(msg))
+                {
+                    DisplayMessages.Add(msg);
+                }
+            }
+
+            LoggerService.Current.WriteDebug($"[gap75-filter] DisplayMessages rebuilt: {DisplayMessages.Count} visible messages from {Messages.Count} total");
+        }
+
+        private static bool IsVisibleMessage(ChatMessage msg)
+        {
+            // Display User, Assistant, and Thinking (reasoning) messages.
+            // Filter out System and Tool messages (internal/LLM-only).
+            return msg.Role == ChatMessageRole.User ||
+                   msg.Role == ChatMessageRole.Assistant ||
+                   msg.Role == ChatMessageRole.Thinking;
+        }
+
+        private int CountVisibleBefore(int messagesIndex)
+        {
+            int visible = 0;
+            for (int i = 0; i < messagesIndex && i < Messages.Count; i++)
+            {
+                if (IsVisibleMessage(Messages[i])) visible++;
+            }
+            return visible;
+        }
+
         private bool DetectFilePathInResponse(string content)
         {
             if (string.IsNullOrWhiteSpace(content))

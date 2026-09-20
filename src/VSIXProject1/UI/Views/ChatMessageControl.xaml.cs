@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using ContinueVS.Core.Types;
@@ -21,6 +21,7 @@ namespace ContinueVS.UI.Views
         {
             InitializeComponent();
             this.Loaded += ChatMessageControl_Loaded;
+            this.Unloaded += ChatMessageControl_Unloaded;
             this.DataContextChanged += ChatMessageControl_DataContextChanged;
         }
 
@@ -54,6 +55,35 @@ namespace ContinueVS.UI.Views
             if (renderer != null)
             {
                 renderer.AppendToken(token);
+            }
+        }
+
+        private void ChatMessageControl_Unloaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+            // Unsubscribe from the bound message's token stream and unwire Loaded-time
+            // handlers so a live message/user control doesn't keep references after the
+            // control is unloaded (session switch / list virtualization). This is the
+            // missing-unsubscribe counterpart to ChatMessageControl_Loaded and
+            // ChatMessageControl_DataContextChanged.
+            if (_boundMessage != null)
+            {
+                _boundMessage.TokenAppended -= OnTokenAppended;
+                _boundMessage = null;
+            }
+
+            MessageGrid.MouseEnter -= MessageGrid_MouseEnter;
+            MessageGrid.MouseLeave -= MessageGrid_MouseLeave;
+
+            var copyAllButton = FindName("CopyAllButton") as Button;
+            if (copyAllButton != null)
+            {
+                copyAllButton.Click -= CopyAllButton_Click;
+            }
+
+            var comboBox = FindName("CodeActionDropdown") as ComboBox;
+            if (comboBox != null)
+            {
+                comboBox.SelectionChanged -= CodeActionDropdown_SelectionChanged;
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.IO;
@@ -330,6 +330,21 @@ namespace ContinueVS.UI.Pages
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                // When messages are removed (session switch, message deletion), unhook
+                // their PropertyChanged handlers so they don't keep this page (and its
+                // ScrollViewer) alive after the message is gone (missing-unsubscribe leak).
+                if (e.OldItems != null)
+                {
+                    foreach (var item in e.OldItems)
+                    {
+                        if (item is ChatMessage removedMsg &&
+                            removedMsg is System.ComponentModel.INotifyPropertyChanged removedNotifiable)
+                        {
+                            removedNotifiable.PropertyChanged -= Message_PropertyChanged;
                         }
                     }
                 }
