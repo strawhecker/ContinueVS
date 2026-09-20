@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,7 +16,11 @@ namespace ContinueVS.UI.Renderers
     /// <summary>
     /// WPF UserControl for rendering markdown text.
     /// Accepts a plain string Content, parses it with Markdig synchronously,
-    /// and builds the visual tree imperatively inside RootPanel.
+    /// and renders all prose into ONE shared FlowDocument inside a single,
+    /// read-only RichTextBox so that multi-line selection + copy works
+    /// continuously across the whole response. Code blocks (with their gap53
+    /// Copy/Apply dropdown) are embedded via BlockUIContainer to preserve
+    /// visual ordering.
     /// Implements debounced rendering during streaming to handle partial/incomplete markdown gracefully.
     /// </summary>
     public partial class MarkdownBlockRenderer : UserControl
@@ -40,11 +44,53 @@ namespace ContinueVS.UI.Renderers
         /// </summary>
         private const int RenderDebounceMs = 100;
 
+        /// <summary>
+        /// The single shared document that hosts ALL prose blocks so that
+        /// selection/copy spans multiple lines and paragraphs continuously.
+        /// </summary>
+        private readonly FlowDocument _document;
+
         public MarkdownBlockRenderer()
         {
             InitializeComponent();
             // Force width constraint to propagate for text wrapping
             this.MinWidth = 0;
+
+            _document = new FlowDocument
+            {
+                PagePadding = new Thickness(0),
+                TextAlignment = TextAlignment.Left,
+                // Default 200px column layout collapses text to one character
+                // per line; we keep PageWidth in sync with actual width instead.
+                PageWidth = 1
+            };
+
+            var display = new RichTextBox
+            {
+                Document = _document,
+                IsReadOnly = true,
+                IsTabStop = false,
+                IsDocumentEnabled = true,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+                Margin = new Thickness(0),
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Cursor = System.Windows.Input.Cursors.IBeam
+            };
+            display.SetResourceReference(RichTextBox.ForegroundProperty, "VsBrush.WindowText");
+            display.SizeChanged += Display_SizeChanged;
+
+            RootPanel.Children.Add(display);
+        }
+
+        private void Display_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (e.NewSize.Width > 0)
+            {
+                _document.PageWidth = e.NewSize.Width;
+            }
         }
 
         /// <summary>
@@ -144,12 +190,13 @@ namespace ContinueVS.UI.Renderers
         /// <summary>
         /// Debounce timer tick handler: performs the actual markdown rendering.
         /// Called after a delay to allow streaming content to stabilize.
+        /// Rebuilds only the shared document; the host RichTextBox stays put.
         /// </summary>
         private void RenderDebounceTimer_Tick(object? sender, EventArgs e)
         {
             _renderDebounceTimer?.Stop();
 
-            RootPanel.Children.Clear();
+            _document.Blocks.Clear();
 
             if (string.IsNullOrEmpty(_pendingRenderContent))
                 return;
@@ -164,8 +211,10 @@ namespace ContinueVS.UI.Renderers
             }
             catch
             {
-                // Fallback: plain selectable text
-                RootPanel.Children.Add(MakeSelectableTextBox(nonNullText));
+                // Fallback: plain selectable paragraph
+                var fallback = new Paragraph { Margin = new Thickness(0, 2, 0, 2) };
+                fallback.Inlines.Add(new Run(nonNullText));
+                _document.Blocks.Add(fallback);
             }
         }
 
@@ -174,21 +223,22 @@ namespace ContinueVS.UI.Renderers
             switch (block)
             {
                 case FencedCodeBlock code:
-                    RenderCodeBlock(code);
+                    _document.Blocks.Add(new BlockUIContainer(
+                        RenderCodeBlock(code.Info ?? string.Empty, ExtractCodeLines(code))));
                     break;
 
                 case ParagraphBlock para:
-                    var rtb = MakeSelectableRichTextBox(para.Inline);
-                    rtb.Margin = new Thickness(0, 2, 0, 2);
-                    RootPanel.Children.Add(rtb);
+                    var p = MakeTextParagraph(para.Inline);
+                    _document.Blocks.Add(p);
                     break;
 
                 case HeadingBlock heading:
-                    var hrtb = MakeSelectableRichTextBox(heading.Inline);
-                    hrtb.FontWeight = FontWeights.Bold;
-                    hrtb.FontSize = heading.Level <= 3 ? 20 - heading.Level * 2 : 14;
-                    hrtb.Margin = new Thickness(0, 4, 0, 2);
-                    RootPanel.Children.Add(hrtb);
+                    var h = MakeTextParagraph(
+                        heading.Inline,
+                        fontSize: heading.Level <= 3 ? 20 - heading.Level * 2 : 14,
+                        weight: FontWeights.Bold,
+                        margin: new Thickness(0, 4, 0, 2));
+                    _document.Blocks.Add(h);
                     break;
 
                 case ListBlock list:
@@ -196,46 +246,16 @@ namespace ContinueVS.UI.Renderers
                     break;
 
                 case QuoteBlock quote:
-                    RenderQuote(quote);
+                    _document.Blocks.Add(RenderQuote(quote));
                     break;
 
                 case ThematicBreakBlock _:
-                    var separator = new Separator { Margin = new Thickness(0, 4, 0, 4) };
-                    separator.SetResourceReference(Separator.BackgroundProperty, "VsBrush.ToolWindowBorder");
-                    RootPanel.Children.Add(separator);
+                    _document.Blocks.Add(MakeHorizontalRule());
                     break;
 
                 case CodeBlock indentedCode:
-                    // Indented (non-fenced) code block
-                    var indentedLinesList = new List<string>();
-                    if (indentedCode.Lines.Lines != null)
-                    {
-                        foreach (var line in indentedCode.Lines.Lines)
-                        {
-                            if (line.Slice.Text != null)
-                            {
-                                indentedLinesList.Add(line.Slice.ToString());
-                            }
-                        }
-                    }
-                    var indentedText = string.Join(Environment.NewLine, indentedLinesList);
-                    RootPanel.Children.Add(new TextBox
-                    {
-                        Text = indentedText,
-                        FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-                        FontSize = 12,
-                        TextWrapping = TextWrapping.NoWrap,
-                        Padding = new Thickness(8),
-                        Margin = new Thickness(0, 4, 0, 4),
-                        Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
-                        Foreground = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
-                        BorderThickness = new Thickness(0),
-                        IsReadOnly = true,
-                        IsTabStop = false,
-                        HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                        VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                        Cursor = System.Windows.Input.Cursors.IBeam
-                    });
+                    _document.Blocks.Add(new BlockUIContainer(
+                        BuildPlainCodeControl(ExtractCodeLines(indentedCode))));
                     break;
 
                 default:
@@ -247,125 +267,126 @@ namespace ContinueVS.UI.Renderers
         private void RenderList(ListBlock list, int depth)
         {
             int orderedIndex = 1;
+            double left = 14.0 + depth * 16;
+
             foreach (var item in list)
             {
-                if (item is ListItemBlock listItem)
+                if (item is not ListItemBlock listItem)
+                    continue;
+
+                string prefix = list.IsOrdered ? $"{orderedIndex++}. " : "• ";
+                bool markerAdded = false;
+
+                foreach (var subBlock in listItem)
                 {
-                    var itemGrid = new Grid
+                    if (subBlock is ParagraphBlock paraBlock)
                     {
-                        Margin = new Thickness(depth * 16, 1, 0, 1)
-                    };
-                    itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    var bullet = new TextBlock
-                    {
-                        Text = list.IsOrdered ? $"{orderedIndex++}." : "•",
-                        Margin = new Thickness(0, 0, 6, 0),
-                        VerticalAlignment = VerticalAlignment.Top
-                    };
-                    bullet.SetResourceReference(TextBlock.ForegroundProperty, "VsBrush.WindowText");
-                    Grid.SetColumn(bullet, 0);
-                    itemGrid.Children.Add(bullet);
-
-                    var contentPanel = new StackPanel { Orientation = Orientation.Vertical };
-                    Grid.SetColumn(contentPanel, 1);
-                    foreach (var subBlock in listItem)
-                    {
-                        if (subBlock is ParagraphBlock para)
+                        var para = MakeTextParagraph(null, margin: new Thickness(left, 1, 0, 1));
+                        if (!markerAdded)
                         {
-                            contentPanel.Children.Add(MakeSelectableRichTextBox(para.Inline));
+                            para.Inlines.Add(new Run(prefix));
+                            markerAdded = true;
                         }
-                        else if (subBlock is ListBlock nestedList)
+                        if (paraBlock.Inline != null)
                         {
-                            var nestedPanel = new StackPanel();
-                            RenderListInto(nestedList, depth + 1, nestedPanel);
-                            contentPanel.Children.Add(nestedPanel);
+                            foreach (var inline in paraBlock.Inline)
+                                AppendInline(para.Inlines, inline);
                         }
+                        _document.Blocks.Add(para);
                     }
-                    itemGrid.Children.Add(contentPanel);
-                    RootPanel.Children.Add(itemGrid);
+                    else if (subBlock is ListBlock nestedList)
+                    {
+                        RenderList(nestedList, depth + 1);
+                    }
+                    else if (subBlock is QuoteBlock nestedQuote)
+                    {
+                        _document.Blocks.Add(RenderQuote(nestedQuote));
+                    }
                 }
             }
         }
 
-        private static void RenderListInto(ListBlock list, int depth, StackPanel target)
+        private Section RenderQuote(QuoteBlock quote)
         {
-            int orderedIndex = 1;
-            foreach (var item in list)
+            var section = new Section
             {
-                if (item is ListItemBlock listItem)
-                {
-                    var itemGrid = new Grid
-                    {
-                        Margin = new Thickness(depth * 16, 1, 0, 1)
-                    };
-                    itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    var bullet = new TextBlock
-                    {
-                        Text = list.IsOrdered ? $"{orderedIndex++}." : "•",
-                        Margin = new Thickness(0, 0, 6, 0),
-                        VerticalAlignment = VerticalAlignment.Top
-                    };
-                    bullet.SetResourceReference(TextBlock.ForegroundProperty, "VsBrush.WindowText");
-                    Grid.SetColumn(bullet, 0);
-                    itemGrid.Children.Add(bullet);
-
-                    var contentPanel = new StackPanel { Orientation = Orientation.Vertical };
-                    Grid.SetColumn(contentPanel, 1);
-                    foreach (var subBlock in listItem)
-                    {
-                        if (subBlock is ParagraphBlock para)
-                        {
-                            contentPanel.Children.Add(MakeSelectableRichTextBox(para.Inline));
-                        }
-                    }
-                    itemGrid.Children.Add(contentPanel);
-                    target.Children.Add(itemGrid);
-                }
-            }
-        }
-
-        private void RenderQuote(QuoteBlock quote)
-        {
-            var border = new Border
-            {
-                BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                BorderThickness = new Thickness(3, 0, 0, 0),
                 Margin = new Thickness(0, 4, 0, 4),
-                Padding = new Thickness(8, 2, 0, 2)
+                Padding = new Thickness(10, 2, 0, 2),
+                BorderThickness = new Thickness(3, 0, 0, 0),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100))
             };
-            var inner = new StackPanel();
+
             foreach (var subBlock in quote)
+            {
                 if (subBlock is ParagraphBlock para)
                 {
-                    var qrtb = MakeSelectableRichTextBox(para.Inline);
-                    qrtb.FontStyle = FontStyles.Italic;
-                    inner.Children.Add(qrtb);
+                    var p = MakeTextParagraph(para.Inline);
+                    p.FontStyle = FontStyles.Italic;
+                    section.Blocks.Add(p);
                 }
-            border.Child = inner;
-            RootPanel.Children.Add(border);
+                else if (subBlock is ListBlock list)
+                {
+                    RenderList(list, 0);
+                }
+            }
+
+            return section;
         }
 
-        private void RenderCodeBlock(FencedCodeBlock code)
+        private Paragraph MakeHorizontalRule()
         {
-            var language = code.Info ?? string.Empty;
-            // Extract code content properly from Markdig FencedCodeBlock
-            // Use the Lines collection to rebuild the code text
-            var linesList = new List<string>();
-            if (code.Lines.Lines != null)
+            var p = new Paragraph
+            {
+                Margin = new Thickness(0, 4, 0, 4),
+                FontSize = 1
+            };
+            p.BorderThickness = new Thickness(0, 0, 0, 1);
+            p.BorderBrush = TryGetBrush("VsBrush.ToolWindowBorder")
+                            ?? new SolidColorBrush(Color.FromRgb(80, 80, 80));
+            return p;
+        }
+
+        private Paragraph MakeTextParagraph(
+            ContainerInline? inlines,
+            double? fontSize = null,
+            FontWeight? weight = null,
+            Thickness? margin = null)
+        {
+            var para = new Paragraph
+            {
+                Margin = margin ?? new Thickness(0, 2, 0, 2)
+            };
+
+            if (fontSize.HasValue) para.FontSize = fontSize.Value;
+            if (weight.HasValue) para.FontWeight = weight.Value;
+
+            if (inlines != null)
+            {
+                foreach (var inline in inlines)
+                    AppendInline(para.Inlines, inline);
+            }
+
+            return para;
+        }
+
+        private static string ExtractCodeLines(LeafBlock? code)
+        {
+            var lines = new List<string>();
+            if (code?.Lines.Lines != null)
             {
                 foreach (var line in code.Lines.Lines)
                 {
                     if (line.Slice.Text != null)
                     {
-                        linesList.Add(line.Slice.ToString());
+                        lines.Add(line.Slice.ToString());
                     }
                 }
             }
-            var lines = string.Join(Environment.NewLine, linesList);
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        private Border RenderCodeBlock(string language, string lines)
+        {
             var blockId = Guid.NewGuid().ToString();
 
             var outerBorder = new Border
@@ -452,7 +473,28 @@ namespace ContinueVS.UI.Renderers
             innerPanel.Children.Add(codeText);
 
             outerBorder.Child = innerPanel;
-            RootPanel.Children.Add(outerBorder);
+            return outerBorder;
+        }
+
+        private TextBox BuildPlainCodeControl(string lines)
+        {
+            return new TextBox
+            {
+                Text = lines,
+                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                FontSize = 12,
+                TextWrapping = TextWrapping.NoWrap,
+                Padding = new Thickness(8),
+                Margin = new Thickness(0, 4, 0, 4),
+                Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+                Foreground = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
+                BorderThickness = new Thickness(0),
+                IsReadOnly = true,
+                IsTabStop = false,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Cursor = System.Windows.Input.Cursors.IBeam
+            };
         }
 
         /// <summary>
@@ -534,65 +576,21 @@ namespace ContinueVS.UI.Renderers
             }
         }
 
-        /// <summary>
-        /// Creates a selectable, read-only RichTextBox pre-populated with inline content.
-        /// Supports bold, italic, code spans, and plain text.
-        /// </summary>
-        private static RichTextBox MakeSelectableRichTextBox(ContainerInline? inlines)
+        private static Brush? TryGetBrush(string resourceKey)
         {
-            var para = new Paragraph { Margin = new Thickness(0) };
-            if (inlines != null)
-                foreach (var inline in inlines)
-                    AppendInline(para.Inlines, inline);
-
-            var doc = new FlowDocument(para)
+            try
             {
-                PagePadding = new Thickness(0),
-                TextAlignment = TextAlignment.Left,
-                // Prevent FlowDocument's default 200px column layout which collapses
-                // text to one character per line. We track actual width to allow wrapping.
-                PageWidth = 9999
-            };
-
-            var rtb = new RichTextBox(doc)
+                if (Application.Current != null &&
+                    Application.Current.TryFindResource(resourceKey) is Brush brush)
+                {
+                    return brush;
+                }
+            }
+            catch
             {
-                IsReadOnly = true,
-                IsTabStop = false,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(0),
-                IsDocumentEnabled = true,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Margin = new Thickness(0, 0, 0, 4),
-                Cursor = System.Windows.Input.Cursors.IBeam
-            };
-            rtb.SetResourceReference(RichTextBox.ForegroundProperty, "VsBrush.WindowText");
-            // Keep PageWidth in sync with actual width so text wraps correctly
-            rtb.SizeChanged += (s, e) =>
-            {
-                if (e.NewSize.Width > 0)
-                    rtb.Document.PageWidth = e.NewSize.Width;
-            };
-            return rtb;
-        }
-
-        private static TextBox MakeSelectableTextBox(string text)
-        {
-            var tb = new TextBox
-            {
-                Text = text,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 2, 0, 2),
-                IsReadOnly = true,
-                IsTabStop = false,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.IBeam
-            };
-            tb.SetResourceReference(TextBox.ForegroundProperty, "VsBrush.WindowText");
-            return tb;
+                // ignore resource lookup failures
+            }
+            return null;
         }
     }
 }
