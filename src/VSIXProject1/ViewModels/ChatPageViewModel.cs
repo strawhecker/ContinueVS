@@ -1718,7 +1718,7 @@ namespace ContinueVS.ViewModels
                             if (modeConfig.ExportsPlanFile && _planOutputService != null)
                             {
                                 // Plan/Agent/Debug mode: save to plans folder and open in editor
-                                var savedPath = await _planOutputService.SavePlanAsync(bufferedPlanContent, _streamingCts.Token);
+                                var savedPath = await _planOutputService.SavePlanAsync("plan", bufferedPlanContent, _streamingCts.Token);
                                 LoggerService.Current.WriteDebug($"[gap70-save] Plan file saved: {savedPath}");
 
                                 if (_ideService != null)
@@ -1788,7 +1788,7 @@ namespace ContinueVS.ViewModels
                     // gap43_3 / gap45_3: Persist plan output when ExportsPlanFile is true for this mode (Agent, Plan, Debug)
                     if (modeConfig.ExportsPlanFile && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
                     {
-                        var savedPath = await _planOutputService.SavePlanAsync(assistantMessage.Content, _streamingCts.Token);
+                        var savedPath = await _planOutputService.SavePlanAsync("plan", assistantMessage.Content, _streamingCts.Token);
                         LoggerService.Current.WriteDebug($"[gap43_3] Plan saved to: {savedPath}");
                     }
 

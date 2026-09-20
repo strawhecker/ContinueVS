@@ -58,7 +58,7 @@ namespace ContinueVS.Tests.ViewModels
             };
 
             // Act
-            var savedPath = await _planOutputService.SavePlanAsync(planContent, CancellationToken.None);
+            var savedPath = await _planOutputService.SavePlanAsync("plan", planContent, CancellationToken.None);
 
             // Assert
             Assert.True(File.Exists(savedPath));
@@ -79,7 +79,7 @@ namespace ContinueVS.Tests.ViewModels
             };
 
             // Act
-            var savedPath = await _planOutputService.SavePlanAsync(planContent, CancellationToken.None);
+            var savedPath = await _planOutputService.SavePlanAsync("plan", planContent, CancellationToken.None);
 
             // Assert
             Assert.True(File.Exists(savedPath));
@@ -99,7 +99,7 @@ namespace ContinueVS.Tests.ViewModels
             };
 
             // Act
-            var savedPath = await _planOutputService.SavePlanAsync(planContent, CancellationToken.None);
+            var savedPath = await _planOutputService.SavePlanAsync("plan", planContent, CancellationToken.None);
 
             // Assert
             Assert.True(File.Exists(savedPath));
@@ -129,15 +129,15 @@ namespace ContinueVS.Tests.ViewModels
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(
-                () => service.SavePlanAsync(null, CancellationToken.None)
+                () => service.SavePlanAsync("plan", null, CancellationToken.None)
             );
 
             await Assert.ThrowsAsync<ArgumentException>(
-                () => service.SavePlanAsync("", CancellationToken.None)
+                () => service.SavePlanAsync("plan", "", CancellationToken.None)
             );
 
             await Assert.ThrowsAsync<ArgumentException>(
-                () => service.SavePlanAsync("   ", CancellationToken.None)
+                () => service.SavePlanAsync("plan", "   ", CancellationToken.None)
             );
         }
 
@@ -150,7 +150,7 @@ namespace ContinueVS.Tests.ViewModels
             var plansDir = service.GetPlansDirectory();
 
             // Act
-            var savedPath = await service.SavePlanAsync("Test content", CancellationToken.None);
+            var savedPath = await service.SavePlanAsync("plan", "Test content", CancellationToken.None);
 
             // Assert
             Assert.True(Directory.Exists(plansDir));
@@ -167,12 +167,12 @@ namespace ContinueVS.Tests.ViewModels
             var service = _planOutputService;
 
             // Act
-            var path1 = await service.SavePlanAsync("Content 1", CancellationToken.None);
+            var path1 = await service.SavePlanAsync("plan", "Content 1", CancellationToken.None);
             var filename1 = Path.GetFileName(path1);
 
             await Task.Delay(1100); // Ensure different timestamp (wait for next second)
 
-            var path2 = await service.SavePlanAsync("Content 2", CancellationToken.None);
+            var path2 = await service.SavePlanAsync("plan", "Content 2", CancellationToken.None);
             var filename2 = Path.GetFileName(path2);
 
             // Assert

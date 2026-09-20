@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -674,8 +674,39 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// write_plan: Save the current plan to the workspace with a title.
+        /// Available in: Plan, Ask, Agent, Debug, Reason (all modes - gated only by user enable/disable toggle).
+        /// Use whenever the user asks to save/write/finalize the plan but does not provide a file path.
+        /// </summary>
+        public static ToolDefinition GetWritePlanTool()
+        {
+            return CreateToolDefinition(
+                name: "write_plan",
+                description: "Save the current plan to the workspace with a title. Use this whenever the user asks to save/write/finalize the plan but does not provide a file path.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "title",
+                        Type = "string",
+                        Description = "A short, descriptive title for the plan.",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "plan",
+                        Type = "string",
+                        Description = "The full text of the plan to save.",
+                        IsRequired = true
+                    }
+                },
+                returnsDescription: "Confirmation that the plan was saved to the workspace",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+        }
+
+        /// <summary>
         /// Gets all built-in tool definitions.
-        /// Returns a collection of 22 core tools for code editing, navigation, and diagnostics.
+        /// Returns a collection of 24 core tools for code editing, navigation, and diagnostics.
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
@@ -704,7 +735,8 @@ namespace ContinueVS.Core.Types
                 GetCreateSnippetTool(),
                 GetReadFileRangeTool(),
                 GetGrepSearchTool(),
-                GetSingleFindAndReplaceTool()
+                GetSingleFindAndReplaceTool(),
+                GetWritePlanTool()
             };
             LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;

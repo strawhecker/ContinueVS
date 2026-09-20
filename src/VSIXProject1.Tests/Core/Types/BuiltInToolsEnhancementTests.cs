@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -97,7 +97,7 @@ namespace ContinueVS.Tests.Core.Types
         public void GetAllBuiltInTools_ReturnsCorrectCount()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
-            Assert.Equal(23, tools.Count);
+            Assert.Equal(24, tools.Count);
         }
 
         [Fact]

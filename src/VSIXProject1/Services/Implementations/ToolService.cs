@@ -24,6 +24,7 @@ namespace ContinueVS.Services.Implementations
         private readonly ISessionService? _sessionService;
         private readonly IMcpService? _mcpService;
         private readonly IBridgeLogger? _logger;
+        private readonly IPlanOutputService? _planOutputService;
         private readonly Dictionary<string, ToolDefinition> _builtInToolRegistry = new();
         private readonly Dictionary<string, ToolDefinition> _mcpToolRegistry = new();
         private readonly object _registryLock = new object();
@@ -60,7 +61,8 @@ namespace ContinueVS.Services.Implementations
             { "create_snippet", UserSettings.Tool_CreateSnippetEnabled },
             { "open_file", UserSettings.Tool_OpenFileEnabled },
             { "single_find_and_replace", UserSettings.Tool_SingleFindAndReplaceEnabled },
-            { "run_pytest", UserSettings.Tool_RunPytestEnabled }
+            { "run_pytest", UserSettings.Tool_RunPytestEnabled },
+            { "write_plan", UserSettings.Tool_WritePlanEnabled }
         };
 
         public event EventHandler<ToolErrorEventArgs>? Error;
@@ -73,18 +75,21 @@ namespace ContinueVS.Services.Implementations
         /// <param name="sessionService">Optional session service for tracking tool call counts.</param>
         /// <param name="mcpService">Optional MCP service for Model Context Protocol tools.</param>
         /// <param name="logger">Optional logger for diagnostics.</param>
+        /// <param name="planOutputService">Optional plan output service for persisting plans (write_plan).</param>
         public ToolService(
             IIdeService ideService,
             IConfigService configService,
             ISessionService? sessionService = null,
             IMcpService? mcpService = null,
-            IBridgeLogger? logger = null)
+            IBridgeLogger? logger = null,
+            IPlanOutputService? planOutputService = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _sessionService = sessionService;
             _mcpService = mcpService;
             _logger = logger;
+            _planOutputService = planOutputService;
 
             InitializeToolRegistry();
         }
@@ -400,6 +405,7 @@ namespace ContinueVS.Services.Implementations
                 "create_snippet" => await CreateSnippetInternalAsync(
                     GetArgString(args, "name"),
                     GetArgString(args, "code")),
+                "write_plan" => await WritePlanInternalAsync(args, ct),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -1328,6 +1334,51 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
+        /// <summary>
+        /// Internal wrapper for write_plan.
+        /// Saves the plan to the plans directory via IPlanOutputService and reveals it in the IDE.
+        /// </summary>
+        private async Task<ToolResult> WritePlanInternalAsync(IDictionary<string, object> args, CancellationToken ct)
+        {
+            try
+            {
+                var plan = GetArgString(args, "plan");
+                if (string.IsNullOrEmpty(plan))
+                {
+                    return CreateErrorResult("write_plan", "plan cannot be null or empty");
+                }
+
+                var title = GetArgString(args, "title");
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    title = "plan";
+                }
+
+                if (_planOutputService == null)
+                {
+                    return CreateErrorResult("write_plan", "Plan output service not available");
+                }
+
+                var path = await _planOutputService.SavePlanAsync(title, plan, ct);
+
+                await _ideService.OpenFileAsync(path);
+
+                return new ToolResult
+                {
+                    ToolName = "write_plan",
+                    Output = $"Plan saved to {path}",
+                    IsSuccess = true,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "path", path }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("write_plan", ex.Message);
+            }
+        }
         /// <summary>
         /// Creates a tool error result.
         /// </summary>

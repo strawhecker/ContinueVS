@@ -8993,6 +8993,44 @@ The current tool system is a fixed, closed set — the extension author defines 
 - **Empty/missing result message:** if the extension returns nothing, the model may fabricate a confirmation — always return concrete result text.
 - The LLM "has never seen the tool" — this is intentional; it infers usage from schema + instructions per-conversation, which is the whole point.
 
+## **gap84 IMPLEMENTATION (write_plan built-in tool — COMPLETE)**
+
+**Status:** ✅ Complete | Type: Built-In Tool | Registry Tools: 23 → 24
+
+**Implemented the `write_plan` built-in tool per the verbiage annex.**
+
+**Step 1 — Tool definition (`src/VSIXProject1/Core/Types/BuiltInTools.cs`):**
+- Added `GetWritePlanTool()`: `ToolType="builtin"`, `Category="Built-In"`, description + two required params (`title`, `plan`) per annex, `SupportedModes = { Plan, Ask, Agent, Debug, Reason }` (all modes), `IsEnabled=true`.
+- Added to `GetAllBuiltInTools()` (registry now returns 24 tools).
+
+**Step 2 + 4 — Sanitizer + title-driven save (`PlanOutputService.cs`):**
+- Added `internal static string ToSafeFileStem(string title)`: trims invalid Windows path chars, collapses whitespace→`_`, trims trailing dots/spaces, caps ~60 chars, returns `"plan"` if empty.
+- Changed `SavePlanAsync(string content, ct)` → `SavePlanAsync(string title, string content, ct)`; writes `{stem}_{yyyyMMdd_HHmmss}.md` into `~/.continueVS/plans/` and returns the full path.
+
+**Step 3 — DI wiring:**
+- `ToolService` gained optional `IPlanOutputService? planOutputService` ctor param → `_planOutputService` (existing test call sites unaffected).
+- `ServiceBootstrapper.cs` passes `sp.GetRequiredService<IPlanOutputService>()`.
+
+**Step 5 — Execution (`ToolService.cs`):**
+- `InvokeBuiltInAsync` switch: `case "write_plan" => await WritePlanInternalAsync(args, ct)`.
+- Validates `plan` non-null/non-empty; falls back to `"plan"` for empty `title`; null-service guard; calls `SavePlanAsync(title, plan, ct)` then `_ideService.OpenFileAsync(path)`; returns success `"Plan saved to {path}"`; try/catch → `CreateErrorResult`.
+
+**Step 6 — Enable/disable setting (`UserSettings.cs` + `ToolService`):**
+- `public const string Tool_WritePlanEnabled = "tool.writePlanEnabled";`
+- `{ Tool_WritePlanEnabled, true }` in `GetDefaults()`.
+- `{ "write_plan", UserSettings.Tool_WritePlanEnabled }` in `ToolService.ToolNameToUserSettingKey`.
+- Settings copy per annex: label "Enable write_plan tool".
+
+**Step 7 — Tests (all passing):**
+- `ToolServiceWritePlanTests.cs` — success saves+opens once, empty `plan`→fail no save, empty `title`→`"plan"` fallback, null service→fail, throw→fail; `GetAvailableTools()` includes `write_plan` in both Plan and Ask modes.
+- `BuiltInToolsTests.cs` — both required params, all-five SupportedModes, `ToolType="builtin"`, `Category="Built-In"`, annex description.
+- `PlanOutputServiceTests.cs` — `{stem}_{timestamp}.md` filename, content matches, `~/.continueVS/plans/` dir, `ToSafeFileStem` cases (invalid chars, spaces→`_`, length cap, empty→`"plan"`), `SavePlanAsync` argument validation.
+- Registry count assertions updated (24 total; 18 available after default-disabled git/snippet/rule filtered out).
+
+**Validation:** `dotnet clean` + `dotnet build VSIXProject1.slnx --force` → 0 errors. All gap84 tests pass deterministically. (Pre-existing flaky `AddModelViewModelTests`/`ChatPageAgentModeE2ETests` pass in isolation and are unrelated.)
+
+---
+
 **Blocking / Unblocks:** None (new capability). Reuses gap43/`PlanOutputService` for the `write_plan` execution side.
 
 ---

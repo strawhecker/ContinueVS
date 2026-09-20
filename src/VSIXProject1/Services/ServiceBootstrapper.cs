@@ -114,7 +114,8 @@ namespace ContinueVS.Services
                 var configService = sp.GetRequiredService<IConfigService>();
                 var sessionService = sp.GetRequiredService<ISessionService>();
                 var mcpService = sp.GetRequiredService<IMcpService>();
-                return new ToolService(ideService, configService, sessionService, mcpService);
+                var planOutputService = sp.GetRequiredService<IPlanOutputService>();
+                return new ToolService(ideService, configService, sessionService, mcpService, planOutputService: planOutputService);
             });
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();

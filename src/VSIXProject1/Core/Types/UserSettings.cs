@@ -79,6 +79,7 @@ namespace ContinueVS.Core.Types
         public const string Tool_OpenFileEnabled = "tool.openFileEnabled";
         public const string Tool_SingleFindAndReplaceEnabled = "tool.singleFindAndReplaceEnabled";
         public const string Tool_RunPytestEnabled = "tool.runPytestEnabled";
+        public const string Tool_WritePlanEnabled = "tool.writePlanEnabled";
 
         /// <summary>
         /// Returns a dictionary of all default settings values.
@@ -146,7 +147,8 @@ namespace ContinueVS.Core.Types
                 { Tool_CreateSnippetEnabled, true },
                 { Tool_OpenFileEnabled, true },
                 { Tool_SingleFindAndReplaceEnabled, true },
-                { Tool_RunPytestEnabled, true }
+                { Tool_RunPytestEnabled, true },
+                { Tool_WritePlanEnabled, true }
             };
         }
 

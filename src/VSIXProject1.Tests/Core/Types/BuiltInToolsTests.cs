@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using ContinueVS.Core.Types;
 using Xunit;
@@ -226,12 +226,12 @@ namespace ContinueVS.Tests.Core.Types
         }
 
         [Fact]
-        public void GetAllBuiltInTools_Returns19Tools()
+        public void GetAllBuiltInTools_Returns24Tools()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools();
 
             Assert.NotNull(tools);
-            Assert.Equal(23, tools.Count());
+            Assert.Equal(24, tools.Count());
         }
 
         [Fact]
@@ -416,6 +416,43 @@ namespace ContinueVS.Tests.Core.Types
             Assert.True(filepathParam.IsRequired, "filepath should be required");
             Assert.True(patternParam.IsRequired, "pattern should be required");
             Assert.True(replacementParam.IsRequired, "replacement should be required");
+        }
+
+        [Fact]
+        public void GetWritePlanTool_ReturnsValidDefinition()
+        {
+            var tool = BuiltInToolsRegistry.GetWritePlanTool();
+
+            Assert.NotNull(tool);
+            Assert.Equal("write_plan", tool.Name);
+            Assert.NotNull(tool.Description);
+            Assert.Equal("builtin", tool.ToolType);
+            Assert.Equal("Built-In", tool.Category);
+            Assert.True(tool.IsEnabled);
+            Assert.Equal(2, tool.Parameters.Count);
+
+            var titleParam = tool.Parameters.First(p => p.Name == "title");
+            var planParam = tool.Parameters.First(p => p.Name == "plan");
+            Assert.True(titleParam.IsRequired, "title should be required");
+            Assert.True(planParam.IsRequired, "plan should be required");
+            Assert.NotNull(titleParam.Description);
+            Assert.NotNull(planParam.Description);
+
+            Assert.Contains(ChatMode.Plan, tool.SupportedModes);
+            Assert.Contains(ChatMode.Ask, tool.SupportedModes);
+            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Contains(ChatMode.Reason, tool.SupportedModes);
+            Assert.Equal(5, tool.SupportedModes.Count);
+        }
+
+        [Fact]
+        public void GetWritePlanTool_DescriptionMatchesAnnex()
+        {
+            var tool = BuiltInToolsRegistry.GetWritePlanTool();
+            Assert.Equal(
+                "Save the current plan to the workspace with a title. Use this whenever the user asks to save/write/finalize the plan but does not provide a file path.",
+                tool.Description);
         }
     }
 }

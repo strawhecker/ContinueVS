@@ -165,7 +165,7 @@ namespace ContinueVS.Tests.Services
 
             Assert.NotEmpty(tools);
             // Now 17 tools (git tools disabled by default in UserSettings)
-            Assert.Equal(17, tools.Count);
+            Assert.Equal(18, tools.Count);
         }
 
         [Fact]
@@ -401,7 +401,7 @@ namespace ContinueVS.Tests.Services
 
             // Without mode parameter, should return all tools (backward compatibility)
             // Now 17 tools (git tools disabled by default in UserSettings)
-            Assert.Equal(17, tools.Count);
+            Assert.Equal(18, tools.Count);
             Assert.Equal(tools.Count, agentTools.Count);
         }
 
