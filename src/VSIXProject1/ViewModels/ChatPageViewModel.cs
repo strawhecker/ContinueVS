@@ -937,7 +937,10 @@ namespace ContinueVS.ViewModels
 
                         if (AvailableModels.Count > 0 && _selectedModel == null)
                         {
-                            SelectedModel = AvailableModels[0];
+                            // Restore the persisted/configured selected model (SelectedModelId).
+                            // Only fall back to the first/default model when no model has been set,
+                            // so the user's chosen model is not reset on every restart.
+                            SelectedModel = ResolveInitialSelectedModel(AvailableModels);
                             LoggerService.Current.WriteDebug($"[chat-model-load] Loaded {AvailableModels.Count} models, selected: {SelectedModel?.Name}");
                         }
                     });
@@ -952,6 +955,24 @@ namespace ContinueVS.ViewModels
             {
                 LoggerService.Current.WriteError($"[chat-model-load-error] {ex.GetType().Name}: {ex.Message}", ex);
             }
+        }
+
+        /// <summary>
+        /// Resolves the initial selected model when the view model first loads models.
+        /// Restores the persisted/configured selection (GetSelectedModel → SelectedModelId)
+        /// so the user's chosen model is not reset to the first/default model on every restart.
+        /// Only falls back to the first/default model when no model has been configured.
+        /// </summary>
+        internal ModelInfo? ResolveInitialSelectedModel(ObservableCollection<ModelInfo> available)
+        {
+            var configured = _configService.GetSelectedModel();
+            if (configured != null && available.Any(m => m.Id == configured.Id))
+            {
+                return configured;
+            }
+
+            // No valid configured model — use the first/default model.
+            return available.FirstOrDefault();
         }
 
         private void ConfigService_ConfigChanged(object? sender, EventArgs e)
