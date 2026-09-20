@@ -101,22 +101,19 @@ namespace ContinueVS.Services.Implementations
 
                         bool needsSave = false;
 
-                        // Validate SelectedModelId matches an actual model (gap64-validation)
-                        if (!string.IsNullOrEmpty(_currentConfig.SelectedModelId))
-                        {
-                            var selectedExists = _currentConfig.Models?.Any(m => m.Id == _currentConfig.SelectedModelId) ?? false;
-                            if (!selectedExists)
-                            {
-                                _logger?.WriteDebug($"[gap64-init] SelectedModelId '{_currentConfig.SelectedModelId}' does not match any model. Resetting to first model.");
-                                if (_currentConfig.Models != null && _currentConfig.Models.Count > 0)
-                                {
-                                    _currentConfig.SelectedModelId = _currentConfig.Models[0].Id;
-                                    needsSave = true;
-                                }
-                            }
-                        }
+                        // Guard against molesting an existing config file.
+                        // The user's existing configuration (models, selectedModelId,
+                        // customSettings, toolOverrides, ...) is authoritative. We must NOT
+                        // rewrite the file merely to "repair" or "upgrade" it — doing so is
+                        // why the extension kept resetting the user's settings on every launch.
+                        //
+                        // Allowed exception (the user's explicit special case): if the file
+                        // EXISTS but defines NO models, seed a default model so the extension
+                        // remains usable. Any other in-memory fixup (e.g. an invalid
+                        // SelectedModelId) is applied in-memory only and never persisted to
+                        // disk; GetSelectedModel() already falls back to the first model.
 
-                        // Migrate/upgrade: seed default Ollama model when config has no models at all
+                        // Special case only: file exists but defines no models -> seed default.
                         if (_currentConfig.Models == null || _currentConfig.Models.Count == 0)
                         {
                             _logger?.WriteDebug("[gap64-init] Config has no models — seeding default Ollama model");
@@ -138,8 +135,15 @@ namespace ContinueVS.Services.Implementations
                             _currentConfig.SelectedModelId = _currentConfig.Models[0].Id;
                             needsSave = true;
                         }
+                        else
+                        {
+                            // Config file already defines models: leave the on-disk file untouched.
+                            // A mismatched SelectedModelId is repaired in-memory only by
+                            // GetSelectedModel() at runtime, never persisted back to disk.
+                            _logger?.WriteDebug("[gap64-init] Config file exists with models - leaving file untouched (no molest).");
+                        }
 
-                        // gap67: Normalize provider names to lowercase for case-insensitive matching
+                        // gap67: Normalize provider names to lowercase for in-memory case-insensitive matching.
                         NormalizeModelProviders(_currentConfig.Models);
 
                         //// Migrate/upgrade: populate OllamaModelId for any missing entries

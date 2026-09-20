@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -307,6 +307,80 @@ namespace ContinueVS.Services.Tests
             Assert.True(defaultModel.SupportsFunctionCalling);
             Assert.Null(defaultModel.ApiKey);
             Assert.Empty(defaultModel.SupportedToolFormats);
+        }
+
+        [Fact]
+        public async Task InitializeAsync_DoesNotMolestExistingConfigFile_WhenModelsExist()
+        {
+            // Pre-create a config file with a user-defined model and settings.
+            Directory.CreateDirectory(_testConfigDir);
+            var configFilePath = Path.Combine(_testConfigDir, "continueVS.json");
+            var originalJson = @"{
+  ""models"": [
+    {
+      ""id"": ""user-model-1"",
+      ""name"": ""My Custom Model"",
+      ""provider"": ""anthropic"",
+      ""apiKey"": ""sk-secret"",
+      ""baseUrl"": ""https://custom.example/v1"",
+      ""contextWindow"": 200000,
+      ""supportsFunctionCalling"": true,
+      ""supportedToolFormats"": [ ""anthropic"" ],
+      ""ollamaModelId"": null
+    }
+  ],
+  ""selectedModelId"": ""user-model-1"",
+  ""toolOverrides"": [],
+  ""profiles"": [],
+  ""customSettings"": {
+    ""defaultMode"": ""2""
+  },
+  ""debug"": { ""dumpContextBeforeSend"": false, ""dumpResponseAfterReceive"": false },
+  ""maxRetriesPerChange"": 3,
+  ""gitPath"": null
+}";
+            File.WriteAllText(configFilePath, originalJson);
+
+            var service = new ConfigService(null, _testConfigDir);
+            await service.InitializeAsync();
+
+            // The on-disk file must be byte-for-byte unchanged (not molested).
+            var afterJson = File.ReadAllText(configFilePath);
+            Assert.Equal(originalJson, afterJson);
+
+            // The loaded config must reflect the user's model and selection.
+            var config = service.GetCurrentConfig();
+            Assert.Single(config.Models);
+            Assert.Equal("My Custom Model", config.Models[0].Name);
+            Assert.Equal("user-model-1", config.SelectedModelId);
+        }
+
+        [Fact]
+        public async Task InitializeAsync_SeedsDefaultModel_WhenExistingConfigHasNoModels()
+        {
+            // Pre-create a config file that exists but defines NO models.
+            Directory.CreateDirectory(_testConfigDir);
+            var configFilePath = Path.Combine(_testConfigDir, "continueVS.json");
+            var originalJson = @"{
+  ""models"": [],
+  ""selectedModelId"": null,
+  ""toolOverrides"": [],
+  ""profiles"": [],
+  ""customSettings"": {},
+  ""debug"": { ""dumpContextBeforeSend"": false, ""dumpResponseAfterReceive"": false },
+  ""maxRetriesPerChange"": 3,
+  ""gitPath"": null
+}";
+            File.WriteAllText(configFilePath, originalJson);
+
+            var service = new ConfigService(null, _testConfigDir);
+            await service.InitializeAsync();
+
+            // Special case: file exists but no models -> a default model is seeded.
+            var config = service.GetCurrentConfig();
+            Assert.NotNull(config.Models);
+            Assert.Single(config.Models);
+            Assert.False(string.IsNullOrEmpty(config.SelectedModelId));
         }
 
         [Fact]
