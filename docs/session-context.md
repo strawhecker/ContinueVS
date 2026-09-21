@@ -9357,6 +9357,28 @@ Tool-call bubbles (gap85) previously rendered only the tool name (`ToolCallLabel
 
 ---
 
+### BUGFIX (gap87): Fabricated Tool-Call Description Not Shown in Chat
+
+**Status:** ✅ Root-Caused & Fixed | Type: UI Visibility Filter Regression
+
+**Symptom:** The gap87 fabricated tool-call description was not visible in chat even though it was correctly built and bound.
+
+**Root Cause:** Not in gap87's builder/XAML (both complete). The gap75 streaming-performance filter `IsVisibleMessage()` explicitly excluded `ChatMessageRole.Tool` from `DisplayMessages`. The chat UI binds its `ItemsControl` to `DisplayMessages`, not `Messages`. Tool messages (and the gap85/gap87 tool-call bubbles carrying `ToolCallDescription`) were therefore filtered out before ever reaching the rendered list — so no tool-call bubble, and hence no description, was shown at all. This contradicted gap85/gap87, which built user-facing tool-call bubbles (delete/undelete, minimize/maximize, tool name, tool file, fabricated description) precisely so the user can see / prune / evaluate them.
+
+**Fix:** `ChatPageViewModel.IsVisibleMessage()` now returns `true` for `ChatMessageRole.Tool` as well. Only `System` messages remain internal/LLM-only. Updated the `UpdateDisplayMessages` doc comment. Since tool messages were previously never added to `DisplayMessages`, no existing `DisplayMessages`-based test relied on their exclusion.
+
+**Files Modified:**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — `IsVisibleMessage()` includes `ChatMessageRole.Tool`; updated doc comment.
+- `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelGap87Tests.cs` — added 2 regression tests:
+  - `ToolMessage_IsVisibleInDisplayMessages` — Tool message added to `Messages` also appears in `DisplayMessages`.
+  - `SystemMessage_RemainsHiddenInDisplayMessages` — System messages stay hidden.
+
+**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: 1440 passed, 0 failed, 0 skipped.
+
+---
+
+---
+
 ---
 
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**

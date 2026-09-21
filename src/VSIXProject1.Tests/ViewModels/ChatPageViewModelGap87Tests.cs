@@ -100,5 +100,40 @@ namespace ContinueVS.Tests.ViewModels
             var desc = ContinueVS.Services.Implementations.ToolCallDescriptionBuilder.Build(toolCall);
             Assert.Equal("run: git status", desc);
         }
+
+        [Fact]
+        public void ToolMessage_IsVisibleInDisplayMessages()
+        {
+            // Regression: gap87 fabricated descriptions live on Tool-role tool-call bubbles,
+            // which are hidden from the chat because the gap75 filter excluded Tool messages
+            // from DisplayMessages. A Tool message must now render in the chat.
+            var sessionService = CreateSessionServiceMock();
+            var notificationService = CreateNotificationServiceMock();
+            var vm = CreateViewModel(sessionService, notificationService);
+
+            var toolMsg = new ChatMessage
+            {
+                Role = ChatMessageRole.Tool,
+                ToolName = "read_file",
+                ToolCallDescription = "read src/foo.cs"
+            };
+            vm.Messages.Add(toolMsg);
+
+            Assert.Contains(toolMsg, vm.DisplayMessages);
+        }
+
+        [Fact]
+        public void SystemMessage_RemainsHiddenInDisplayMessages()
+        {
+            // Only Tool messages became visible; System messages must stay internal/LLM-only.
+            var sessionService = CreateSessionServiceMock();
+            var notificationService = CreateNotificationServiceMock();
+            var vm = CreateViewModel(sessionService, notificationService);
+
+            var systemMsg = new ChatMessage { Role = ChatMessageRole.System, Content = "internal" };
+            vm.Messages.Add(systemMsg);
+
+            Assert.DoesNotContain(systemMsg, vm.DisplayMessages);
+        }
     }
 }

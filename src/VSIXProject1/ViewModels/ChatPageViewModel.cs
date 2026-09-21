@@ -1057,8 +1057,8 @@ namespace ContinueVS.ViewModels
 
         /// <summary>
         /// gap75: Updates DisplayMessages (UI display) to show user-visible messages.
-        /// Filters out System and Tool result messages (internal only).
-        /// Shows: User, Assistant, Thinking (reasoning) messages.
+        /// Filters out System messages (internal only).
+        /// Shows: User, Assistant, Thinking (reasoning), and Tool (tool-call bubble) messages.
         /// All messages (including internal) are still persisted in session for LLM context.
         /// </summary>
         private void UpdateDisplayMessages(NotifyCollectionChangedEventArgs? e = null)
@@ -1121,11 +1121,14 @@ namespace ContinueVS.ViewModels
 
         private static bool IsVisibleMessage(ChatMessage msg)
         {
-            // Display User, Assistant, and Thinking (reasoning) messages.
-            // Filter out System and Tool messages (internal/LLM-only).
+            // Display User, Assistant, Thinking (reasoning), and Tool messages.
+            // Tool messages (gap85 tool-call bubbles + gap87 fabricated descriptions)
+            // are user-visible so the user can see what a tool call did and prune/evaluate it.
+            // Only System messages remain internal/LLM-only.
             return msg.Role == ChatMessageRole.User ||
                    msg.Role == ChatMessageRole.Assistant ||
-                   msg.Role == ChatMessageRole.Thinking;
+                   msg.Role == ChatMessageRole.Thinking ||
+                   msg.Role == ChatMessageRole.Tool;
         }
 
         private int CountVisibleBefore(int messagesIndex)
