@@ -552,5 +552,149 @@ namespace ContinueVS.Tests.Services
             Assert.DoesNotContain(planModeTools, t => t.Name == "git_diff");
             Assert.DoesNotContain(planModeTools, t => t.Name == "git_log");
         }
+
+        // --- edit_file line-ending compatibility tests ---
+
+        // Creates a real temp file containing the given bytes, and sets up an
+        // IIdeService mock that reads/writes that exact file on disk.
+        private static (string path, Mock<IIdeService> ide, Mock<IConfigService> config) CreateEditFixture(string content)
+        {
+            // Write the raw content without any .NET newline translation so CR/LF are preserved exactly.
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"toolsvc_{Guid.NewGuid():N}.tmp");
+            System.IO.File.WriteAllBytes(path, System.Text.Encoding.UTF8.GetBytes(content));
+
+            var ide = new Mock<IIdeService>();
+            ide.Setup(s => s.ReadFileAsync(It.IsAny<string>()))
+                .ReturnsAsync((string p) => System.IO.File.ReadAllText(p));
+            ide.Setup(s => s.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .Callback<string, string>((p, c) => System.IO.File.WriteAllBytes(p, System.Text.Encoding.UTF8.GetBytes(c)))
+                .Returns(Task.CompletedTask);
+
+            var config = new Mock<IConfigService>();
+            config.Setup(s => s.GetEnabledTools())
+                .Returns(BuiltInToolsRegistry.GetAllBuiltInTools() as IEnumerable<ToolDefinition>);
+
+            return (path, ide, config);
+        }
+
+        [Fact]
+        public async Task EditFile_WithCrlfFileAndLfSearchText_MatchesAndPreservesCrlf()
+        {
+            // CRLF file content; oldText/newText supplied with LF line endings.
+            string crlfContent = "line1\r\noldline\r\nline3\r\n";
+            string lfOldText = "oldline\n";
+            string lfNewText = "newline\n";
+
+            var (path, ide, config) = CreateEditFixture(crlfContent);
+            var service = new ToolService(ide.Object, config.Object);
+
+            var result = await service.InvokeAsync("edit_file", new Dictionary<string, object>
+            {
+                { "filepath", path },
+                { "oldText", lfOldText },
+                { "newText", lfNewText }
+            });
+
+            string written = System.IO.File.ReadAllText(path);
+            System.IO.File.Delete(path);
+
+            Assert.True(result.IsSuccess);
+            // Replacement happened and CRLF was preserved.
+            Assert.Equal("line1\r\nnewline\r\nline3\r\n", written);
+        }
+
+        [Fact]
+        public async Task EditFile_WithCrlfFileAndMixedLineEndings_MatchesAndPreservesCrlf()
+        {
+            string crlfContent = "a\r\nb\r\nc\r\n";
+            string lfOldText = "a\nb\n";
+            string lfNewText = "x\ny\n";
+
+            var (path, ide, config) = CreateEditFixture(crlfContent);
+            var service = new ToolService(ide.Object, config.Object);
+
+            var result = await service.InvokeAsync("edit_file", new Dictionary<string, object>
+            {
+                { "filepath", path },
+                { "oldText", lfOldText },
+                { "newText", lfNewText }
+            });
+
+            string written = System.IO.File.ReadAllText(path);
+            System.IO.File.Delete(path);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("x\r\ny\r\nc\r\n", written);
+        }
+
+        [Fact]
+        public async Task EditFile_WithLfFileAndCrlfSearchText_MatchesAndPreservesLf()
+        {
+            string lfContent = "line1\noldline\nline3\n";
+            string crlfOldText = "oldline\r\n";
+            string crlfNewText = "newline\r\n";
+
+            var (path, ide, config) = CreateEditFixture(lfContent);
+            var service = new ToolService(ide.Object, config.Object);
+
+            var result = await service.InvokeAsync("edit_file", new Dictionary<string, object>
+            {
+                { "filepath", path },
+                { "oldText", crlfOldText },
+                { "newText", crlfNewText }
+            });
+
+            string written = System.IO.File.ReadAllText(path);
+            System.IO.File.Delete(path);
+
+            Assert.True(result.IsSuccess);
+            // LF preserved (newline supplied as CRLF is normalized to LF).
+            Assert.Equal("line1\nnewline\nline3\n", written);
+        }
+
+        [Fact]
+        public async Task EditFile_WithCrFile_PreservesLoneCr()
+        {
+            string crContent = "line1\roldline\rline3\r";
+            string lfOldText = "oldline\n";
+            string lfNewText = "newline\n";
+
+            var (path, ide, config) = CreateEditFixture(crContent);
+            var service = new ToolService(ide.Object, config.Object);
+
+            var result = await service.InvokeAsync("edit_file", new Dictionary<string, object>
+            {
+                { "filepath", path },
+                { "oldText", lfOldText },
+                { "newText", lfNewText }
+            });
+
+            string written = System.IO.File.ReadAllText(path);
+            System.IO.File.Delete(path);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("line1\rnewline\rline3\r", written);
+        }
+
+        [Fact]
+        public async Task EditFile_WithUnmatchedOldText_ReturnsNotFoundError()
+        {
+            string crlfContent = "line1\r\nline2\r\n";
+
+            var (path, ide, config) = CreateEditFixture(crlfContent);
+            var service = new ToolService(ide.Object, config.Object);
+
+            var result = await service.InvokeAsync("edit_file", new Dictionary<string, object>
+            {
+                { "filepath", path },
+                { "oldText", "does not exist" },
+                { "newText", "x" }
+            });
+
+            System.IO.File.Delete(path);
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains("not found", result.Output);
+        }
     }
 }

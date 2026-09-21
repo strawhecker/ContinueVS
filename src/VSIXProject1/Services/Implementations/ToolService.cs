@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -698,11 +698,10 @@ namespace ContinueVS.Services.Implementations
                     return CreateErrorResult("edit_file", $"File not found: {filepath}");
 
                 var contents = await _ideService.ReadFileAsync(filepath);
-                int index = contents.IndexOf(oldText, StringComparison.Ordinal);
-                if (index < 0)
+                var newContents = ApplyLineEndingSafeEdit(contents, oldText, newText);
+                if (newContents == null)
                     return CreateErrorResult("edit_file", "oldText not found in file");
 
-                var newContents = contents.Substring(0, index) + (newText ?? string.Empty) + contents.Substring(index + oldText.Length);
                 await _ideService.WriteFileAsync(filepath, newContents);
 
                 return new ToolResult
@@ -716,6 +715,91 @@ namespace ContinueVS.Services.Implementations
             {
                 return CreateErrorResult("edit_file", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Replaces the first occurrence of oldText with newText in contents while
+        /// tolerating line-ending differences. All three strings are normalized to LF
+        /// for the search/replace, then the result is converted back to the file's
+        /// dominant line ending. Returns null if oldText was not found.
+        /// </summary>
+        private static string? ApplyLineEndingSafeEdit(string contents, string oldText, string newText)
+        {
+            // Detect the dominant line ending used by the file so we can restore it.
+            string newline = DetectDominantNewline(contents);
+
+            string normalizedContents = NormalizeLineEndings(contents);
+            string normalizedOld = NormalizeLineEndings(oldText);
+            string normalizedNew = NormalizeLineEndings(newText ?? string.Empty);
+
+            int index = normalizedContents.IndexOf(normalizedOld, StringComparison.Ordinal);
+            if (index < 0)
+                return null;
+
+            string result = normalizedContents.Substring(0, index)
+                + normalizedNew
+                + normalizedContents.Substring(index + normalizedOld.Length);
+
+            // Restore the file's original line ending style.
+            return RestoreLineEndings(result, newline);
+        }
+
+        /// <summary>
+        /// Detects the dominant newline sequence in a block of text.
+        /// Prefers CRLF, then lone CR, and defaults to LF when there are no newlines.
+        /// </summary>
+        private static string DetectDominantNewline(string text)
+        {
+            int crlf = 0, cr = 0, lf = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '\r')
+                {
+                    if (i + 1 < text.Length && text[i + 1] == '\n')
+                    {
+                        crlf++;
+                        i++;
+                    }
+                    else
+                    {
+                        cr++;
+                    }
+                }
+                else if (c == '\n')
+                {
+                    lf++;
+                }
+            }
+
+            if (crlf > 0 && crlf >= lf && crlf >= cr)
+                return "\r\n";
+            if (cr > 0 && cr > lf && cr > crlf)
+                return "\r";
+            return "\n";
+        }
+
+        /// <summary>
+        /// Normalizes all line endings (CRLF, lone CR) to LF (\n).
+        /// </summary>
+        private static string NormalizeLineEndings(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+            return text.Replace("\r\n", "\n").Replace('\r', '\n');
+        }
+
+        /// <summary>
+        /// Converts a normalized (LF-only) string back to the given newline sequence.
+        /// If newline is LF, the text is returned unchanged.
+        /// </summary>
+        private static string RestoreLineEndings(string text, string newline)
+        {
+            if (newline == "\n")
+                return text;
+            if (newline == "\r")
+                return text.Replace("\n", "\r");
+            return text.Replace("\n", "\r\n");
         }
 
         /// <summary>
