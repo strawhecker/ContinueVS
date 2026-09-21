@@ -9035,10 +9035,93 @@ The current tool system is a fixed, closed set — the extension author defines 
 
 ---
 
-### gap85 chat maximize and minimize; chat delete and undelete; applies to user, reason, response, and tool calls.
-- toggle the X delete to another symbol for undelete.
-- toggle the _ symbol for minimize to open-square symble for maximize.
-- tool call have no text --- display the tool name and optionally the file used (limited text).
+### gap85 — Chat Maximize/Minimize; Chat Delete/Undelete; Applies to User, Reason, Response, and Tool Calls
+
+#### Status
+
+🔴 Proposed | Type: Chat UI Enhancement. Formatted as a gap per the session-context.md convention.
+
+#### What the gap is
+
+The chat bubbles offer per-message delete (X) and, at the window/panel level, a
+minimize control (_). Today these affordances are one-way and inconsistent across
+the different message roles. Two toggles are missing:
+
+1. **Delete / Undelete toggle** — the delete X should toggle into an
+   *undelete* symbol after a message is deleted, so a user can restore the
+   message instead of hard-removing it (complementing gap81's soft-delete
+   tombstone semantics).
+2. **Minimize / Maximize toggle** — the minimize (_) symbol should toggle into
+   an *open-square* (maximize) symbol when the chat is minimized, so the user can
+   restore it.
+
+These behaviors apply uniformly to every message role — user, reason, response,
+and **tool calls**.
+
+#### Why it matters (the semantics that must hold)
+
+- **Delete = soft-delete (tombstone) by default.** Deleting must mark the entry
+  deleted (excluded from the LLM payload at serialize time, per the gap80/gap81
+  tombstone primitive) rather than destructively removing bytes, so an
+  *undelete* toggle is always meaningful.
+- **Undelete restores the tombstone.** The toggle flips the symbol back from
+  the delete (X) state to the undelete symbol, clearing `IsDeleted` and
+  re-adding the entry to the serialized context. Visibility only; no file-state
+  restore.
+- **Minimize / Maximize is a two-state control.** The minimize (_) symbol maps
+  to Maximize (open-square ▢ / ⤢) once the panel is collapsed, and maps back to
+  minimize (_) when expanded.
+- **Consistency across roles.** The delete/undelete and minimize/maximize
+  toggles apply to user, reason, response, and tool-call entries alike — no role
+  is exempt.
+- **Tool calls carry no prose.** Tool-call entries have little or no text;
+  display the tool name and, when present, the file used, with limited text so
+  the bubble stays compact.
+
+#### Decided behavior
+
+1. **Delete / Undelete toggle symbol.**
+   - State A (not deleted): show the delete **X** symbol; clicking marks the
+     entry deleted (tombstone `IsDeleted = true`, excluded from the LLM
+     payload).
+   - State B (deleted): show the **undelete** symbol (e.g. ↺ or a different icon)
+     in place of the X; clicking clears the tombstone (`IsDeleted = false`) and
+     restores the entry to the serialized context.
+   - Reuse the existing `SoftDeleteMessageAsync` / `UndeleteMessageAsync` service
+     methods and the `ChatMessage.IsDeleted` tombstone from gap81 — do not build
+     a parallel delete primitive.
+
+2. **Minimize / Maximize toggle symbol.**
+   - State A (maximized): show the minimize **_** symbol; clicking collapses the
+     chat/panel.
+   - State B (minimized): show the **open-square (▢ / ⤢) maximize** symbol;
+     clicking expands the chat/panel back.
+   - The minimized state is a UI visibility toggle, not a message-row toggle.
+
+3. **Tool-call display (limited text).**
+   - Tool-call entries with no content show the **tool name** as the primary
+     label.
+   - If the call references a file, show the **file used** (path/basename, kept
+     short / truncated) alongside the tool name.
+   - Keep the rendered text limited so the bubble does not overflow.
+
+#### Sequencing
+
+- Depends on the existing delta/tombstone work (gap80 tombstones, gap81 prune +
+  undelete). The delete/undelete toggle reuses the same soft-delete primitive so
+  "delete == mark tombstone / undelete == clear tombstone" stays consistent.
+- Maximize/minimize is independent of the tombstone path and can land in
+  parallel; the shared touch points are the ChatPage / message-role templates.
+
+#### Notes
+
+- **Delete vs. hard-remove:** prefer soft-delete by default so undelete is
+  always available. Where a true hard-remove is still required (gap17), keep
+  that path explicit and do not route it through the toggle.
+- **Icon choices:** use pure Unicode symbols consistent with gap49 (✕ delete, ↺
+  or similar for undelete, _ minimize, ▢/⤢ maximize).
+- **Limited tool text:** never dump full tool-call JSON/arguments into the
+  bubble; show tool name + optional file with truncation.
 
 ---
 
