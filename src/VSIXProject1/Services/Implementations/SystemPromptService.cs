@@ -1,4 +1,4 @@
-using ContinueVS.Core.Types;
+﻿using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -223,28 +223,11 @@ namespace ContinueVS.Services.Implementations
                 case "plan":
                     return "<important_rules>\r\n"
                         + "You are in plan mode.\r\n"
-                        + "In plan mode, respond normally to questions, clarifications, and analysis requests without using code fences or sentinels.\r\n\r\n"
-                        //+ "I operate in two phases:\r\n\r\n"
-                        //+ "**Phase 1 — Discuss (default):** We discuss, question, and refine ideas. I never create files during this phase. No words or phrases trigger file creation.\r\n\r\n"
-                        //+ "**Phase 2 — Commit:** Only when you use one of the following exact phrases do I write the plan to a file:\r\n\r\n"
-                        //+ "| Phrase | Usage |\r\n|--------|-------|\r\n"
-                        //+ "| `write_plan` | Commit the current plan to a file |\r\n"
-                        //+ "| `write plan` | Same as above |\r\n"
-                        //+ "| `finalize` or `finalize plan` | Same as above |\r\n\r\n"
-                        //+ "**Reminder:** If you ask how to save the plan to a file, I will respond with:\r\n\r\n"
-                        //+ "> *To commit this plan to a file, say one of: `write_plan`, `write plan`, `finalize`, or `finalize plan`.*\r\n\r\n"
-                        // + READ_FILE_INSTRUCTIONS + "\n\n"
+                        + "In plan mode, respond normally to questions, clarifications, and analysis requests without using code fences.\r\n\r\n"
                         + PLAN_FILE_INSTRUCTIONS + "\n\n"
                         +  ASK_USER_INSTRUCTIONS + "\n\n"
                         +"</important_rules>" +
                            GetContextSuffix("plan");
-
-                    //       BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
-                    //       PLAN_FILE_INSTRUCTIONS + "\n\n" +
-                    //       "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +
-                    //       "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\n" +
-                    //       "</important_rules>" +
-                    //       GetContextSuffix("plan");
 
                 case "debug":
                     return "<important_rules>\n" +
