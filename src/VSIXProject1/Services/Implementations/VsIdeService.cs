@@ -381,6 +381,12 @@ namespace ContinueVS.Services.Implementations
             return Directory.GetCurrentDirectory();
         }
 
+        public static bool IsReparsePoint(string path)
+        {
+            var attributes = File.GetAttributes(path);
+            return attributes.HasFlag(FileAttributes.ReparsePoint);
+        }
+
         /// <summary>
         /// Determines whether a path should be excluded from workspace file searches
         /// (build output, package managers, source control, hidden folders, etc.).
@@ -394,6 +400,9 @@ namespace ContinueVS.Services.Implementations
             {
                 if (string.IsNullOrEmpty(segment))
                     continue;
+
+                if (IsReparsePoint(segment))
+                    return true;
 
                 var lower = segment.ToLowerInvariant();
                 if (lower == "bin" || lower == "obj" || lower == "node_modules" || lower == "reference"
