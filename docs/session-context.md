@@ -8,27 +8,39 @@
 
 ---
 
-### gap90: Tool Bars Show Empty Yellow Background — Tool Content Not Rendered
-**Status:** ✅ Complete | Type: UI Rendering Fix (Tool role)
+### gap90: Tool Bars Show Empty Yellow Background — Tool Content Not Rendered  (REVERTED — see gap90b)
 
-**Symptom:** Tool-call messages rendered as a yellow (WarningBrush) bar with **no text** — "the tools are showing a yellow background… however there is no text in the tool bars" — and "the box does not size well." Copied text began with a blank and the box did not size to its content.
+**Status:** ⚠️ Original fix superseded by gap90b (revert tool calls to the correct renderer). | Type: UI Rendering Fix (Tool role)
 
-**Root cause (two coupled issues):**
-1. `RoleToColorConverter` maps `ChatMessageRole.Tool → WarningBrush` (#DCA81B dark gold/yellow), so the `MessageBorder` bubble was painted yellow.
-2. In `ChatMessageControl.xaml` neither content renderer was visible for `Tool`:
-   - `StreamingReasoningRenderer` visibility is driven by `RoleToStreamingReasoningVisibility`, which returned Visible only for `User`/`Thinking`.
-   - `MarkdownBlockRenderer` visibility is driven by `RoleToMarkdownBlockVisibility`, which returns Visible only for `Assistant`.
-   Result: Tool messages got the yellow bubble but **no renderer → empty yellow bar**.
+**Original symptom:** Tool-call messages rendered as a yellow (WarningBrush) bar with **no text** — "the tools are showing a yellow background… however there is no text in the tool bars" — and "the box does not size well."
 
-**Fix (reuse the reasoning pattern):**
-- `RoleToStreamingReasoningVisibility.cs` — now also returns `Visible` for `ChatMessageRole.Tool` (alongside `User`/`Thinking`), so Tool content renders through `StreamingReasoningRenderer`.
-- `RoleToColorConverter.cs` — `ChatMessageRole.Tool => Brushes.Transparent` (replaces `WarningBrush`). Since `StreamingReasoningRenderer` already uses the exact working FlowDocument pattern (transparent background, `VsBrush.WindowText` foreground, `PageWidth` synced to actual width via `RichTextBox_SizeChanged`), Tool content now wraps, sizes to its content, and shows white text — matching the reasoning bubble exactly. No tool-specific code path; the tool bubble reuses the proven renderer.
+**Original (1990) fix — now reverted:** routed Tool through `StreamingReasoningRenderer` (extended `RoleToStreamingReasoningVisibility` to include Tool) and painted the bubble `Brushes.Transparent`. That regressed elsewhere: tool bubbles became a **black bar with unsized/invisible text**, because `StreamingReasoningRenderer` latches its `FlowDocument.PageWidth` from a `RichTextBox_SizeChanged` event and is not built for tool-call bubbles. Reverted in gap90b.
+
+---
+
+### gap90b: Revert Tool Calls to the Correct Renderer (ToolInvocationTemplate)
+
+**Status:** ✅ Complete | Type: UI Rendering Fix (Tool role) — revert of gap90
+
+**Problem:** The gap90 fix routed Tool content through `StreamingReasoningRenderer` and made the bubble transparent. Result: tool bars rendered **black with text that had no width/size** — "the tool bars are now black, they have text but not size or show it."
+
+**Root cause:**
+1. `ChatPage.xaml`'s `ItemsControl` declared **both** `ItemTemplateSelector` and a fallback `ItemTemplate`. WPF gives `ItemTemplate` precedence, so `ChatMessageTemplateSelector` was never consulted and *every* role — including Tool — rendered through `ChatMessageControl`.
+2. Because Tool landed in `ChatMessageControl`, gap90 forced it through `StreamingReasoningRenderer` (transparent bg, `PageWidth = 1` latched only by `RichTextBox_SizeChanged`, `Foreground` = `VsBrush.WindowText`). That renderer is not sized for tool-call bubbles → zero-width/invisible text over a black/transparent panel.
+
+**Fix (revert tool calls to the correct renderer):**
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — removed the fallback `ItemTemplate` on the message `ItemsControl`, so `ItemTemplateSelector` actually drives routing. Each role now routes to its correct template; Tool → `ToolInvocationTemplate` (the dedicated, correctly-sized, orange-bordered tool-call bubble with `ToolCallLabel`, `ToolCallDescription` (gap87), `ToolFileName` (gap85), toggle buttons). User/Assistant/Thinking selector templates still host `ChatMessageControl` (identical to the removed fallback), so only Tool/System/Question/ExecutionImpact routing changes — exactly the intended correction.
+- `src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs` — removed `ChatMessageRole.Tool` from the Visible set (User/Thinking only). Tool no longer routes through `StreamingReasoningRenderer`.
+- `src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs` — `ChatMessageRole.Tool` back to `WarningBrush` (instead of `Transparent`), so any Tool message that still falls through `ChatMessageControl` shows a visible tinted bubble, not a black/transparent bar.
 
 **Files Modified:**
-- src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs (Tool → Visible)
-- src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs (Tool → Transparent)
+- src/VSIXProject1/UI/Pages/ChatPage.xaml (removed fallback ItemTemplate so ItemTemplateSelector is honored)
+- src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs (Tool excluded again)
+- src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs (Tool → WarningBrush)
 
-**Validation:** `dotnet build src\VSIXProject1\VSIXProject1.csproj --force` → 0 warnings, 0 errors. `ConverterTests` filter: 79 passed, 0 failed. (No test asserted the old Tool→WarningBrush mapping; `Brushes.Transparent` is still a `SolidColorBrush`, so `RoleToColorConverter_Convert_ReturnsSolidColorBrush` is unaffected.)
+**Validation:** `dotnet build src\VSIXProject1\VSIXProject1.csproj --force` → 0 warnings, 0 errors. (`ConverterTests` only asserts `SolidColorBrush` for User/Assistant/System; unchanged.)
+
+**Result:** Tool calls now render through the dedicated, correctly-sized `ToolInvocationTemplate` — visible text, proper wrapping/sizing, no black bar.
 
 ---
 

@@ -20,12 +20,11 @@ namespace ContinueVS.ViewModels.Converters
                     ChatMessageRole.Assistant => TryGetResourceBrush("SecondaryTextBrush") ?? new SolidColorBrush(Color.FromRgb(96, 96, 96)),
                     ChatMessageRole.Thinking => TryGetResourceBrush("InfoBrush") ?? new SolidColorBrush(Color.FromRgb(0, 90, 120)),
                     ChatMessageRole.System => TryGetResourceBrush("SecondaryTextBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
-                    // Tool bubbles render content through StreamingReasoningRenderer (transparent
-                    // background, VsBrush.WindowText foreground). Painting the bubble yellow here left
-                    // an empty yellow bar (no renderer was visible for Tool) — make it transparent so
-                    // the tool-call description/text shows on the renderer, matching the reasoning
-                    // bubble pattern.
-                    ChatMessageRole.Tool => Brushes.Transparent,
+                    // Tool calls render through the dedicated ToolInvocationTemplate, not
+                    // ChatMessageControl. When a Tool message does fall through here, keep a visible
+                    // tinted bubble (WarningBrush) rather than transparent — Transparent produced a
+                    // black/unsized bar when Tool was routed through StreamingReasoningRenderer.
+                    ChatMessageRole.Tool => TryGetResourceBrush("WarningBrush") ?? new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                     _ => new SolidColorBrush(Colors.White)
                 };
                 LoggerService.Current.WriteDebug($"[a6-converter] RoleToColorConverter.Convert: Role={role}");

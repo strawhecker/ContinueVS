@@ -521,6 +521,11 @@
 
             <!-- Messages (Chat List) with ScrollViewer -->
             <ScrollViewer Grid.Row="4" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <!-- NOTE: No fallback ItemTemplate here. Setting BOTH ItemTemplate and
+                     ItemTemplateSelector causes WPF to ignore the selector (ItemTemplate wins).
+                     That made every role — including Tool — render through ChatMessageControl,
+                     forcing tool calls down the wrong path. The selector routes each role to its
+                     correct renderer (Tool -> ToolInvocationTemplate). -->
                 <ItemsControl ItemsSource="{Binding DisplayMessages}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                           ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
                           ItemContainerStyle="{StaticResource MessageContainerStyle}"
@@ -530,11 +535,6 @@
                             <StackPanel Orientation="Vertical" IsItemsHost="True"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <controls:ChatMessageControl DataContext="{Binding}"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
 

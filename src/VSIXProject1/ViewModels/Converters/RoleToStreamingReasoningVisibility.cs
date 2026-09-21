@@ -7,10 +7,11 @@ using ContinueVS.Core.Types;
 namespace ContinueVS.ViewModels.Converters
 {
     /// <summary>
-    /// Converter to show StreamingReasoningRenderer for User, Thinking and Tool messages only.
-    /// Tool messages reuse the same transparent-background, wrapping, selectable renderer as the
-    /// reasoning bubble so tool-call content sizes/surrounds correctly instead of leaving a
-    /// yellow WarningBrush bubble empty (see RoleToColorConverter.Tool => Transparent).
+    /// Converter to show StreamingReasoningRenderer for User and Thinking messages only.
+    /// Tool messages are intentionally excluded: tool calls render through the dedicated
+    /// ToolInvocationTemplate (not this renderer). Routing Tool here produced an unsized,
+    /// black/transparent bubble (StreamingReasoningRenderer latches its width from a
+    /// PageWidth/SizeChanged and was not built for tool bubbles), so Tool is reverted out.
     /// </summary>
     public sealed class RoleToStreamingReasoningVisibility : IValueConverter
     {
@@ -19,8 +20,7 @@ namespace ContinueVS.ViewModels.Converters
             if (value is ChatMessageRole role)
             {
                 return (role == ChatMessageRole.User ||
-                        role == ChatMessageRole.Thinking ||
-                        role == ChatMessageRole.Tool)
+                        role == ChatMessageRole.Thinking)
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
