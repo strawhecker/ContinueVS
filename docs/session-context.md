@@ -8686,6 +8686,138 @@ Three capabilities, one coherent design:
 
 ---
 
+### gap80_1: Tool-Result Lifetime & Coverage Semantics (extends gap80)
+
+#### Status
+
+Planned. First sub-gap of gap80. Where gap80 defined the *primitive*
+(soft-delete tombstone + version-retaining read dedup under our own tool-call
+IDs), this gap defines the *lifetime model*: when a tool result is superseded,
+invalidated, or stale, and — critically — what is never allowed to happen
+(time-based silent removal).
+
+Reuses gap80's tombstone and version retention. Does not re-define them.
+Depends on gap80 (tombstone primitive), gap83 (append-only visibility),
+and complements gap81 (manual user prune).
+
+#### What the gap is
+
+gap80 currently keyed a read by path (our tool-call ID) and decided
+"older read of same path → mark Deleted." That single rule is too coarse for
+real agent behavior and is silently wrong in the partial-read case. This gap
+replaces the one catch-all rule with an explicit, safe lifetime model:
+
+1. **Coverage-aware read supersession** — a read deletes an older read iff new
+   coverage is a strict superset of old coverage (full ⊇ partial;
+   same-range ⊇ same-range; disjoint ranges coexist).
+2. **Mutation-invalidates-priors** — any mutation of path P tombstones the
+   *preceding* reads of P.
+3. **Directory-listing / glob / search lifetime** — snapshots of mutating
+   state; invalidated by any mutating tool that touches the same scope; short
+   staleness; never silent.
+4. **Failed-mutation pivot supersession** — a successful fallback approach
+   supersedes the *superseded evidence*, while the *failure signal itself* is
+   kept.
+5. **No silent time-based expiry** — staleness without a successor is either
+   auto-refreshed or marked visibly STALE; never deleted unseen.
+
+#### Governing rule
+
+> Delete only what has a strict successor or explicit user intent (gap81).
+> Never delete on time alone. Staleness without a successor is **signaled**,
+> not removed.
+
+Rationale: a gap in the middle of contiguous evidence is precisely where an
+LLM fabricates plausible filler. The risk is not deleting stale content; it is
+deleting it *without telling the model* it was deleted. Every tombstone must
+be accompanied by a visible freshness signal (the successor result, an
+explicit STALE marker, or an appended delete delta per gap83).
+
+#### Decided behavior
+
+**1. Coverage-aware read supersession (fixes a latent gap80 bug)**
+
+- Key = (path, coverage), not just path.
+- Coverage classes, ordered: `FULL ⊇ RANGE(same-range) ⊇ RANGE(disjoint)`.
+- `read_file(path)` (full) supersedes **every** prior read of path (any
+  partial + any full) → mark those Deleted; the full read is the visible
+  successor.
+- `read_file_range(path, a, b)` supersedes a prior read only of the **same
+  range** (identical extraction). It **never** suppresses a disjoint range or a
+  broader read — complementary partials are *cumulative evidence*, not
+  replacements.
+- Fixes the current behavior where path-only keying marks
+  `range(1,50)` and `range(51,100)` as "new version → tombstone prior," which
+  wrongly hides the first partial from the LLM.
+
+**2. Mutation-invalidates-priors**
+
+- After any mutating tool on path P (`edit_file`, `write_file`,
+  `single_find_and_replace`, `create_file`, ...), tombstone the preceding
+  reads of P.
+- Keep the mutation's *result message* visible (e.g. "File edited") — it is
+  itself the freshness signal that tells the model its earlier snapshot is
+  obsolete and it should re-read before reasoning about changed content.
+- Distinct from gap80's rule "never auto-dedup mutating tools": we do not
+  merge mutations; we invalidate *reads* that a mutation made stale.
+
+**3. Directory-listing / glob / search lifetime**
+
+- `ls`, `file_glob_search`, `search_codebase`, `grep_search`, `get_problems`,
+  `view_diff` are snapshots of state that mutates.
+- Structural invalidation: any mutating tool that touches the same scope
+  tombstones prior listings of that scope.
+- No natural successor exists, so staleness is time-bounded — but the TTL
+  branch must **never silently remove**:
+  - either auto-refresh the snapshot before re-sending (surrogate content
+    exists, so no gap), or
+  - leave it in place and emit an explicit **`STALE`/`OUTDATED`** tombstone the
+    LLM can see and react to ("re-read to confirm").
+
+**4. Failed-mutation pivot supersession**
+
+- A failure result (`oldText` not found, edit rejected) is an *invalidation
+  signal* — **keep it visible.** Tombstoning it hides the fact the prior
+  approach failed and risks the model looping on the same approach.
+- When a fallback succeeds (`single_find_and_replace`, `write_file`), tombstone
+  the *superseded successful-looking evidence* it replaces (per rules 1–2),
+  not the failure message.
+- Generalization: delete the superseded evidence, never the decision/
+  invalidation signal itself.
+
+**5. No silent time-based expiry**
+
+- There is **no** policy where content is removed solely because a timer
+  elapsed.
+- Every longitudinal invalidation resolves to a fit-for-purpose successor, or
+  to a visible STALE marker, or to a user action (gap81 soft-delete).
+- "Clean the rest" is always an explicit user operation — never scheduled
+  algorithmic absence.
+
+#### Sequencing
+
+- Land after gap80 (tombstone primitive + version retention) — no new
+  primitive, so it cannot conflict with gap80's loop limits or `_pendingToolCalls`
+  ownership.
+- Reuse gap83's append-only/tombstone delta visibility so every deletion is
+  visible and replayable (the same principle that already disallows silent
+  loss).
+- Complements gap81: gap81 is the *manual* counterpart for user-triggered
+  prune; this gap is the *automatic* counterpart for successor-driven and
+  staleness-signaled invalidation. No overlap; both share the gap80 tombstone.
+
+#### Notes
+
+- Boundary case to test explicitly: `range(a,b)` → `range(c,d)` disjoint must
+  BOTH remain in the payload; only an identical repeat is a duplicate.
+- Boundary case: `partial → full` must tombstone the partial (intended
+  supersession) — verify this does not regress when coverage keying is added.
+- The STALE marker is a *visible* state in the serialize path; it must not be
+  filtered out the way Deleted entries are. (SessionDelta STALE is distinct
+  from tombstone-Deleted.)
+
+---
+
 ### New gap81 — User-Selectable Prune of History Q&A (with Undelete, no Restore)
 
 #### Status
