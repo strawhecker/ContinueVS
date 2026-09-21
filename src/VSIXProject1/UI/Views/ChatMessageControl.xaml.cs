@@ -80,21 +80,38 @@ namespace ContinueVS.UI.Views
         /// </summary>
         private void OnMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName != nameof(ChatMessage.Content))
-                return;
-
-            ReevaluateCodeBlockState();
-
-            if (Dispatcher.CheckAccess())
+            if (e.PropertyName == nameof(ChatMessage.Content))
             {
-                ApplyDropdownVisibility();
-            }
-            else
-            {
+                ReevaluateCodeBlockState();
+
+                if (Dispatcher.CheckAccess())
+                {
+                    ApplyDropdownVisibility();
+                }
+                else
+                {
 #pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
-                Dispatcher.Invoke(
-                    new Action(ApplyDropdownVisibility));
+                    Dispatcher.Invoke(
+                        new Action(ApplyDropdownVisibility));
 #pragma warning restore VSTHRD001
+                }
+            }
+            else if (e.PropertyName == nameof(ChatMessage.IsMinimized))
+            {
+                // gap85: Re-apply the collapse/expand visuals (and minimize icon) when the
+                // IsMinimized flag toggles. This keeps both the hover toolbar button and the
+                // right-click toggle in sync without waiting for a reload.
+                if (Dispatcher.CheckAccess())
+                {
+                    ApplyMinimizedState();
+                }
+                else
+                {
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
+                    Dispatcher.Invoke(
+                        new Action(ApplyMinimizedState));
+#pragma warning restore VSTHRD001
+                }
             }
         }
 
@@ -219,6 +236,25 @@ namespace ContinueVS.UI.Views
         /// gap85: Fires the minimize/maximize toggle command for the bound message.
         /// </summary>
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleMinimize();
+        }
+
+        /// <summary>
+        /// gap85: Right-click on a message toggles its minimize/maximize state.
+        /// Reuses the same ToggleMinimizeMessageCommand as the hover toolbar button so
+        /// users can quickly collapse a message without moving the mouse to the toolbar.
+        /// </summary>
+        private void MessageGrid_MouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            ToggleMinimize();
+        }
+
+        /// <summary>
+        /// gap85: Toggles the bound message's minimize/maximize state via the parent ViewModel.
+        /// No-op when the bound message has no Id or no parent ViewModel can be resolved.
+        /// </summary>
+        private void ToggleMinimize()
         {
             if (DataContext is ChatMessage message && !string.IsNullOrEmpty(message.Id))
             {

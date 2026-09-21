@@ -14,7 +14,8 @@
         <local:RoleToStreamingReasoningVisibility x:Key="RoleToStreamingReasoningVisibility"/>
         <local:RoleToMarkdownBlockVisibility x:Key="RoleToMarkdownBlockVisibility"/>
     </UserControl.Resources>
-    <Grid x:Name="MessageGrid" MinWidth="0">
+    <Grid x:Name="MessageGrid" MinWidth="0"
+          MouseRightButtonUp="MessageGrid_MouseRightButtonUp">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
