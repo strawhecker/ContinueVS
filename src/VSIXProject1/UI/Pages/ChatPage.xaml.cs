@@ -351,8 +351,16 @@ namespace ContinueVS.UI.Pages
 
                 if (_messagesScrollViewer != null)
                 {
-                    // Auto-scroll to bottom when new messages are added
-                    _messagesScrollViewer.ScrollToEnd();
+                    // Only auto-scroll to bottom when new messages are added IF the user is
+                    // already at (or near) the bottom. If the user has scrolled up to read or
+                    // copy earlier content, do NOT force them back down to the bottom.
+                    double scrollableHeight = _messagesScrollViewer.ScrollableHeight;
+                    double verticalOffset = _messagesScrollViewer.VerticalOffset;
+
+                    if (scrollableHeight <= 0 || verticalOffset >= scrollableHeight - 5)
+                    {
+                        _messagesScrollViewer.ScrollToEnd();
+                    }
                 }
             }
             catch (Exception ex)

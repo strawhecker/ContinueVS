@@ -10751,6 +10751,28 @@ The entire tool pipeline is now properly gated at multiple levels, preventing un
 
 ---
 
+### bugfix: Chat Scroll Snaps to Bottom on New Message (keep-at-bottom regression)
+**Status:** ✅ Complete | Type: UI Bug Fix  
+**Root Cause:**
+- `ChatPage.Messages_CollectionChanged` unconditionally called `_messagesScrollViewer.ScrollToEnd()` on every collection change (new reasoning/response/tool message added).
+- This snapped the user back to the bottom even when they had scrolled up to read or copy earlier content.
+- Note: the streaming `Message_PropertyChanged` handler already guarded auto-scroll via `verticalOffset >= scrollableHeight - 5`; the collection-changed path did not.
+
+**Implementation:**
+- Applied the same "already at (or near) bottom" guard to `Messages_CollectionChanged` in `src/VSIXProject1/UI/Pages/ChatPage.xaml.cs`:
+  - Read `ScrollableHeight` and `VerticalOffset`.
+  - Only call `ScrollToEnd()` when `scrollableHeight <= 0 || verticalOffset >= scrollableHeight - 5`.
+  - If the user has scrolled up, their position is preserved so they can read/copy.
+
+**Files Modified:**
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml.cs` (`Messages_CollectionChanged` scroll guard)
+
+**Behavior:**
+- User at bottom → new message keeps view pinned at bottom (unchanged).
+- User scrolled up → view stays where it is; no forced snap.
+
+---
+
 ```
 
 
