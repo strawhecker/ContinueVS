@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using Xunit;
@@ -70,7 +70,7 @@ namespace ContinueVS.Tests.UI
         }
 
         [Fact]
-        public void PolicyDropdown_Visible_In_AgentMode()
+        public void PolicyDropdown_AlwaysVisible_And_Enabled_In_AgentMode()
         {
             // Arrange
             var vm = CreateViewModel();
@@ -78,12 +78,13 @@ namespace ContinueVS.Tests.UI
             // Act
             vm.CurrentMode = ChatMode.Agent;
 
-            // Assert
+            // Assert - always visible (never flickers) and enabled in Agent
             Assert.True(vm.IsPolicyVisible);
+            Assert.True(vm.IsPolicyEnabled);
         }
 
         [Fact]
-        public void PolicyDropdown_Visible_In_PlanMode()
+        public void PolicyDropdown_AlwaysVisible_But_Disabled_In_PlanMode()
         {
             // Arrange
             var vm = CreateViewModel();
@@ -91,12 +92,13 @@ namespace ContinueVS.Tests.UI
             // Act
             vm.CurrentMode = ChatMode.Plan;
 
-            // Assert
+            // Assert - always visible, but Plan is not a tool mode so it is disabled
             Assert.True(vm.IsPolicyVisible);
+            Assert.False(vm.IsPolicyEnabled);
         }
 
         [Fact]
-        public void PolicyDropdown_Hidden_In_AskMode()
+        public void PolicyDropdown_AlwaysVisible_But_Disabled_In_AskMode()
         {
             // Arrange
             var vm = CreateViewModel();
@@ -104,8 +106,9 @@ namespace ContinueVS.Tests.UI
             // Act
             vm.CurrentMode = ChatMode.Ask;
 
-            // Assert
-            Assert.False(vm.IsPolicyVisible);
+            // Assert - always visible (the fix), but disabled outside Agent/Debug
+            Assert.True(vm.IsPolicyVisible);
+            Assert.False(vm.IsPolicyEnabled);
         }
     }
 }

@@ -393,6 +393,7 @@ namespace ContinueVS.ViewModels
             get => _currentMode;
             set
             {
+                var previousMode = _currentMode;
                 LoggerService.Current.WriteDebug($"[a9-property-entry] CurrentMode setter: oldValue={_currentMode}, newValue={value}");
                 if (Set(ref _currentMode, value))
                 {
@@ -402,6 +403,14 @@ namespace ContinueVS.ViewModels
                     var matching = AvailableModes.FirstOrDefault(m => m.Value == _currentMode);
                     if (matching != null && !ReferenceEquals(_selectedMode, matching))
                         Set(ref _selectedMode, matching, "SelectedMode");
+
+                    // gap27_13: keep the continuation policy up to date across mode changes (no surprises)
+                    UpdateContinuationPolicyForMode(previousMode, value);
+
+                    // Notify dependents of CurrentMode so the dropdown updates immediately
+                    // instead of only when WPF happens to re-render (root cause of flickering).
+                    RaisePropertyChanged(nameof(IsPolicyVisible));
+                    RaisePropertyChanged(nameof(IsPolicyEnabled));
                 }
                 else
                 {
@@ -411,12 +420,39 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
-        /// Gets whether the continuation policy dropdown should be visible (gap27_13).
-        /// Returns true only in Agent or Plan modes; false in Ask mode.
+        /// Gets whether the continuation policy dropdown should be shown (gap27_13).
+        /// Always returns true so the control never flickers/disappears; it is simply
+        /// disabled when not in Agent or Debug mode (see <see cref="IsPolicyEnabled"/>).
         /// </summary>
-        public bool IsPolicyVisible
+        public bool IsPolicyVisible => true;
+
+        /// <summary>
+        /// Gets whether the continuation policy dropdown is editable.
+        /// Enabled only in Agent and Debug modes; disabled (greyed out) everywhere else.
+        /// </summary>
+        public bool IsPolicyEnabled => IsContinuationPolicyRelevant(CurrentMode);
+
+        /// <summary>
+        /// Returns true only for modes where the continuation policy is actually used
+        /// (Agent and Debug). In all other modes the dropdown is shown but disabled.
+        /// </summary>
+        private static bool IsContinuationPolicyRelevant(ChatMode mode) =>
+            mode == ChatMode.Agent || mode == ChatMode.Debug;
+
+        /// <summary>
+        /// Keeps the selected continuation policy consistent across mode changes (no surprises):
+        /// - Entering Agent/Debug from a non-tool mode (Ask/Plan/Reason) always resets to
+        ///   Interactive, since that is what the user is using there.
+        /// - Switching between Agent and Debug preserves the user's current choice.
+        /// </summary>
+        private void UpdateContinuationPolicyForMode(ChatMode previousMode, ChatMode newMode)
         {
-            get => CurrentMode == ChatMode.Agent || CurrentMode == ChatMode.Plan;
+            if (IsContinuationPolicyRelevant(newMode) && !IsContinuationPolicyRelevant(previousMode))
+            {
+                Set(ref _selectedPolicy, ContinuationPolicy.Interactive, "SelectedPolicy");
+            }
+            // If both old and new are tool modes (Agent <-> Debug), the policy stays as-is.
+            // If the new mode is not a tool mode, the dropdown is disabled and the value is irrelevant.
         }
 
         /// <summary>
