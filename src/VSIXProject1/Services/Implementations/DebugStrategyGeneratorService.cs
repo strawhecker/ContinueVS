@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -48,13 +48,16 @@ namespace ContinueVS.Services.Implementations
                     _logger?.WriteDebug($"DebugStrategyGeneratorService: generating strategy for: {instruction.Substring(0, Math.Min(50, instruction.Length))}");
 
                 // Call LLM via StreamAsync with ChatMessage format
+                // SuppressTools: this generator expects structured TEXT strategy back, not
+                // tool calls. Advertising tools caused the model to emit tool_calls instead.
                 var messages = new List<ChatMessage>
                 {
                     new ChatMessage { Role = ChatMessageRole.User, Content = prompt }
                 };
 
                 var strategyText = string.Empty;
-                await foreach (var chunk in _llmService.StreamAsync(messages, null, cancellationToken))
+                var streamOptions = new StreamOptions { SuppressTools = true };
+                await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, cancellationToken))
                 {
                     strategyText += chunk.Content;
                 }

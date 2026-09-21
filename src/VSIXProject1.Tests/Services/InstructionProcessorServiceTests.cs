@@ -127,7 +127,7 @@ namespace ContinueVS.Tests.Services
             // Arrange
             var instruction = new ExecutionInstruction { Text = "Debug something" };
             _mockLlmService
-                .Setup(x => x.StreamAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, It.IsAny<CancellationToken>()))
+                .Setup(x => x.StreamAsync(It.IsAny<IEnumerable<ChatMessage>>(), It.IsAny<StreamOptions>(), It.IsAny<CancellationToken>()))
                 .Throws(new Exception("LLM service error"));
 
             // Act & Assert
@@ -268,7 +268,7 @@ namespace ContinueVS.Tests.Services
             };
 
             _mockLlmService
-                .Setup(x => x.StreamAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, It.IsAny<CancellationToken>()))
+                .Setup(x => x.StreamAsync(It.IsAny<IEnumerable<ChatMessage>>(), It.IsAny<StreamOptions>(), It.IsAny<CancellationToken>()))
                 .Returns(new MockAsyncEnumerable(chunks));
         }
 

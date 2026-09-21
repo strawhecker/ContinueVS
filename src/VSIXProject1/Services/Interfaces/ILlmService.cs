@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -131,6 +131,14 @@ namespace ContinueVS.Services.Interfaces
         /// Defaults to Agent if not specified.
         /// </summary>
         public ChatMode Mode { get; set; } = ChatMode.Agent;
+
+        /// <summary>
+        /// When true, tool schemas are NOT advertised to the LLM for this request.
+        /// Used by internal pure-text generators (phase/strategy/hypothesis extraction) that
+        /// require the model to return structured text rather than tool calls.
+        /// Defaults to false (tools are advertised as normal).
+        /// </summary>
+        public bool SuppressTools { get; set; }
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -138,7 +138,9 @@ namespace ContinueVS.Services.Implementations
         {
             var prompt = BuildHypothesisPrompt(errorAnalysis, previousChange, sessionContext, isAutonomousMode);
             var messages = new List<ChatMessage> { new ChatMessage { Role = ChatMessageRole.User, Content = prompt } };
-            var options = new StreamOptions { Temperature = 0.5 };
+            // SuppressTools: this generator expects structured TEXT hypotheses back, not tool
+            // calls. Advertising tools caused the model to emit tool_calls instead of text.
+            var options = new StreamOptions { Temperature = 0.5, SuppressTools = true };
 
             try
             {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -52,10 +52,14 @@ namespace ContinueVS.Services.Implementations
             };
 
             // Stream LLM response and collect into single response string
+            // SuppressTools: this generator expects structured TEXT phases back, not tool
+            // calls. Advertising tools previously caused the model to emit tool_calls and
+            // return no text (=> "LLM returned empty response").
             var responseBuilder = new StringBuilder();
+            var streamOptions = new StreamOptions { SuppressTools = true };
             try
             {
-                await foreach (var chunk in _llmService.StreamAsync(messages, null, cancellationToken))
+                await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, cancellationToken))
                 {
                     if (cancellationToken.IsCancellationRequested)
                         break;

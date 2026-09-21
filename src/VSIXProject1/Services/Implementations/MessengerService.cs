@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -326,8 +326,13 @@ namespace ContinueVS.Services.Implementations
                     requestObj["top_p"] = options.TopP.Value;
 
                 // Populate tools filtered by current ChatMode (gap71)
-                var availableTools = _toolService.GetAvailableTools(options.Mode);
-                _logger?.WriteDebug($"[gap71-messenger-openai-tools] Mode={options.Mode}, filtering tools: {availableTools.Count()} available");
+                // SuppressTools: internal pure-text generators (phase/strategy/hypothesis)
+                // must NOT advertise tools, otherwise the model emits tool_calls instead of
+                // the structured text these consumers parse (see "LLM returned empty response").
+                var availableTools = options.SuppressTools
+                    ? Enumerable.Empty<ToolDefinition>()
+                    : _toolService.GetAvailableTools(options.Mode);
+                _logger?.WriteDebug($"[gap71-messenger-openai-tools] Mode={options.Mode}, SuppressTools={options.SuppressTools}, filtering tools: {availableTools.Count()} available");
 
                 if (availableTools.Any())
                 {
@@ -733,8 +738,13 @@ namespace ContinueVS.Services.Implementations
             };
 
             // Populate tools filtered by current ChatMode (gap71)
-            var availableTools = _toolService.GetAvailableTools(options.Mode);
-            _logger?.WriteDebug($"[gap71-messenger-tools] Mode={options.Mode}, filtering tools: {availableTools.Count()} available");
+            // SuppressTools: internal pure-text generators (phase/strategy/hypothesis)
+            // must NOT advertise tools, otherwise the model emits tool_calls instead of
+            // the structured text these consumers parse (see "LLM returned empty response").
+            var availableTools = options.SuppressTools
+                ? Enumerable.Empty<ToolDefinition>()
+                : _toolService.GetAvailableTools(options.Mode);
+            _logger?.WriteDebug($"[gap71-messenger-tools] Mode={options.Mode}, SuppressTools={options.SuppressTools}, filtering tools: {availableTools.Count()} available");
 
             if (availableTools.Any())
             {
