@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Events;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace ContinueVS.Services.Implementations
 {
@@ -124,38 +126,44 @@ Respond only with the JSON object.";
 
             try
             {
-                // Simple regex extraction of JSON block
-                var jsonMatch = Regex.Match(response, @"\{[\s\S]*\}", RegexOptions.IgnoreCase);
-                if (!jsonMatch.Success)
+                // Extract the top-level JSON object block using a balanced-brace scan rather than a
+                // greedy/non-greedy regex. This is robust to literal '{' / '}' / '[' / ']' / quotes
+                // appearing inside string VALUES (e.g. a snippet code like
+                // Console.WriteLine($"[Messages_CollectionChanged] ...") which contains ']', quotes
+                // and interpolated braces). A regex like @"{[\s\S]*}" stops at the first ']' or is
+                // otherwise fooled by nested brackets embedded in strings.
+                var jsonText = ExtractTopLevelJsonObject(response);
+                if (jsonText == null)
                     return null;
 
-                var jsonText = jsonMatch.Value;
+                JObject jsonObj;
+                try
+                {
+                    jsonObj = JObject.Parse(jsonText);
+                }
+                catch (JsonException)
+                {
+                    return null;
+                }
 
-                // Parse JSON manually (avoiding external dependency on JSON libraries for .NET 4.7.2 compatibility)
-                var strategy = new InstrumentationStrategy();
+                if (jsonObj == null)
+                    return null;
 
-                // Extract fields
-                ExtractStringField(jsonText, "description", out var description);
-                strategy.Description = description ?? "Instrumentation";
+                var strategy = new InstrumentationStrategy
+                {
+                    Description = jsonObj["description"]?.Value<string>() ?? "Instrumentation"
+                };
 
-                ExtractStringField(jsonText, "instrumentationType", out var typeStr);
-                if (Enum.TryParse<InstrumentationType>(typeStr ?? "ConsoleLog", out var instrType))
+                var typeStr = jsonObj["instrumentationType"]?.Value<string>();
+                if (Enum.TryParse<InstrumentationType>(typeStr ?? string.Empty, true, out var instrType))
                     strategy.InstrumentationType = instrType;
 
-                ExtractStringField(jsonText, "targetFile", out var file);
-                strategy.TargetFile = file ?? targetFile ?? "unknown.cs";
+                strategy.TargetFile = jsonObj["targetFile"]?.Value<string>() ?? targetFile ?? "unknown.cs";
+                strategy.Rationale = jsonObj["rationale"]?.Value<string>() ?? string.Empty;
 
-                ExtractStringField(jsonText, "rationale", out var rationale);
-                strategy.Rationale = rationale ?? string.Empty;
+                strategy.CodeSnippets = ExtractSnippets(jsonObj["snippets"] as JArray);
 
-                // Parse snippets array
-                var snippets = ExtractSnippetsArray(jsonText);
-                strategy.CodeSnippets = snippets;
-
-                if (!strategy.IsValid())
-                    return null;
-
-                return strategy;
+                return strategy.IsValid() ? strategy : null;
             }
             catch (Exception)
             {
@@ -163,61 +171,99 @@ Respond only with the JSON object.";
             }
         }
 
-        private void ExtractStringField(string json, string fieldName, out string? value)
+        /// <summary>
+        /// Extracts the outermost balanced JSON object from raw LLM output.
+        /// Tolerates markdown fences, leading/trailing prose, and nested braces /
+        /// brackets inside string values by scanning with a brace-depth counter that
+        /// respects JSON string escapes.
+        /// </summary>
+        private static string? ExtractTopLevelJsonObject(string response)
         {
-            value = null;
-            var pattern = $@"""{fieldName}""\s*:\s*""([^""]*)""";
-            var match = Regex.Match(json, pattern);
-            if (match.Success && match.Groups.Count > 1)
-                value = match.Groups[1].Value;
-        }
+            int start = response.IndexOf('{');
+            if (start < 0)
+                return null;
 
-        private List<InstrumentationSnippet> ExtractSnippetsArray(string json)
-        {
-            var snippets = new List<InstrumentationSnippet>();
-
-            // Extract snippets array
-            var arrayPattern = @"""snippets""\s*:\s*\[([\s\S]*?)\]";
-            var arrayMatch = Regex.Match(json, arrayPattern);
-            if (!arrayMatch.Success)
-                return snippets;
-
-            var arrayContent = arrayMatch.Groups[1].Value;
-
-            // Split by objects (simplified: look for line number patterns)
-            var objectPattern = @"\{[^}]*""lineNumber""\s*:\s*(\d+)[^}]*""code""\s*:\s*""([^""]*?)""[^}]*""reason""\s*:\s*""([^""]*)""[^}]*\}";
-            var objectMatches = Regex.Matches(arrayContent, objectPattern);
-
-            foreach (Match objMatch in objectMatches)
+            int depth = 0;
+            bool inString = false;
+            bool escaped = false;
+            for (int i = start; i < response.Length; i++)
             {
-                if (objMatch.Groups.Count >= 4)
+                char c = response[i];
+                if (inString)
                 {
-                    int.TryParse(objMatch.Groups[1].Value, out var lineNum);
-                    var code = UnescapeString(objMatch.Groups[2].Value);
-                    var reason = objMatch.Groups[3].Value;
-
-                    snippets.Add(new InstrumentationSnippet
+                    if (escaped)
                     {
-                        LineNumber = lineNum,
-                        Code = code,
-                        Reason = reason
-                    });
+                        escaped = false;
+                    }
+                    else if (c == '\\')
+                    {
+                        escaped = true;
+                    }
+                    else if (c == '"')
+                    {
+                        inString = false;
+                    }
+                    continue;
+                }
+
+                switch (c)
+                {
+                    case '"':
+                        inString = true;
+                        break;
+                    case '{':
+                        depth++;
+                        break;
+                    case '}':
+                        depth--;
+                        if (depth == 0)
+                            return response.Substring(start, i - start + 1);
+                        break;
                 }
             }
 
-            return snippets;
+            return null;
         }
 
-        private string UnescapeString(string escaped)
+        /// <summary>
+        /// Parses the snippets array using Newtonsoft.Json, which correctly unescapes nested
+        /// quotes, brackets and braces inside string values. Plain string values should never
+        /// need manual unescaping again.
+        /// </summary>
+        private List<InstrumentationSnippet> ExtractSnippets(JArray? snippetsArray)
         {
-            if (string.IsNullOrEmpty(escaped))
-                return escaped;
+            var snippets = new List<InstrumentationSnippet>();
+            if (snippetsArray == null)
+                return snippets;
 
-            return escaped
-                .Replace("\\n", "\n")
-                .Replace("\\t", "\t")
-                .Replace("\\\"", "\"")
-                .Replace("\\\\", "\\");
+            foreach (var token in snippetsArray)
+            {
+                if (!(token is JObject snippetObj))
+                    continue;
+
+                var lineToken = snippetObj["lineNumber"];
+                var lineNum = 0;
+                if (lineToken != null && lineToken.Type == JTokenType.Integer)
+                {
+                    lineNum = lineToken.Value<int>();
+                }
+                else if (lineToken != null)
+                {
+                    int.TryParse(lineToken.ToString(), out lineNum);
+                }
+
+                var code = snippetObj["code"]?.Value<string>() ?? string.Empty;
+                var reason = snippetObj["reason"]?.Value<string>() ?? string.Empty;
+
+                snippets.Add(new InstrumentationSnippet
+                {
+                    LineNumber = lineNum,
+                    Code = code,
+                    Reason = reason
+                });
+            }
+
+            return snippets;
         }
     }
 }
