@@ -219,7 +219,12 @@ namespace ContinueVS.Services.Implementations
                     // gap80: soft-delete tombstone exclusion. Messages marked IsDeleted
                     // (deduped duplicate reads / user-pruned in gap81) are excluded from the
                     // LLM payload while remaining retained in the session.
+                    // gap80_1: FreshnessState.Superseded behaves like a tombstone (a strict
+                    // successor exists) and is EXCLUDED from the payload; Stale is a VISIBLE
+                    // marker kept in the payload so the model re-reads to confirm.
                     if (msg.IsDeleted)
+                        continue;
+                    if (msg.Role == ChatMessageRole.Tool && msg.FreshnessState == FreshnessState.Superseded)
                         continue;
 
                     var role = msg.Role switch
@@ -236,6 +241,11 @@ namespace ContinueVS.Services.Implementations
                             { "role", role }
                         };
 
+                    // gap80_1: Keep the visible STALE annotation in the content so the model
+                    // can react ("re-read to confirm"). Content is only touched by the STALE
+                    // annotation path; Superseded entries were already excluded above.
+                    var contentForPayload = msg.Content ?? string.Empty;
+
                     // gap78-openai-content: OpenAI requires that assistant messages carrying
                     // only tool_calls (no text) OMIT the content field rather than send an
                     // empty string. Some OpenAI-compatible servers (vLLM) reject an empty
@@ -246,14 +256,14 @@ namespace ContinueVS.Services.Implementations
 
                     if (isToolCallAssistant)
                     {
-                        if (!string.IsNullOrEmpty(msg.Content))
+                        if (!string.IsNullOrEmpty(contentForPayload))
                         {
-                            msgDict["content"] = msg.Content!;
+                            msgDict["content"] = contentForPayload;
                         }
                     }
                     else
                     {
-                        msgDict["content"] = msg.Content ?? string.Empty;
+                        msgDict["content"] = contentForPayload;
                     }
 
                     // gap78-openai-wire: Serialize assistant tool calls back to the model
@@ -646,7 +656,11 @@ namespace ContinueVS.Services.Implementations
                 foreach (var msg in options.Messages)
                 {
                     // gap80: soft-delete tombstone exclusion (see OpenAI path).
+                    // gap80_1: Superseded tool results behave like tombstones and are excluded;
+                    // Stale markers stay visible.
                     if (msg.IsDeleted)
+                        continue;
+                    if (msg.Role == ChatMessageRole.Tool && msg.FreshnessState == FreshnessState.Superseded)
                         continue;
 
                     var role = msg.Role switch

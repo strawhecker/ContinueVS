@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -209,12 +209,14 @@ namespace ContinueVS.Tests.Services
 
         private static List<ChangeBaseline> GetSnapshots(ToolCallSnapshotStore store, string keyPath)
         {
+            // gap80_1: store is keyed by (path, coverage). A read_file call is FULL coverage,
+            // so the map key is "path|FULL".
             var field = typeof(ToolCallSnapshotStore)
-                .GetField("_versionsByPath", BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.NotNull(field); // _versionsByPath should exist
+                .GetField("_versionsByCoverage", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(field); // _versionsByCoverage should exist
             var dict = (Dictionary<string, List<ChangeBaseline>>?)field!.GetValue(store);
             Assert.NotNull(dict);
-            Assert.True(dict!.TryGetValue(keyPath, out var list));
+            Assert.True(dict!.TryGetValue(keyPath + "|FULL", out var list));
             return list!;
         }
     }

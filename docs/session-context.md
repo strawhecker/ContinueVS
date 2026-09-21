@@ -8690,15 +8690,58 @@ Three capabilities, one coherent design:
 
 #### Status
 
-Planned. First sub-gap of gap80. Where gap80 defined the *primitive*
-(soft-delete tombstone + version-retaining read dedup under our own tool-call
-IDs), this gap defines the *lifetime model*: when a tool result is superseded,
-invalidated, or stale, and — critically — what is never allowed to happen
-(time-based silent removal).
+✅ **Complete** | Type: Tool-Result Lifetime & Coverage Semantics (extends gap80)
 
-Reuses gap80's tombstone and version retention. Does not re-define them.
-Depends on gap80 (tombstone primitive), gap83 (append-only visibility),
-and complements gap81 (manual user prune).
+Implemented as the first sub-gap of gap80 — an explicit, safe lifetime model for
+in-flight tool results, replacing gap80's single path-keyed "older read of same
+path → mark Deleted" rule. It reuses gap80's tombstone + version retention and
+does NOT re-define them. All five decided behaviors are implemented; the
+governing rule "delete only what has a strict successor, never on time alone" is
+enforced. STALE is a *visible* marker (kept in the LLM payload), distinct from
+tombstone-Deleted.
+
+**Files changed:**
+- `src/VSIXProject1/Core/Types/ChatMessage.cs` — added `FreshnessState` enum
+  (`Fresh`/`Superseded`/`Stale`) + persisted `FreshnessState`, `CoverageKey`,
+  `MutationTargetPath` properties.
+- `src/VSIXProject1/Services/Interfaces/IReadDeduplicator.cs` — added
+  `IsMutatingTool`, `IsDirectorySnapshotTool`, `ExtractMutationPath`,
+  `ExtractCoverage`.
+- `src/VSIXProject1/Services/Implementations/ReadDeduplicator.cs` — added
+  `DirectorySnapshotTools` set + implementations (coverage classifier: FULL /
+  RANGE(start,end)); mutation path extraction.
+- `src/VSIXProject1/Services/Interfaces/IToolCallSnapshotStore.cs` — added
+  `Coverage` to `ReadDedupDecision`.
+- `src/VSIXProject1/Services/Implementations/ToolCallSnapshotStore.cs` — keyed by
+  (path, coverage) instead of bare path (coverage-aware supersession).
+- `src/VSIXProject1/Services/Interfaces/IToolResultLifetimeService.cs` (new) —
+  `ApplyLifetime(List<ChatMessage>)`.
+- `src/VSIXProject1/Services/Implementations/ToolResultLifetimeService.cs` (new)
+  — 4 passes: coverage supersession, mutation-invalidates-priors, directory-
+  snapshot STALE, failed-mutation pivot.
+- `src/VSIXProject1/Services/ServiceBootstrapper.cs` — registered
+  `IToolResultLifetimeService` singleton.
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — inject lifetime engine;
+  tag tool results with coverage/mutation metadata; apply engine in main loop +
+  Ollama continuation loop; per-action `_continuationToolResults` clear.
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs` — OpenAI +
+  Ollama serialize paths exclude `FreshnessState.Superseded` tool results
+  (tombstone) while keeping `Stale` visible.
+- `src/VSIXProject1.Tests/Services/ToolCallManagementGap80Tests.cs` — updated
+  `GetSnapshots` helper to `_versionsByCoverage` + `|FULL` key.
+
+**Tests added:**
+- `src/VSIXProject1.Tests/Services/ToolResultLifetimeGap80_1Tests.cs` (10 tests)
+  — disjoint ranges coexist, identical-range repeat supersedes, partial→full
+  supersedes, full-twice supersedes, mutation tombstones prior read, unrelated
+  path untouched, failed mutation keeps prior read, directory snapshot → STALE
+  (visible annotation), snapshot without mutation stays fresh, failure signal
+  never superseded (pivot), no silent time-based expiry.
+
+**Validation:** `dotnet clean` → `dotnet build --force` (0 warnings, 0 errors) →
+`dotnet test`: 1433 passed, 0 failed, 0 skipped.
+
+---
 
 #### What the gap is
 

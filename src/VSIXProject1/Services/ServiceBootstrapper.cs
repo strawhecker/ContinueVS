@@ -149,6 +149,14 @@ namespace ContinueVS.Services
                 return new ToolCallAggregator(idAllocator, snapshotStore, readDeduplicator);
             });
 
+            // gap80_1: Tool-result lifetime engine — coverage-aware supersession, mutation-
+            // invalidates-priors, directory-snapshot staleness, failed-mutation pivot.
+            services.AddSingleton<IToolResultLifetimeService>(sp =>
+            {
+                var readDeduplicator = sp.GetRequiredService<IReadDeduplicator>();
+                return new ToolResultLifetimeService(readDeduplicator);
+            });
+
             // Stack trace parsing service and parsers (gap29_1)
             services.AddSingleton<IDotNetFrameworkParser, DotNetFrameworkStackTraceParser>();
             services.AddSingleton<IDotNetCoreParser, DotNetCoreStackTraceParser>();

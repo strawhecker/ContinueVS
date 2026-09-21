@@ -42,6 +42,13 @@ namespace ContinueVS.Services.Interfaces
         public string? KeyPath { get; set; }
 
         /// <summary>
+        /// gap80_1: Coverage half of the (path, coverage) key ("FULL" or "RANGE(start,end)").
+        /// Enables coverage-aware read supersession: a full read supersedes every prior read of
+        /// the path, while a range read supersedes only the identical prior range.
+        /// </summary>
+        public string Coverage { get; set; } = "FULL";
+
+        /// <summary>
         /// The retained version number for this path (1 for first read, incremented per new version).
         /// </summary>
         public int Version { get; set; }

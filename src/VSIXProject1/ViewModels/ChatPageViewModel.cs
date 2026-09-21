@@ -72,6 +72,14 @@ namespace ContinueVS.ViewModels
         private readonly IMessengerService? _messengerService;
         // gap78: Tool call aggregator for buffering streaming tool call fragments
         private readonly IToolCallAggregator _toolCallAggregator;
+        // gap80_1: Tool-result lifetime engine (coverage supersession, mutation invalidation,
+        // directory-snapshot staleness, failed-mutation pivot). Applies to collected tool results
+        // before the next LLM iteration.
+        private readonly IToolResultLifetimeService _toolResultLifetimeService;
+        // gap80_1: Tool-result messages accumulated within the current auto-continuation turn so
+        // the lifetime engine can supersede across recursive Ollama iterations (tool results are
+        // in-flight, never persisted to session history). Cleared on each continuation pass.
+        private readonly List<ChatMessage> _continuationToolResults = new List<ChatMessage>();
         private UIState? _cachedUIState;
 
         private string? _inputText;
@@ -663,7 +671,8 @@ namespace ContinueVS.ViewModels
             IPlanOutputService? planOutputService = null,
             IAgentCommandDispatcher? agentCommandDispatcher = null,
             IMessengerService? messengerService = null,
-            IToolCallAggregator? toolCallAggregator = null)
+            IToolCallAggregator? toolCallAggregator = null,
+            IToolResultLifetimeService? toolResultLifetimeService = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -702,6 +711,9 @@ namespace ContinueVS.ViewModels
             _messengerService = messengerService;
             // gap78: Tool call aggregator; fall back to create default if none supplied
             _toolCallAggregator = toolCallAggregator ?? new ToolCallAggregator();
+            // gap80_1: Tool-result lifetime engine; fall back to create default if none supplied
+            _toolResultLifetimeService = toolResultLifetimeService ?? new ToolResultLifetimeService(
+                new ReadDeduplicator());
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -781,6 +793,10 @@ namespace ContinueVS.ViewModels
             {
                 // Ignore session access errors in unit test contexts
             }
+
+            // gap80_1: A new user action starts a fresh lifetime scope — clear the accumulated
+            // auto-continuation tool results.
+            _continuationToolResults.Clear();
 
             LoggerService.Current.WriteDebug("[gap79-reset] Per-action tool budget reset for new user action. Fresh budget allocated.");
         }
@@ -1936,6 +1952,11 @@ namespace ContinueVS.ViewModels
                         }
 
                         // Add tool results to messages for next loop iteration
+                        // gap80_1: Apply lifetime rules (coverage supersession, mutation
+                        // invalidation, directory-snapshot staleness, failed-mutation pivot)
+                        // before re-sending so superseded results are tombstoned and stale
+                        // snapshots are visibly marked (never silent removal).
+                        ApplyToolResultLifetime(toolResultMessages);
                         messages.AddRange(toolResultMessages);
 
                         // Reset streaming response for next iteration
@@ -2129,6 +2150,9 @@ namespace ContinueVS.ViewModels
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
                     };
+                    // gap80_1: Tag the message with lifetime metadata (coverage key for reads,
+                    // mutation target path for mutations) so the lifetime engine can supersede.
+                    ApplyLifetimeMetadataForTool(message: toolMessage, toolCall: toolCall);
                     // gap73: Tool results are displayed in UI but NOT persisted to session file
                     // They are only used for LLM context in the current loop via ConvertToolCallToSchema
                     Messages.Add(toolMessage);
@@ -2214,6 +2238,46 @@ namespace ContinueVS.ViewModels
                 }
             }
             return failureCount;
+        }
+
+        /// <summary>
+        /// gap80_1: Tags a just-created tool-result message with lifetime metadata so the
+        /// lifetime engine can supersede it later. Reads get a CoverageKey (path|FULL or
+        /// path|RANGE(start,end)); mutations get a MutationTargetPath. Errors/denials just get
+        /// the tool name (the engine treats content-signals as failure/invalidation notes).
+        /// </summary>
+        private void ApplyLifetimeMetadataForTool(ChatMessage message, ToolCall toolCall)
+        {
+            if (message == null || toolCall == null || string.IsNullOrEmpty(toolCall.Name))
+                return;
+
+            var readDeduplicator = new ReadDeduplicator();
+            var keyPath = readDeduplicator.ExtractKeyPath(toolCall);
+            if (keyPath != null)
+            {
+                var coverage = readDeduplicator.ExtractCoverage(toolCall);
+                message.CoverageKey = keyPath.Replace('\\', '/') + "|" + coverage;
+            }
+
+            if (readDeduplicator.IsMutatingTool(toolCall.Name))
+            {
+                var mutationPath = readDeduplicator.ExtractMutationPath(toolCall);
+                if (mutationPath != null)
+                    message.MutationTargetPath = mutationPath;
+            }
+        }
+
+        /// <summary>
+        /// gap80_1: Applies the tool-result lifetime engine to the collected results for the
+        /// next LLM iteration, converting Superseded messages to tombstoned and keeping Stale
+        /// markers visible (per MessengerService serialize handling).
+        /// </summary>
+        private void ApplyToolResultLifetime(List<ChatMessage> toolResults)
+        {
+            if (toolResults == null || toolResults.Count == 0)
+                return;
+
+            _toolResultLifetimeService.ApplyLifetime(toolResults);
         }
 
         private bool CanSendMessage()
@@ -2860,6 +2924,12 @@ namespace ContinueVS.ViewModels
                 // Reconstruct full message list with all context
                 var allMessages = new List<ChatMessage>(currentSession!.Messages);
 
+                // gap80_1: Apply the lifetime engine to this turn's accumulated tool results
+                // before streaming, so coverage supersession / mutation invalidation / directory
+                // staleness are reflected in the continuation context (tool results are in-flight,
+                // not persisted history — the engine mutates them here, not the session store).
+                ApplyToolResultLifetime(_continuationToolResults);
+
                 // Get mode config for this continuation
                 var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
 
@@ -3012,10 +3082,18 @@ namespace ContinueVS.ViewModels
                                     ToolName = result.ToolName,
                                     // gap87: Fabricate a display-only description from the tool-call arguments.
                                     ToolCallDescription = ToolCallDescriptionBuilder.Build(
-                                        result.ToolName,
+                                        result.ToolName ?? "tool",
                                         resultDescById.TryGetValue(result.ToolCallId ?? string.Empty, out var captured) ? captured : null)
                                 };
+                                // gap80_1: Tag lifetime metadata (coverage key / mutation path).
+                                resultDescById.TryGetValue(result.ToolCallId ?? string.Empty, out var lifetimeArgs);
+                                ApplyLifetimeMetadataForTool(resultMsg, new ToolCall
+                                {
+                                    Name = result.ToolName ?? resultMsg.ToolCallId ?? string.Empty,
+                                    Arguments = lifetimeArgs ?? new Dictionary<string, object>()
+                                });
                                 await _sessionService.AddMessageAsync(resultMsg);
+                                _continuationToolResults.Add(resultMsg);
                             }
 
                             // gap69: Create and add execution impact message

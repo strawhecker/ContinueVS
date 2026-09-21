@@ -39,6 +39,39 @@ namespace ContinueVS.Core.Types
     }
 
     /// <summary>
+    /// gap80_1: Freshness state of a tool-result message in the in-flight LLM payload.
+    ///
+    /// Distinct from the <see cref="ChatMessage.IsDeleted"/> tombstone (gap80):
+    /// Deleted is a user/duplicate tombstone that EXCLUDES the message from the LLM
+    /// payload entirely; FreshnessState <see cref="FreshnessState.Stale"/> is a VISIBLE
+    /// marker that stays in the payload so the model sees it and re-reads. Deleted wins
+    /// over any FreshnessState at serialize time (a tombstoned message is never sent).
+    /// </summary>
+    public enum FreshnessState
+    {
+        /// <summary>
+        /// The content is current and trusted. Default for all messages.
+        /// </summary>
+        Fresh,
+
+        /// <summary>
+        /// A strict successor exists (a newer or wider read, or a mutation made the prior
+        /// read obsolete). Behaves like the gap80 tombstone family: the message is excluded
+        /// from the LLM payload while its bytes stay retained for version retention. Same
+        /// serialize-time treatment as <see cref="ChatMessage.IsDeleted"/>.
+        /// </summary>
+        Superseded,
+
+        /// <summary>
+        /// No strict successor exists but the content may no longer match disk (directory/
+        /// glob/search snapshots after a same-scope mutation, or TTL-bounded staleness).
+        /// This is a VISIBLE marker: it stays in the payload, annotated so the model can
+        /// react ("re-read to confirm"). Never silently removed on time.
+        /// </summary>
+        Stale
+    }
+
+    /// <summary>
     /// Represents the execution status of a tool invocation.
     /// </summary>
     public enum ToolInvocationStatus
@@ -113,6 +146,47 @@ namespace ContinueVS.Core.Types
         private bool _isThinking = false;
         private bool _isExpanded = false;
         private bool _isDeleted = false;
+        private FreshnessState _freshnessState = FreshnessState.Fresh;
+        private string? _coverageKey;
+        private string? _mutationTargetPath;
+
+        /// <summary>
+        /// gap80_1: Freshness/lifetime state of this tool-result message. Defaults to Fresh.
+        /// Superseded is treated like a tombstone (excluded at serialize) but distinct from
+        /// <see cref="IsDeleted"/> (user prune / duplicate); Stale is a VISIBLE marker that
+        /// stays in the payload. Persisted so the state survives replays.
+        /// </summary>
+        [JsonProperty("freshnessState")]
+        public FreshnessState FreshnessState
+        {
+            get => _freshnessState;
+            set => SetProperty(ref _freshnessState, value);
+        }
+
+        /// <summary>
+        /// gap80_1: Coverage key of the tool result this message carries, when the result is a
+        /// file read (path + FULL/RANGE(start,end)). Enables coverage-aware read supersession
+        /// ((path, coverage) keying). Null for non-read results. Persisted for replay safety.
+        /// </summary>
+        [JsonProperty("coverageKey")]
+        public string? CoverageKey
+        {
+            get => _coverageKey;
+            set => SetProperty(ref _coverageKey, value);
+        }
+
+        /// <summary>
+        /// gap80_1: Canonical path that a mutating tool result touched (edit_file, write_file,
+        /// single_find_and_replace, create_new_file, ...). Stored so the lifetime engine can
+        /// tombstone the PRECEDING reads of that path (mutation-invalidates-priors). Null for
+        /// read results. Persisted for replay safety.
+        /// </summary>
+        [JsonProperty("mutationTargetPath")]
+        public string? MutationTargetPath
+        {
+            get => _mutationTargetPath;
+            set => SetProperty(ref _mutationTargetPath, value);
+        }
 
         /// <summary>
         /// Dynamic buffer for accumulating streaming content.

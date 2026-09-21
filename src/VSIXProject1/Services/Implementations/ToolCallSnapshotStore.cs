@@ -8,24 +8,29 @@ using ContinueVS.Services.Interfaces;
 namespace ContinueVS.Services.Implementations
 {
     /// <summary>
-    /// Version-retaining read snapshot store (gap80).
+    /// Version-retaining read snapshot store (gap80 / gap80_1).
     ///
-    /// Retains each read path's byte snapshots via ChangeBaseline (gap29_8_2 shape) so the
+    /// Retains each read's byte snapshots via ChangeBaseline (gap29_8_2 shape) so the
     /// future restore path already has them. On a repeated read it marks the earlier versions
     /// Deleted for the LLM (excluded at serialize time) while keeping them accessible.
+    ///
+    /// gap80_1: keys by (path, coverage) instead of bare path so coverage-aware supersession
+    /// holds: a FULL read supersedes every prior read of the path, while a RANGE read supersedes
+    /// only the identical prior range (disjoint ranges coexist as cumulative evidence).
     /// </summary>
     public class ToolCallSnapshotStore : IToolCallSnapshotStore
     {
         private readonly object _gate = new object();
-        private readonly Dictionary<string, List<ChangeBaseline>> _versionsByPath =
+        private readonly Dictionary<string, List<ChangeBaseline>> _versionsByCoverage =
             new Dictionary<string, List<ChangeBaseline>>(StringComparer.Ordinal);
+        private readonly ReadDeduplicator _readDeduplicator = new ReadDeduplicator();
 
         /// <inheritdoc />
         public ReadDedupDecision EvaluateRead(ToolCall toolCall, string retrievedContent)
         {
             lock (_gate)
             {
-                var keyPath = new ReadDeduplicator().ExtractKeyPath(toolCall);
+                var keyPath = _readDeduplicator.ExtractKeyPath(toolCall);
                 if (keyPath == null)
                 {
                     // Not a single-file read identity; treat as a plain read (no dedup).
@@ -33,14 +38,18 @@ namespace ContinueVS.Services.Implementations
                     {
                         Verdict = ReadDedupVerdict.FirstRead,
                         KeyPath = null,
+                        Coverage = _readDeduplicator.ExtractCoverage(toolCall),
                         Version = 0
                     };
                 }
 
-                if (!_versionsByPath.TryGetValue(keyPath, out var versions) || versions.Count == 0)
+                var coverage = _readDeduplicator.ExtractCoverage(toolCall);
+                var key = BuildCoverageKey(keyPath, coverage);
+
+                if (!_versionsByCoverage.TryGetValue(key, out var versions) || versions.Count == 0)
                 {
-                    // First read of this path — v1.
-                    _versionsByPath[keyPath] = new List<ChangeBaseline>
+                    // First read of this (path, coverage) — v1.
+                    _versionsByCoverage[key] = new List<ChangeBaseline>
                     {
                         new ChangeBaseline
                         {
@@ -53,11 +62,12 @@ namespace ContinueVS.Services.Implementations
                     {
                         Verdict = ReadDedupVerdict.FirstRead,
                         KeyPath = keyPath,
+                        Coverage = coverage,
                         Version = 1
                     };
                 }
 
-                // Repeated read. Compare to the most recent retained version.
+                // Repeated read of the same (path, coverage). Compare to the most recent retained version.
                 var latest = versions[versions.Count - 1];
                 if (string.Equals(latest.BaselineContent, retrievedContent ?? string.Empty, StringComparison.Ordinal))
                 {
@@ -67,6 +77,7 @@ namespace ContinueVS.Services.Implementations
                     {
                         Verdict = ReadDedupVerdict.DuplicateSoftDeleted,
                         KeyPath = keyPath,
+                        Coverage = coverage,
                         Version = versions.Count
                     };
                 }
@@ -82,6 +93,7 @@ namespace ContinueVS.Services.Implementations
                 {
                     Verdict = ReadDedupVerdict.NewVersionRetained,
                     KeyPath = keyPath,
+                    Coverage = coverage,
                     Version = versions.Count
                 };
             }
@@ -95,10 +107,10 @@ namespace ContinueVS.Services.Implementations
 
             lock (_gate)
             {
-                if (!_versionsByPath.TryGetValue(keyPath, out var versions))
+                if (!_versionsByCoverage.TryGetValue(keyPath, out var versions))
                 {
                     versions = new List<ChangeBaseline>();
-                    _versionsByPath[keyPath] = versions;
+                    _versionsByCoverage[keyPath] = versions;
                 }
                 versions.Add(new ChangeBaseline
                 {
@@ -114,8 +126,17 @@ namespace ContinueVS.Services.Implementations
         {
             lock (_gate)
             {
-                _versionsByPath.Clear();
+                _versionsByCoverage.Clear();
             }
+        }
+
+        /// <summary>
+        /// gap80_1: Builds the (path, coverage) dictionary key. Coverage is normalized so
+        /// identical range reads key identically.
+        /// </summary>
+        private static string BuildCoverageKey(string keyPath, string coverage)
+        {
+            return keyPath.Replace('\\', '/') + "|" + (coverage ?? "FULL");
         }
     }
 }

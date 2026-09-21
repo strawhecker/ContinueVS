@@ -47,6 +47,22 @@ namespace ContinueVS.Services.Implementations
             "open_file"
         };
 
+        /// <summary>
+        /// gap80_1: Tools that return snapshots of mutable directory/glob/search state.
+        /// These have no natural single-file successor; their staleness is either structurally
+        /// invalidated by a mutation touching the same scope or visibly marked STALE — never
+        /// silently removed on time.
+        /// </summary>
+        private static readonly HashSet<string> DirectorySnapshotTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ls",
+            "file_glob_search",
+            "search_codebase",
+            "grep_search",
+            "get_problems",
+            "view_diff"
+        };
+
         /// <inheritdoc />
         public bool IsPureReadTool(string toolName)
         {
@@ -56,6 +72,18 @@ namespace ContinueVS.Services.Implementations
             if (MutatingTools.Contains(toolName))
                 return false;
             return PureReadTools.Contains(toolName);
+        }
+
+        /// <inheritdoc />
+        public bool IsMutatingTool(string toolName)
+        {
+            return !string.IsNullOrEmpty(toolName) && MutatingTools.Contains(toolName);
+        }
+
+        /// <inheritdoc />
+        public bool IsDirectorySnapshotTool(string toolName)
+        {
+            return !string.IsNullOrEmpty(toolName) && DirectorySnapshotTools.Contains(toolName);
         }
 
         /// <inheritdoc />
@@ -78,6 +106,46 @@ namespace ContinueVS.Services.Implementations
                 return "read_currently_open_file";
 
             return null;
+        }
+
+        /// <inheritdoc />
+        public string? ExtractMutationPath(ToolCall toolCall)
+        {
+            if (toolCall?.Arguments == null)
+                return null;
+            foreach (var key in new[] { "filepath", "path", "file", "newFilepath", "oldFilepath" })
+            {
+                if (toolCall.Arguments.TryGetValue(key, out var val) && val != null)
+                {
+                    var path = val.ToString();
+                    if (!string.IsNullOrWhiteSpace(path))
+                        return Normalize(path);
+                }
+            }
+            return null;
+        }
+
+        /// <inheritdoc />
+        public string ExtractCoverage(ToolCall toolCall)
+        {
+            // read_file / view_file read the whole file -> FULL.
+            if (string.Equals(toolCall.Name, "read_file", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(toolCall.Name, "view_file", StringComparison.OrdinalIgnoreCase))
+            {
+                return "FULL";
+            }
+
+            // read_file_range -> RANGE(start,end) using the normalized line args.
+            if (string.Equals(toolCall.Name, "read_file_range", StringComparison.OrdinalIgnoreCase) &&
+                toolCall.Arguments != null)
+            {
+                var start = toolCall.Arguments.TryGetValue("startLine", out var s) ? s?.ToString() : null;
+                var end = toolCall.Arguments.TryGetValue("endLine", out var e) ? e?.ToString() : null;
+                return $"RANGE({start},{end})";
+            }
+
+            // Everything else -> FULL (best-effort; only read_file/full-id reads are keyed).
+            return "FULL";
         }
 
         private static string Normalize(string path)
