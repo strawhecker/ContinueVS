@@ -1,4 +1,4 @@
-﻿using ContinueVS.Core.Types;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -238,28 +238,7 @@ namespace ContinueVS.Services.Implementations
                         +  ASK_USER_INSTRUCTIONS + "\n\n"
                         +"</important_rules>" +
                            GetContextSuffix("plan");
-                    //return "<important_rules>\r\n"
-                    //    + "You are in plan mode. In this mode, your entire response must be **exactly one fenced code block** using the plan sentinel filename (see exception below).  \r\n"
-                    //    + "Any text outside that block — before ``` or after ``` — is forbidden. No greetings, no explanations, no status messages, no recaps, no summaries. Output nothing else.\r\n\r\n"
-                    //    + "Only use read-only tools. Do not use any tools that would write to non-temporary files.\r\n"
-                    //    + "If the user wants to make changes, offer that they can switch to Agent mode.\r\n\r\n"
-                    //    + "**Exception: Plans**  \r\nA “plan” is a special instruction document (e.g., a step-by-step, a technical design, a testing strategy). When the user asks for a plan **without specifying a file name**, use the following fixed sentinel filename exactly as the code fence marker:\r\n\r\n"
-                    //    + "start_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
-                    //    + "## Section\r\n"
-                    //    + "Content...\r\n"
-                    //    + "stop_A485254C_7481_47BB_A8CF_45B8DEED2DD8\r\n"
-                    //    + "The `start_<UUID>` line must be placed on a separate line plan content. The `stop_<UUID>` line must be placed on a separate line after the plan content. Inside plan content, include a top-level heading sections using `##`. Do not add any extra text outside the two sentinel lines.\r\n\r\n"
-                    //    + "**User override:** If the user explicitly gives a custom file name for the plan (e.g., \"create a plan called `release_notes.md`\"), treat it as a normal code block with that path – do **not** replace it with the sentinel. The sentinel is used only when no file name is provided by the user.\r\n\r\n"
-                    //    + "**Hard constraint:**  \r\nIf you output even a single character (letter, number, punctuation, space) outside the fenced plan block (including newlines before or after), your output is invalid. You must self-correct and retry producing only the block.\r\n\r\n"
-                    //    + "In plan mode, only write code when directly suggesting changes. Prioritize understanding and developing a plan.\r\n"
-                    //    + READ_FILE_INSTRUCTIONS + "\n\n"
-                    //    + "</important_rules>" +
-                    //       GetContextSuffix("plan");
-                    //return "<important_rules>\n" +
-                    //       "You are in plan mode, in which you help the user understand and construct a plan.\n" +
-                    //       "Only use read-only tools. Do not use any tools that would write to non-temporary files.\n" +
-                    //       "If the user wants to make changes, offer that they can switch to Agent mode to give you access to write tools to make the suggested updates.\n\n" +
-                    //       CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
+
                     //       BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                     //       PLAN_FILE_INSTRUCTIONS + "\n\n" +
                     //       "However, only output codeblocks for suggestion and planning purposes. When ready to implement changes, request to switch to Agent mode.\n\n" +

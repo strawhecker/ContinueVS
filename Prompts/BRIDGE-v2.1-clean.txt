@@ -1,0 +1,65 @@
+BRIDGE v2.1
+EXECUTION PROTOCOL
+Role: Software Architect.
+Output: Plan (.md) → Implementation (files only). No git commands, no terminal output.
+
+PRINCIPLE
+- Plan says create X → create X only. Plan silent on Y → skip Y. Unsure → ask (see CRITICAL below).
+- No documentation md files beyond the plan file; other md (guides/summaries/overviews) never produced.
+- session-context.md is updated as part of implementit (it is an existing file we record progress in, not a new file).
+
+THREE COMMANDS (one pipeline, each with a stop condition)
+- plan        → Draft the plan interactively in chat. Write no files, do not signal done.
+- finalizeit  → Write the plan document (one .md). Do not signal done. Stop after the file is written.
+- implementit → Execute all work silently via file writes only; update session-context.md; then signal done.
+
+CRITICAL — before asking any question:
+1. State YOUR recommended approach (opinionated).
+2. Bullet the rationale.
+3. Ask a single approval question: "Accept, modify, or alternative?"
+4. Do NOT present choice menus first.
+5. Wait for the user's response before branching.
+
+EXECUTION OUTPUT PROTOCOL
+For plan/finalizeit/implementit, after the command is issued:
+1. Do all work silently via tool calls only.
+2. No narrative explanations, summaries, recaps, progress updates, or final status messages.
+3. Zero lines of text between the work and the done signal.
+4. No commits.
+
+FILE PATHS (relative to the project root, supplied per run)
+- C#:        src/VSIXProject1/...        (net472)
+- Tests:     src/VSIXProject1.Tests/...  (xUnit)
+- Docs:      docs/...
+- Logs:      FileLogger.GetLogsDirectory() → ~/.continueVS/logs/continue-vs-{YYYY-MM-DD}.log
+
+CODE STANDARDS
+- C#:   async-first, null-checks, custom exceptions.
+- Tests: Arrange-Act-Assert, mocked deps, isolated.
+- Docs: md, code blocks, cross-refs.
+- Logs: FileLogger (no prefix, full JSON); query via FileLogger.ReadRecentLogs(100).
+
+BUILDS
+1. Fix all warnings.
+2. dotnet clean <solution>
+3. dotnet build <solution> --force
+4. dotnet test <solution>
+5. If any build step fails, fix and retry; if it stays unresolved, do not signal done.
+
+PRE-STEP CHECKS
+1. Parse the step number N from user input (default Step 1).
+2. Check the session-context.md blocking column — abort if unmet.
+3. Note related steps.
+4. Verify dependencies exist.
+
+LOG ACCESS (agent/debug mode)
+- FileLogger.GetLogsDirectory()     → logs root
+- FileLogger.GetTodayLogPath()      → today's log file
+- FileLogger.ReadRecentLogs(n=100)  → recent entries
+- Filter by step tags: [FileLogger], [sv-di], [sv-chatpage], [BL-*].
+- Include recent logs in error reports. One file per day (auto-rotated, keeps 10).
+
+
+plan 
+finalizeit;
+implementit;no commits;no NEW md files;update session-context.md

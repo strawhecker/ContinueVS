@@ -7731,7 +7731,7 @@ Users running the planning protocol need a persistent, retrievable record of app
 - **Plan persistence**: Create ~/.continueVS/plans/ directory (if missing) and write finalized plan to `{plan_name}_{timestamp}.md`
 - **File format**: Markdown with date, status, all steps, and dependencies
 - **Chat display**: Show confirmation and inline preview of where the plan was saved
-- **Retrieval**: Basic listing/access mechanism (future gap70b)
+- **Retrieval**: Basic listing/access mechanism (future gap70)
 
 **Scope Exclusions:**
 - gap70 does NOT implement full plan management UI (listing, filtering, re-running)
@@ -7755,7 +7755,7 @@ Users running the planning protocol need a persistent, retrievable record of app
 
 **Risks & Decisions:**
 - Path portability: Using ~/.continueVS/ assumes Unix-style home directory; Windows may need %APPDATA%\ContinueVS\plans
-- Naming conflicts: Timestamps prevent overwrites; consider user-provided names in gap70b
+- Naming conflicts: Timestamps prevent overwrites; consider user-provided names in future work
 - Storage quota: No limit on plan file count; cleanup is future work (gap90)
 
 **Steps (Implementation):**
@@ -7767,68 +7767,6 @@ Users running the planning protocol need a persistent, retrievable record of app
 6. Write unit tests for file creation, directory handling, and error cases
 7. Manual test: Run planning mode, invoke finalize, verify file appears and is readable
 8. Code review and merge
-
----
-
-### gap70b: LLM Plan File Output Detection & Multi-Mode Preview Integration
-
-**Status:** ✅ Complete | Type: Cross-Mode Enhancement | Blocking: None | Related: gap43_2, gap27_1
-
-**IMPLEMENTATION COMPLETE**
-- ✅ PlanFileDetector.cs with hardcoded marker detection
-- ✅ ChatPageViewModel streaming loop integration
-- ✅ ModeConfigRegistry system prompt injection (Plan/Agent/Debug only)  
-- ✅ 12/12 unit tests passing, 10/10 integration tests passing
-- ✅ All files created and modified, zero breaking changes
-
-**MARKER:** A485254C_7481_47BB_A8CF_45B8DEED2DD8.md (single hardcoded filename)
-**BEHAVIOR:** Plan/Agent/Debug auto-save+open to ~/.continueVS/plans/; Ask renders normally
-When LLM outputs GUID.md code block: `{filename}.md\n\`\`\`\n{content}\n\`\`\`` 
-Regex: `\`\`\`[A-F0-9_\-]{36,40}\.md\s*$`
-
-**BEHAVIOR**
-| Mode | Detect | Action | Output |
-|------|--------|--------|--------|
-| Ask | ✅ | Show Apply dropdown | Chat + button: "Apply to file [dropdown]" |
-| Plan | ✅ | Auto-save + open | `~/.continueVS/plans/plan_{YYYYMMDD_HHmmss}.md` in VS preview |
-| Agent | ✅ | Auto-save + open | Same as Plan |
-| Debug | ✅ | Auto-save + open | Same as Plan |
-
-**IMPLEMENTATION**
-1. Detect GUID.md during `ChatPageViewModel.OnMessageStreamReceived()` streaming loop
-2. Buffer content between fence markers
-3. On close fence:
-   - If `CurrentMode.ExportsPlanFile`: `SavePlanAsync(buffer)` → `OpenFileInEditorAsync(path)` 
-   - If Ask mode: render with Apply dropdown (hide GUID filename)
-4. Add system message feedback with file path
-
-**DEPENDENCIES**
-- ✅ `IPlanOutputService.SavePlanAsync()` (gap43_2)
-- ✅ `IIdeService.OpenFileInEditorAsync()` (existing)
-- ✅ `ModeConfig.ExportsPlanFile` (existing)
-
-**NEW WORK**
-- ❌ Stream parser logic in ChatPageViewModel
-- ❌ Ask mode dropdown UI component (XAML)
-- ❌ System prompt instructions (add to all mode configs)
-
-**TESTS**
-- Pattern detection (regex matches, rejects invalid)
-- Buffer accumulation (content integrity, line endings)
-- Mode routing (Plan/Agent/Debug save, Ask shows dropdown)
-- Error handling (disk full, permission denied—logged gracefully)
-
-**SYSTEM PROMPT (Plan/Agent/Debug modes)**
-gap70: When outputting plans, wrap the entire plan in a markdown code block. The marker goes directly after the opening fence with no space or newline:
-```A485254C_7481_47BB_A8CF_45B8DEED2DD8.md
-## Sections
-Content...
-```
-
-**SYSTEM PROMPT (Ask mode)**
-```
-Do not generate plans. Q&A only.
-```
 
 ---
 
