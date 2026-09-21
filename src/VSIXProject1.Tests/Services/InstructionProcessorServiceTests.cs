@@ -190,6 +190,34 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
+        public async Task GenerateInternalPhasesAsync_SquareBracketPhaseFormat_ParsesAllTypes()
+        {
+            // Regression test: the LLM prompt documents the "- [TYPE]: Description" format and the
+            // model frequently emits exactly that (e.g. "- [Analysis]: ..."). Ensure the parser
+            // handles the square-bracket form and does not throw "did not contain valid phases".
+            // Arrange
+            var instruction = new ExecutionInstruction { Text = "Debug comprehensive" };
+            var llmResponse = @"- [Analysis]: Inspect the exact call sites
+- [Breakpoint]: Set a breakpoint inside the method
+- [Instrumentation]: Add temporary diagnostic logging
+- [Test]: Write a targeted integration test
+- [Observation]: Run the full test suite";
+            SetupLlmMock(llmResponse);
+
+            // Act
+            var result = await _service.GenerateInternalPhasesAsync(instruction);
+
+            // Assert
+            Assert.NotNull(result.Phases);
+            Assert.Equal(5, result.Phases.Count);
+            Assert.Equal(InternalPhaseType.Analysis, result.Phases[0].Type);
+            Assert.Equal(InternalPhaseType.Breakpoint, result.Phases[1].Type);
+            Assert.Equal(InternalPhaseType.Instrumentation, result.Phases[2].Type);
+            Assert.Equal(InternalPhaseType.Test, result.Phases[3].Type);
+            Assert.Equal(InternalPhaseType.Observation, result.Phases[4].Type);
+        }
+
+        [Fact]
         public async Task GenerateInternalPhasesAsync_CancellationRequested_StopsProcessing()
         {
             // Arrange

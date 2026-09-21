@@ -156,18 +156,24 @@ namespace ContinueVS.Services.Implementations
                 if (_logger != null)
                     _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: evaluating line '{trimmed.Substring(0, Math.Min(80, trimmed.Length))}'");
 
-                // Try primary pattern: "- [TYPE]: Description" or "- TYPE: Description" or "- **TYPE**: Description"
-                var match = Regex.Match(trimmed, @"^-\s*\*{0,2}(\w+)\*{0,2}\s*:?\s*(.+)$", RegexOptions.IgnoreCase);
+                // Try square-bracket format first (as documented in the prompt): "- [TYPE]: Description"
+                // This is the format the LLM commonly emits, e.g. "- [Analysis]: Inspect the call sites".
+                var match = Regex.Match(trimmed, @"^-\s*\[{1}(\w+)\]{1}\s*:?\s*(.+)$", RegexOptions.IgnoreCase);
+                if (!match.Success)
+                {
+                    // Try primary pattern: "- TYPE: Description" or "- **TYPE**: Description"
+                    match = Regex.Match(trimmed, @"^-\s*\*{0,2}(\w+)\*{0,2}\s*:?\s*(.+)$", RegexOptions.IgnoreCase);
+                }
                 if (!match.Success)
                 {
                     // Try fallback pattern for variations like "- TYPE – Description" or "- TYPE Description"
                     match = Regex.Match(trimmed, @"^-\s*(\w+)\s+(.+)$", RegexOptions.IgnoreCase);
-                    if (!match.Success)
-                    {
-                        if (_logger != null)
-                            _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: line does not match any pattern, skipping");
-                        continue;
-                    }
+                }
+                if (!match.Success)
+                {
+                    if (_logger != null)
+                        _logger?.WriteDebug($"InstructionProcessorService.ParsePhasesFromResponse: line does not match any pattern, skipping");
+                    continue;
                 }
 
                 var typeStr = match.Groups[1].Value.Trim();
