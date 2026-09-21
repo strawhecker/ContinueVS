@@ -8,6 +8,30 @@
 
 ---
 
+### gap90: Tool Bars Show Empty Yellow Background — Tool Content Not Rendered
+**Status:** ✅ Complete | Type: UI Rendering Fix (Tool role)
+
+**Symptom:** Tool-call messages rendered as a yellow (WarningBrush) bar with **no text** — "the tools are showing a yellow background… however there is no text in the tool bars" — and "the box does not size well." Copied text began with a blank and the box did not size to its content.
+
+**Root cause (two coupled issues):**
+1. `RoleToColorConverter` maps `ChatMessageRole.Tool → WarningBrush` (#DCA81B dark gold/yellow), so the `MessageBorder` bubble was painted yellow.
+2. In `ChatMessageControl.xaml` neither content renderer was visible for `Tool`:
+   - `StreamingReasoningRenderer` visibility is driven by `RoleToStreamingReasoningVisibility`, which returned Visible only for `User`/`Thinking`.
+   - `MarkdownBlockRenderer` visibility is driven by `RoleToMarkdownBlockVisibility`, which returns Visible only for `Assistant`.
+   Result: Tool messages got the yellow bubble but **no renderer → empty yellow bar**.
+
+**Fix (reuse the reasoning pattern):**
+- `RoleToStreamingReasoningVisibility.cs` — now also returns `Visible` for `ChatMessageRole.Tool` (alongside `User`/`Thinking`), so Tool content renders through `StreamingReasoningRenderer`.
+- `RoleToColorConverter.cs` — `ChatMessageRole.Tool => Brushes.Transparent` (replaces `WarningBrush`). Since `StreamingReasoningRenderer` already uses the exact working FlowDocument pattern (transparent background, `VsBrush.WindowText` foreground, `PageWidth` synced to actual width via `RichTextBox_SizeChanged`), Tool content now wraps, sizes to its content, and shows white text — matching the reasoning bubble exactly. No tool-specific code path; the tool bubble reuses the proven renderer.
+
+**Files Modified:**
+- src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs (Tool → Visible)
+- src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs (Tool → Transparent)
+
+**Validation:** `dotnet build src\VSIXProject1\VSIXProject1.csproj --force` → 0 warnings, 0 errors. `ConverterTests` filter: 79 passed, 0 failed. (No test asserted the old Tool→WarningBrush mapping; `Brushes.Transparent` is still a `SolidColorBrush`, so `RoleToColorConverter_Convert_ReturnsSolidColorBrush` is unaffected.)
+
+---
+
 ## Execution Rules
 
 - âœ… **Atomic steps**: One action per step (create, implement, wire, test)

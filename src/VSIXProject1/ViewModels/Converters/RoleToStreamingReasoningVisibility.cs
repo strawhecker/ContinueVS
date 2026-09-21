@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
@@ -7,7 +7,10 @@ using ContinueVS.Core.Types;
 namespace ContinueVS.ViewModels.Converters
 {
     /// <summary>
-    /// Converter to show StreamingReasoningRenderer for User and Thinking messages only.
+    /// Converter to show StreamingReasoningRenderer for User, Thinking and Tool messages only.
+    /// Tool messages reuse the same transparent-background, wrapping, selectable renderer as the
+    /// reasoning bubble so tool-call content sizes/surrounds correctly instead of leaving a
+    /// yellow WarningBrush bubble empty (see RoleToColorConverter.Tool => Transparent).
     /// </summary>
     public sealed class RoleToStreamingReasoningVisibility : IValueConverter
     {
@@ -15,7 +18,9 @@ namespace ContinueVS.ViewModels.Converters
         {
             if (value is ChatMessageRole role)
             {
-                return (role == ChatMessageRole.User || role == ChatMessageRole.Thinking)
+                return (role == ChatMessageRole.User ||
+                        role == ChatMessageRole.Thinking ||
+                        role == ChatMessageRole.Tool)
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
