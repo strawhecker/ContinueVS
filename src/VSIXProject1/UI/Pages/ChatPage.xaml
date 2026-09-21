@@ -57,6 +57,10 @@
                                             </TextBlock.Text>
                                         </TextBlock>
                                     </StackPanel>
+                                    <!-- gap87: fabricated description of what the tool call did (from args, display-only, never on the wire) -->
+                                    <TextBlock Text="{Binding ToolCallDescription}" FontWeight="SemiBold"
+                                               Foreground="#FFD180" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4"
+                                               Visibility="{Binding ToolCallDescription, Converter={StaticResource IsNotNullToVisibilityConverter}}"/>
                                     <!-- gap85: show the referenced file (basename/short) when present, never full JSON -->
                                     <TextBlock Text="{Binding ToolFileName, StringFormat='📄 {0}'}" 
                                                Foreground="#FFD180" FontSize="11" 

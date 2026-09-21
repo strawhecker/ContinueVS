@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 #nullable enable
 
 using Moq;
@@ -32,7 +32,10 @@ namespace ContinueVS.Tests.Helpers
             IWorkflowService? workflowService = null,
             IIdeService? ideService = null,
             IModeConfigRegistry? modeConfigRegistry = null,
-            IPlanOutputService? planOutputService = null)
+            IPlanOutputService? planOutputService = null,
+            IAgentCommandDispatcher? agentCommandDispatcher = null,
+            IMessengerService? messengerService = null,
+            IToolCallAggregator? toolCallAggregator = null)
         {
             return new ChatPageViewModel(
                 llmService ?? new Mock<ILlmService>().Object,
@@ -51,7 +54,10 @@ namespace ContinueVS.Tests.Helpers
                 workflowService,
                 ideService,
                 modeConfigRegistry,
-                planOutputService);
+                planOutputService,
+                agentCommandDispatcher,
+                messengerService,
+                toolCallAggregator);
         }
     }
 }

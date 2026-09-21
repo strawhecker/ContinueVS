@@ -2123,6 +2123,8 @@ namespace ContinueVS.ViewModels
                         Content = toolResult.Output,
                         ToolCallId = toolCall.Id,
                         ToolName = toolCall.Name,
+                        // gap87: Fabricate a display-only description from the tool-call arguments.
+                        ToolCallDescription = ToolCallDescriptionBuilder.Build(toolCall),
                         InvocationStatus = toolResult.IsSuccess ? ToolInvocationStatus.Complete : ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2155,6 +2157,8 @@ namespace ContinueVS.ViewModels
                         Content = $"[Policy Denied] Tool '{toolCall.Name}' cannot be executed: {ex.Message}",
                         ToolCallId = toolCall.Id,
                         ToolName = toolCall.Name,
+                        // gap87: Fabricate a display-only description from the tool-call arguments.
+                        ToolCallDescription = ToolCallDescriptionBuilder.Build(toolCall),
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2175,6 +2179,8 @@ namespace ContinueVS.ViewModels
                         Content = $"Tool '{toolCall.Name}' execution was cancelled",
                         ToolCallId = toolCall.Id,
                         ToolName = toolCall.Name,
+                        // gap87: Fabricate a display-only description from the tool-call arguments.
+                        ToolCallDescription = ToolCallDescriptionBuilder.Build(toolCall),
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2196,6 +2202,8 @@ namespace ContinueVS.ViewModels
                         Content = $"Tool '{toolCall.Name}' failed: {ex.Message}",
                         ToolCallId = toolCall.Id,
                         ToolName = toolCall.Name,
+                        // gap87: Fabricate a display-only description from the tool-call arguments.
+                        ToolCallDescription = ToolCallDescriptionBuilder.Build(toolCall),
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2966,6 +2974,15 @@ namespace ContinueVS.ViewModels
 
                             // Another round of tool calls - execute them from _pendingToolCalls
                             var moreResults = new List<ToolResult>();
+
+                            // gap87: Capture arguments per tool-call id BEFORE clearing so we can
+                            // fabricate display-only descriptions for the result messages below.
+                            var resultDescById = new Dictionary<string, IDictionary<string, object>?>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var toolCall in _pendingToolCalls)
+                            {
+                                resultDescById[toolCall.Id ?? string.Empty] = toolCall.Arguments;
+                            }
+
                             foreach (var toolCall in _pendingToolCalls)
                             {
                                 try
@@ -2991,7 +3008,12 @@ namespace ContinueVS.ViewModels
                                     Id = Guid.NewGuid().ToString(),
                                     Role = ChatMessageRole.Tool,
                                     Content = result.Output,
-                                    ToolCallId = result.ToolCallId
+                                    ToolCallId = result.ToolCallId,
+                                    ToolName = result.ToolName,
+                                    // gap87: Fabricate a display-only description from the tool-call arguments.
+                                    ToolCallDescription = ToolCallDescriptionBuilder.Build(
+                                        result.ToolName,
+                                        resultDescById.TryGetValue(result.ToolCallId ?? string.Empty, out var captured) ? captured : null)
                                 };
                                 await _sessionService.AddMessageAsync(resultMsg);
                             }
@@ -3234,6 +3256,9 @@ namespace ContinueVS.ViewModels
                     Id = Guid.NewGuid().ToString(),
                     Role = ChatMessageRole.Tool,
                     Content = result.Output,
+                    ToolName = commandName,
+                    // gap87: Fabricate a display-only description from the tool-call arguments.
+                    ToolCallDescription = ToolCallDescriptionBuilder.Build(commandName, commandArguments ?? new Dictionary<string, object>()),
                     InvocationStatus = result.Output?.Contains("Error") ?? false ? ToolInvocationStatus.Failed : ToolInvocationStatus.Complete
                 };
                 // gap73: Tool results are displayed in UI but NOT persisted to session file

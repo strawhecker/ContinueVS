@@ -342,6 +342,22 @@ namespace ContinueVS.Core.Types
             set => SetProperty(ref _toolName, value);
         }
 
+        private string? _toolCallDescription;
+
+        /// <summary>
+        /// gap87: Short, factual, human-readable description of what this tool call did, fabricated
+        /// in code from the tool-call arguments — never from LLM prose. Display-only: it is
+        /// [JsonIgnore] and never written into <see cref="Content"/>, so it is never serialized back
+        /// into the LLM payload regardless of length. Rendered as the primary line of the gap85
+        /// tool-call bubble so the user can tell what happened enough to evaluate/prune the entry.
+        /// </summary>
+        [JsonIgnore]
+        public string? ToolCallDescription
+        {
+            get => _toolCallDescription;
+            set => SetProperty(ref _toolCallDescription, value);
+        }
+
         /// <summary>
         /// gap85: Compact display label for a tool-call bubble. Returns the tool name
         /// (an explicit ToolName, the first request's tool name, or "tool"). Never dumps
