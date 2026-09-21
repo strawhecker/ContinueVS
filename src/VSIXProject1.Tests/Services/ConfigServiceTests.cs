@@ -501,5 +501,67 @@ namespace ContinueVS.Services.Tests
                         Assert.Equal(14, (int)(long)config3.CustomSettings["ui.fontSize"]);
                         Assert.Equal("model-2", config3.SelectedModelId);
                     }
+
+                    [Fact]
+                    public async Task SaveConfigSync_RefusesToOverwriteWithModelLessConfig()
+                    {
+                        // Regression test for the "new GUID for the model + trashed settings" bug.
+                        // A valid config with a real model + customSettings must NEVER be clobbered
+                        // by a save triggered while the in-memory config has zero models (e.g. a
+                        // truncated/bad deserialize on some startup path). The save guard refuses
+                        // to write, so the on-disk file and model GUID stay intact.
+                        Directory.CreateDirectory(_testConfigDir);
+                        var configFilePath = Path.Combine(_testConfigDir, "continueVS.json");
+                        var originalJson = @"{
+  ""models"": [
+    {
+      ""id"": ""user-model-1"",
+      ""name"": ""My Custom Model"",
+      ""provider"": ""anthropic"",
+      ""apiKey"": ""sk-secret"",
+      ""baseUrl"": ""https://custom.example/v1"",
+      ""contextWindow"": 200000,
+      ""supportsFunctionCalling"": true,
+      ""supportedToolFormats"": [ ""anthropic"" ],
+      ""ollamaModelId"": null
+    }
+  ],
+  ""selectedModelId"": ""user-model-1"",
+  ""toolOverrides"": [],
+  ""profiles"": [],
+  ""customSettings"": {
+    ""defaultMode"": ""2"",
+    ""experimental.enableExperimentalTools"": false
+  },
+  ""debug"": { ""dumpContextBeforeSend"": false, ""dumpResponseAfterReceive"": false },
+  ""maxRetriesPerChange"": 3,
+  ""gitPath"": null
+}";
+                        File.WriteAllText(configFilePath, originalJson);
+
+                        var service = new ConfigService(null, _testConfigDir);
+                        await service.InitializeAsync();
+
+                        // Sanity: the user's model should be loaded, not a freshly seeded default.
+                        var config = service.GetCurrentConfig();
+                        Assert.Single(config.Models);
+                        Assert.Equal("My Custom Model", config.Models[0].Name);
+                        Assert.Equal("user-model-1", config.SelectedModelId);
+
+                        // Simulate the failure: in-memory config ends up with zero models
+                        // (the bad-deserialize scenario from the bug report).
+                        config.Models.Clear();
+                        await service.SaveConfigAsync();
+
+                        // The on-disk file must NOT be overwritten with the model-less state,
+                        // and the user's model GUID must be preserved.
+                        var afterJson = File.ReadAllText(configFilePath);
+                        Assert.Equal(originalJson, afterJson);
+                        var after = Newtonsoft.Json.JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(afterJson);
+                        Assert.Single(after.Models);
+                        Assert.Equal("user-model-1", after.Models[0].Id);
+                        Assert.Equal("user-model-1", after.SelectedModelId);
+                        Assert.True(after.CustomSettings.ContainsKey("experimental.enableExperimentalTools"));
+                    }
                 }
             }

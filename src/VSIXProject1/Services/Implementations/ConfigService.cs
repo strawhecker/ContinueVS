@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -648,14 +648,54 @@ namespace ContinueVS.Services.Implementations
             {
                 Directory.CreateDirectory(ContinueDir);
 
-                // Convert full tool list to lightweight overrides for JSON persistence
+                // ---- Guard: never clobber the good file with an empty/partial config ----
+                // A legitimate continueVS.json ALWAYS has at least one model (the seeding path in
+                // InitializeAsync guarantees this). If the in-memory config somehow has none, writing
+                // it out would wipe the user's models AND strip customSettings, and the next launch
+                // would seed a NEW default model GUID - exactly the loss the user reported. Refuse.
+                if (_currentConfig == null)
+                {
+                    _logger?.WriteError("[gap68-save-guard] SaveConfigSync aborted: _currentConfig is null (refusing to overwrite continueVS.json).");
+                    return;
+                }
+
+                if (_currentConfig.Models == null || _currentConfig.Models.Count == 0)
+                {
+                    _logger?.WriteError("[gap68-save-guard] SaveConfigSync aborted: config has 0 models. Refusing to write a model-less config over continueVS.json (a fresh default-model GUID would be seeded on next launch).");
+                    return;
+                }
+
                 var toolOverrides = FilterToolsByDelta(_currentConfig.Tools);
                 _currentConfig.ToolOverrides = toolOverrides;
 
                 _logger?.WriteDebug($"[gap8_1-configsvc-save] SaveConfigSync: Persisting {toolOverrides.Count} tool overrides (from {_currentConfig.Tools.Count} full tools)");
 
                 var json = JsonConvert.SerializeObject(_currentConfig, Formatting.Indented);
-                File.WriteAllText(ConfigFilePath, json);
+                // Preserve a backup of the current good file before replacing it (manual recovery).
+                if (File.Exists(ConfigFilePath))
+                {
+                    try
+                    {
+                        File.Copy(ConfigFilePath, ConfigFilePath + ".bak", overwrite: true);
+                    }
+                    catch (Exception bakEx)
+                    {
+                        _logger?.WriteWarning($"[ConfigService] Could not create config backup: {bakEx.Message}");
+                    }
+                }
+
+                // Atomic write: write to a temp file then move over the target. If the process dies
+                // mid-write or the move fails, the original continueVS.json is left intact rather
+                // than being truncated to a partial file.
+                var tempPath = ConfigFilePath + ".tmp";
+                File.WriteAllText(tempPath, json);
+                // net472 has no File.Move overwrite overload: delete target then move.
+                // Safe because the temp file is fully written and a .bak was already made.
+                if (File.Exists(ConfigFilePath))
+                {
+                    File.Delete(ConfigFilePath);
+                }
+                File.Move(tempPath, ConfigFilePath);
 
                 _logger?.WriteDebug($"[gap8_1-configsvc-save] SaveConfigSync: Config persisted successfully");
             }
