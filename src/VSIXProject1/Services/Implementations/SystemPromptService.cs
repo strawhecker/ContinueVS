@@ -199,6 +199,12 @@ namespace ContinueVS.Services.Implementations
 
             const string PLAN_FILE_INSTRUCTIONS = "When the user asks you to save, write, or finalize the current plan — and does not provide a specific file path — call write_plan(title, plan)...";
 
+            const string ASK_USER_INSTRUCTIONS =
+                "Use the ask_user tool when you genuinely need information, clarification, or confirmation from the user to continue.\n" +
+                "Prefer acting autonomously when you have enough context — do not ask for permission on every step.\n" +
+                "Provide a focused 'question'. If there is a limited set of reasonable choices, supply an 'answers' list (the user can pick one or type prose). " +
+                "Omit 'answers' for an open-ended question.";
+
             switch (mode.ToLowerInvariant())
             {
                 case "agent":
@@ -208,7 +214,8 @@ namespace ContinueVS.Services.Implementations
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                            //READ_FILE_INSTRUCTIONS + "\n\n" +
-                           PLAN_FILE_INSTRUCTIONS +
+                           PLAN_FILE_INSTRUCTIONS + "\n\n" +
+                           ASK_USER_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
                            "</important_rules>" +
                            GetContextSuffix("agent");
@@ -228,7 +235,8 @@ namespace ContinueVS.Services.Implementations
                         //+ "> *To commit this plan to a file, say one of: `write_plan`, `write plan`, `finalize`, or `finalize plan`.*\r\n\r\n"
                         // + READ_FILE_INSTRUCTIONS + "\n\n"
                         + PLAN_FILE_INSTRUCTIONS + "\n\n"
-                        + "</important_rules>" +
+                        +  ASK_USER_INSTRUCTIONS + "\n\n"
+                        +"</important_rules>" +
                            GetContextSuffix("plan");
                     //return "<important_rules>\r\n"
                     //    + "You are in plan mode. In this mode, your entire response must be **exactly one fenced code block** using the plan sentinel filename (see exception below).  \r\n"
@@ -268,6 +276,7 @@ namespace ContinueVS.Services.Implementations
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
                            //READ_FILE_INSTRUCTIONS + "\n\n" +
                            PLAN_FILE_INSTRUCTIONS + "\n\n" +
+                           ASK_USER_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("debug");
 
@@ -280,7 +289,8 @@ namespace ContinueVS.Services.Implementations
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n\n" +
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
                            //READ_FILE_INSTRUCTIONS + "\n\n" +
-                           PLAN_FILE_INSTRUCTIONS + "\n\n" + 
+                           PLAN_FILE_INSTRUCTIONS + "\n\n" +
+                           ASK_USER_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("reason");
 
@@ -292,6 +302,7 @@ namespace ContinueVS.Services.Implementations
                            CODEBLOCK_FORMATTING_INSTRUCTIONS + "\n" +
                            //READ_FILE_INSTRUCTIONS + "\n\n" +
                            PLAN_FILE_INSTRUCTIONS + "\n\n" +
+                           ASK_USER_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("ask");
                     //EDIT_CODE_INSTRUCTIONS + "\n" +

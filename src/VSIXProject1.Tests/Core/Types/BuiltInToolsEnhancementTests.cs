@@ -91,13 +91,14 @@ namespace ContinueVS.Tests.Core.Types
             Assert.Contains("read_file_range", toolNames);
             Assert.Contains("grep_search", toolNames);
             Assert.Contains("single_find_and_replace", toolNames);
+            Assert.Contains("ask_user", toolNames);
         }
 
         [Fact]
         public void GetAllBuiltInTools_ReturnsCorrectCount()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
-            Assert.Equal(24, tools.Count);
+            Assert.Equal(25, tools.Count);
         }
 
         [Fact]

@@ -80,6 +80,7 @@ namespace ContinueVS.Core.Types
         public const string Tool_SingleFindAndReplaceEnabled = "tool.singleFindAndReplaceEnabled";
         public const string Tool_RunPytestEnabled = "tool.runPytestEnabled";
         public const string Tool_WritePlanEnabled = "tool.writePlanEnabled";
+        public const string Tool_AskUserEnabled = "tool.askUserEnabled";
 
         /// <summary>
         /// Returns a dictionary of all default settings values.
@@ -149,7 +150,8 @@ namespace ContinueVS.Core.Types
                 { Tool_SingleFindAndReplaceEnabled, true },
                 // run_pytest is disabled by default: no pytest tests exist in this .NET project
                 { Tool_RunPytestEnabled, false },
-                { Tool_WritePlanEnabled, true }
+                { Tool_WritePlanEnabled, true },
+                { Tool_AskUserEnabled, true }
             };
         }
 

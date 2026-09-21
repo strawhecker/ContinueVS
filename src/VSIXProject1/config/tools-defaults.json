@@ -363,6 +363,34 @@
         }
       ],
       "returnsDescription": "Confirmation that the folder was created successfully"
+    },
+    {
+      "name": "ask_user",
+      "description": "Ask the user a question when you need information, clarification, or confirmation to continue. Use this ONLY when you genuinely cannot proceed without a user decision; prefer acting autonomously when you have enough context. Provide 'question' (the text to ask) and, if there is a limited set of reasonable choices, provide 'answers' (a list of suggested answer options). The user may pick one of the provided options or type their own free-text response. If no answers are supplied, the question is open-ended and the user will respond in prose.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "parameters": [
+        {
+          "name": "question",
+          "type": "string",
+          "description": "The question to present to the user. Required.",
+          "isRequired": true
+        },
+        {
+          "name": "answers",
+          "type": "array",
+          "description": "Optional list of suggested answer options (multiple choice). The user may pick one or type their own. Omit for an open-ended question.",
+          "isRequired": false,
+          "schema": {
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "returnsDescription": "The user's answer to the question as a string"
     }
   ]
 }

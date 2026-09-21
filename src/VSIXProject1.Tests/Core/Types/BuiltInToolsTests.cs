@@ -227,12 +227,12 @@ namespace ContinueVS.Tests.Core.Types
         }
 
         [Fact]
-        public void GetAllBuiltInTools_Returns24Tools()
+        public void GetAllBuiltInTools_Returns25Tools()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools();
 
             Assert.NotNull(tools);
-            Assert.Equal(24, tools.Count());
+            Assert.Equal(25, tools.Count());
         }
 
         [Fact]
@@ -454,6 +454,52 @@ namespace ContinueVS.Tests.Core.Types
             Assert.Equal(
                 "Save the current plan to the workspace with a title. Use this whenever the user asks to save/write/finalize the plan but does not provide a file path.",
                 tool.Description);
+        }
+
+        [Fact]
+        public void GetAskUserTool_ReturnsValidDefinition()
+        {
+            var tool = BuiltInToolsRegistry.GetAskUserTool();
+
+            Assert.NotNull(tool);
+            Assert.Equal("ask_user", tool.Name);
+            Assert.NotNull(tool.Description);
+            Assert.Equal("builtin", tool.ToolType);
+            Assert.Equal("Built-In", tool.Category);
+            Assert.True(tool.IsEnabled);
+            Assert.Equal(2, tool.Parameters.Count);
+
+            var questionParam = tool.Parameters.First(p => p.Name == "question");
+            var answersParam = tool.Parameters.First(p => p.Name == "answers");
+            Assert.True(questionParam.IsRequired, "question should be required");
+            Assert.False(answersParam.IsRequired, "answers should be optional");
+            Assert.Equal("string", questionParam.Type);
+            Assert.Equal("array", answersParam.Type);
+            Assert.NotNull(questionParam.Description);
+            Assert.NotNull(answersParam.Description);
+
+            // Available in loop modes only (Agent, Debug)
+            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Equal(2, tool.SupportedModes.Count);
+        }
+
+        [Fact]
+        public void GetAskUserTool_NotAvailableInReadOnlyModes()
+        {
+            var tool = BuiltInToolsRegistry.GetAskUserTool();
+
+            Assert.DoesNotContain(ChatMode.Plan, tool.SupportedModes);
+            Assert.DoesNotContain(ChatMode.Ask, tool.SupportedModes);
+            Assert.DoesNotContain(ChatMode.Reason, tool.SupportedModes);
+        }
+
+        [Fact]
+        public void GetAllBuiltInTools_ContainsAskUserTool()
+        {
+            var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+
+            Assert.Contains(tools, t => t.Name == "ask_user");
         }
     }
 }

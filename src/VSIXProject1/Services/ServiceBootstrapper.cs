@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -115,7 +115,11 @@ namespace ContinueVS.Services
                 var sessionService = sp.GetRequiredService<ISessionService>();
                 var mcpService = sp.GetRequiredService<IMcpService>();
                 var planOutputService = sp.GetRequiredService<IPlanOutputService>();
-                return new ToolService(ideService, configService, sessionService, mcpService, planOutputService: planOutputService);
+                // InteractivePromptService is resolved lazily from the container (registered below)
+                // to support the ask_user human-in-the-loop tool. Factory lambdas are lazy, so the
+                // later registration order is fine.
+                var interactivePromptService = sp.GetService<IInteractivePromptService>();
+                return new ToolService(ideService, configService, sessionService, mcpService, planOutputService: planOutputService, interactivePromptService: interactivePromptService);
             });
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();

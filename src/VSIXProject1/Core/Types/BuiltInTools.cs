@@ -711,8 +711,50 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// ask_user: Ask the user a question when the LLM needs information, clarification, or
+        /// confirmation to continue. The user may pick from the provided answers (multiple choice)
+        /// or type their own prose answer. When answers is omitted, the question is open-ended.
+        /// Available in: Agent, Debug (loop modes that can pause and resume).
+        /// </summary>
+        public static ToolDefinition GetAskUserTool()
+        {
+            return CreateToolDefinition(
+                name: "ask_user",
+                description: "Ask the user a question when you need information, clarification, or confirmation to continue. " +
+                             "Use this ONLY when you genuinely cannot proceed without a user decision; prefer acting autonomously " +
+                             "when you have enough context. Provide 'question' (the text to ask) and, if there is a limited set of " +
+                             "reasonable choices, provide 'answers' (a list of suggested answer options). The user may pick one of " +
+                             "the provided options or type their own free-text response. If no answers are supplied, the question is " +
+                             "open-ended and the user will respond in prose.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "question",
+                        Type = "string",
+                        Description = "The question to present to the user. Required.",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "answers",
+                        Type = "array",
+                        Description = "Optional list of suggested answer options (multiple choice). The user may pick one or type their own. Omit for an open-ended question.",
+                        IsRequired = false,
+                        Schema = new Dictionary<string, object>
+                        {
+                            { "items", new Dictionary<string, object> { { "type", "string" } } }
+                        }
+                    }
+                },
+                returnsDescription: "The user's answer to the question as a string",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
         /// Gets all built-in tool definitions.
-        /// Returns a collection of 24 core tools for code editing, navigation, and diagnostics.
+        /// Returns a collection of 25 core tools for code editing, navigation, diagnostics, and
+        /// human-in-the-loop questioning.
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
@@ -742,7 +784,8 @@ namespace ContinueVS.Core.Types
                 GetReadFileRangeTool(),
                 GetGrepSearchTool(),
                 GetSingleFindAndReplaceTool(),
-                GetWritePlanTool()
+                GetWritePlanTool(),
+                GetAskUserTool()
             };
             LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;

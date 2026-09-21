@@ -26,6 +26,7 @@ namespace ContinueVS.Services.Implementations
         private readonly IMcpService? _mcpService;
         private readonly IBridgeLogger? _logger;
         private readonly IPlanOutputService? _planOutputService;
+        private readonly IInteractivePromptService? _interactivePromptService;
         private readonly Dictionary<string, ToolDefinition> _builtInToolRegistry = new();
         private readonly Dictionary<string, ToolDefinition> _mcpToolRegistry = new();
         private readonly object _registryLock = new object();
@@ -63,7 +64,8 @@ namespace ContinueVS.Services.Implementations
             { "open_file", UserSettings.Tool_OpenFileEnabled },
             { "single_find_and_replace", UserSettings.Tool_SingleFindAndReplaceEnabled },
             { "run_pytest", UserSettings.Tool_RunPytestEnabled },
-            { "write_plan", UserSettings.Tool_WritePlanEnabled }
+            { "write_plan", UserSettings.Tool_WritePlanEnabled },
+            { "ask_user", UserSettings.Tool_AskUserEnabled }
         };
 
         public event EventHandler<ToolErrorEventArgs>? Error;
@@ -77,13 +79,15 @@ namespace ContinueVS.Services.Implementations
         /// <param name="mcpService">Optional MCP service for Model Context Protocol tools.</param>
         /// <param name="logger">Optional logger for diagnostics.</param>
         /// <param name="planOutputService">Optional plan output service for persisting plans (write_plan).</param>
+        /// <param name="interactivePromptService">Optional interactive prompt service for surfacing user questions (ask_user).</param>
         public ToolService(
             IIdeService ideService,
             IConfigService configService,
             ISessionService? sessionService = null,
             IMcpService? mcpService = null,
             IBridgeLogger? logger = null,
-            IPlanOutputService? planOutputService = null)
+            IPlanOutputService? planOutputService = null,
+            IInteractivePromptService? interactivePromptService = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -91,6 +95,7 @@ namespace ContinueVS.Services.Implementations
             _mcpService = mcpService;
             _logger = logger;
             _planOutputService = planOutputService;
+            _interactivePromptService = interactivePromptService;
 
             InitializeToolRegistry();
         }
@@ -411,6 +416,7 @@ namespace ContinueVS.Services.Implementations
                     GetArgString(args, "name"),
                     GetArgString(args, "code")),
                 "write_plan" => await WritePlanInternalAsync(args, ct),
+                "ask_user" => await InvokeAskUserAsync(args, ct),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -1507,6 +1513,86 @@ namespace ContinueVS.Services.Implementations
             }
         }
         /// <summary>
+        /// Internal implementation of the ask_user tool.
+        /// Surfaces a question to the user (via the interactive prompt service) and returns their answer
+        /// as the tool result so it can be fed back to the LLM. Supports multiple-choice (answers list)
+        /// and open-ended (no answers) questions.
+        /// </summary>
+        private async Task<ToolResult> InvokeAskUserAsync(IDictionary<string, object> args, CancellationToken ct)
+        {
+            try
+            {
+                var question = GetArgString(args, "question");
+                if (string.IsNullOrWhiteSpace(question))
+                {
+                    return CreateErrorResult("ask_user", "question cannot be null or empty");
+                }
+
+                var answers = GetArgArray<string>(args, "answers");
+
+                if (_interactivePromptService == null)
+                {
+                    return CreateErrorResult("ask_user", "Interactive prompt service not available");
+                }
+
+                // Build the question prompt. Multiple-choice answers map to a Selection question whose
+                // auto-answer hint carries the options; the interactive handler surfaces them and lets
+                // the user pick or type prose. Open-ended questions fall back to a plain clarity question.
+                var prompt = new LLMQuestionPrompt
+                {
+                    QuestionText = question,
+                    Context = answers != null && answers.Count > 0
+                        ? "Please choose one of the following options or type your own answer: " + string.Join(", ", answers)
+                        : null,
+                    QuestionType = answers != null && answers.Count > 0
+                        ? LLMQuestionType.Selection
+                        : LLMQuestionType.Clarification,
+                    AutoAnswerHint = answers != null && answers.Count > 0
+                        ? string.Join(", ", answers)
+                        : null
+                };
+
+                var answer = await _interactivePromptService.PromptOnLLMQuestionAsync(prompt, isInteractiveMode: true);
+                var sanitized = SanitizeUserAnswer(answer);
+
+                return new ToolResult
+                {
+                    ToolName = "ask_user",
+                    Output = sanitized,
+                    IsSuccess = true,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "question", question },
+                        { "providedAnswers", answers != null ? string.Join(", ", answers) : "" }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("ask_user", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Sanitizes user-supplied free-text before it is returned to the LLM as a tool result.
+        /// Trims whitespace and strips control characters.
+        /// </summary>
+        private static string SanitizeUserAnswer(string? answer)
+        {
+            if (string.IsNullOrEmpty(answer))
+                return "[no answer]";
+
+            var sb = new System.Text.StringBuilder(answer!.Length);
+            foreach (var c in answer)
+            {
+                if (!char.IsControl(c))
+                    sb.Append(c);
+            }
+            var trimmed = sb.ToString().Trim();
+            return string.IsNullOrWhiteSpace(trimmed) ? "[no answer]" : trimmed;
+        }
+
+        /// <summary>
         /// Creates a tool error result.
         /// </summary>
         private ToolResult CreateErrorResult(string toolName, string message)
@@ -1545,6 +1631,37 @@ namespace ContinueVS.Services.Implementations
                 return parsed;
 
             return defaultValue;
+        }
+
+        /// <summary>
+        /// Gets an array argument from the arguments dictionary, or null if absent.
+        /// Handles List&lt;T&gt;, T[], IEnumerable&lt;T&gt;, and object arrays containing T.
+        /// </summary>
+        private List<T>? GetArgArray<T>(IDictionary<string, object> args, string key)
+        {
+            if (args == null || !args.TryGetValue(key, out var value))
+                return null;
+
+            if (value == null)
+                return null;
+
+            if (value is List<T> listVal)
+                return listVal;
+
+            if (value is T[] arrayVal)
+                return arrayVal.ToList();
+
+            if (value is IEnumerable<T> enumerable)
+                return enumerable.ToList();
+
+            // Some JSON deserializers materialize arrays as object[].
+            if (value is IEnumerable<object> objectEnum)
+            {
+                var cast = objectEnum.Select(o => (T)Convert.ChangeType(o, typeof(T))).ToList();
+                return cast;
+            }
+
+            return null;
         }
     }
 }

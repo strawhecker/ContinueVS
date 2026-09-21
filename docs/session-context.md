@@ -9048,28 +9048,48 @@ Here's the full revised gap document, lean bullet style, with the timeout remove
 
 ### gap86 — make tool `ask_user` and have LLM use this to ask questions
 
+**Status:** ✅ Implemented | Type: Built-In Tool + Human-in-the-Loop Routing | Registry: 24 → 25
+
 **Objective:**
-Add a human-in-the-loop tool so the LLM can pause and ask the user a question when it needs information, clarification, or confirmation to continue, then resume once the user answers.
+Add an invocable `ask_user` tool so the LLM can pause and ask the user a question when it needs information, clarification, or confirmation to continue, then resume once the user answers. This complements the existing heuristically-detected `LLMQuestionService` (gap29) with a first-class tool-call path.
 
-**Specification:**
+**Current State (already implemented):**
+- `LLMQuestionMessage`, `LLMQuestionPrompt`, `LLMQuestionType`, `AutoAnswerResponse`, `UserPromptChoice` types exist in `Core/Types`.
+- `LlmQuestionService` / `ILlmQuestionService` detect questions embedded in LLM response text (question-mark scan + keyword classification) and route to interactive prompt or auto-answer policy.
+- `IInteractivePromptService` + `InteractivePromptService` (Debug-mode prompts, `PromptOnLLMQuestionAsync`) exist.
+- Tool-call routing exists: `ExecuteToolCallsFromOllamaAsync`, `IAgentCommandDispatcher`, `AgentCommandDispatcher` (mode-policy gating), `ToolService.InvokeBuiltInAsync` switch.
 
-- Implement an `ask_user` tool whose schema accepts:
-  - `question` (string) — the question to present to the user. Required.
-  - `answers` (array of strings) — optional list of suggested answer options.
-- Register `ask_user` in the model's tool list and instruct the LLM (via system prompt) to use it whenever it needs information, clarification, or confirmation to continue.
-- The agent loop must pause on `ask_user`, surface the `question` (and `answers`, if present) to the real user, wait for a reply, then feed the user's response back as a tool result and resume the conversation.
-- **Multiple choice with prose:** when `answers` is present, the user may pick from the provided options **or** type their own free-text answer.
-- **Open-ended:** when `answers` is absent (or empty), no options are shown and the user answers in free-form prose.
-- Handle edge cases:
-  - User chooses to skip/decline the question.
-  - Free-text input is sanitized before being passed back to the model.
+**Gap being closed (this gap):** the LLM cannot *actively invoke* an `ask_user` tool; questions today are only detected passively from generated prose. Add the tool and route its call back to the user.
+
+**Implementation (this gap):**
+
+- ✅ `GetAskUserTool()` added to `BuiltInToolsRegistry` (`Core/Types/BuiltInTools.cs`):
+  - `name: "ask_user"`, description instructing the LLM when to use it (genuinely blocking only; prefer autonomous action).
+  - Parameters: `question` (string, required), `answers` (array of strings, optional).
+  - `SupportedModes = { Agent, Debug }`; `IsEnabled = true`.
+  - Added to `GetAllBuiltInTools()` (registry now returns 25).
+- ✅ **Execution** (`ToolService.cs`):
+  - `case "ask_user"` added to `InvokeBuiltInAsync` → `InvokeAskUserAsync(args, ct)`.
+  - Requires non-empty `question`; optional `answers` parsed via `GetArgArray<string>`.
+  - Delegates to `IInteractivePromptService.PromptOnLLMQuestionAsync` (Selection when `answers` present; Clarification otherwise) → user picks or types prose.
+  - Returns user's answer as `ToolResult.Output` (success) for the loop to feed back as a `role:"tool"` result.
+  - Edge cases: null/empty question → `CreateErrorResult`; missing prompt service → error; `SanitizeUserAnswer` trims + strips control chars; try/catch → `CreateErrorResult`.
+- ✅ `ToolService` accepts optional `IInteractivePromptService` (wired in `ServiceBootstrapper` via lazy `GetService`); `IInteractivePromptService` registered in DI.
+- ✅ **User setting**: `Tool_AskUserEnabled = "tool.askUserEnabled"` default `true` in `Core/Types/UserSettings.cs`, mapped in `ToolService.ToolNameToUserSettingKey`.
+- ✅ **System prompt guidance**: `ask_user` usage instructions added to Agent and Debug default prompts in `SystemPromptService.cs` and the embedded `config/system-prompts.json` agent prompt.
+- ✅ `ask_user` added to embedded `config/tools-defaults.json` so it is available at runtime (loaded by `ToolsResourceLoader`).
+- ✅ **Tests**:
+  - `BuiltInToolsTests.cs` — ask_user definition (required `question`, optional `answers`, Agent/Debug only), count 24→25; `BuiltInToolsEnhancementTests.cs` count updated to 25.
+  - `ToolServiceAskUserTests.cs` (new) — multiple-choice returns chosen option, open-ended prose, empty question → fail, null prompt service → fail, sanitization of control chars, throw → fail, `GetAvailableTools()` includes `ask_user` in Agent/Debug but not Plan.
+  - `ToolServiceTests.cs` — available-count assertions updated 17→18.
 
 **Acceptance criteria:**
-- [ ] The model can emit a valid `ask_user` tool call with a `question`.
-- [ ] The agent loop surfaces the question to the user and waits for input.
-- [ ] When `answers` is provided, the user can select an option or type their own response.
-- [ ] When `answers` is omitted, the user can answer in free-form prose.
-- [ ] The user's response is returned to the model via a proper `tool` result message, and the conversation continues.
+- [x] `ask_user` is a registered built-in tool with required `question` and optional `answers`.
+- [x] The LLM can emit a valid `ask_user` tool call; the tool loop routes it to the user.
+- [x] When `answers` is provided, the user can pick an option or type their own prose.
+- [x] When `answers` is omitted, the user answers in open-ended prose.
+- [x] The user's response is returned to the model via a `role:"tool"` result and the loop continues.
+- [ ] Skip/decline and empty-question cases handled without crashing.
 
 ---
 
