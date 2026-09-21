@@ -611,6 +611,12 @@ namespace ContinueVS.ViewModels
         /// </summary>
         public RelayCommand<string> UndeleteMessageCommand { get; }
         /// <summary>
+        /// Command to toggle a message's minimize/maximize state (gap85).
+        /// Flips the message's IsMinimized flag (UI visibility only, not a tombstone).
+        /// Applies uniformly to user, reason, response, and tool-call entries.
+        /// </summary>
+        public RelayCommand<string> ToggleMinimizeMessageCommand { get; }
+        /// <summary>
         /// Command to toggle pause state (gap31_1).
         /// </summary>
         public RelayCommand PauseCommand { get; }
@@ -726,6 +732,7 @@ namespace ContinueVS.ViewModels
             DeleteMessageCommand = new RelayCommand<string>(ExecuteDeleteMessage);
             SoftDeleteMessageCommand = new RelayCommand<string>(ExecuteSoftDeleteMessage);
             UndeleteMessageCommand = new RelayCommand<string>(ExecuteUndeleteMessage);
+            ToggleMinimizeMessageCommand = new RelayCommand<string>(ExecuteToggleMinimizeMessage);
             PauseCommand = new RelayCommand(ExecutePause, () => IsStreaming);
             NewChatCommand = new RelayCommand(() => _ = ExecuteNewChatAsync(), () => !IsStreaming);
             CopyCodeBlockCommand = new RelayCommand<string>(ExecuteCopyCodeBlock);
@@ -2200,6 +2207,7 @@ namespace ContinueVS.ViewModels
                         Role = ChatMessageRole.Tool,
                         Content = toolResult.Output,
                         ToolCallId = toolCall.Id,
+                        ToolName = toolCall.Name,
                         InvocationStatus = toolResult.IsSuccess ? ToolInvocationStatus.Complete : ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2231,6 +2239,7 @@ namespace ContinueVS.ViewModels
                         Role = ChatMessageRole.Tool,
                         Content = $"[Policy Denied] Tool '{toolCall.Name}' cannot be executed: {ex.Message}",
                         ToolCallId = toolCall.Id,
+                        ToolName = toolCall.Name,
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2250,6 +2259,7 @@ namespace ContinueVS.ViewModels
                         Role = ChatMessageRole.Tool,
                         Content = $"Tool '{toolCall.Name}' execution was cancelled",
                         ToolCallId = toolCall.Id,
+                        ToolName = toolCall.Name,
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2270,6 +2280,7 @@ namespace ContinueVS.ViewModels
                         Role = ChatMessageRole.Tool,
                         Content = $"Tool '{toolCall.Name}' failed: {ex.Message}",
                         ToolCallId = toolCall.Id,
+                        ToolName = toolCall.Name,
                         InvocationStatus = ToolInvocationStatus.Failed,
                         ExecutionStartTime = DateTime.Now,
                         ExecutionEndTime = DateTime.Now
@@ -2661,6 +2672,31 @@ namespace ContinueVS.ViewModels
 
             // Persist asynchronously (fire-and-forget with error handling)
             _ = ExecuteUndeleteMessageAsync(messageId, message);
+        }
+
+        /// <summary>
+        /// Executes the minimize/maximize toggle command (gap85).
+        /// Flips the message's IsMinimized flag (UI visibility only; NOT persisted, NOT a tombstone).
+        /// When minimized the bubble collapses and the toggle shows the maximize "▢/⤢" symbol;
+        /// when expanded it shows the minimize "_" symbol. Applies to all message roles alike.
+        /// </summary>
+        private void ExecuteToggleMinimizeMessage(string messageId)
+        {
+            if (string.IsNullOrWhiteSpace(messageId))
+            {
+                LoggerService.Current.WriteDebug("[gap85-minimize-cmd] messageId is null/empty, aborting");
+                return;
+            }
+
+            var message = Messages.FirstOrDefault(m => m.Id == messageId);
+            if (message == null)
+            {
+                LoggerService.Current.WriteDebug($"[gap85-minimize-cmd] Message with ID {messageId} not found in collection.");
+                return;
+            }
+
+            message.IsMinimized = !message.IsMinimized;
+            LoggerService.Current.WriteDebug($"[gap85-minimize-cmd] Message {messageId} minimized={message.IsMinimized}.");
         }
 
         /// <summary>

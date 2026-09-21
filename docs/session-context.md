@@ -9039,7 +9039,27 @@ The current tool system is a fixed, closed set — the extension author defines 
 
 #### Status
 
-🔴 Proposed | Type: Chat UI Enhancement. Formatted as a gap per the session-context.md convention.
+✅ Implemented | Type: Chat UI Enhancement. Formatted as a gap per the session-context.md convention.
+
+#### Implementation (this gap)
+
+- ✅ **`ChatMessage.IsMinimized`** (`[JsonIgnore]`, UI-only, not persisted, not a tombstone) added to `Core/Types/ChatMessage.cs`.
+- ✅ **`ChatMessage.ToolName`**, **`ToolCallLabel`** (tool name or first request tool name or "tool"), and **`ToolFileName`** (truncated basename / short path from `filepath/path/file/filename` args, never full JSON) added for compact tool-call bubbles.
+- ✅ **`ToggleMinimizeMessageCommand`** added to `ChatPageViewModel` — flips `IsMinimized` for any message role (user, reason, response, tool). Purely visual; independent of the tombstone path.
+- ✅ **Delete/Undelete toggle** — `ChatMessageControl` delete button now routes to `SoftDeleteMessageCommand`/`UndeleteMessageCommand` (reusing the gap81 tombstone) and flips the icon `✕` ⇄ `↺` via `ApplyDeleteButtonIcon()`. No new delete primitive.
+- ✅ **Minimize/Maximize toggle** — same control adds a `_` ⇄ `▢/⤢` button (`MinimizeButton_Click` → `ToggleMinimizeMessageCommand`) and collapses the bubble body to a compact placeholder (`ApplyMinimizedState()`).
+- ✅ **Tool-call template** (in `ChatPage.xaml`) now renders the tool name (`ToolCallLabel`) + optional `📄 {ToolFileName}` line, plus delete/undelete and minimize/maximize toggles — compact, no full tool JSON dumped.
+- ✅ New converters: `InverseBoolToVisibilityConverter.cs`, `IsNotNullToVisibilityConverter.cs`.
+- ✅ Tool result messages now carry `ToolName` so tool bubbles render the correct label.
+- ✅ **Tests** (`ChatPageViewModelGap85Tests.cs`, 12 passing): minimize/maximize flip both ways, null/empty/missing-id no-op, applies to all four roles, soft-delete→undelete toggle round-trip, `ToolCallLabel` (explicit / first-request / default), `ToolFileName` basename extraction & null-when-absent, and both new converters.
+
+#### Acceptance criteria
+- [x] ✕ toggles to ↔ on delete and back; tombstone set/cleared per gap81.
+- [x] _ toggles to ▢/⤢ when minimized and back when expanded.
+- [x] Toggles present and functional on user, reason, response, and tool-call entries.
+- [x] Tool-call bubbles render tool name (+ optional truncated file); no full JSON dumped.
+- [x] No new delete primitive introduced; existing gap81 service/tombstone reused.
+- [x] Unit tests cover delete→undelete flip, minimize→maximize flip, tool-call label rendering/truncation.
 
 #### What the gap is
 

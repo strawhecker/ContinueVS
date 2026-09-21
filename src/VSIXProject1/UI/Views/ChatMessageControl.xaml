@@ -38,6 +38,15 @@
                             Visibility="{Binding Role, Converter={StaticResource RoleToMarkdownBlockVisibility}}"
                             HorizontalAlignment="Stretch"
                             MinWidth="0" />
+
+                        <!-- gap85: Minimized placeholder shown when the message is collapsed.
+                             Collapsed via the minimize icon in code-behind when IsMinimized is set. -->
+                        <TextBlock x:Name="MinimizedPlaceholder"
+                                   Text="{Binding ToolCallLabel, FallbackValue=Message minimized}"
+                                   Foreground="{DynamicResource VsBrush.WindowText}"
+                                   FontStyle="Italic"
+                                   FontSize="11"
+                                   Visibility="Collapsed"/>
                     </Grid>
                 </Border>
 
@@ -61,7 +70,8 @@
                     <ComboBoxItem Content="✔ Apply" IsEnabled="{Binding Path=DataContext.CurrentResponseHasFilePath, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
                 </ComboBox>
 
-                <!-- Delete button (appears on hover, positioned upper right) -->
+                <!-- Delete/Undelete toggle button (appears on hover, positioned upper right) - gap85 -->
+                <!-- Icon flips: ✕ delete -> ↺ undelete based on IsDeleted (soft-delete tombstone) -->
                 <Button x:Name="DeleteButton"
                         Width="28" 
                         Height="28" 
@@ -70,12 +80,29 @@
                         Background="Transparent"
                         BorderThickness="0"
                         ToolTip="Delete message"
-                        Command="{Binding Path=DataContext.DeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                        CommandParameter="{Binding Id}"
+                        Click="DeleteUndeleteButton_Click"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,-4,24,0">
+                    <TextBlock x:Name="DeleteButtonIcon" Text="✕" FontSize="14" Foreground="{DynamicResource VsBrush.WindowText}" 
+                               TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </Button>
+
+                <!-- Minimize/Maximize toggle button (appears on hover, positioned upper right) - gap85 -->
+                <!-- Icon flips: _ minimize -> ▢ maximize based on IsMinimized (UI visibility only) -->
+                <Button x:Name="MinimizeButton"
+                        Width="28" 
+                        Height="28" 
+                        Padding="2"
+                        Visibility="Hidden"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTip="Minimize / Maximize message"
+                        Click="MinimizeButton_Click"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Margin="0,-4,-4,0">
-                    <TextBlock Text="✕" FontSize="14" Foreground="{DynamicResource VsBrush.WindowText}" 
+                    <TextBlock x:Name="MinimizeButtonIcon" Text="_" FontSize="14" Foreground="{DynamicResource VsBrush.WindowText}" 
                                TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Button>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}">

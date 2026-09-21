@@ -14,6 +14,7 @@
             <converters:ChatModeToVisibilityConverter x:Key="ChatModeToVisibilityConverter"/>
             <converters:ChatModeToBoolConverter x:Key="ChatModeToBoolConverter"/>
             <converters:ToolCallCounterColorConverter x:Key="ToolCallCounterColorConverter"/>
+            <converters:IsNotNullToVisibilityConverter x:Key="IsNotNullToVisibilityConverter"/>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <Style x:Key="MessageContainerStyle" TargetType="{x:Type ContentPresenter}">
                 <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -37,20 +38,50 @@
                 <local:ChatMessageTemplateSelector.ToolInvocationTemplate>
                     <DataTemplate>
                         <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="#1E1E1E">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                    <TextBlock Text="Tool: " FontWeight="Bold" Foreground="#FFA500"/>
-                                    <TextBlock Text="{Binding Content}" FontWeight="Bold" Foreground="#FFA500"/>
-                                    <TextBlock Margin="8,0,0,0">
-                                        <TextBlock.Text>
-                                            <MultiBinding StringFormat="{}[{0}]">
-                                                <Binding Path="InvocationStatus"/>
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <!-- gap85: compact tool-call header — tool name + optional file used, limited text -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                        <TextBlock Text="🧰 " FontWeight="Bold" Foreground="#FFA500"/>
+                                        <TextBlock Text="{Binding ToolCallLabel}" FontWeight="Bold" Foreground="#FFA500"/>
+                                        <TextBlock Margin="8,0,0,0" Foreground="#FFA500">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}[{0}]">
+                                                    <Binding Path="InvocationStatus"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <!-- gap85: show the referenced file (basename/short) when present, never full JSON -->
+                                    <TextBlock Text="{Binding ToolFileName, StringFormat='📄 {0}'}" 
+                                               Foreground="#FFD180" FontSize="11" 
+                                               Visibility="{Binding ToolFileName, Converter={StaticResource IsNotNullToVisibilityConverter}}"/>
+                                    <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC" Margin="0,4,0,0"/>
                                 </StackPanel>
-                                <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC"/>
-                            </StackPanel>
+                                <!-- gap85: delete/undelete toggle (soft-delete via tombstone) -->
+                                <Button Grid.Column="1" Width="24" Height="24" Padding="2" Margin="4,0"
+                                        Background="Transparent" BorderThickness="0"
+                                        ToolTip="Delete message"
+                                        Foreground="#CCCCCC" FontSize="13" Cursor="Hand"
+                                        Command="{Binding Path=DataContext.SoftDeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                        CommandParameter="{Binding Id}">
+                                    <TextBlock Text="✕" Foreground="#CCCCCC" TextAlignment="Center"/>
+                                </Button>
+                                <!-- gap85: minimize/maximize toggle (UI visibility only) -->
+                                <Button Grid.Column="2" Width="24" Height="24" Padding="2" Margin="4,0"
+                                        Background="Transparent" BorderThickness="0"
+                                        ToolTip="Minimize / Maximize"
+                                        Foreground="#CCCCCC" FontSize="13" Cursor="Hand"
+                                        Command="{Binding Path=DataContext.ToggleMinimizeMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                        CommandParameter="{Binding Id}">
+                                    <TextBlock Text="_" Foreground="#CCCCCC" TextAlignment="Center"/>
+                                </Button>
+                            </Grid>
                         </Border>
                     </DataTemplate>
                 </local:ChatMessageTemplateSelector.ToolInvocationTemplate>

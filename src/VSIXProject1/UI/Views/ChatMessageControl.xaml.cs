@@ -6,6 +6,7 @@ using ContinueVS.Core.Types;
 using ContinueVS.Services;
 using ContinueVS.UI.Pages;
 using ContinueVS.UI.Renderers;
+using ContinueVS.ViewModels;
 using Markdig;
 using Markdig.Syntax;
 
@@ -178,11 +179,165 @@ namespace ContinueVS.UI.Views
                 comboBox.SelectionChanged += CodeActionDropdown_SelectionChanged;
             }
 
+            // gap85: Apply delete/undelete + minimize/maximize icons and toggle collapse state
+            ApplyDeleteButtonIcon();
+            ApplyMinimizedState();
+            ApplyToolCallHeader();
+
             // No parsing/logging here anymore (gap53): code-block state is evaluated in
             // DataContextChanged / OnMessagePropertyChanged at the moment Content changes.
             // Loaded only re-applies the already-computed visibility, in case the control
             // was bound before its template finished materializing.
             ApplyDropdownVisibility();
+        }
+
+        /// <summary>
+        /// gap85: Routes the delete/undelete toggle. If the bound message is already soft-deleted
+        /// (tombstone set), clicking undeletes it (↺) instead of hard-deleting; otherwise it
+        /// soft-deletes (✕). Reuses the existing SoftDeleteMessageCommand / UndeleteMessageCommand.
+        /// </summary>
+        private void DeleteUndeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not ChatMessage message || string.IsNullOrEmpty(message.Id))
+                return;
+
+            var vm = ResolveViewModel();
+            if (vm == null)
+                return;
+
+            if (message.IsDeleted)
+            {
+                vm.UndeleteMessageCommand.Execute(message.Id);
+            }
+            else
+            {
+                vm.SoftDeleteMessageCommand.Execute(message.Id);
+            }
+        }
+
+        /// <summary>
+        /// gap85: Fires the minimize/maximize toggle command for the bound message.
+        /// </summary>
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ChatMessage message && !string.IsNullOrEmpty(message.Id))
+            {
+                ResolveViewModel()?.ToggleMinimizeMessageCommand.Execute(message.Id);
+            }
+        }
+
+        /// <summary>
+        /// gap85: Resolves the parent ChatPageViewModel from the visual tree.
+        /// </summary>
+        private ChatPageViewModel? ResolveViewModel()
+        {
+            DependencyObject? current = this;
+            while (current != null)
+            {
+                if (current is System.Windows.FrameworkElement fe && fe.DataContext is ChatPageViewModel vm)
+                    return vm;
+                current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// gap85: Sets the delete button icon based on tombstone state — "✕" when not deleted,
+        /// "↺" (undelete) when soft-deleted.
+        /// </summary>
+        private void ApplyDeleteButtonIcon()
+        {
+            var message = DataContext as ChatMessage;
+            var icon = FindName("DeleteButtonIcon") as TextBlock;
+            if (icon == null)
+                return;
+
+            if (message?.IsDeleted == true)
+            {
+                icon.Text = "↺";
+                var btn = FindName("DeleteButton") as Button;
+                if (btn != null) btn.ToolTip = "Undelete message";
+            }
+            else
+            {
+                icon.Text = "✕";
+                var btn = FindName("DeleteButton") as Button;
+                if (btn != null) btn.ToolTip = "Delete message";
+            }
+        }
+
+        /// <summary>
+        /// gap85: Applies the minimize/maximize icon AND collapses/expands the bubble body.
+        /// When IsMinimized, shows "▢/⤢" (maximize) and collapses the renderers; otherwise "_" (minimize).
+        /// The collapse is UI-only and driven by IsMinimized; it never touches the tombstone.
+        /// </summary>
+        private void ApplyMinimizedState()
+        {
+            var message = DataContext as ChatMessage;
+            var icon = FindName("MinimizeButtonIcon") as TextBlock;
+            if (icon != null)
+            {
+                icon.Text = message?.IsMinimized == true ? "▢/⤢" : "_";
+                var btn = FindName("MinimizeButton") as Button;
+                if (btn != null) btn.ToolTip = message?.IsMinimized == true ? "Maximize message" : "Minimize message";
+            }
+
+            bool minimized = message?.IsMinimized == true;
+            var streaming = FindName("StreamingReasoningRenderer") as FrameworkElement;
+            var markdown = FindName("MarkdownBlockRenderer") as FrameworkElement;
+            var placeholder = FindName("MinimizedPlaceholder") as TextBlock;
+            var copyAll = FindName("CopyAllButton") as Button;
+            var dropdown = FindName("CodeActionDropdown") as ComboBox;
+
+            if (minimized)
+            {
+                if (streaming != null) streaming.Visibility = Visibility.Collapsed;
+                if (markdown != null) markdown.Visibility = Visibility.Collapsed;
+                if (placeholder != null) placeholder.Visibility = Visibility.Visible;
+                if (copyAll != null) copyAll.Visibility = Visibility.Collapsed;
+                if (dropdown != null) dropdown.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                if (placeholder != null) placeholder.Visibility = Visibility.Collapsed;
+                ApplyDropdownVisibility();
+                // Re-apply role-based renderer visibility on restore.
+                if (streaming != null && DataContext is ChatMessage m)
+                {
+                    streaming.Visibility = m.Role switch
+                    {
+                        ChatMessageRole.User or ChatMessageRole.Thinking => Visibility.Visible,
+                        _ => Visibility.Collapsed
+                    };
+                }
+                if (markdown != null && DataContext is ChatMessage m2)
+                {
+                    markdown.Visibility = m2.Role == ChatMessageRole.Assistant ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// gap85: Updates the minimized placeholder text to the tool-call label for Tool-role
+        /// messages (tool name + optional file used). For non-tool messages it shows a generic cue.
+        /// </summary>
+        private void ApplyToolCallHeader()
+        {
+            var placeholder = FindName("MinimizedPlaceholder") as TextBlock;
+            if (placeholder == null || DataContext is not ChatMessage message)
+                return;
+
+            if (message.Role == ChatMessageRole.Tool)
+            {
+                var file = message.ToolFileName;
+                placeholder.Text = string.IsNullOrWhiteSpace(file)
+                    ? $"🧰 {message.ToolCallLabel}"
+                    : $"🧰 {message.ToolCallLabel} — {file}";
+            }
+            else
+            {
+                placeholder.Text = "Message minimized — click ▢/⤢ to expand";
+            }
         }
 
         private void MessageGrid_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)

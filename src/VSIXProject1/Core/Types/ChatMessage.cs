@@ -312,6 +312,113 @@ namespace ContinueVS.Core.Types
             set => SetProperty(ref _isDeleted, value);
         }
 
+        private bool _isMinimized = false;
+
+        /// <summary>
+        /// gap85: UI-only state flag indicating whether the message bubble is minimized
+        /// (collapsed). Purely visual; NOT a tombstone and NOT persisted. The minimize/maximize
+        /// toggle flips this flag to show "▢/⤢" (maximize) when minimized or "_" (minimize) when
+        /// expanded. Independent of the delete/undelete tombstone path. Applies to user, reason,
+        /// response, and tool-call entries alike.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsMinimized
+        {
+            get => _isMinimized;
+            set => SetProperty(ref _isMinimized, value);
+        }
+
+        private string? _toolName;
+
+        /// <summary>
+        /// gap85: Name of the built-in tool associated with a Tool-role message (e.g. "read_file").
+        /// Stored on the message so compact tool-call bubbles can render the tool name + optional
+        /// file used without dumping full JSON/arguments. Set when tool result messages are created.
+        /// </summary>
+        [JsonIgnore]
+        public string? ToolName
+        {
+            get => _toolName;
+            set => SetProperty(ref _toolName, value);
+        }
+
+        /// <summary>
+        /// gap85: Compact display label for a tool-call bubble. Returns the tool name
+        /// (an explicit ToolName, the first request's tool name, or "tool"). Never dumps
+        /// full tool-call JSON/arguments — keeps the bubble compact.
+        /// </summary>
+        [JsonIgnore]
+        public string ToolCallLabel
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(_toolName))
+                    return _toolName!;
+                if (_toolCalls != null && _toolCalls.Count > 0 && _toolCalls[0] is ToolCall first && !string.IsNullOrWhiteSpace(first.Name))
+                    return first.Name;
+                return "tool";
+            }
+        }
+
+        /// <summary>
+        /// gap85: Truncated file name (basename or short path) referenced by a tool call,
+        /// when one is present in the arguments (filepath/path/file/filename). Falls back to
+        /// looking at the message content. Returns null when nothing is found. Kept short so
+        /// the tool bubble stays compact.
+        /// </summary>
+        [JsonIgnore]
+        public string? ToolFileName
+        {
+            get
+            {
+                var raw = ExtractToolFilePath();
+                if (string.IsNullOrWhiteSpace(raw))
+                    return null;
+
+                // After the null/whitespace guard, raw is guaranteed non-null.
+                string path = raw!;
+
+                // Show a short basename when the path is long/absolute.
+                try
+                {
+                    var name = System.IO.Path.GetFileName(path);
+                    if (!string.IsNullOrWhiteSpace(name))
+                        return name;
+                }
+                catch
+                {
+                    // fall through to raw
+                }
+
+                if (path.Length > 40)
+                    return path.Substring(path.Length - 40);
+                return path;
+            }
+        }
+
+        private string? ExtractToolFilePath()
+        {
+            if (_toolCalls != null && _toolCalls.Count > 0 && _toolCalls[0] is ToolCall first && first.Arguments != null)
+            {
+                foreach (var key in new[] { "filepath", "path", "file", "filename" })
+                {
+                    if (first.Arguments.TryGetValue(key, out var val) && val is string s && !string.IsNullOrWhiteSpace(s))
+                        return s;
+                }
+            }
+            // Fall back to scanning content for a path-like token.
+            if (!string.IsNullOrWhiteSpace(_content))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    _content,
+                    @"([A-Za-z]:\\[^\s]+|/[a-zA-Z0-9._\-/]+(?:\.\w+)?)",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success && match.Groups.Count > 1)
+                    return match.Groups[1].Value;
+            }
+            return null;
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
