@@ -9196,6 +9196,52 @@ Add an invocable `ask_user` tool so the LLM can pause and ask the user a questio
 
 ---
 
+### gap87 — Fabricated Tool-Call Description Shown in Chat (Show What a Tool Call Did)
+
+**Status:** 🔴 Proposed | Type: Chat UI Display / Derived Description | Related: gap85 (tool-call bubbles), gap81 (tombsone), gap80 (version retention)
+
+**Problem:**
+Tool-call bubbles (gap85) currently render only the tool name (`ToolCallLabel`) and, when present, a short file name (`ToolFileName`). The user cannot tell from the chat *what the tool call actually did* well enough to prune it from context or evaluate it — e.g. `run_terminal_command` shows as a bare label with no indication of the command, and `read_file_range` shows a path but no line range. There is no user-facing description of a tool call's action.
+
+**Why not ask the LLM to narrate it:**
+- A `description` arg (even `isRequired: true` in tools-defaults.json) is only enforced by provider-native tool-calling; our default Ollama model has `SupportsFunctionCalling=false`, so the schema cannot force it there.
+- Forcing a capable model guarantees *presence* but not *sincerity* — it can emit fluent, plausible filler that satisfies the schema while carrying little information, and that failure is invisible in the UI.
+- A fabricated description derived from the actual arguments is **certain in both presence and truthfulness** — there is no model in the loop to confabulate.
+
+**Decided behavior (fab from the tool call, not from the LLM):**
+1. **Source of truth = the tool-call arguments.** The description is built in code from the args dictionary (`command`, `filepath`, `pattern`, `dirPath`, `old_string`, …) — never from LLM prose, never an LLM-fillable param.
+2. **Per-tool builder map.** Add `toolName → Func<ToolCall, string>` in `ToolService` (extending the existing `switch`/dispatch): each builder picks the *meaningful* args and formats a skimmable line, e.g.
+   - `read_file` → `read src/foo.cs`
+   - `read_file_range` → `read src/foo.cs lines 10-20`
+   - `run_terminal_command` → `run: git status --short` (command only, not full output)
+   - `edit_file` → `edit src/foo.cs (§ old→new)`
+   - unknown tool → fallback `{Name}` + compact key/arg snapshot.
+3. **Display-only, never on the wire.** Expose as a `[JsonIgnore]` computed property (e.g. `ChatMessage.ToolCallDescription`) alongside `ToolCallLabel`/`ToolFileName`; render it as the primary line of the gap85 tool-call template. It must **not** go into `ChatMessage.Content`, so it is never serialized back into the LLM payload — length is a pure UI concern and costs no tokens regardless of verbosity.
+4. **Keep it optional at enforcement.** A missing/weak description must never fail or reject a tool call in our own validation layer (no gap51/gap63-style cascade for a cosmetic field). Provider schema `isRequired` is fine, but runtime validation stays tolerant.
+5. **Full text, no dumb truncation.** Smart-verbose: first line = gist, args follow; user can read the first line to know *what happened* and delete the tool call from context based on it. This is exactly the "give the user enough information to delete it" goal.
+6. **Orthogonal to tool Q&A lifetime.** The description is *derived*, not stored state — it has no lifecycle, so the future "tool Q&A lifetime" gap stays cleanly decoupled.
+
+**Files to Modify / Create (candidates):**
+- `src/VSIXProject1/Core/Types/ChatMessage.cs` — add `[JsonIgnore]` `ToolCallDescription` display property (and hook it into `ToolCallLabel`/`ToolFileName` family).
+- `src/VSIXProject1/Services/Implementations/ToolService.cs` — add per-tool description builder map (`Func<ToolCall, string>`), applied wherever a tool `ToolResult`/`ChatMessage` is created after `InvokeAsync`.
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — extend the gap85 tool-call template to bind `ToolCallDescription`.
+- Tests: `ToolCallDescriptionBuilderTests` (per-tool formatting, unknown-tool fallback, missing-arg guards, determinism), plus a `ChatPageViewModel` test that a tool message carries a populated description.
+
+**Testing Strategy:**
+- Each built-in tool's builder formats correctly for representative args (file, range, command, pattern, dir).
+- Fallback path for unknown/atypical tools does not throw and stays compact.
+- Tool-call bubble renders the description; `ChatMessage.Content` remains tool-prose-free (assert description not serialized).
+- No regression to gap85 minimize/delete/undelete toggles on the same template.
+
+**Acceptance criteria:**
+- [ ] Every tool-call bubble shows a factual, skimmable description of the action.
+- [ ] Description is fabricated from args — zero reliance on LLM narration.
+- [ ] Description is `[JsonIgnore]` display-only; never in the LLM payload regardless of length.
+- [ ] Missing/weak description never fails a tool call in our own validation.
+- [ ] Unknown tools degrade to a compact fallback without throwing.
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
