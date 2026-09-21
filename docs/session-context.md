@@ -9035,6 +9035,44 @@ The current tool system is a fixed, closed set — the extension author defines 
 
 ---
 
+### gap85 chat maximize and minimize; chat delete and undelete; applies to user, reason, response, and tool calls.
+- toggle the X delete to another symbol for undelete.
+- toggle the _ symbol for minimize to open-square symble for maximize.
+- tool call have no text --- display the tool name and optionally the file used (limited text).
+
+---
+
+Here's the full revised gap document, lean bullet style, with the timeout removed:
+
+---
+
+### gap86 — make tool `ask_user` and have LLM use this to ask questions
+
+**Objective:**
+Add a human-in-the-loop tool so the LLM can pause and ask the user a question when it needs information, clarification, or confirmation to continue, then resume once the user answers.
+
+**Specification:**
+
+- Implement an `ask_user` tool whose schema accepts:
+  - `question` (string) — the question to present to the user. Required.
+  - `answers` (array of strings) — optional list of suggested answer options.
+- Register `ask_user` in the model's tool list and instruct the LLM (via system prompt) to use it whenever it needs information, clarification, or confirmation to continue.
+- The agent loop must pause on `ask_user`, surface the `question` (and `answers`, if present) to the real user, wait for a reply, then feed the user's response back as a tool result and resume the conversation.
+- **Multiple choice with prose:** when `answers` is present, the user may pick from the provided options **or** type their own free-text answer.
+- **Open-ended:** when `answers` is absent (or empty), no options are shown and the user answers in free-form prose.
+- Handle edge cases:
+  - User chooses to skip/decline the question.
+  - Free-text input is sanitized before being passed back to the model.
+
+**Acceptance criteria:**
+- [ ] The model can emit a valid `ask_user` tool call with a `question`.
+- [ ] The agent loop surfaces the question to the user and waits for input.
+- [ ] When `answers` is provided, the user can select an option or type their own response.
+- [ ] When `answers` is omitted, the user can answer in free-form prose.
+- [ ] The user's response is returned to the model via a proper `tool` result message, and the conversation continues.
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
