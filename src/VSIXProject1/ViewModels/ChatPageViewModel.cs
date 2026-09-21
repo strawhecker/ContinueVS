@@ -1787,14 +1787,22 @@ namespace ContinueVS.ViewModels
                         LoggerService.Current.WriteError($"[gap70-finalize] Plan file detector completion error: {ex.Message}");
                     }
 
-                    // gap54: Detect and handle any embedded LLM questions in the response
+                    // gap54: Detect and handle any embedded LLM questions in the response.
+                    // IMPORTANT: The interactive question/answer wait must NOT be bound to the
+                    // streaming cancellation token (_streamingCts). If it were, answering the
+                    // question (or any pause/stop of the already-finished stream) would cancel
+                    // the pending tcs.Task inside AddInlineQuestionAsync, throwing
+                    // OperationCanceledException which the outer catch records as
+                    // "User cancelled" even though the user simply answered the question.
+                    // Using CancellationToken.None keeps the answer-wait isolated from the
+                    // streaming lifecycle so answering is never misreported as a cancel.
                     if (!string.IsNullOrWhiteSpace(assistantMessage.Content) && _llmQuestionService != null)
                     {
-                        var detectedQuestion = await _llmQuestionService.DetectLLMQuestionAsync(assistantMessage.Content, _streamingCts.Token);
+                        var detectedQuestion = await _llmQuestionService.DetectLLMQuestionAsync(assistantMessage.Content, CancellationToken.None);
                         if (detectedQuestion != null)
                         {
                             LoggerService.Current.WriteDebug($"[gap54-detect] Question detected in response: {detectedQuestion.QuestionText}");
-                            var answer = await _llmQuestionService.HandleLLMQuestionAsync(detectedQuestion, isAutonomous: false, AutoAnswerResponse.Default, _streamingCts.Token);
+                            var answer = await _llmQuestionService.HandleLLMQuestionAsync(detectedQuestion, isAutonomous: false, AutoAnswerResponse.Default, CancellationToken.None);
                             LoggerService.Current.WriteDebug($"[gap54-handle] Question answered: {answer}");
                         }
                     }
