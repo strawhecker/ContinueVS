@@ -10795,6 +10795,26 @@ The entire tool pipeline is now properly gated at multiple levels, preventing un
 
 ---
 
+### BUGFIX (gap85): Minimize/Maximize Toggle Not Shown for User, Reason, and Response
+**Status:** ✅ Root-Caused & Fixed | Type: UI Visibility Regression
+
+**Symptom:** The per-message Minimize/Maximize toggle button (`_` ⇄ `▢/⤢`) added in gap85 was not visible on user, response (assistant), reasoning (thinking) bubbles — the toggle only appeared where always-visible or separately wired, leaving those roles unable to collapse/expand.
+
+**Root Cause:** In `ChatMessageControl.xaml` the `MinimizeButton` is declared with default `Visibility="Hidden"` like the other hover buttons (`DeleteButton`, `CopyAllButton`, `CodeActionDropdown`). However the hover handlers in `ChatMessageControl.xaml.cs` — `MessageGrid_MouseEnter` / `MessageGrid_MouseLeave` — only toggled visibility for `DeleteButton` (and conditionally for `CopyAllButton` / `CodeActionDropdown`). **`MinimizeButton` was never set to `Visible` on hover**, so it stayed permanently hidden for every role rendered through `ChatMessageControl`. Because user / assistant / thinking templates all render through `ChatMessageControl`, the toggle was missing across all of them uniformly.
+
+**Fix:** Added `MinimizeButton.Visibility` toggling to both hover handlers:
+- `MessageGrid_MouseEnter` → `MinimizeButton.Visibility = Visibility.Visible;`
+- `MessageGrid_MouseLeave` → `MinimizeButton.Visibility = Visibility.Hidden;`
+
+The minimize/maximize engine (icon flip via `ApplyMinimizedState()`, `ToggleMinimizeMessageCommand`, `IsMinimized` state, placeholder collapse) was already wired correctly — only the visibility reveal was missing.
+
+**Files Modified:**
+- `src/VSIXProject1/UI/Views/ChatMessageControl.xaml.cs` — `MessageGrid_MouseEnter` / `MessageGrid_MouseLeave` now show/hide `MinimizeButton`.
+
+**Validation:** Code compiles; no test regressions (this mirrors the existing `DeleteButton` pattern; no test depended on `MinimizeButton` being hidden).
+
+---
+
 ```
 
 

@@ -343,6 +343,7 @@ namespace ContinueVS.UI.Views
         private void MessageGrid_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
             DeleteButton.Visibility = System.Windows.Visibility.Visible;
+            MinimizeButton.Visibility = System.Windows.Visibility.Visible;
 
             var copyAllButton = FindName("CopyAllButton") as Button;
             if (copyAllButton != null && copyAllButton.Visibility != System.Windows.Visibility.Collapsed)
@@ -356,6 +357,7 @@ namespace ContinueVS.UI.Views
         private void MessageGrid_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
             DeleteButton.Visibility = System.Windows.Visibility.Hidden;
+            MinimizeButton.Visibility = System.Windows.Visibility.Hidden;
 
             var copyAllButton = FindName("CopyAllButton") as Button;
             if (copyAllButton != null && copyAllButton.Visibility != System.Windows.Visibility.Collapsed)
