@@ -396,7 +396,7 @@ namespace ContinueVS.Services.Implementations
                     continue;
 
                 var lower = segment.ToLowerInvariant();
-                if (lower == "bin" || lower == "obj" || lower == "node_modules"
+                if (lower == "bin" || lower == "obj" || lower == "node_modules" || lower == "reference"
                     || lower == ".git" || lower == ".vs" || lower == ".cache"
                     || lower == ".vscode")
                 {
