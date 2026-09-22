@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -969,7 +969,7 @@ namespace ContinueVS.Services.Implementations
                 var matches = new List<string>();
                 var regex = new System.Text.RegularExpressions.Regex(pattern);
 
-                foreach (var filePath in workspaceFiles.Take(700))
+                foreach (var filePath in workspaceFiles)
                 {
                     try
                     {
