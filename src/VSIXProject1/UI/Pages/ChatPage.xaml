@@ -118,6 +118,16 @@
                                 </Button>
 
                                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" x:Name="ToolCardBody">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMinimized}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
                                     <!-- gap85: compact tool-call header — tool name + optional file used, limited text -->
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                                         <TextBlock Text="🧰 " FontWeight="Bold" Foreground="#FFA500"/>
@@ -139,12 +149,6 @@
                                                Foreground="#FFD180" FontSize="11" 
                                                Visibility="{Binding ToolFileName, Converter={StaticResource IsNotNullToVisibilityConverter}}"/>
                                     <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC" Margin="0,4,0,0"/>
-                                    <StackPanel.Triggers>
-                                        <!-- gap85: Collapse the card body while minimized; show a compact placeholder instead. -->
-                                        <DataTrigger Binding="{Binding IsMinimized}" Value="True">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </StackPanel.Triggers>
                                 </StackPanel>
                                 <!-- gap85: Minimized placeholder (visible only while IsMinimized). -->
                                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
