@@ -1,4 +1,4 @@
-using ContinueVS.Core.Types;
+﻿using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
@@ -413,8 +413,8 @@ namespace ContinueVS.Services.Implementations
                 if (string.IsNullOrEmpty(segment))
                     continue;
 
-                if (IsReparsePoint(segment))
-                    return true;
+                //if (IsReparsePoint(segment))
+                //    return true;
 
                 var lower = segment.ToLowerInvariant();
                 if (lower == "bin" || lower == "obj" || lower == "node_modules" || lower == "reference"
