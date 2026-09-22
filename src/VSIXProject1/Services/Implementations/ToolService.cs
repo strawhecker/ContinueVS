@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -957,6 +957,8 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Internal wrapper for grep_search (gap23_2b).
         /// Searches for files matching a regex pattern.
+        /// Binary and oversized files are filtered out BEFORE reading so they never
+        /// pollute the tool result with junk content.
         /// </summary>
         private async Task<ToolResult> GrepSearchInternalAsync(string directory, string pattern, string filePattern)
         {
@@ -965,22 +967,36 @@ namespace ContinueVS.Services.Implementations
                 if (string.IsNullOrEmpty(pattern))
                     return CreateErrorResult("grep_search", "pattern cannot be null or empty");
 
-                var workspaceFiles = _ideService.GetWorkspaceFiles(filePattern ?? "*.*");
-                var matches = new List<string>();
-                var regex = new System.Text.RegularExpressions.Regex(pattern);
+                var workspaceFiles = _ideService
+                    .GetWorkspaceFiles(filePattern ?? "*.*")
+                    .Where(f => IsGrepCandidateFile(f))
+                    .ToList();
 
+                var matches = new List<string>();
+                var regex = new System.Text.RegularExpressions.Regex(
+                    pattern,
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                const int MaxMatches = 50;
                 foreach (var filePath in workspaceFiles)
                 {
+                    if (matches.Count >= MaxMatches)
+                        break;
+
                     try
                     {
+                        // Re-verify the first bytes are text before reading the whole file.
+                        if (!IsTextContent(filePath))
+                            continue;
+
                         var content = await _ideService.ReadFileAsync(filePath);
                         var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 
-                        for (int i = 0; i < lines.Length && matches.Count < 50; i++)
+                        for (int i = 0; i < lines.Length && matches.Count < MaxMatches; i++)
                         {
                             if (regex.IsMatch(lines[i]))
                             {
-                                matches.Add($"{filePath}:{i + 1}: {lines[i]}");
+                                matches.Add($"{filePath}:{i + 1}: {lines[i].Trim()}");
                             }
                         }
                     }
@@ -998,7 +1014,8 @@ namespace ContinueVS.Services.Implementations
                     Metadata = new Dictionary<string, string>
                     {
                         { "pattern", pattern },
-                        { "matchCount", matches.Count.ToString() }
+                        { "matchCount", matches.Count.ToString() },
+                        { "filesScanned", workspaceFiles.Count.ToString() }
                     },
                     IsSuccess = true
                 };
@@ -1006,6 +1023,82 @@ namespace ContinueVS.Services.Implementations
             catch (Exception ex)
             {
                 return CreateErrorResult("grep_search", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Well-known binary / non-source extensions that must never be grep'd.
+        /// </summary>
+        private static readonly HashSet<string> BinaryFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // Images
+            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".tiff", ".webp", ".heic", ".avif", ".svgz",
+            // Fonts
+            ".ttf", ".otf", ".woff", ".woff2", ".eot",
+            // Archives
+            ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".zst",
+            // Compiled / binaries
+            ".dll", ".exe", ".so", ".dylib", ".a", ".lib", ".obj", ".o", ".pdb", ".class",
+            ".jar", ".war", ".pyc", ".pyo",
+            // Media
+            ".mp3", ".mp4", ".avi", ".mov", ".mkv", ".wav", ".flac", ".ogg", ".webm",
+            // Documents / office
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".dwg", ".eps",
+            // Generated / lockfiles / misc
+            ".resx", ".resources", ".snap", ".cache", ".lock", ".wasm"
+        };
+
+        /// <summary>
+        /// Whether a file should be considered for grep: known-text extension, not oversized.
+        /// Returns false for binaries and huge files so they never pollute the tool context.
+        /// </summary>
+        private static bool IsGrepCandidateFile(string filePath)
+        {
+            try
+            {
+                if (BinaryFileExtensions.Contains(Path.GetExtension(filePath)))
+                    return false;
+
+                var fi = new FileInfo(filePath);
+                if (fi.Length > 2_000_000)   // skip very large files (e.g. generated/bundled)
+                    return false;
+
+                return true;
+            }
+            catch
+            {
+                return false; // if we can't stat it, skip it
+            }
+        }
+
+        /// <summary>
+        /// Sniffs the leading bytes for binary content: NUL bytes or a high ratio of
+        /// control characters indicate a non-text file that grep should ignore.
+        /// </summary>
+        private static bool IsTextContent(string filePath)
+        {
+            try
+            {
+                using var fs = File.OpenRead(filePath);
+                var buffer = new byte[4096];
+                int read = fs.Read(buffer, 0, buffer.Length);
+                if (read == 0)
+                    return false;
+
+                int suspicious = 0;
+                for (int i = 0; i < read; i++)
+                {
+                    byte b = buffer[i];
+                    if (b == 0)
+                        return false;                                   // NUL -> binary
+                    if (b < 9 || (b > 13 && b < 32))                    // non-whitespace control char
+                        suspicious++;
+                }
+                return suspicious <= read * 0.25;                       // >25% control -> binary
+            }
+            catch
+            {
+                return false; // can't read the header -> skip
             }
         }
 

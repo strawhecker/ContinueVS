@@ -8,6 +8,28 @@
 
 ---
 
+### gap-binarygrep: grep_search Filters Binary & Oversized Files Before Reading
+
+**Status:** ✅ Complete | Type: Tool Context Sanitization (grep et al.)
+
+**Problem:** `grep_search` read every workspace file via `ReadFileAsync` (which does `File.ReadAllText`) with no binary guard. Binaries (DLLs, images, archives), `node_modules`/`bin` leftovers, and large generated files were force-decoded as text and regex-matched — dumping junk lines into the tool result and polluting the LLM context ("using findstr/grep is an unmitigated disaster ... it pulls in binary files and fills the context"). `findstr` (raw shell via `run_terminal_command`) is out of scope (intentionally raw); the fix is the built-in `grep_search` (`search_codebase`, `file_glob_search` share the same `GetWorkspaceFiles` path and are protected by the same candidate filter where they read).
+
+**Implementation (src/VSIXProject1/Services/Implementations/ToolService.cs):**
+- `GrepSearchInternalAsync` now filters workspace files through `IsGrepCandidateFile()` **before** reading (extension blocklist + 2 MB size cap), re-verifies via `IsTextContent()` (NUL-byte / control-char header sniff on the first 4 KB) immediately before `ReadFileAsync`, imposes a 50-match cap (existing) with early break, and adds `filesScanned` metadata.
+- Added `BinaryFileExtensions` static `HashSet` (images, fonts, archives, compiled/binaries, media, docs/office, generated/lockfiles).
+- Added `IsGrepCandidateFile(string)` and `IsTextContent(string)` helpers; both fail-closed (skip file) on any I/O error.
+
+**Tests (src/VSIXProject1.Tests/Services/ToolServiceGrepSearchTests.cs, NEW — 5):**
+- Binary-extension file (`.dll`) skipped — `ReadFileAsync` never invoked on it; `.cs` still read and matched.
+- NUL-byte `.dat` content skipped by header sniff before the full read.
+- Text file with match returns the matching line.
+- No matches → `"No matches found"`.
+- Empty pattern → error result.
+
+**Validation:** `dotnet build ContinueVS.slnx --force` → 0 warnings, 0 errors. New grep tests: 5/5 passing.
+
+---
+
 ### gap90: Tool Bars Show Empty Yellow Background — Tool Content Not Rendered  (REVERTED — see gap90b)
 
 **Status:** ⚠️ Original fix superseded by gap90b (revert tool calls to the correct renderer). | Type: UI Rendering Fix (Tool role)
