@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -2644,7 +2644,7 @@ namespace ContinueVS.ViewModels
                 }
 
                 // If persistence fails, roll back the tombstone and notify
-                messageToRollback.IsDeleted = false;
+                messageToRollback?.IsDeleted = false;
                 LoggerService.Current.WriteError($"[gap81-softdelete-error] Soft-delete failed, rolling back: {ex.Message}", ex);
                 await _notificationService.ShowNotificationAsync("Prune Failed",
                     $"Could not prune message: {ex.Message}", NotificationType.Error);
@@ -2733,7 +2733,7 @@ namespace ContinueVS.ViewModels
                 }
 
                 // If persistence fails, roll back the tombstone and notify
-                messageToRollback.IsDeleted = true;
+                messageToRollback?.IsDeleted = true;
                 LoggerService.Current.WriteError($"[gap81-undelete-error] Undelete failed, rolling back: {ex.Message}", ex);
                 await _notificationService.ShowNotificationAsync("Undelete Failed",
                     $"Could not undelete message: {ex.Message}", NotificationType.Error);
