@@ -37,7 +37,18 @@
                 </local:ChatMessageTemplateSelector.ThinkingMessageTemplate>
                 <local:ChatMessageTemplateSelector.ToolInvocationTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="#1E1E1E">
+                        <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="4" Margin="5" Padding="8" Background="#1E1E1E" x:Name="ToolCardBorder">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <!-- gap85: Soft-deleted tool cards fade out (dim) so they read as
+                                             pruned but stay visible/toggleable to undelete. -->
+                                        <DataTrigger Binding="{Binding IsDeleted}" Value="True">
+                                            <Setter Property="Opacity" Value="0.35"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -51,26 +62,62 @@
                                 </Grid.RowDefinitions>
 
                                 <!-- Top toggles: always visible while scrolling to the top of the tool card -->
-                                <!-- gap85: delete/undelete toggle (soft-delete via tombstone) -->
+                                <!-- gap85: delete/undelete toggle (soft-delete via tombstone).
+                                     Icon flips ✕ -> ↺ and commands swap based on IsDeleted. -->
                                 <Button Grid.Row="0" Grid.Column="1" Width="24" Height="24" Padding="2" Margin="4,0"
                                         Background="Transparent" BorderThickness="0"
-                                        ToolTip="Delete message"
                                         Foreground="#CCCCCC" FontSize="13" Cursor="Hand"
-                                        Command="{Binding Path=DataContext.SoftDeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                         CommandParameter="{Binding Id}">
-                                    <TextBlock Text="✕" Foreground="#CCCCCC" TextAlignment="Center"/>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Command"
+                                                    Value="{Binding Path=DataContext.SoftDeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+                                            <Setter Property="ToolTip" Value="Delete message"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDeleted}" Value="True">
+                                                    <Setter Property="Command"
+                                                            Value="{Binding Path=DataContext.UndeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+                                                    <Setter Property="ToolTip" Value="Undelete message"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <TextBlock Foreground="#CCCCCC" TextAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="✕"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDeleted}" Value="True">
+                                                        <Setter Property="Text" Value="↺"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Button>
-                                <!-- gap85: minimize/maximize toggle (UI visibility only) -->
+                                <!-- gap85: minimize/maximize toggle (UI visibility only).
+                                     Icon flips _ -> ▢/⤢ and tooltip changes based on IsMinimized. -->
                                 <Button Grid.Row="0" Grid.Column="2" Width="24" Height="24" Padding="2" Margin="4,0"
                                         Background="Transparent" BorderThickness="0"
-                                        ToolTip="Minimize / Maximize"
                                         Foreground="#CCCCCC" FontSize="13" Cursor="Hand"
                                         Command="{Binding Path=DataContext.ToggleMinimizeMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                        CommandParameter="{Binding Id}">
-                                    <TextBlock Text="_" Foreground="#CCCCCC" TextAlignment="Center"/>
+                                        CommandParameter="{Binding Id}"
+                                        ToolTip="Minimize / Maximize">
+                                    <TextBlock Foreground="#CCCCCC" TextAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="_"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMinimized}" Value="True">
+                                                        <Setter Property="Text" Value="▢/⤢"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Button>
 
-                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" x:Name="ToolCardBody">
                                     <!-- gap85: compact tool-call header — tool name + optional file used, limited text -->
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                                         <TextBlock Text="🧰 " FontWeight="Bold" Foreground="#FFA500"/>
@@ -92,26 +139,84 @@
                                                Foreground="#FFD180" FontSize="11" 
                                                Visibility="{Binding ToolFileName, Converter={StaticResource IsNotNullToVisibilityConverter}}"/>
                                     <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC" Margin="0,4,0,0"/>
+                                    <StackPanel.Triggers>
+                                        <!-- gap85: Collapse the card body while minimized; show a compact placeholder instead. -->
+                                        <DataTrigger Binding="{Binding IsMinimized}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </StackPanel.Triggers>
                                 </StackPanel>
+                                <!-- gap85: Minimized placeholder (visible only while IsMinimized). -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                           FontStyle="Italic" FontSize="11" Foreground="#FFD180"
+                                           Text="🧰 Minimized — click ▢/⤢ to expand" Margin="0,2,0,4"
+                                           Visibility="Hidden">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Hidden"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMinimized}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
 
                                 <!-- Bottom toggles: always visible while scrolling to the bottom of the tool card -->
-                                <!-- gap85: delete/undelete toggle (soft-delete via tombstone) -->
+                                <!-- gap85: delete/undelete toggle (soft-delete via tombstone).
+                                     Icon flips ✕ -> ↺ and commands swap based on IsDeleted. -->
                                 <Button Grid.Row="2" Grid.Column="1" Width="24" Height="24" Padding="2" Margin="4,0"
                                         Background="Transparent" BorderThickness="0"
-                                        ToolTip="Delete message"
                                         Foreground="#CCCCCC" FontSize="13" Cursor="Hand"
-                                        Command="{Binding Path=DataContext.SoftDeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                         CommandParameter="{Binding Id}">
-                                    <TextBlock Text="✕" Foreground="#CCCCCC" TextAlignment="Center"/>
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Command"
+                                                    Value="{Binding Path=DataContext.SoftDeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+                                            <Setter Property="ToolTip" Value="Delete message"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDeleted}" Value="True">
+                                                    <Setter Property="Command"
+                                                            Value="{Binding Path=DataContext.UndeleteMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+                                                    <Setter Property="ToolTip" Value="Undelete message"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <TextBlock Foreground="#CCCCCC" TextAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="✕"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDeleted}" Value="True">
+                                                        <Setter Property="Text" Value="↺"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Button>
-                                <!-- gap85: minimize/maximize toggle (UI visibility only) -->
+                                <!-- gap85: minimize/maximize toggle (UI visibility only).
+                                     Icon flips _ -> ▢/⤢ and tooltip changes based on IsMinimized. -->
                                 <Button Grid.Row="2" Grid.Column="2" Width="24" Height="24" Padding="2" Margin="4,0"
                                         Background="Transparent" BorderThickness="0"
-                                        ToolTip="Minimize / Maximize"
                                         Foreground="#CCCCCC" FontSize="13" Cursor="Hand"
                                         Command="{Binding Path=DataContext.ToggleMinimizeMessageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                        CommandParameter="{Binding Id}">
-                                    <TextBlock Text="_" Foreground="#CCCCCC" TextAlignment="Center"/>
+                                        CommandParameter="{Binding Id}"
+                                        ToolTip="Minimize / Maximize">
+                                    <TextBlock Foreground="#CCCCCC" TextAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="_"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMinimized}" Value="True">
+                                                        <Setter Property="Text" Value="▢/⤢"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Button>
                             </Grid>
                         </Border>

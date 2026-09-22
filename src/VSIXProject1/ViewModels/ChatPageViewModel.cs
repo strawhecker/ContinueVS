@@ -2143,6 +2143,7 @@ namespace ContinueVS.ViewModels
                     await SwitchToMainThreadAsync();
                     var toolMessage = new ChatMessage
                     {
+                        Id = Guid.NewGuid().ToString(),
                         Role = ChatMessageRole.Tool,
                         Content = toolResult.Output,
                         ToolCallId = toolCall.Id,
@@ -2180,6 +2181,7 @@ namespace ContinueVS.ViewModels
                     await SwitchToMainThreadAsync();
                     var deniedMessage = new ChatMessage
                     {
+                        Id = Guid.NewGuid().ToString(),
                         Role = ChatMessageRole.Tool,
                         Content = $"[Policy Denied] Tool '{toolCall.Name}' cannot be executed: {ex.Message}",
                         ToolCallId = toolCall.Id,
@@ -2202,6 +2204,7 @@ namespace ContinueVS.ViewModels
                     await SwitchToMainThreadAsync();
                     var cancelledMessage = new ChatMessage
                     {
+                        Id = Guid.NewGuid().ToString(),
                         Role = ChatMessageRole.Tool,
                         Content = $"Tool '{toolCall.Name}' execution was cancelled",
                         ToolCallId = toolCall.Id,
@@ -2225,6 +2228,7 @@ namespace ContinueVS.ViewModels
                     await SwitchToMainThreadAsync();
                     var errorMessage = new ChatMessage
                     {
+                        Id = Guid.NewGuid().ToString(),
                         Role = ChatMessageRole.Tool,
                         Content = $"Tool '{toolCall.Name}' failed: {ex.Message}",
                         ToolCallId = toolCall.Id,
@@ -2627,6 +2631,18 @@ namespace ContinueVS.ViewModels
             }
             catch (Exception ex)
             {
+                // Tool-result cards in the Agent loop are display-only (gap73): they are never
+                // added to the session store, so persistence correctly reports "not found". This
+                // is NOT a failure - the in-memory tombstone already applied is the only durable
+                // state these cards have. Keep the tombstone and skip the rollback/popup so the
+                // delete toggle works on tool cards. All other roles still roll back + notify.
+                if (messageToRollback?.Role == ChatMessageRole.Tool)
+                {
+                    LoggerService.Current.WriteDebug(
+                        $"[gap81-softdelete-service] Tool card {messageId} is display-only (not in session store); keeping in-memory tombstone.");
+                    return;
+                }
+
                 // If persistence fails, roll back the tombstone and notify
                 messageToRollback.IsDeleted = false;
                 LoggerService.Current.WriteError($"[gap81-softdelete-error] Soft-delete failed, rolling back: {ex.Message}", ex);
@@ -2703,6 +2719,19 @@ namespace ContinueVS.ViewModels
             }
             catch (Exception ex)
             {
+                // Tool-result cards in the Agent loop are display-only (gap73): they are never
+                // added to the session store, so persistence correctly reports "not found". This
+                // is NOT a failure - the in-memory cleared tombstone already applied is the only
+                // durable state these cards have. Keep the cleared tombstone and skip the
+                // rollback/popup so the undelete toggle works on tool cards. All other roles
+                // still roll back + notify.
+                if (messageToRollback?.Role == ChatMessageRole.Tool)
+                {
+                    LoggerService.Current.WriteDebug(
+                        $"[gap81-undelete-service] Tool card {messageId} is display-only (not in session store); keeping in-memory tombstone.");
+                    return;
+                }
+
                 // If persistence fails, roll back the tombstone and notify
                 messageToRollback.IsDeleted = true;
                 LoggerService.Current.WriteError($"[gap81-undelete-error] Undelete failed, rolling back: {ex.Message}", ex);
