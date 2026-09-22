@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -976,7 +976,6 @@ namespace ContinueVS.Services.Implementations
                 var regex = new System.Text.RegularExpressions.Regex(
                     pattern,
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
                 const int MaxMatches = 50;
                 foreach (var filePath in workspaceFiles)
                 {

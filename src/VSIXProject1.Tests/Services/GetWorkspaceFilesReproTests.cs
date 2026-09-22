@@ -58,6 +58,17 @@ namespace ContinueVS.Tests.Services
 
                     Assert.NotEmpty(files);
                     Assert.Contains(files, f => f.EndsWith("Class1.cs", StringComparison.OrdinalIgnoreCase));
+
+                    // Regression: recursive "**/" globs must also find files. Before the fix,
+                    // the raw glob (containing a path separator) was passed to
+                    // Directory.EnumerateFiles, which rejects it, so these returned empty.
+                    var recursive = sut2.GetWorkspaceFiles("**/*.cs").ToList();
+                    Assert.NotEmpty(recursive);
+                    Assert.Contains(recursive, f => f.EndsWith("Class1.cs", StringComparison.OrdinalIgnoreCase));
+
+                    var deep = sut2.GetWorkspaceFiles("**/src/**/*.cs").ToList();
+                    Assert.NotEmpty(deep);
+                    Assert.Contains(deep, f => f.EndsWith("Class1.cs", StringComparison.OrdinalIgnoreCase));
                 }
                 finally
                 {

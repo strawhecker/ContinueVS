@@ -377,6 +377,13 @@ namespace ContinueVS.Services.Implementations
             var pending = new Stack<string>();
             pending.Push(root);
 
+            // Directory.EnumerateFiles (Win32 search pattern) has no notion of recursive
+            // "**/" traversal and rejects patterns containing a path separator. Recursion is
+            // already handled by this walk, so only the filename (leaf) portion of the glob
+            // is passed to EnumerateFiles. This fixes patterns like "**/*.cs" or
+            // "**/test/**/*.cs" that used to be silently swallowed by the per-folder catch.
+            var fileNamePattern = NormalizeGlobToFileNamePattern(pattern);
+
             while (pending.Count > 0)
             {
                 var dir = pending.Pop();
@@ -384,7 +391,7 @@ namespace ContinueVS.Services.Implementations
                 // Files in THIS folder only.
                 try
                 {
-                    foreach (var file in Directory.EnumerateFiles(dir, pattern, SearchOption.TopDirectoryOnly))
+                    foreach (var file in Directory.EnumerateFiles(dir, fileNamePattern, SearchOption.TopDirectoryOnly))
                     {
                         if (!IsExcludedPath(file))
                             results.Add(file);
@@ -411,6 +418,27 @@ namespace ContinueVS.Services.Implementations
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// Extracts the filename (leaf) portion of a glob so it can be used as a valid
+        /// single-directory Win32 search pattern by <see cref="Directory.EnumerateFiles"/>.
+        /// Everything before the last path separator is directory scaffolding ("**/",
+        /// "src/", "**/test/**/") that this walk's own recursion already covers, so it is
+        /// discarded. Examples: "**/*.cs" → "*.cs", "**/ToolService.cs" → "ToolService.cs",
+        /// "*" → "*".
+        /// </summary>
+        private static string NormalizeGlobToFileNamePattern(string glob)
+        {
+            if (string.IsNullOrWhiteSpace(glob))
+                return "*";
+
+            var leaf = glob;
+            var lastSep = glob.LastIndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
+            if (lastSep >= 0)
+                leaf = glob.Substring(lastSep + 1);
+
+            return string.IsNullOrWhiteSpace(leaf) ? "*" : leaf;
         }
 
         /// <summary>
