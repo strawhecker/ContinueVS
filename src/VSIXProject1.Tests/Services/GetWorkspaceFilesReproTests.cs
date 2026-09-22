@@ -69,32 +69,5 @@ namespace ContinueVS.Tests.Services
                 Directory.Delete(root, recursive: true);
             }
         }
-
-        [Fact]
-        public void IsReparsePoint_OnBareSegment_DoesNotThrow()
-        {
-            // The true bug: passing a bare path segment (e.g. "src", "GitRepos") to
-            // File.GetAttributes throws FileNotFoundException, killing enumeration.
-            // Guarded call must return false rather than throw.
-            bool didThrow = false;
-            bool result = false;
-            try
-            {
-                result = CallsIsReparsePoint("src");
-            }
-            catch
-            {
-                didThrow = true;
-            }
-
-            Assert.False(didThrow);
-            Assert.False(result);
-        }
-
-        private static bool CallsIsReparsePoint(string segment)
-        {
-            // Mirrors the current (broken) behavior of IsExcludedPath.
-            return VsIdeService.IsReparsePoint(segment);
-        }
     }
 }

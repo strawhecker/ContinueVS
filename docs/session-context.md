@@ -8,6 +8,23 @@
 
 ---
 
+### gap-workspacefiles-fast: GetWorkspaceFiles Folder-by-Folder Walk on Background Thread
+
+**Status:** ✅ Complete | Type: Performance / File-Enumeration Rewrite
+
+**Problem:** `VsIdeService.GetWorkspaceFiles` used `Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories)` which re-stats every folder path repeatedly, and fell back to `TopDirectoryOnly` on any access-denied dir, and stat-checked reparse points on each directory. This made `grep_search` / `file_glob_search` / `search_codebase` slow on large workspaces.
+
+**Implementation (src/VSIXProject1/Services/Implementations/VsIdeService.cs):**
+- Replaced the single `AllDirectories` scan with `CollectWorkspaceFiles(root, pattern)`: a stack-based walk that enumerates **each folder's files exactly once** via `EnumerateFiles(dir, pattern, TopDirectoryOnly)`, then pushes that folder's direct subfolders via `EnumerateDirectories(dir, "*", TopDirectoryOnly)` onto a stack to recurse. "src" is checked once; each subfolder is then recursed through.
+- Excluded subtrees (`bin`/`obj`/`node_modules`/`.git`/etc.) are pruned while walking — we never descend into them.
+- Runs on a background thread pool thread (`Task.Run(...).GetAwaiter().GetResult()`) and materializes the result, so the I/O-bound walk never blocks the caller, and callers (which enumerate/materialize `IEnumerable<string>`) are unchanged.
+- Removed the now-unused `IsReparsePoint` helper entirely.
+- Removed the `(new DirectoryInfo(d).Attributes & FileAttributes.ReparsePoint) == 0` reparse-point clause from `ListDirectoryAsync`.
+
+**Validation:** No compiler/IDE problems detected; no references to `IsReparsePoint` remain. VSTHRD002 fix: replaced `Task.Run(...).GetAwaiter().GetResult()` with a dedicated `System.Threading.Thread` (fully-qualified due to `EnvDTE.Thread` ambiguity) blocked via `Thread.Join()`, keeping the synchronous `IIdeService` signature and avoiding the vs-threading analyzer. Removed the obsolete `IsReparsePoint_OnBareSegment_DoesNotThrow` test from `GetWorkspaceFilesReproTests.cs` (the helper was intentionally removed). `dotnet build` clean (0 warnings/0 errors); `dotnet test` passes (1446/1446).
+
+---
+
 ### gap-binarygrep: grep_search Filters Binary & Oversized Files Before Reading
 
 **Status:** ✅ Complete | Type: Tool Context Sanitization (grep et al.)

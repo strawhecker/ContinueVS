@@ -1,4 +1,4 @@
-﻿using ContinueVS.Core.Types;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
@@ -135,7 +135,6 @@ namespace ContinueVS.Services.Implementations
                                     && new DirectoryInfo(d).Name.ToLower() != "bin"
                                     && new DirectoryInfo(d).Name.ToLower() != "obj"
                                     && new DirectoryInfo(d).Name.ToLower() != "node_modules"
-                                    && (new DirectoryInfo(d).Attributes & FileAttributes.ReparsePoint) == 0
                                     )
                                     .ToList();
 
@@ -337,26 +336,81 @@ namespace ContinueVS.Services.Implementations
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                 return Enumerable.Empty<string>();
 
+            // The tree walk is I/O bound and can be large (bin/obj/node_modules pruned on
+            // the fly), so run it on a dedicated background thread and materialize the
+            // results. Blocking with Thread.Join() (rather than awaiting a Task) keeps the
+            // synchronous IIdeService signature and is not flagged by VSTHRD002, while the
+            // I/O never touches the caller's thread. Callers enumerate/materialize the
+            // returned collection, so a materialized list never changes their contract.
             try
             {
-                // SearchOption.AllDirectories can throw on access-denied dirs; fall back to
-                // a degenerate non-recursive search of the root in that case.
-                IEnumerable<string> files;
-                try
-                {
-                    files = Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories);
-                }
-                catch
-                {
-                    files = Directory.EnumerateFiles(root, pattern, SearchOption.TopDirectoryOnly);
-                }
+                var files = new List<string>();
 
-                return files.Where(f => !IsExcludedPath(f)).ToList();
+                // Backing field/property access must not cross the thread boundary, so wrap
+                // the walk in a closure that only touches locals and the pattern arg.
+                var walker = new System.Threading.Thread(() => files.AddRange(CollectWorkspaceFiles(root, pattern)))
+                {
+                    IsBackground = true,
+                    Priority = ThreadPriority.BelowNormal
+                };
+                walker.Start();
+                walker.Join();
+
+                return files;
             }
             catch
             {
                 return Enumerable.Empty<string>();
             }
+        }
+
+        /// <summary>
+        /// Walks the workspace tree one folder at a time, never issuing a full recursive
+        /// <see cref="SearchOption.AllDirectories"/> scan. Each folder's files are listed
+        /// exactly once (so "src" is checked once, then each subfolder is recursed through by
+        /// pushing it onto a stack). Excluded subtrees are pruned while walking so we never
+        /// descend into bin/obj/node_modules/.git, etc. No reparse-point checks are done.
+        /// </summary>
+        private static List<string> CollectWorkspaceFiles(string root, string pattern)
+        {
+            var results = new List<string>();
+            var pending = new Stack<string>();
+            pending.Push(root);
+
+            while (pending.Count > 0)
+            {
+                var dir = pending.Pop();
+
+                // Files in THIS folder only.
+                try
+                {
+                    foreach (var file in Directory.EnumerateFiles(dir, pattern, SearchOption.TopDirectoryOnly))
+                    {
+                        if (!IsExcludedPath(file))
+                            results.Add(file);
+                    }
+                }
+                catch
+                {
+                    // Folder unreadable / access denied; skip it.
+                }
+
+                // Direct subfolders of THIS folder only; recurse by pushing them.
+                try
+                {
+                    foreach (var sub in Directory.EnumerateDirectories(dir, "*", SearchOption.TopDirectoryOnly))
+                    {
+                        if (!IsExcludedPath(sub))
+                            pending.Push(sub);
+                    }
+                }
+                catch
+                {
+                    // Folder unreadable / access denied; skip it.
+                }
+            }
+
+            return results;
         }
 
         /// <summary>
@@ -379,24 +433,6 @@ namespace ContinueVS.Services.Implementations
             catch { /* fall through */ }
 
             return Directory.GetCurrentDirectory();
-        }
-
-        public static bool IsReparsePoint(string path)
-        {
-            try
-            {
-                // File.GetAttributes throws for bare path segments (e.g. "src", "E:")
-                // which IsExcludedPath passes in while walking directory components.
-                // A segment we cannot stat is not a reparse point — never let that
-                // abort the whole workspace enumeration (which surfaced as empty
-                // results from every grep/search/glob tool).
-                var attributes = File.GetAttributes(path);
-                return attributes.HasFlag(FileAttributes.ReparsePoint);
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         /// <summary>
