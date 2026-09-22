@@ -1,4 +1,4 @@
-﻿using ContinueVS.Core.Types;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
@@ -383,8 +383,20 @@ namespace ContinueVS.Services.Implementations
 
         public static bool IsReparsePoint(string path)
         {
-            var attributes = File.GetAttributes(path);
-            return attributes.HasFlag(FileAttributes.ReparsePoint);
+            try
+            {
+                // File.GetAttributes throws for bare path segments (e.g. "src", "E:")
+                // which IsExcludedPath passes in while walking directory components.
+                // A segment we cannot stat is not a reparse point — never let that
+                // abort the whole workspace enumeration (which surfaced as empty
+                // results from every grep/search/glob tool).
+                var attributes = File.GetAttributes(path);
+                return attributes.HasFlag(FileAttributes.ReparsePoint);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
