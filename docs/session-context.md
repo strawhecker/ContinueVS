@@ -9219,6 +9219,36 @@ nothing is ever mutated in place — the log only grows.
   The write-only log should reuse the same soft-delete serialization primitive so
   "delete == append a delete delta" stays consistent.
 
+---
+
+### gap90c: Unify Tool Cards onto StreamingMarkdownRenderer + Fix Scroll Wheel
+
+**Status:** Complete | Type: UI Unification / Scroll Fix
+
+**Problem:** Two content renderers existed. `StreamingMarkdownRenderer` (user/assistant/reasoning
+cards via ChatMessageControl) supported select & copy and a Copy All button; the `ToolInvocationTemplate`
+in ChatPage.xaml rendered tool content as a plain `TextBlock` with no selection, no copy-all, and bypassed
+the unified renderer. Separately the scroll wheel never worked inside StreamingMarkdownRenderer.
+
+**Implementation:**
+
+- **ToolInvocationTemplate (ChatPage.xaml)** — replaced the tool-content `TextBlock` with the unified
+  `StreamingMarkdownRenderer` in `ContentKind=Verbatim, IsMonospace=True`, bound to `Content`+`Message`,
+  targeting `#CCCCCC`. Tool chrome (header, file line, minimize, delete, `<>` toggles) unchanged.
+- **ApplyEffectiveForeground (StreamingMarkdownRenderer.xaml.cs)** — the host RichTextBox sets its own
+  Foreground, so an explicitly-set Foreground (tool `#CCCCCC`) now cascades; otherwise falls back to the
+  VS theme brush. Re-applied on Foreground DP change.
+- **HostText_PreviewMouseWheel (StreamingMarkdownRenderer.xaml.cs)** — the RichTextBox swallows the wheel
+  with VerticalScrollBarVisibility=Disabled, so hovering any card absorbed the wheel with no visible scroll.
+  Now: when the inner document fits (or is at a scroll edge) the delta is forwarded to the nearest ancestor
+  ScrollViewer (MessagesScrollViewer) and marked handled; the card only consumes the wheel for its own
+  internal scroll when it overflows. Restores whole-conversation scrolling while keeping oversized cards
+  individually scrollable.
+- **Copy All button (ChatPage.xaml + .cs)** — added "📋 Copy All" to the tool header row, wired to
+  `ToolCardCopyAll_Click` which ships full verbatim output via `ClipboardWriter.Copy(content, Raw)`.
+
+**Result:** `dotnet build --force` (0 warnings, 0 errors); `dotnet test` passes (1499 passed).
+
 #### Notes
 
 - Moving to a delta-only append log reduces I/O during long sends and removes the

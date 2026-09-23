@@ -88,10 +88,33 @@ namespace ContinueVS.UI.Renderers
 
             _richTextBox = HostText;
             _richTextBox.SizeChanged += HostText_SizeChanged;
+            _richTextBox.PreviewMouseWheel += HostText_PreviewMouseWheel;
+
+            // Honor an explicitly-set Foreground (e.g. tool cards set #CCCCCC);
+            // otherwise fall back to the VS theme text brush. The RichTextBox
+            // sets its own Foreground, so we must re-apply here for it to cascade.
+            var fgDescriptor = System.ComponentModel.DependencyPropertyDescriptor.FromProperty(
+                TextElement.ForegroundProperty, typeof(StreamingMarkdownRenderer));
+            fgDescriptor?.AddValueChanged(this, (s, e) => ApplyEffectiveForeground());
+            ApplyEffectiveForeground();
 
             Loaded += (s, e) => { _isUnloaded = false; };
             Unloaded += (s, e) => { _isUnloaded = true; };
             DataContextChanged += StreamingMarkdownRenderer_DataContextChanged;
+        }
+
+        private void ApplyEffectiveForeground()
+        {
+            var local = ReadLocalValue(ForegroundProperty);
+            if (local != DependencyProperty.UnsetValue && local is Brush brush)
+            {
+                _richTextBox.Foreground = brush;
+            }
+            else
+            {
+                _richTextBox.Foreground = TryGetBrush("VsBrush.WindowText")
+                                          ?? new SolidColorBrush(Color.FromRgb(220, 220, 220));
+            }
         }
 
         private void HostText_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -100,6 +123,67 @@ namespace ContinueVS.UI.Renderers
             {
                 _document.PageWidth = e.NewSize.Width;
             }
+        }
+
+        /// <summary>
+        /// gap90c: Restore a working scroll wheel for the unified renderer.
+        ///
+        /// A RichTextBox natively swallows PreviewMouseWheel to scroll its own
+        /// FlowDocument, but this control hosts with VerticalScrollBarVisibility=Disabled,
+        /// so the wheel used to be absorbed with nothing visible and never reached the
+        /// conversation <see cref="ScrollViewer"/> — hover any card and scrolling stopped.
+        ///
+        /// Fix: when the inner document does not overflow, OR the wheel would push past
+        /// the current internal scroll edge, forward the delta to the nearest ancestor
+        /// ScrollViewer (the conversation MessagesScrollViewer) and mark handled. The card
+        /// only consumes the wheel for its own internal scroll when it actually overflows
+        /// and there is room to move in the delta direction. This restores
+        /// "hover a card → wheel scrolls the whole conversation" (matching how the legacy
+        /// tool card's plain TextBlock behaved) while keeping oversized cards individually
+        /// scrollable.
+        /// </summary>
+        private void HostText_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            // If the inner document overflows the rich text box, let it scroll internally
+            // and only bubble to the conversation when it hits a scroll edge.
+            bool hasOverflow = _document.PageHeight > _richTextBox.ActualHeight + 0.5;
+            if (hasOverflow)
+            {
+                bool atTop = _richTextBox.VerticalOffset <= 0;
+                bool atBottom = _richTextBox.VerticalOffset + _richTextBox.ViewportHeight >= _richTextBox.ExtentHeight - 0.5;
+                bool wheelUp = e.Delta > 0;
+                bool wheelDown = e.Delta < 0;
+
+                // There is still internal room in the wheel direction → consume it here.
+                if ((wheelUp && !atTop) || (wheelDown && !atBottom))
+                {
+                    return; // let the RichTextBox handle it internally
+                }
+            }
+
+            // Forward to the nearest scrollable ancestor (the conversation list).
+            if (VisualTreeHelper.GetParent(this) is Visual parent)
+            {
+                var scrollViewer = FindAncestor<ScrollViewer>(parent);
+                if (scrollViewer != null)
+                {
+                    double newOffset = scrollViewer.VerticalOffset - e.Delta;
+                    newOffset = Math.Max(0, Math.Min(scrollViewer.ScrollableHeight, newOffset));
+                    scrollViewer.ScrollToVerticalOffset(newOffset);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                if (current is T match)
+                    return match;
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return null;
         }
 
         // ===================================================================

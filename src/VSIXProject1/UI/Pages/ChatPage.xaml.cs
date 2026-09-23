@@ -545,6 +545,30 @@ namespace ContinueVS.UI.Pages
 
 
         /// <summary>
+        /// gap90c: Handles Copy All for a tool card — copies the full verbatim tool
+        /// output (plain) to the clipboard. Tool output is source-facing, so it is
+        /// shipped as UnicodeText only (no RTF), matching ClipboardWriter raw semantics.
+        /// </summary>
+        private void ToolCardCopyAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn)
+                return;
+
+            if (btn.DataContext is not ChatMessage message)
+                return;
+
+            if (string.IsNullOrWhiteSpace(message.Content))
+                return;
+
+            bool ok = Services.Implementations.ClipboardWriter.Copy(message.Content, MessageViewMode.Raw);
+            if (ok)
+                LoggerService.Current.WriteDebug("[gap90c-tool-copy-all] Tool output copied to clipboard");
+            else
+                LoggerService.Current.WriteError("[gap90c-tool-copy-all-error] Failed to copy tool output");
+        }
+
+
+        /// <summary>
         /// Handles Copy All button click for thinking messages.
         /// </summary>
         private void ThinkingCopyAllButton_Click(object sender, RoutedEventArgs e)

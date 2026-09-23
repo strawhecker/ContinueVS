@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:ContinueVS.UI.Views"
              xmlns:converters="clr-namespace:ContinueVS.ViewModels.Converters"
-             xmlns:local="clr-namespace:ContinueVS.UI.Pages">
+             xmlns:local="clr-namespace:ContinueVS.UI.Pages"
+             xmlns:renderers="clr-namespace:ContinueVS.UI.Renderers">
     <UserControl.CommandBindings>
         <!-- gap42_2: intercept Paste to log multiline content; e.Handled not set so WPF default paste proceeds -->
         <CommandBinding Command="ApplicationCommands.Paste"
@@ -129,17 +130,29 @@
                                         </Style>
                                     </StackPanel.Style>
                                     <!-- gap85: compact tool-call header — tool name + optional file used, limited text -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                        <TextBlock Text="🧰 " FontWeight="Bold" Foreground="#FFA500"/>
-                                        <TextBlock Text="{Binding ToolCallLabel}" FontWeight="Bold" Foreground="#FFA500"/>
-                                        <TextBlock Margin="8,0,0,0" Foreground="#FFA500">
-                                            <TextBlock.Text>
-                                                <MultiBinding StringFormat="{}[{0}]">
-                                                    <Binding Path="InvocationStatus"/>
-                                                </MultiBinding>
-                                            </TextBlock.Text>
-                                        </TextBlock>
-                                    </StackPanel>
+                                    <Grid Margin="0,0,0,5">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🧰 " FontWeight="Bold" Foreground="#FFA500"/>
+                                            <TextBlock Text="{Binding ToolCallLabel}" FontWeight="Bold" Foreground="#FFA500"/>
+                                            <TextBlock Margin="8,0,0,0" Foreground="#FFA500">
+                                                <TextBlock.Text>
+                                                    <MultiBinding StringFormat="{}[{0}]">
+                                                        <Binding Path="InvocationStatus"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <!-- gap90c: Copy All for the tool card — copies the full verbatim
+                                             tool output to the clipboard (select/copy already native in the
+                                             StreamingMarkdownRenderer host). -->
+                                        <Button Content="📋 Copy All"
+                                                Click="ToolCardCopyAll_Click"
+                                                Height="20" Padding="8,0" FontSize="11"
+                                                Background="Transparent" BorderThickness="1"
+                                                BorderBrush="#5A5A5A" Foreground="#CCCCCC"
+                                                Cursor="Hand" ToolTip="Copy entire tool output"
+                                                HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                    </Grid>
                                     <!-- gap87: fabricated description of what the tool call did (from args, display-only, never on the wire) -->
                                     <TextBlock Text="{Binding ToolCallDescription}" FontWeight="SemiBold"
                                                Foreground="#FFD180" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4"
@@ -148,7 +161,17 @@
                                     <TextBlock Text="{Binding ToolFileName, StringFormat='📄 {0}'}" 
                                                Foreground="#FFD180" FontSize="11" 
                                                Visibility="{Binding ToolFileName, Converter={StaticResource IsNotNullToVisibilityConverter}}"/>
-                                    <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#CCCCCC" Margin="0,4,0,0"/>
+                                    <!-- gap90c: reuse the unified StreamingMarkdownRenderer for tool content in
+                                         Verbatim mode — plain, whitespace-preserving, monospaced, with native select
+                                         & copy. Matches the previous TextBlock color (#CCCCCC). Same renderer owns
+                                         user/assistant/tool cards (one renderer for all content). -->
+                                    <renderers:StreamingMarkdownRenderer
+                                        ContentKind="Verbatim"
+                                        IsMonospace="True"
+                                        Content="{Binding Content}"
+                                        Message="{Binding}"
+                                        Foreground="#CCCCCC"
+                                        Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <!-- gap85: Minimized placeholder (visible only while IsMinimized). -->
                                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
