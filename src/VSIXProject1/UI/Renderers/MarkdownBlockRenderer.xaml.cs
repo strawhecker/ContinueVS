@@ -29,6 +29,14 @@ namespace ContinueVS.UI.Renderers
             new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
         /// <summary>
+        /// Monospace font fallback chain using ONLY real, installed font names.
+        /// (WPF cannot resolve the CSS generic "monospace", which throws
+        /// ArgumentException; keep this list to actual fonts.)
+        /// </summary>
+        private static readonly FontFamily MonospaceFont =
+            new FontFamily("Consolas, Courier New, Lucida Console");
+
+        /// <summary>
         /// Timer for debouncing markdown rendering during streaming.
         /// Delays parsing to allow more content to arrive, preventing failures on incomplete markdown.
         /// </summary>
@@ -457,7 +465,7 @@ namespace ContinueVS.UI.Renderers
             var codeText = new TextBox
             {
                 Text = lines,
-                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                FontFamily = MonospaceFont,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
                 TextWrapping = TextWrapping.NoWrap,
@@ -481,7 +489,7 @@ namespace ContinueVS.UI.Renderers
             return new TextBox
             {
                 Text = lines,
-                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                FontFamily = MonospaceFont,
                 FontSize = 12,
                 TextWrapping = TextWrapping.NoWrap,
                 Padding = new Thickness(8),
@@ -558,7 +566,7 @@ namespace ContinueVS.UI.Renderers
                 case CodeInline codeInline:
                     inlines.Add(new Run(codeInline.Content)
                     {
-                        FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                        FontFamily = MonospaceFont,
                         Background = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
                         Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200))
                     });

@@ -44,6 +44,17 @@ namespace ContinueVS.UI.Renderers
         private static readonly MarkdownPipeline _pipeline =
             new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
+        /// <summary>
+        /// Monospace font fallback chain using ONLY real, installed font names.
+        /// (WPF cannot resolve the CSS generic "monospace", which throws
+        /// ArgumentException; keep this list to actual fonts.)
+        /// </summary>
+        private static readonly FontFamily MonospaceFont =
+            new FontFamily("Consolas, Courier New, Lucida Console");
+
+        private static readonly FontFamily NormalFont =
+            new FontFamily("Segoe UI, Calibri, Verdana");
+
         private readonly FlowDocument _document;
         private readonly RichTextBox _richTextBox;
 
@@ -392,7 +403,7 @@ namespace ContinueVS.UI.Renderers
                 var p = new Paragraph
                 {
                     Margin = new Thickness(0),
-                    FontFamily = IsMonospace ? new FontFamily("Consolas,Courier New,monospace") : null
+                    FontFamily = IsMonospace ? MonospaceFont : NormalFont
                 };
                 p.Inlines.Add(new Run(para));
                 _document.Blocks.Add(p);
@@ -426,7 +437,7 @@ namespace ContinueVS.UI.Renderers
                 var p = new Paragraph
                 {
                     Margin = new Thickness(0),
-                    FontFamily = new FontFamily("Consolas,Courier New,monospace")
+                    FontFamily = MonospaceFont
                 };
                 p.Inlines.Add(new Run(para));
                 _document.Blocks.Add(p);
@@ -736,7 +747,7 @@ namespace ContinueVS.UI.Renderers
             var codeText = new TextBox
             {
                 Text = lines,
-                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                FontFamily = MonospaceFont,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
                 TextWrapping = TextWrapping.NoWrap,
@@ -760,7 +771,7 @@ namespace ContinueVS.UI.Renderers
             return new TextBox
             {
                 Text = lines,
-                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                FontFamily = MonospaceFont,
                 FontSize = 12,
                 TextWrapping = TextWrapping.NoWrap,
                 Padding = new Thickness(8),
@@ -830,7 +841,7 @@ namespace ContinueVS.UI.Renderers
                 case CodeInline codeInline:
                     inlines.Add(new Run(codeInline.Content)
                     {
-                        FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                        FontFamily = MonospaceFont,
                         Background = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
                         Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200))
                     });
