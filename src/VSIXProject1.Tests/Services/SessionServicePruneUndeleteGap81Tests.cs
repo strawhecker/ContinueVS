@@ -1,10 +1,11 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Implementations;
+using ContinueVS.Tests.Fixtures;
 using Xunit;
 
 namespace ContinueVS.Tests.Services
@@ -15,12 +16,24 @@ namespace ContinueVS.Tests.Services
     /// PackageMessages excludes soft-deleted (pruned) entries from the LLM payload while
     /// retaining the bytes in the session for undelete.
     /// </summary>
-    public class SessionServicePruneUndeleteGap81Tests
+    public class SessionServicePruneUndeleteGap81Tests : IDisposable
     {
+        private readonly TempSessionServiceFactory _tempFactory;
+
+        public SessionServicePruneUndeleteGap81Tests()
+        {
+            _tempFactory = new TempSessionServiceFactory();
+        }
+
+        public void Dispose()
+        {
+            _tempFactory.Dispose();
+        }
+
         private SessionService CreateSessionService()
         {
             var tokenCounter = new SimpleTokenCounterService();
-            return new SessionService(tokenCounter);
+            return _tempFactory.Create(tokenCounter);
         }
 
         private async Task<ChatMessage> AddMessageAsync(SessionService service, ChatMessageRole role, string content)

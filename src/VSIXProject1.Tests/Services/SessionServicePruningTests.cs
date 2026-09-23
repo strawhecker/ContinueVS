@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.Tests.Fixtures;
 using Xunit;
 
 namespace ContinueVS.Tests.Services
@@ -14,12 +15,24 @@ namespace ContinueVS.Tests.Services
     /// Verifies that old messages are removed when token limit is exceeded,
     /// and system messages are preserved when requested.
     /// </summary>
-    public class SessionServicePruningTests
+    public class SessionServicePruningTests : IDisposable
     {
+        private readonly TempSessionServiceFactory _tempFactory;
+
+        public SessionServicePruningTests()
+        {
+            _tempFactory = new TempSessionServiceFactory();
+        }
+
+        public void Dispose()
+        {
+            _tempFactory.Dispose();
+        }
+
         private SessionService CreateSessionService()
         {
             var tokenCounter = new SimpleTokenCounterService();
-            return new SessionService(tokenCounter);
+            return _tempFactory.Create(tokenCounter);
         }
 
         [Fact]

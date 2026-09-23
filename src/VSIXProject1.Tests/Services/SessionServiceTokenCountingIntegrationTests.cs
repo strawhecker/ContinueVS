@@ -1,20 +1,33 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.Tests.Fixtures;
 using Moq;
 using Xunit;
 
 namespace ContinueVS.Tests.Services
 {
-    public class SessionServiceTokenCountingIntegrationTests
+    public class SessionServiceTokenCountingIntegrationTests : IDisposable
     {
+        private readonly TempSessionServiceFactory _tempFactory;
+
+        public SessionServiceTokenCountingIntegrationTests()
+        {
+            _tempFactory = new TempSessionServiceFactory();
+        }
+
+        public void Dispose()
+        {
+            _tempFactory.Dispose();
+        }
+
         private SessionService CreateSessionServiceWithTokenCounter()
         {
             var tokenCounter = new SimpleTokenCounterService();
-            return new SessionService(tokenCounter);
+            return _tempFactory.Create(tokenCounter);
         }
 
         [Fact]

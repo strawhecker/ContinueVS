@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.Tests.Fixtures;
 using Xunit;
 
 namespace ContinueVS.Tests.Services
@@ -12,14 +13,22 @@ namespace ContinueVS.Tests.Services
     /// Unit tests for gap74: Context Budget Tracking & Backtracking Algorithm.
     /// Tests SessionService methods: GetContextBudgetState, EstimateTokensUsed, BacktrackAndOptimizeAsync.
     /// </summary>
-    public class SessionServiceContextBudgetTests
+    public class SessionServiceContextBudgetTests : IDisposable
     {
         private readonly SessionService _sessionService;
+        private readonly TempSessionServiceFactory _tempFactory;
 
         public SessionServiceContextBudgetTests()
         {
             var tokenCountingService = new MockTokenCountingService();
-            _sessionService = new SessionService(tokenCountingService);
+            _tempFactory = new TempSessionServiceFactory();
+            _sessionService = _tempFactory.Create(tokenCountingService);
+        }
+
+        public void Dispose()
+        {
+            _sessionService.Dispose();
+            _tempFactory.Dispose();
         }
 
         [Fact]

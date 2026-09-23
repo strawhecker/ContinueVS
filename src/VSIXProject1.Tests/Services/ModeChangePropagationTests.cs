@@ -1,5 +1,6 @@
-﻿#nullable enable
+#nullable enable
 
+using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 using Moq;
@@ -14,8 +15,24 @@ namespace ContinueVS.Tests.Services
     /// Verifies that IModeService/ModeService correctly propagates mode changes
     /// through ISessionService.SetCurrentModeAsync() and fires SessionChanged events.
     /// </summary>
-    public class ModeChangePropagationTests
+    public class ModeChangePropagationTests : System.IDisposable
     {
+        private readonly string _tempDir;
+
+        public ModeChangePropagationTests()
+        {
+            _tempDir = Path.Combine(Path.GetTempPath(), "ContinueVS-Test-Session-" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempDir);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(_tempDir))
+            {
+                try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+            }
+        }
+
         private static ModeService CreateModeService(out Mock<ISessionService> sessionMock)
         {
             sessionMock = new Mock<ISessionService>();
@@ -69,7 +86,7 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange
             var tokenCountingServiceMock = new Mock<ITokenCountingService>();
-            var sessionService = new SessionService(tokenCountingServiceMock.Object);
+            var sessionService = new SessionService(tokenCountingServiceMock.Object, _tempDir);
 
             SessionChangedEventArgs? eventArgs = null;
             sessionService.SessionChanged += (s, e) => eventArgs = e;

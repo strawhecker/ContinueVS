@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -49,7 +49,7 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange
             var tokenCountingService = new Mock<ITokenCountingService>();
-            var sessionService = new SessionService(tokenCountingService.Object);
+            var sessionService = new SessionService(tokenCountingService.Object, _testTempDir);
             var session = sessionService.GetCurrentSession();
 
             // Act: Set mode to Agent (1)
@@ -68,7 +68,7 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange
             var tokenCountingService = new Mock<ITokenCountingService>();
-            var sessionService = new SessionService(tokenCountingService.Object);
+            var sessionService = new SessionService(tokenCountingService.Object, _testTempDir);
             var session = sessionService.GetCurrentSession();
             var sessionId = session.Id;
 
@@ -76,8 +76,8 @@ namespace ContinueVS.Tests.Services
             await sessionService.SetCurrentModeAsync(2);
             await Task.Delay(100); // Let file I/O complete
 
-            // Create new service instance and load the session
-            var sessionService2 = new SessionService(tokenCountingService.Object);
+            // Create new service instance (same temp dir) and load the session
+            var sessionService2 = new SessionService(tokenCountingService.Object, _testTempDir);
             await sessionService2.LoadSessionAsync(sessionId);
             var loadedSession = sessionService2.GetCurrentSession();
 
@@ -160,7 +160,7 @@ namespace ContinueVS.Tests.Services
         {
             // Arrange
             var tokenCountingService = new Mock<ITokenCountingService>();
-            var sessionService = new SessionService(tokenCountingService.Object);
+            var sessionService = new SessionService(tokenCountingService.Object, _testTempDir);
             var configService = CreateConfigService();
             await configService.InitializeAsync();
 
@@ -174,8 +174,8 @@ namespace ContinueVS.Tests.Services
             // Assert: Session has mode=Agent
             Assert.Equal(1, session.Mode);
 
-            // Load session from disk and verify mode persisted
-            var sessionService2 = new SessionService(tokenCountingService.Object);
+            // Load session from disk (same temp dir) and verify mode persisted
+            var sessionService2 = new SessionService(tokenCountingService.Object, _testTempDir);
             await sessionService2.LoadSessionAsync(session.Id);
             var loadedSession = sessionService2.GetCurrentSession();
             Assert.Equal(1, loadedSession.Mode);

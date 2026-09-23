@@ -1,14 +1,14 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
+using ContinueVS.Tests.Fixtures;
 using Xunit;
 
 namespace VSIXProject1.Tests.Services
@@ -16,22 +16,19 @@ namespace VSIXProject1.Tests.Services
     public class SessionServiceTests : IDisposable
     {
         private readonly SessionService _sessionService;
-        private readonly string _testSessionsDir;
+        private readonly TempSessionServiceFactory _tempFactory;
 
         public SessionServiceTests()
         {
             var tokenCounter = new SimpleTokenCounterService();
-            _sessionService = new SessionService(tokenCounter);
-            _testSessionsDir = Path.Combine(Path.GetTempPath(), "continue_test_sessions_" + Guid.NewGuid().ToString());
-            Directory.CreateDirectory(_testSessionsDir);
+            _tempFactory = new TempSessionServiceFactory();
+            _sessionService = _tempFactory.Create(tokenCounter);
         }
 
         public void Dispose()
         {
-            if (Directory.Exists(_testSessionsDir))
-            {
-                Directory.Delete(_testSessionsDir, recursive: true);
-            }
+            _sessionService.Dispose();
+            _tempFactory.Dispose();
         }
 
         #region GetCurrentSession Tests
