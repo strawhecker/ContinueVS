@@ -1,4 +1,5 @@
-﻿using System.Threading;
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 
@@ -26,6 +27,8 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="changeStackId">The change stack ID to apply changes to.</param>
         /// <param name="targetDir">Target directory for applying changes.</param>
         /// <param name="mode">Execution mode: Autonomous (auto-answers) or Interactive (prompts user).</param>
+        /// <param name="onChunk">Optional per-chunk callback forwarded to the phase generator so
+        /// the caller can live-update chat cards while phases are being generated.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The TestPlan with phases and their execution annotations.</returns>
         Task<TestPlan> ExecuteInstructionAsync(
@@ -33,7 +36,8 @@ namespace ContinueVS.Services.Interfaces
             string changeStackId,
             string targetDir,
             DebugExecutionMode mode = DebugExecutionMode.Autonomous,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            Action<CompletionChunk>? onChunk = null);
 
         /// <summary>
         /// Gets the current session state (last executed test plan with annotations).

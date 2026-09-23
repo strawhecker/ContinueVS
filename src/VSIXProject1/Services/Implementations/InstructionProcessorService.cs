@@ -33,7 +33,10 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Generates ordered internal phases from an execution instruction via LLM interpretation.
         /// </summary>
-        public async Task<TestPlan> GenerateInternalPhasesAsync(ExecutionInstruction instruction, CancellationToken cancellationToken = default)
+        public async Task<TestPlan> GenerateInternalPhasesAsync(
+            ExecutionInstruction instruction,
+            CancellationToken cancellationToken = default,
+            Action<CompletionChunk>? onChunk = null)
         {
             if (instruction == null)
                 throw new ArgumentNullException(nameof(instruction));
@@ -76,6 +79,11 @@ namespace ContinueVS.Services.Implementations
                     responseBuilder.Append(chunk.Content);
                     if (!string.IsNullOrEmpty(chunk.Reasoning))
                         reasoningBuilder.Append(chunk.Reasoning);
+
+                    // gap-plan-stream: forward each chunk to the caller so it can live-update
+                    // chat cards while generation is underway (not just at completion). The UI
+                    // subscribes via the onChunk callback; leave it null in headless/test callers.
+                    onChunk?.Invoke(chunk);
                 }
             }
             catch (Exception ex)

@@ -1133,7 +1133,15 @@ namespace ContinueVS.ViewModels
             // Display User, Assistant, Thinking (reasoning), and Tool messages.
             // Tool messages (gap85 tool-call bubbles + gap87 fabricated descriptions)
             // are user-visible so the user can see what a tool call did and prune/evaluate it.
-            // Only System messages remain internal/LLM-only.
+            //
+            // ExecutionImpactMessage (gap69/gap-plan-cards) is a read-only execution/plan
+            // summary explicitly meant for the user to see, even though its Role is System
+            // (System is used only for template routing, not to hide it). It renders via the
+            // dedicated ExecutionImpactTemplate regardless of role, so it must pass the filter.
+            if (msg is ExecutionImpactMessage)
+                return true;
+
+            // Only plain System messages remain internal/LLM-only.
             return msg.Role == ChatMessageRole.User ||
                    msg.Role == ChatMessageRole.Assistant ||
                    msg.Role == ChatMessageRole.Thinking ||
@@ -2005,14 +2013,19 @@ namespace ContinueVS.ViewModels
                                 Text = assistantMessage.Content
                             };
                             LoggerService.Current.WriteDebug($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
-                            var testPlan = await _instructionExecutorService.ExecuteInstructionAsync(
-                                execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
 
-                            // gap-plan-cards: Surface the plan generation to the chat so the user
-                            // is aware that additional (hidden) plan-make work occurred. This is
-                            // read-only disclosure: it never feeds back into the LLM and never
-                            // modifies the phases.
-                            await SurfacePhaseGenerationAsync(testPlan, assistantMessage.Content);
+                            // Create disclosure cards up front and stream into them, so the user
+                            // sees plan-make activity live and can cancel instead of waiting on a
+                            // silent/hidden step (gap-plan-stream).
+                            var planStream = new PhaseGenerationStreamSink(this, assistantMessage.Content);
+                            var testPlan = await _instructionExecutorService.ExecuteInstructionAsync(
+                                execInstruction, changeStackId, targetDir,
+                                cancellationToken: _streamingCts.Token,
+                                onChunk: planStream.OnChunk);
+
+                            // Finalize the streamed cards (mark reasoning/plan done) and ensure a
+                            // plan card exists even if the model emitted no reasoning/content.
+                            await planStream.FinalizeAsync(testPlan);
                         }
 
                         break;
@@ -2067,75 +2080,146 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
-        /// Surfaces the phase-generation activity of the internal plan executor to the chat as
-        /// read-only cards, so the user is always aware that hidden plan-make work occurred.
-        /// This is disclosure only — it never feeds the phases back into the LLM and never
-        /// mutates the <see cref="TestPlan"/>.
+        /// Streams the internal phase-generator's LLM output into live, read-only chat cards so
+        /// that "hidden" plan-handling work is visible to the user in real time. This lets the
+        /// user see activity (and cancel) instead of being blocked by a silent step.
+        ///
+        /// Behavior:
+        ///  - A "planning…" card is added to <see cref="Messages"/> BEFORE generation starts.
+        ///  - Each streamed chunk renders incrementally into that card (content + reasoning).
+        ///  - <see cref="FinalizeAsync"/> runs after generation: marks the plan card done and adds
+        ///    a read-only phase-summary card (Role=System) from the returned TestPlan.
+        ///
+        /// This is disclosure only — it never feeds the phases back into the LLM and never mutates
+        /// the <see cref="TestPlan"/>.
         /// </summary>
-        /// <param name="testPlan">The generated test plan (may be null if execution failed).</param>
-        /// <param name="instructionText">The source instruction text (assistant content) that drove the plan.</param>
-        private async Task SurfacePhaseGenerationAsync(TestPlan? testPlan, string instructionText)
+        private sealed class PhaseGenerationStreamSink
         {
-            try
+            private readonly ChatPageViewModel _owner;
+            private readonly string _instructionText;
+            private readonly ChatMessage _reasoningMessage;
+            private readonly ChatMessage _planningCard;
+
+            public PhaseGenerationStreamSink(ChatPageViewModel owner, string instructionText)
             {
-                if (testPlan == null)
+                _owner = owner;
+                _instructionText = instructionText;
+
+                _reasoningMessage = new ChatMessage
                 {
-                    LoggerService.Current.WriteDebug("[gap-plan-cards] No test plan returned; skipping phase disclosure cards.");
+                    Role = ChatMessageRole.Thinking,
+                    Content = string.Empty,
+                    IsThinking = true,
+                    IsExpanded = false
+                };
+                _planningCard = new ChatMessage
+                {
+                    Role = ChatMessageRole.Assistant,
+                    Content = string.Empty,
+                    IsThinking = false,
+                    IsExpanded = false
+                };
+            }
+
+            /// <summary>
+            /// Called from the generator on every streamed chunk (content and/or reasoning).
+            /// Appends to the live planning card on the UI thread.
+            /// </summary>
+            public void OnChunk(CompletionChunk chunk)
+            {
+                if (chunk == null)
                     return;
-                }
 
-                // 1) Reasoning card (Role=Thinking) from the captured reasoning text.
-                //    Mirrors the visible-path reasoning card so the plan-making chain-of-thought
-                //    is visible instead of silently dropped.
-                //    Note: captured into a local non-null variable because string.IsNullOrWhiteSpace
-                //    has no [NotNullWhen(false)] annotation, so the compiler would otherwise flag
-                //    ReasoningText (nullable) on the Content assignment and .Length below.
-                var reasoningText = testPlan.ReasoningText ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(reasoningText))
-                {
-                    var reasoningMessage = new ChatMessage
-                    {
-                        Role = ChatMessageRole.Thinking,
-                        Content = reasoningText,
-                        IsThinking = true,
-                        IsExpanded = false
-                    };
-                    await SwitchToMainThreadAsync();
-                    Messages.Add(reasoningMessage);
-                    await _sessionService.AddMessageAsync(reasoningMessage);
-                    LoggerService.Current.WriteDebug(
-                        $"[gap-plan-cards] Added reasoning disclosure card ({reasoningText.Length} chars)");
-                }
+                var hasContent = !string.IsNullOrEmpty(chunk.Content);
+                var hasReasoning = !string.IsNullOrEmpty(chunk.Reasoning);
+                if (!hasContent && !hasReasoning)
+                    return;
 
-                // 2) Read-only plan card (Role=System) summarizing the generated phases.
-                //    Reuses ExecutionImpactMessage, which routes to the colored border template.
-                if (testPlan.Phases is { Count: > 0 })
+                // Mutate the ObservableCollection on the Dispatcher thread deterministically
+                // (see gap76-fix note: plain await of SwitchToMainThreadAsync is unreliable here
+                // because the generator runs on the LLM streaming/task thread).
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
                 {
-                    var planCard = new ExecutionImpactMessage();
-                    var phaseResults = testPlan.Phases.Select(p => new PhaseExecutionResult
-                    {
-                        PhaseId = p.Type.ToString(),
-                        Status = p.Status == InternalPhaseStatus.Completed
-                            ? ExecutionStatus.Succeeded
-                            : p.Status == InternalPhaseStatus.Failed
-                                ? ExecutionStatus.Failed
-                                : ExecutionStatus.Pending,
-                        Evidence = p.Description
-                    });
-                    planCard.Initialize(phaseResults);
-                    planCard.Content = $"Debug Plan ({testPlan.Phases.Count} phases) — read-only preview";
-                    await SwitchToMainThreadAsync();
-                    Messages.Add(planCard);
-                    await _sessionService.AddMessageAsync(planCard);
-                    LoggerService.Current.WriteDebug(
-                        $"[gap-plan-cards] Added plan disclosure card with {testPlan.Phases.Count} phases");
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
+                    dispatcher.Invoke(() => AppendToCards(chunk, hasContent, hasReasoning));
+#pragma warning restore VSTHRD001
+                }
+                else
+                {
+                    AppendToCards(chunk, hasContent, hasReasoning);
                 }
             }
-            catch (Exception ex)
+
+            private void AppendToCards(CompletionChunk chunk, bool hasContent, bool hasReasoning)
             {
-                // Disclosure must never break the turn or hide the real response.
-                LoggerService.Current.WriteError(
-                    $"[gap-plan-cards] Failed to surface phase cards; continuing turn: {ex.Message}", ex);
+                if (hasReasoning)
+                {
+                    if (!_owner.Messages.Contains(_reasoningMessage))
+                        _owner.Messages.Insert(0, _reasoningMessage);
+                    if (!string.IsNullOrEmpty(chunk.Reasoning))
+                        _reasoningMessage.AppendChunk(chunk.Reasoning!);
+                }
+                else if (hasContent)
+                {
+                    if (!_owner.Messages.Contains(_planningCard))
+                        _owner.Messages.Add(_planningCard);
+                    if (!string.IsNullOrEmpty(chunk.Content))
+                        _planningCard.AppendChunk(chunk.Content!);
+                }
+            }
+
+            /// <summary>
+            /// Called after generation completes. Marks the cards done and adds a read-only
+            /// phase-summary card (Role=System) from the returned TestPlan.
+            /// </summary>
+            public async Task FinalizeAsync(TestPlan? testPlan)
+            {
+                try
+                {
+                    await ChatPageViewModel.SwitchToMainThreadAsync();
+
+                    // Mark the reasoning/planning cards as finalized.
+                    if (_owner.Messages.Contains(_reasoningMessage))
+                        _reasoningMessage.FinalizeStreaming();
+                    if (_owner.Messages.Contains(_planningCard))
+                        _planningCard.FinalizeStreaming();
+
+                    if (testPlan == null)
+                    {
+                        LoggerService.Current.WriteDebug("[gap-plan-cards] No test plan returned; skipping phase-summary card.");
+                        return;
+                    }
+
+                    // Read-only plan card (Role=System) summarizing the generated phases.
+                    if (testPlan.Phases is { Count: > 0 })
+                    {
+                        var planCard = new ExecutionImpactMessage();
+                        var phaseResults = testPlan.Phases.Select(p => new PhaseExecutionResult
+                        {
+                            PhaseId = p.Type.ToString(),
+                            Status = p.Status == InternalPhaseStatus.Completed
+                                ? ExecutionStatus.Succeeded
+                                : p.Status == InternalPhaseStatus.Failed
+                                    ? ExecutionStatus.Failed
+                                    : ExecutionStatus.Pending,
+                            Evidence = p.Description
+                        });
+                        planCard.Initialize(phaseResults);
+                        planCard.Content = $"Debug Plan ({testPlan.Phases.Count} phases) — read-only preview";
+                        await ChatPageViewModel.SwitchToMainThreadAsync();
+                        _owner.Messages.Add(planCard);
+                        await _owner._sessionService.AddMessageAsync(planCard);
+                        LoggerService.Current.WriteDebug(
+                            $"[gap-plan-cards] Added plan disclosure card with {testPlan.Phases.Count} phases");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Disclosure must never break the turn or hide the real response.
+                    LoggerService.Current.WriteError(
+                        $"[gap-plan-cards] Failed to surface streamed phase cards; continuing turn: {ex.Message}", ex);
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -80,7 +80,8 @@ namespace ContinueVS.Services.Implementations
             string changeStackId,
             string targetDir,
             DebugExecutionMode mode = DebugExecutionMode.Autonomous,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Action<CompletionChunk>? onChunk = null)
         {
             if (instruction == null)
                 throw new ArgumentNullException(nameof(instruction));
@@ -94,8 +95,9 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
-                // Generate phases from instruction
-                var testPlan = await _instructionProcessor.GenerateInternalPhasesAsync(instruction, cancellationToken);
+                // Generate phases from instruction, forwarding the streaming callback so the
+                // UI can live-update disclosure cards during generation (gap-plan-stream).
+                var testPlan = await _instructionProcessor.GenerateInternalPhasesAsync(instruction, cancellationToken, onChunk);
 
                 if (_logger != null)
                     _logger?.WriteDebug($"InstructionExecutorService.ExecuteInstructionAsync: generated {testPlan.Phases.Count} phases");
