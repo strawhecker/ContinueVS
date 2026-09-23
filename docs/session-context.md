@@ -8,6 +8,41 @@
 
 ---
 
+### gap-session-tests-temp: Route All Session-Creating Unit Tests to a Temp Folder with Cleanup
+
+**Status:** ✅ Complete | Type: Test Isolation / Hygiene
+
+**Problem:** Several unit tests constructed `SessionService` via its **single-argument constructor**
+(`new SessionService(tokenCounter)`), which defaults to persisting session files in
+`~/.continueVS/sessions` — the real user folder. This polluted real user data, was not isolated,
+and could clobber actual ContinueVS sessions.
+
+**Implementation:**
+
+- **`src/VSIXProject1.Tests/Fixtures/TempSessionServiceFactory.cs` (NEW)** — a disposable factory that
+  roots a `SessionService` in a unique temp directory (`%TEMP%\ContinueVS-Test-Session-{guid}`) via the
+  2-arg ctor `SessionService(ITokenCountingService, string storageDirectory)`. `Dispose()` recursively
+  deletes the temp directory. `Create(tokenCounter)` and `DirectoryPath` (for cross-instance sharing) exposed.
+- Routed all offender classes through the factory (or the 2-arg ctor with a temp dir) and rewired cleanup
+  into existing `IDisposable` (adding `IDisposable` where missing):
+  - `SessionServiceTests.cs` — now passes a temp dir into the 2-arg ctor (also removed the dead `_testSessionsDir`
+    var that was created but never passed to the service).
+  - `SessionServicePruningTests.cs`, `SessionServicePruneUndeleteGap81Tests.cs`,
+    `SessionServiceTokenCountingIntegrationTests.cs`, `SessionServiceContextBudgetTests.cs` — route each
+    construction through the factory.
+  - `ModeChangePropagationTests.cs` — uses a temp dir (2-arg ctor) + disposable cleanup.
+  - `ModePersistenceTests.cs` — all `new SessionService(...)` instances point at the shared `_testTempDir`
+    so save/load across instances share one location and get cleaned up.
+- Already-safe classes (`SessionServiceJsonlTests.cs`, `SessionDeltaLogTests.cs`) were left unchanged.
+
+**Result:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) →
+`dotnet test`: full suite passes (1492 passed). Verified the real user folder
+(`~/.continueVS/sessions`) receives **no test output** — the only files written there are the live
+ContinueVS tool's own ongoing sessions. All session-creating unit tests are now isolated to `%TEMP%`
+and removed afterwards.
+
+---
+
 ### fix-write-plan-open: `write_plan` / `open_file` Now Open the Plan as the Active IDE Document
 
 **Status:** ✅ Complete | Type: Bug Fix (IDE file-open routing)
