@@ -77,7 +77,38 @@ namespace ContinueVS.Tests.Services
             }
             finally
             {
-                Directory.Delete(root, recursive: true);
+                DeleteDirectoryWithRetry(root);
+            }
+        }
+
+        /// <summary>
+        /// Recursively deletes a directory, retrying a few times on transient Windows
+        /// file-lock errors. Handles used by scanning/AV/indexing can be released moments
+        /// after a test finishes, so a single blind delete is flaky.
+        /// </summary>
+        private static void DeleteDirectoryWithRetry(string path)
+        {
+            const int maxAttempts = 5;
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                try
+                {
+                    if (Directory.Exists(path))
+                        Directory.Delete(path, recursive: true);
+                    return;
+                }
+                catch (IOException)
+                {
+                    if (attempt >= maxAttempts - 1)
+                        throw;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    if (attempt >= maxAttempts - 1)
+                        throw;
+                }
+
+                System.Threading.Thread.Sleep(100 * (attempt + 1));
             }
         }
     }
