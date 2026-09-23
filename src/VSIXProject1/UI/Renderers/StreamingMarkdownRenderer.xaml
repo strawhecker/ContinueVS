@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="ContinueVS.UI.Renderers.StreamingMarkdownRenderer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             HorizontalAlignment="Stretch">
+    <Grid>
+        <!--
+            gap88: Unified chat card renderer.
+            One control owns the card from first token to final render; the
+            rendering behavior is selected by content kind (verbatim vs markdown)
+            and phase (streaming vs finalized). The same RichTextBox/FlowDocument
+            host is reused across all modes so there is no hard renderer swap.
+        -->
+        <RichTextBox x:Name="HostText"
+                     IsReadOnly="True"
+                     IsTabStop="False"
+                     IsDocumentEnabled="True"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="0"
+                     Margin="0"
+                     HorizontalScrollBarVisibility="Disabled"
+                     VerticalScrollBarVisibility="Disabled"
+                     Cursor="IBeam"
+                     Foreground="{DynamicResource VsBrush.WindowText}">
+            <RichTextBox.Document>
+                <FlowDocument PagePadding="0" TextAlignment="Left" PageWidth="1"/>
+            </RichTextBox.Document>
+        </RichTextBox>
+    </Grid>
+</UserControl>

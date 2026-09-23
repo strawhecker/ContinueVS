@@ -9454,7 +9454,31 @@ Tool-call bubbles (gap85) previously rendered only the tool name (`ToolCallLabel
 
 ### gap88 — Unified Chat Card Renderer Based on Type (StreamingMarkdownRenderer)
 
-**Status:** 🔴 Proposed | Type: UI Renderer Consolidation / Per-Type State Machine | Related: gap75 (streaming), gap21 (markdig), gap85/87 (tool-call bubbles), gap90b (role routing)
+**Status:** ✅ Implemented (feature-flagged A/B) | Type: UI Renderer Consolidation / Per-Type State Machine | Related: gap75 (streaming), gap21 (markdig), gap85/87 (tool-call bubbles), gap90b (role routing)
+
+**Implementation (this gap):**
+
+- ✅ **`ChatMessage.IsFinalized`** exposed (`Core/Types/ChatMessage.cs`): public, `[JsonIgnore]`, private setter, `PropertyChanged`-firing; set only by `FinalizeStreaming()` / the `Content` setter. Fires a **separate** event from `Content` so a renderer reacts to "stream done" without a content change. `FinalizeStreaming` now resets the incremental cursor (`_writePosition`/`_lastSegmentIndex`/`_tokenEmittedIndex` = 0) so the buffer shown while streaming and the finalized cached string agree.
+- ✅ **`StreamingMarkdownRenderer`** (NEW `UI/Renderers/StreamingMarkdownRenderer.xaml(.cs)`): the unified state-driven renderer. One control + one hosting RichTextBox/FlowDocument per card; no hard renderer swap. Three modes selected per card:
+  - **Verbatim** (user | tool via `ContentKind`): plain, whitespace-preserving; `MarkdownMode.Verbatim` short-circuits before the Markdig pipeline — zero markdown ever injected on source/paste text. Tool is monospaced (`IsMonospace`), user variable-width.
+  - **Streaming** (reasoning | response while `!IsFinalized`): O(n) append-only incremental path absorbing gap75's `TextBlockModel`/`InlineStyle` minimal parser (bold/italic/code) with reentrancy.
+  - **Full Markdig** (reasoning | response at `IsFinalized`): the **single** clear-and-rebuild once, reusing gap21/gap53 chrome (Heading/List/Quote/Thematic/Border/indented code, per-block Copy/Apply dropdown via gap53).
+  - Reacts to `PropertyChanged(IsFinalized)` and `TokenAppended` on a bound `Message`; `Content` DP for full-replacement paths.
+- ✅ **Converters** (NEW `ViewModels/Converters/`):
+  - `RoleToRendererModeConverter` — Tool/User → `MarkdownMode.Verbatim`; Thinking/Assistant → `MarkdownMode.Markdown`.
+  - `RoleToRendererVisibilityConverter` — A/B flag OFF (default) → always Collapsed (zero behavior change); ON → Visible for User/Thinking/Assistant (Tool routes via gap90b `ToolInvocationTemplate`, stays Collapsed here).
+- ✅ **`UseStreamingMarkdownRenderer`** static flag (`UI/Renderers/UseStreamingMarkdownRenderer.cs`, default `false`) gates the whole path.
+- ✅ **`ChatMessageControl.xaml`** hosts `StreamingMarkdownRenderer` bound to `Content`/`ContentKind`/`Message` with visibility gated by the flag. Legacy `StreamingReasoningRenderer` + `MarkdownBlockRenderer` remain untouched (A/B reference).
+- ✅ **`ChatPageViewModel`** `ExecuteSendMessage`: when the flag is ON, response streaming routes through `AppendChunk` (incremental → TokenAppended) instead of `Content +=` full replacement; when OFF, legacy `Content +=` is preserved. `FinalizeStreaming` still produces the single `PropertyChanged(IsFinalized)` full render. Any later `Content =` setter (thinking split, gap68) also flips `IsFinalized` for one final render.
+
+**Tests (26 new, all passing):**
+- `ChatMessageIsFinalizedTests.cs` (9) — default false, FinalizeStreaming sets true, Content setter sets true, IsFinalized PropertyChanged fires, AppendChunk does NOT flip it, Content matches buffer pre-finalize / is cached string post-finalize, TokenAppended flushes at finalize, IsMinimized independent.
+- `RoleToRendererModeConverterTests.cs` (3) — Tool/User verbatim, Thinking/Assistant markdown, null → verbatim, ConvertBack unset.
+- `RoleToRendererVisibilityConverterTests.cs` (4) — flag OFF → collapsed (zero change), flag ON → hosted roles visible / Tool collapsed, ConvertBack unset.
+
+**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1466 passed, 0 failed, 0 skipped**.
+
+**Acceptance criteria — met:** one renderer handles user/tool/reasoning/response via state (no swap, feature-flagged); reasoning/response stream O(n) then one full Markdig render at finalize driven by `IsFinalized`; user/tool verbatim (md pipeline never invoked, state-guaranteed); code-block Copy/Apply chrome only at final render; content single-sourced in the model (never copied between renderers); gap90b Tool routing preserved.
 
 **Objective:**
 Replace the current two competing renderers — `StreamingReasoningRenderer` (cheap incremental append, minimal inline markdown) and `MarkdownBlockRenderer` (full Markdig pipeline, code-block chrome) — with **one unified, state-driven renderer** that selects its rendering behavior from *content kind* (does this card guarantee markdown?) and *phase* (streaming vs. finalized). This removes the O(n²) full-reparse path from streaming responses while keeping the correct, single full-Markdig render at finalize — for every card type, with no hard renderer swap.

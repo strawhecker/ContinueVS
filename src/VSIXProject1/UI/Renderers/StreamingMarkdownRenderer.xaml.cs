@@ -1,0 +1,870 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Threading;
+using ContinueVS.Core.Parsers;
+using ContinueVS.Core.Types;
+using ContinueVS.Services;
+using Markdig;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
+using MarkdigBlock = Markdig.Syntax.Block;
+
+namespace ContinueVS.UI.Renderers
+{
+    /// <summary>
+    /// gap88: Unified chat card renderer based on content kind and phase.
+    ///
+    /// One control owns a card from its first token to its final render, with a
+    /// single hosting RichTextBox/FlowDocument reused across all modes. Rendering
+    /// behavior is selected per card:
+    ///
+    ///   - <see cref="MarkdownMode"/> = content kind (guaranteed markdown vs verbatim)
+    ///   - streaming vs finalized (driven by <see cref="ChatMessage.IsFinalized"/>)
+    ///
+    /// Modes:
+    ///   - Verbatim (user | tool): plain, whitespace-preserving, no markdown ever
+    ///     invokes the Markdig pipeline, so md-shaped source/paste cannot inject
+    ///     fake code blocks/headings.
+    ///   - Streaming (reasoning | response while !IsFinalized): incremental,
+    ///     append-only, O(n); no full reparse.
+    ///   - Full Markdig (reasoning | response at IsFinalized): the SINGLE clear-and-
+    ///     rebuild once with the full pipeline + gap53 code-block chrome.
+    ///
+    /// Completion is driven by <see cref="ChatMessage.IsFinalized"/> (a separate
+    /// event from Content), so the full render happens exactly once, at finalize.
+    /// The model stays single-sourced; no content is ever copied between views.
+    /// </summary>
+    public partial class StreamingMarkdownRenderer : UserControl
+    {
+        private static readonly MarkdownPipeline _pipeline =
+            new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
+        private readonly FlowDocument _document;
+        private readonly RichTextBox _richTextBox;
+
+        /// <summary>
+        /// Cached last Content value received via the DP full-replace path.
+        /// </summary>
+        private string? _receivedContent;
+
+        /// <summary>
+        /// Reentrancy guard so a PropertyChanged storm cannot run two renders at once.
+        /// </summary>
+        private bool _isRendering;
+
+        /// <summary>
+        /// When set, the next content/scroll affinity update may not touch the controls.
+        /// </summary>
+        private bool _isUnloaded;
+
+        private ChatMessage? _boundMessage;
+
+        public StreamingMarkdownRenderer()
+        {
+            InitializeComponent();
+
+            MinWidth = 0;
+
+            // Reuse the XAML-hosted RichTextBox (HostText) and its FlowDocument
+            // for every mode — one control owns the card, no renderer swap.
+            _document = HostText.Document ?? new FlowDocument();
+            HostText.Document = _document;
+
+            _richTextBox = HostText;
+            _richTextBox.SizeChanged += HostText_SizeChanged;
+
+            Loaded += (s, e) => { _isUnloaded = false; };
+            Unloaded += (s, e) => { _isUnloaded = true; };
+            DataContextChanged += StreamingMarkdownRenderer_DataContextChanged;
+        }
+
+        private void HostText_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (e.NewSize.Width > 0)
+            {
+                _document.PageWidth = e.NewSize.Width;
+            }
+        }
+
+        // ===================================================================
+        // Dependency properties
+        // ===================================================================
+
+        /// <summary>
+        /// Content kind: Verbatim (user/tool) or Markdown (reasoning/response).
+        /// The DP uses the control's own <see cref="MarkdownMode"/> type.
+        /// </summary>
+        public static readonly DependencyProperty ContentKindProperty =
+            DependencyProperty.Register(
+                nameof(ContentKind),
+                typeof(MarkdownMode),
+                typeof(StreamingMarkdownRenderer),
+                new PropertyMetadata(MarkdownMode.Verbatim, OnModeChanged));
+
+        public MarkdownMode ContentKind
+        {
+            get => (MarkdownMode)GetValue(ContentKindProperty);
+            set => SetValue(ContentKindProperty, value);
+        }
+
+        /// <summary>
+        /// True for tool cards (monospaced verbatim); false for user cards
+        /// (variable-width verbatim). Only consulted in <see cref="MarkdownMode.Verbatim"/>.
+        /// </summary>
+        public static readonly DependencyProperty IsMonospaceProperty =
+            DependencyProperty.Register(
+                nameof(IsMonospace),
+                typeof(bool),
+                typeof(StreamingMarkdownRenderer),
+                new PropertyMetadata(false, OnModeChanged));
+
+        public bool IsMonospace
+        {
+            get => (bool)GetValue(IsMonospaceProperty);
+            set => SetValue(IsMonospaceProperty, value);
+        }
+
+        /// <summary>
+        /// The raw content to render (single source of truth; never copied).
+        /// </summary>
+        public new static readonly DependencyProperty ContentProperty =
+            DependencyProperty.Register(
+                "Content",
+                typeof(string),
+                typeof(StreamingMarkdownRenderer),
+                new PropertyMetadata(null, OnContentChanged));
+
+        public new string? Content
+        {
+            get => (string?)GetValue(ContentProperty);
+            set => SetValue(ContentProperty, value);
+        }
+
+        /// <summary>
+        /// Optional bound message. When set, the renderer subscribes to
+        /// TokenAppended (incremental) and PropertyChanged(IsFinalized | Content).
+        /// </summary>
+        public static readonly DependencyProperty MessageProperty =
+            DependencyProperty.Register(
+                "Message",
+                typeof(ChatMessage),
+                typeof(StreamingMarkdownRenderer),
+                new PropertyMetadata(null, (d, e) => ((StreamingMarkdownRenderer)d).OnMessageChanged(e.NewValue as ChatMessage)));
+
+        public ChatMessage? Message
+        {
+            get => (ChatMessage?)GetValue(MessageProperty);
+            set => SetValue(MessageProperty, value);
+        }
+
+        // ===================================================================
+        // DP change handlers
+        // ===================================================================
+
+        private static void OnModeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+            => ((StreamingMarkdownRenderer)d).FullRenderIfNeeded();
+
+        private static void OnContentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var renderer = (StreamingMarkdownRenderer)d;
+            renderer.OnContentReceived(e.NewValue as string);
+        }
+
+        private void OnContentReceived(string? content)
+        {
+            if (Dispatcher.CheckAccess())
+            {
+                ApplyContent(content);
+            }
+            else
+            {
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
+                Dispatcher.Invoke(() => ApplyContent(content));
+#pragma warning restore VSTHRD001
+            }
+        }
+
+        // ===================================================================
+        // Message binding (incremental + finalize signal)
+        // ===================================================================
+
+        private void StreamingMarkdownRenderer_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // Fallback: if no explicit Message DP is set, bind to the DataContext.
+            if (GetValue(MessageProperty) == null && DataContext is ChatMessage msg)
+            {
+                Message = msg;
+            }
+        }
+
+        /// <summary>
+        /// Entry point for gap75-style incremental token delivery from a bound
+        /// <see cref="ChatMessage"/> (TokenAppended). Only meaningful in
+        /// markdown-streaming mode, but harmless if called in verbatim mode
+        /// (it is ignored unless streaming is active and not finalized).
+        /// </summary>
+        public void AppendToken(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return;
+            if (ContentKind != MarkdownMode.Markdown) return;
+
+            if (Dispatcher.CheckAccess())
+            {
+                AppendIncremental(token);
+            }
+            else
+            {
+#pragma warning disable VSTHRD001 // Await JoinableTaskFactory.SwitchToMainThreadAsync
+                Dispatcher.Invoke(() => AppendIncremental(token));
+#pragma warning restore VSTHRD001
+            }
+        }
+
+        private void OnMessageChanged(ChatMessage? message)
+        {
+            if (_boundMessage != null)
+            {
+                _boundMessage.TokenAppended -= OnTokenAppended;
+                _boundMessage.PropertyChanged -= OnMessagePropertyChanged;
+            }
+
+            _boundMessage = message;
+
+            if (message != null)
+            {
+                message.TokenAppended += OnTokenAppended;
+                message.PropertyChanged += OnMessagePropertyChanged;
+
+                // The DataContext may be set before the visual tree is loaded;
+                // run the full render for the finalized/bound content immediately.
+                if (message.IsFinalized)
+                {
+                    FullRenderIfNeeded();
+                }
+            }
+        }
+
+        private void OnTokenAppended(string token) => AppendToken(token);
+
+        private void OnMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // gap88: IsFinalized drives the single full Markdig pass.
+            if (e.PropertyName == nameof(ChatMessage.IsFinalized) && _boundMessage?.IsFinalized == true)
+            {
+                FullRenderIfNeeded();
+            }
+            else if (e.PropertyName == nameof(ChatMessage.Content))
+            {
+                OnContentReceived(_boundMessage?.Content);
+            }
+        }
+
+        // ===================================================================
+        // Rendering dispatch
+        // ===================================================================
+
+        private void ApplyContent(string? content)
+        {
+            if (_isUnloaded) return;
+            content ??= string.Empty;
+
+            // Verbatim content is always rendered as-is (zero markdown, ever).
+            if (ContentKind == MarkdownMode.Verbatim)
+            {
+                RenderVerbatim(content);
+                return;
+            }
+
+            _receivedContent = content;
+
+            // Markdown content: if the message is finalized, do the single full
+            // markdig pass; otherwise keep whatever streaming has produced so far.
+            if (_boundMessage?.IsFinalized == true)
+            {
+                FullRenderIfNeeded();
+            }
+            else
+            {
+                RenderStreaming(content);
+            }
+        }
+
+        private void FullRenderIfNeeded()
+        {
+            if (_isUnloaded) return;
+            if (_isRendering) return;
+            _isRendering = true;
+
+            try
+            {
+                if (ContentKind == MarkdownMode.Verbatim)
+                {
+                    var text = _receivedContent ?? Content ?? _boundMessage?.Content ?? string.Empty;
+                    RenderVerbatim(text);
+                    return;
+                }
+
+                var markdown = _receivedContent ?? _boundMessage?.Content ?? Content ?? string.Empty;
+                RenderFullMarkdig(markdown);
+            }
+            finally
+            {
+                _isRendering = false;
+            }
+        }
+
+        // ===================================================================
+        // Verbatim mode (user | tool): plain, whitespace-preserving, NO markdown.
+        // ===================================================================
+
+        private void RenderVerbatim(string text)
+        {
+            _document.Blocks.Clear();
+
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            foreach (var para in SplitLines(text))
+            {
+                var p = new Paragraph
+                {
+                    Margin = new Thickness(0),
+                    FontFamily = IsMonospace ? new FontFamily("Consolas,Courier New,monospace") : null
+                };
+                p.Inlines.Add(new Run(para));
+                _document.Blocks.Add(p);
+            }
+        }
+
+        private static IEnumerable<string> SplitLines(string text)
+        {
+            // Preserve line structure: split on \n so user/source line breaks are
+            // honored (no markdown normalization, no spurious block parsing).
+            var normalized = text.Replace("\r\n", "\n").Replace("\r", "\n");
+            return normalized.Split('\n');
+        }
+
+        // ===================================================================
+        // Streaming mode (markdown, !IsFinalized): O(n) append-only.
+        // ===================================================================
+
+        private void RenderStreaming(string content)
+        {
+            // gap88: streaming is append-only on the shared document. We support
+            // both the incremental TokenAppended path (AppendIncremental) and a
+            // full-replacement snapshot (used when a Content PropertyChanged fires
+            // mid-stream). AppendIncremental is called per fresh delta; here we
+            // only refresh the live paragraph's partial state and rely on the
+            // incremental path for new tokens.
+            var delta = content;
+            if (!string.IsNullOrEmpty(_receivedPrefix) && content.StartsWith(_receivedPrefix, StringComparison.Ordinal))
+            {
+                delta = content.Substring(_receivedPrefix.Length);
+            }
+            _receivedPrefix = content;
+
+            AppendIncremental(delta);
+        }
+
+        private string _receivedPrefix = string.Empty;
+
+        private void AppendIncremental(string delta)
+        {
+            if (string.IsNullOrEmpty(delta)) return;
+
+            delta = delta.Replace("\r\n", "\n").Replace("\r", "\n");
+
+            int newlineIndex;
+            while ((newlineIndex = delta.IndexOf('\n')) >= 0)
+            {
+                string segment = delta.Substring(0, newlineIndex);
+                delta = delta.Substring(newlineIndex + 1);
+
+                AppendMarkdownRuns(segment);
+                _pendingParagraph = null;
+            }
+
+            AppendMarkdownRuns(delta);
+        }
+
+        // ===================================================================
+        // Full Markdig mode (reasoning | response at IsFinalized): ONE render.
+        // ===================================================================
+
+        private void RenderFullMarkdig(string markdown)
+        {
+            _document.Blocks.Clear();
+
+            if (string.IsNullOrEmpty(markdown))
+                return;
+
+            try
+            {
+                var doc = Markdown.Parse(markdown, _pipeline);
+                foreach (var block in doc)
+                    RenderBlock(block);
+            }
+            catch
+            {
+                // Fallback: plain selectable paragraph.
+                var fallback = new Paragraph { Margin = new Thickness(0, 2, 0, 2) };
+                fallback.Inlines.Add(new Run(markdown));
+                _document.Blocks.Add(fallback);
+            }
+        }
+
+        private void RenderBlock(MarkdigBlock block)
+        {
+            switch (block)
+            {
+                case FencedCodeBlock code:
+                    _document.Blocks.Add(new BlockUIContainer(
+                        RenderCodeBlock(code.Info ?? string.Empty, ExtractCodeLines(code))));
+                    break;
+
+                case ParagraphBlock para:
+                    _document.Blocks.Add(MakeTextParagraph(para.Inline));
+                    break;
+
+                case HeadingBlock heading:
+                    _document.Blocks.Add(MakeTextParagraph(
+                        heading.Inline,
+                        fontSize: heading.Level <= 3 ? 20 - heading.Level * 2 : 14,
+                        weight: FontWeights.Bold,
+                        margin: new Thickness(0, 4, 0, 2)));
+                    break;
+
+                case ListBlock list:
+                    RenderList(list, 0);
+                    break;
+
+                case QuoteBlock quote:
+                    _document.Blocks.Add(RenderQuote(quote));
+                    break;
+
+                case ThematicBreakBlock _:
+                    _document.Blocks.Add(MakeHorizontalRule());
+                    break;
+
+                case CodeBlock indentedCode:
+                    _document.Blocks.Add(new BlockUIContainer(
+                        BuildPlainCodeControl(ExtractCodeLines(indentedCode))));
+                    break;
+
+                default:
+                    // Silently skip unknown block types.
+                    break;
+            }
+        }
+
+        // Reused from gap21/gap53 markdig chrome.
+        private void RenderList(ListBlock list, int depth)
+        {
+            int orderedIndex = 1;
+            double left = 14.0 + depth * 16;
+
+            foreach (var item in list)
+            {
+                if (item is not ListItemBlock listItem)
+                    continue;
+
+                string prefix = list.IsOrdered ? $"{orderedIndex++}. " : "• ";
+                bool markerAdded = false;
+
+                foreach (var subBlock in listItem)
+                {
+                    if (subBlock is ParagraphBlock paraBlock)
+                    {
+                        var para = MakeTextParagraph(null, margin: new Thickness(left, 1, 0, 1));
+                        if (!markerAdded)
+                        {
+                            para.Inlines.Add(new Run(prefix));
+                            markerAdded = true;
+                        }
+                        if (paraBlock.Inline != null)
+                        {
+                            foreach (var inline in paraBlock.Inline)
+                                AppendInline(para.Inlines, inline);
+                        }
+                        _document.Blocks.Add(para);
+                    }
+                    else if (subBlock is ListBlock nestedList)
+                    {
+                        RenderList(nestedList, depth + 1);
+                    }
+                    else if (subBlock is QuoteBlock nestedQuote)
+                    {
+                        _document.Blocks.Add(RenderQuote(nestedQuote));
+                    }
+                }
+            }
+        }
+
+        private Section RenderQuote(QuoteBlock quote)
+        {
+            var section = new Section
+            {
+                Margin = new Thickness(0, 4, 0, 4),
+                Padding = new Thickness(10, 2, 0, 2),
+                BorderThickness = new Thickness(3, 0, 0, 0),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100))
+            };
+
+            foreach (var subBlock in quote)
+            {
+                if (subBlock is ParagraphBlock para)
+                {
+                    var p = MakeTextParagraph(para.Inline);
+                    p.FontStyle = FontStyles.Italic;
+                    section.Blocks.Add(p);
+                }
+                else if (subBlock is ListBlock list)
+                {
+                    RenderList(list, 0);
+                }
+            }
+
+            return section;
+        }
+
+        private Paragraph MakeHorizontalRule()
+        {
+            var p = new Paragraph
+            {
+                Margin = new Thickness(0, 4, 0, 4),
+                FontSize = 1
+            };
+            p.BorderThickness = new Thickness(0, 0, 0, 1);
+            p.BorderBrush = TryGetBrush("VsBrush.ToolWindowBorder")
+                            ?? new SolidColorBrush(Color.FromRgb(80, 80, 80));
+            return p;
+        }
+
+        private Paragraph MakeTextParagraph(
+            ContainerInline? inlines,
+            double? fontSize = null,
+            FontWeight? weight = null,
+            Thickness? margin = null)
+        {
+            var para = new Paragraph
+            {
+                Margin = margin ?? new Thickness(0, 2, 0, 2)
+            };
+
+            if (fontSize.HasValue) para.FontSize = fontSize.Value;
+            if (weight.HasValue) para.FontWeight = weight.Value;
+
+            if (inlines != null)
+            {
+                foreach (var inline in inlines)
+                    AppendInline(para.Inlines, inline);
+            }
+
+            return para;
+        }
+
+        private static string ExtractCodeLines(LeafBlock? code)
+        {
+            var lines = new List<string>();
+            if (code?.Lines.Lines != null)
+            {
+                foreach (var line in code.Lines.Lines)
+                {
+                    if (line.Slice.Text != null)
+                    {
+                        lines.Add(line.Slice.ToString());
+                    }
+                }
+            }
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        private Border RenderCodeBlock(string language, string lines)
+        {
+            var blockId = Guid.NewGuid().ToString();
+
+            var outerBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(0, 4, 0, 4)
+            };
+
+            var innerPanel = new StackPanel();
+
+            // Header bar: language label + Copy/Apply dropdown (gap53).
+            var header = new DockPanel
+            {
+                Background = new SolidColorBrush(Color.FromRgb(55, 55, 55)),
+                LastChildFill = false
+            };
+
+            var langLabel = new TextBlock
+            {
+                Text = string.IsNullOrEmpty(language) ? "code" : language,
+                Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                FontSize = 11,
+                Margin = new Thickness(8, 4, 0, 4),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            DockPanel.SetDock(langLabel, Dock.Left);
+
+            var actionDropdown = new ComboBox
+            {
+                Height = 24,
+                Width = 100,
+                Background = new SolidColorBrush(Color.FromRgb(70, 70, 70)),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                FontSize = 11,
+                SelectedIndex = 0,
+                Margin = new Thickness(0, 2, 4, 2),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            actionDropdown.Tag = blockId;
+
+            var copyItem = new ComboBoxItem { Content = "📋 Copy", IsSelected = true };
+            var applyItem = new ComboBoxItem { Content = "✔ Apply" };
+            actionDropdown.Items.Add(copyItem);
+            actionDropdown.Items.Add(applyItem);
+
+            actionDropdown.SelectionChanged += (s, e) =>
+            {
+                if (s is ComboBox dropdown && dropdown.Tag is string bid)
+                {
+                    CodeBlockActionDropdown_SelectionChanged(dropdown, bid, language, lines);
+                }
+            };
+
+            DockPanel.SetDock(actionDropdown, Dock.Right);
+
+            header.Children.Add(langLabel);
+            header.Children.Add(actionDropdown);
+            innerPanel.Children.Add(header);
+
+            var codeText = new TextBox
+            {
+                Text = lines,
+                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
+                TextWrapping = TextWrapping.NoWrap,
+                Padding = new Thickness(8),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                IsReadOnly = true,
+                IsTabStop = false,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Cursor = System.Windows.Input.Cursors.IBeam
+            };
+            innerPanel.Children.Add(codeText);
+
+            outerBorder.Child = innerPanel;
+            return outerBorder;
+        }
+
+        private TextBox BuildPlainCodeControl(string lines)
+        {
+            return new TextBox
+            {
+                Text = lines,
+                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                FontSize = 12,
+                TextWrapping = TextWrapping.NoWrap,
+                Padding = new Thickness(8),
+                Margin = new Thickness(0, 4, 0, 4),
+                Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+                Foreground = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
+                BorderThickness = new Thickness(0),
+                IsReadOnly = true,
+                IsTabStop = false,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Cursor = System.Windows.Input.Cursors.IBeam
+            };
+        }
+
+        private void CodeBlockActionDropdown_SelectionChanged(ComboBox comboBox, string blockId, string language, string content)
+        {
+            if (comboBox == null) return;
+
+            var selectedItem = comboBox.SelectedItem as ComboBoxItem;
+            if (selectedItem == null) return;
+
+            try
+            {
+                string selectedAction = selectedItem.Content?.ToString() ?? "Copy";
+
+                if (selectedAction.Contains("Copy"))
+                {
+                    try
+                    {
+                        Clipboard.SetText(content);
+                        LoggerService.Current.WriteDebug($"[gap53-block-action] Code block copied (lang={language}, id={blockId})");
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerService.Current.WriteError($"[gap53-block-action-error] Failed to copy block: {ex.Message}", ex);
+                    }
+                }
+                else if (selectedAction.Contains("Apply"))
+                {
+                    LoggerService.Current.WriteDebug($"[gap53-block-action] Apply selected for block (lang={language}, id={blockId})");
+                }
+
+                comboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[gap53-block-action-handler-error] Exception in handler: {ex.Message}", ex);
+            }
+        }
+
+        private static void AppendInline(InlineCollection inlines, Markdig.Syntax.Inlines.Inline inline)
+        {
+            switch (inline)
+            {
+                case LiteralInline lit:
+                    inlines.Add(new Run(lit.Content.ToString()));
+                    break;
+
+                case EmphasisInline em:
+                    Span span = em.DelimiterCount >= 2 ? (Span)new Bold() : new Italic();
+                    foreach (var child in em)
+                        AppendInline(span.Inlines, child);
+                    inlines.Add(span);
+                    break;
+
+                case CodeInline codeInline:
+                    inlines.Add(new Run(codeInline.Content)
+                    {
+                        FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                        Background = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
+                        Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200))
+                    });
+                    break;
+
+                case LineBreakInline:
+                    inlines.Add(new LineBreak());
+                    break;
+
+                default:
+                    var text = inline.ToString();
+                    if (!string.IsNullOrEmpty(text))
+                        inlines.Add(new Run(text));
+                    break;
+            }
+        }
+
+        // ===================================================================
+        // Streaming markdown inline runs (gap75 minimal parser + gap75 TextBlockModel)
+        // ===================================================================
+
+        private Paragraph? _pendingParagraph;
+
+        private void AppendMarkdownRuns(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
+            EnsurePendingParagraph();
+
+            foreach (System.Windows.Documents.Inline inline in ParseMarkdownInline(text))
+            {
+                _pendingParagraph?.Inlines.Add(inline);
+            }
+        }
+
+        private void EnsurePendingParagraph()
+        {
+            if (_pendingParagraph != null) return;
+
+            _pendingParagraph = new Paragraph
+            {
+                Margin = new Thickness(0)
+            };
+            _document.Blocks.Add(_pendingParagraph);
+        }
+
+        private IEnumerable<System.Windows.Documents.Inline> ParseMarkdownInline(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                yield break;
+
+            var model = new TextBlockModel(text);
+
+            if (model.InlineRuns == null || model.InlineRuns.Count == 0)
+            {
+                yield return new Run(text);
+                yield break;
+            }
+
+            foreach (var parsedRun in model.InlineRuns)
+            {
+                if (parsedRun == null) continue;
+
+                var inline = new Run
+                {
+                    Text = parsedRun.Text ?? string.Empty
+                };
+
+                switch (parsedRun.Style)
+                {
+                    case InlineStyle.Bold:
+                        inline.FontWeight = FontWeights.Bold;
+                        break;
+                    case InlineStyle.Italic:
+                        inline.FontStyle = FontStyles.Italic;
+                        break;
+                    case InlineStyle.Code:
+                        inline.FontFamily = new FontFamily("Consolas");
+                        inline.Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0));
+                        break;
+                }
+
+                yield return inline;
+            }
+        }
+
+        private static Brush? TryGetBrush(string resourceKey)
+        {
+            try
+            {
+                if (Application.Current != null &&
+                    Application.Current.TryFindResource(resourceKey) is Brush brush)
+                {
+                    return brush;
+                }
+            }
+            catch
+            {
+                // ignore resource lookup failures
+            }
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// gap88: Content-kind discriminator for the unified renderer.
+    /// </summary>
+    public enum MarkdownMode
+    {
+        /// <summary>
+        /// Plain, whitespace-preserving, variable-width, no markdown (user cards...).
+        /// </summary>
+        Verbatim,
+
+        /// <summary>
+        /// Markdown-guaranteed content (reasoning/response). Streaming simple-md →
+        /// one full Markdig render at finalize.
+        /// </summary>
+        Markdown
+    }
+}

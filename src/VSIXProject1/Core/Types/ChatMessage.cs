@@ -266,12 +266,26 @@ namespace ContinueVS.Core.Types
             {
                 if (SetProperty(ref _content, value))
                 {
-                    _isFinalized = true;
+                    IsFinalized = true;
                     _writePosition = 0;
                     _lastSegmentIndex = 0;
                     _tokenEmittedIndex = 0;
                 }
             }
+        }
+
+        /// <summary>
+        /// gap88: First-class "streaming is complete" signal, fired SEPARATELY from
+        /// <see cref="Content"/>. A unified renderer can react to "stream done" without
+        /// a content change, so it can run its single full-markdown render at finalize.
+        /// Private setter — only <see cref="FinalizeStreaming"/> / the <see cref="Content"/>
+        /// setter may flip it. Not persisted (derived runtime state).
+        /// </summary>
+        [JsonIgnore]
+        public bool IsFinalized
+        {
+            get => _isFinalized;
+            private set => SetProperty(ref _isFinalized, value);
         }
 
         /// <summary>
@@ -586,10 +600,18 @@ namespace ContinueVS.Core.Types
             if (!_isFinalized)
             {
                 _content = new string(_contentBuffer, 0, _writePosition);
-                _isFinalized = true;
 
                 // Flush any trailing content that was never emitted through the incremental path.
                 EmitPendingTokens();
+
+                // gap88: Flip the completion signal first so a renderer subscribed to
+                // IsFinalized sees the dedicated "stream done" event, then reset the
+                // incremental cursor and raise the content-changed event for the finalized
+                // full render. IsFinalized raising SetProperty fires its own PropertyChanged.
+                IsFinalized = true;
+                _writePosition = 0;
+                _lastSegmentIndex = 0;
+                _tokenEmittedIndex = 0;
 
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Content)));
             }
