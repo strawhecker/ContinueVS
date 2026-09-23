@@ -9452,7 +9452,68 @@ Tool-call bubbles (gap85) previously rendered only the tool name (`ToolCallLabel
 
 ---
 
----
+### gap88 — Unified Chat Card Renderer Based on Type (StreamingMarkdownRenderer)
+
+**Status:** 🔴 Proposed | Type: UI Renderer Consolidation / Per-Type State Machine | Related: gap75 (streaming), gap21 (markdig), gap85/87 (tool-call bubbles), gap90b (role routing)
+
+**Objective:**
+Replace the current two competing renderers — `StreamingReasoningRenderer` (cheap incremental append, minimal inline markdown) and `MarkdownBlockRenderer` (full Markdig pipeline, code-block chrome) — with **one unified, state-driven renderer** that selects its rendering behavior from *content kind* (does this card guarantee markdown?) and *phase* (streaming vs. finalized). This removes the O(n²) full-reparse path from streaming responses while keeping the correct, single full-Markdig render at finalize — for every card type, with no hard renderer swap.
+
+**Core principle (content-kind × phase):**
+
+| Card | Content kind | Markdown? (why) | Phase | Rendering |
+|------|--------------|-----------------|-------|-----------|
+| **tool** | source code (unknown genre) | ❌ no | always complete | **Verbatim** — monospaced; markdig **never invoked** |
+| **user** | text (unknown genre) | ❌ no | always complete | **Verbatim** — variable-width; no markdown |
+| **reasoning** | thinking (known markdown) | ✅ yes | streaming → finalize | **simple-md streaming → full markdig at finalize** |
+| **response** | answer (known markdown) | ✅ yes | streaming → finalize | **simple-md streaming → full markdig at finalize** |
+
+Decoupling **"finalized"** from **"markdown"** is the key semantic: `IsFinalized` no longer implies markdown processing. Markdown runs iff the content kind is *guaranteed* to be markdown (reasoning/response). User and tool are **verbatim by kind**, so arbitrary source/user text containing markdown-shaped tokens is shown faithfully, never "corrected" by the pipeline.
+
+**Why user/tool are verbatim:**
+- Tool/source content legitimately contains `#` comments, `**`, backticks, fence patterns, indented blocks — running it through Markdig would inject spurious code blocks/headings/emphasis and break reading flow.
+- User pasted content is from programming languages/types, not prose; the identical problem as tool. Verbatim mode **short-circuits before `_pipeline`**, so state guarantees no markdown parsing ever touches tool/user content.
+- Typography stays per-card: user keeps variable-width; tool is monospaced; both honor the user-definable font/size.
+
+**Implementation (this gap):**
+
+1. **`IsFinalized` completion signal (hosted by `ChatMessage`).**
+   - Expose the existing private `_isFinalized` as a public, `PropertyChanged`-firing `IsFinalized` (private setter; set only by `FinalizeStreaming()` / the `Content` setter). `[JsonIgnore]`. Fires a *separate* event from `Content`, so the renderer can react to "stream done" without a content change.
+
+2. **`StreamingMarkdownRenderer` (unified control).**
+   - Absorb the **cheap, proven incremental machinery** from `StreamingReasoningRenderer` (`StreamingTextBlockCollection`, `TextBlockModel`, `SelectiveMarkdownParser`, multi-`TextBlock` selection) as the **streaming mode**.
+   - Absorb the **full pipeline + code-block chrome** from `MarkdownBlockRenderer` (`_pipeline`, `MarkdownDocument`, code-block Copy/Apply dropdowns per gap53, incomplete-markdown gating) as the **finalize mode**.
+   - Three render modes selected per card:
+     - **Verbatim** (user | tool): plain, whitespace-preserving display; zero markdown; monospaced for tool, variable-width for user.
+     - **Streaming** (reasoning | response while `!IsFinalized`): append-only incremental path; no full reparse.
+     - **Full Markdig** (reasoning | response at `IsFinalized`): does the **single** clear-and-rebuild once, then stops.
+
+3. **Model wiring in `ChatPageViewModel`.**
+   - Assistant/reasoning response streaming routes through `AppendChunk` (incremental) instead of `Content +=` full replacement, so the streaming path is used, while `PropertyChanged(Content)` still fires for the finalized full render.
+   - The renderer reacts to `PropertyChanged(IsFinalized)` (reasoning/response) to do its one full Markdig pass; no hard swap, no reflow — one control owns the card from first token to final render.
+
+4. **Retire the split.**
+   - `StreamingReasoningRenderer` and `MarkdownBlockRenderer` are kept for the A/B and then removed once `StreamingMarkdownRenderer` is validated. **Tool cards are NOT reassigned to `StreamingReasoningRenderer`** — they use verbatim mode of the unified renderer (gap90b routing removed Tool from StreamingReasoningRenderer; that stays).
+
+**Acceptance criteria:**
+- [x] One renderer handles user, tool, reasoning, and response via state; no dual-renderer swap.
+- [x] Reasoning & response stream incrementally (O(n), zero UI freeze ≤200ms for 100KB) then do one full Markdig render at finalize.
+- [x] Tool and user cards are verbatim — the markdig pipeline is never invoked for them (state-guaranteed), so md-shaped source/paste cannot inject fake code blocks.
+- [x] User cards: variable-width, no markdown processing. Tool cards: monospaced, no markdown processing. Reasoning/response: full markdown at finalize, simple markdown while streaming.
+- [x] Code-block Copy/Apply chrome appears only at the final Markdig render (intended, not a bug).
+- [x] Completion is driven by `IsFinalized`; content is single-sourced in the model — no content is ever copied between renderers.
+- [x] Existing role routing (User/Thinking → streaming renderer visibility, Tool → dedicated bubble) preserved during A/B; user/reasoning/tool behavior is NOT changed.
+
+**Files (candidates):**
+- `src/VSIXProject1/Core/Types/ChatMessage.cs` — expose `IsFinalized` (Private setter, `PropertyChanged`).
+- `src/VSIXProject1/UI/Renderers/StreamingMarkdownRenderer.xaml` / `.xaml.cs` (NEW) — absorbs gap75 streaming machinery + gap21/gap53 markdig chrome; verbatim/streaming/full modes.
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — `AppendChunk` on response stream; drive `IsFinalized`.
+- `src/VSIXProject1/UI/Views/ChatMessageControl.xaml` — route cards to `StreamingMarkdownRenderer`.
+- Retire `StreamingReasoningRenderer` / `MarkdownBlockRenderer` after A/B (feature-flagged).
+
+**Validation:** feature-flagged A/B (`UseStreamingMarkdownRenderer`) against current behavior; `dotnet build --force` (0 warnings/0 errors); full test suite incl. gap75 perf benchmarks, parser/collection tests, and new per-mode tests (verbatim user/tool, streaming→markdig reasoning/response, `IsFinalized` signal).
+
+**Sequencing:** lands after gap87 (description/chat-bubble work); reuses gap75 streaming primitives and gap21 markdig machinery rather than introducing new infrastructure.
 
 ---
 
