@@ -8,6 +8,30 @@ using Newtonsoft.Json;
 namespace ContinueVS.Core.Types
 {
     /// <summary>
+    /// gap89: Per-card raw/processed (pretty) view selector.
+    ///
+    /// "Pretty is for the user; raw is for the destination." <see cref="MessageViewMode.Pretty"/>
+    /// renders the processed Markdig view for reading; <see cref="MessageViewMode.Raw"/> shows the
+    /// uniform verbatim source (code blocks included, no rendering, no emphasis) for shipping the
+    /// exact bytes elsewhere. The resting default is <see cref="MessageViewMode.Pretty"/>; raw is a
+    /// hover-revealed, non-sticky, destination-facing transition.
+    /// </summary>
+    public enum MessageViewMode
+    {
+        /// <summary>
+        /// Processed view for the reader (full Markdig render + code chrome).
+        /// Resting default for every card.
+        /// </summary>
+        Pretty,
+
+        /// <summary>
+        /// Uniform verbatim source for the destination (flat, monospaced, no rendering).
+        /// Code blocks are NOT exempt; the markdown pipeline is never invoked.
+        /// </summary>
+        Raw
+    }
+
+    /// <summary>
     /// Represents the role of a chat message in the conversation.
     /// </summary>
     public enum ChatMessageRole
@@ -149,6 +173,21 @@ namespace ContinueVS.Core.Types
         private FreshnessState _freshnessState = FreshnessState.Fresh;
         private string? _coverageKey;
         private string? _mutationTargetPath;
+        private MessageViewMode _viewMode = MessageViewMode.Pretty;
+
+        /// <summary>
+        /// gap89: Per-card raw/processed view toggle state. Hosted on the message so the view
+        /// survives visual-tree reloads (tab switches) while staying session-only — it is
+        /// [JsonIgnore] and never persisted to disk or serialized into the LLM payload.
+        /// Rests at <see cref="MessageViewMode.Pretty"/>; raw is hover-revealed and non-sticky
+        /// (reverts to Pretty on card leave / after copy).
+        /// </summary>
+        [JsonIgnore]
+        public MessageViewMode ViewMode
+        {
+            get => _viewMode;
+            set => SetProperty(ref _viewMode, value);
+        }
 
         /// <summary>
         /// gap80_1: Freshness/lifetime state of this tool-result message. Defaults to Fresh.

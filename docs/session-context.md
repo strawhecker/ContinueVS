@@ -9551,10 +9551,28 @@ I now have your full gap89 in hand. Here's my proposed revision. It folds in the
 
 ### gap89 — Per-Card Raw/Processed View Toggle + Dual-Format Clipboard Copy (RTF + Plain)
 
-**Status:** 🔴 Proposed | Type: Chat UI / Clipboard Output | Related: gap88 (unified renderer / single-source model), gap46/gap47 (raw Copy All), gap85 (tool-call bubbles), PipeTable/TaskList render fix (prerequisite)
+**Status:** ✅ Implemented | Type: Chat UI / Clipboard Output | Related: gap88 (unified renderer / single-source model), gap46/gap47 (raw Copy All), gap85 (tool-call bubbles), PipeTable/TaskList render fix (prerequisite)
 
 **Objective:**
 Today the only copy path (gap46/gap47 Copy All) writes `ChatMessage.Content` to the clipboard as **verbatim plain text** — there is no way to obtain a *formatted* render for pasting into rich-text documents (Word/WordPad/Outlook). Meanwhile the renderer only ever shows the processed view, so the user cannot see the raw source they are about to paste. This gap introduces a per-card **raw/processed view toggle** and splits copy into **raw | formatted**: both clipboard formats are placed at once in pretty mode, and the receiving application decides which it prefers.
+
+**Implementation (this gap):**
+- ✅ **`MessageViewMode` enum** (`Raw` | `Pretty`) in `Core/Types/ChatMessage.cs` + **`ChatMessage.ViewMode`** (`[JsonIgnore]`, session-only, rests at Pretty).
+- ✅ **`StreamingMarkdownRenderer`** — raw/pretty branch alongside gap88 modes: Pretty → full Markdig render; Raw → flat verbatim source (monospaced, no render, no emphasis, code blocks included, markdown pipeline never invoked). Reacts to `PropertyChanged(ViewMode)` + `ViewMode` DP.
+- ✅ **`RtfExporter`** (NEW) — Markdig → AST → minimal RTF writer (net472, no third-party lib). Run-level formatting; non-ASCII via `\uN` escapes; braces/backslash escaped; malformed-markdown fallback never throws.
+- ✅ **`ClipboardWriter`** (NEW) — view-state-aware `SetDataObject`; exposes testable `BuildDataObject(raw, mode)`: Pretty → `DataFormats.Rtf` + `DataFormats.UnicodeText` on one object; Raw → `UnicodeText` only (byte-faithful). No destination detection.
+- ✅ **`ChatMessageControl.xaml(.cs)`** — hover-revealed `<>` raw-toggle (top-right); Copy All + code dropdown rewire through `ClipboardWriter` honoring `ViewMode`; view resets to Pretty on leave/after copy (non-sticky).
+- ✅ **`ChatPageViewModel`** — `ToggleRawViewCommand` (per-message); `ExecuteToggleRawView` flips `ViewMode` for all roles.
+- ✅ **`ChatPage.xaml`** — `<>` raw-toggle glyph wired to `ToolInvocationTemplate` tool cards.
+- ✅ **Model stays single-sourced** (gap88): one raw `ChatMessage.Content` backs both views and both copy formats.
+
+**Tests (35 new, all passing):**
+- `RtfExporterTests` (12): empty/null document, plain, bold+italic, fenced code (not exempt), heading, non-ASCII `\uN`, escaped RTF control chars, quote, list, malformed-markdown no-throw.
+- `ClipboardWriterTests` (6): Pretty carries RTF+UnicodeText on one object; Raw carries UnicodeText only (no RTF format at all); raw byte-fidelity; pretty co-ships exact plain; empty throws.
+- `MessageViewModeTests` (4, Core): default Pretty, toggle, `[JsonIgnore]` (not serialized), PropertyChanged.
+- `ChatPageViewModelGap89Tests` (5): Pretty→Raw, Raw→Pretty, double toggle, null no-throw, all four roles.
+
+**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1492 passed, 0 failed, 0 skipped**.
 
 **Core principle (audience, not rendering):**
 > *"Pretty is for the user; raw is for the destination."*

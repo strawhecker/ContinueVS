@@ -624,6 +624,14 @@ namespace ContinueVS.ViewModels
         public RelayCommand PauseCommand { get; }
 
         /// <summary>
+        /// gap89: Command to toggle a message's raw/processed (pretty) view.
+        /// Flips the message's ViewMode between Pretty (reader) and Raw (destination).
+        /// Applies uniformly to user, reason, response, and tool-call entries; the
+        /// renderer only honors the split for markdown cards (user/tool are verbatim).
+        /// </summary>
+        public RelayCommand<ChatMessage> ToggleRawViewCommand { get; }
+
+        /// <summary>
         /// Command to start a new chat session (gap47).
         /// Disabled while a stream is in progress.
         /// </summary>
@@ -739,6 +747,7 @@ namespace ContinueVS.ViewModels
             SoftDeleteMessageCommand = new RelayCommand<string>(ExecuteSoftDeleteMessage);
             UndeleteMessageCommand = new RelayCommand<string>(ExecuteUndeleteMessage);
             ToggleMinimizeMessageCommand = new RelayCommand<string>(ExecuteToggleMinimizeMessage);
+            ToggleRawViewCommand = new RelayCommand<ChatMessage>(ExecuteToggleRawView);
             PauseCommand = new RelayCommand(ExecutePause, () => IsStreaming);
             NewChatCommand = new RelayCommand(() => _ = ExecuteNewChatAsync(), () => !IsStreaming);
             CopyCodeBlockCommand = new RelayCommand<string>(ExecuteCopyCodeBlock);
@@ -2713,6 +2722,29 @@ namespace ContinueVS.ViewModels
 
             message.IsMinimized = !message.IsMinimized;
             LoggerService.Current.WriteDebug($"[gap85-minimize-cmd] Message {messageId} minimized={message.IsMinimized}.");
+        }
+
+        /// <summary>
+        /// gap89: Executes the raw/processed (pretty) view toggle for a message.
+        /// Flips the message's ViewMode between Pretty (reader) and Raw (destination).
+        /// Raw is a non-sticky, destination-facing transition — the renderer and the copy
+        /// paths honor it, and the card reverts to Pretty on leave/copy. The split is only
+        /// meaningful for markdown cards (reasoning/response); user/tool cards are verbatim
+        /// by kind and the toggle still flips their state harmlessly.
+        /// </summary>
+        private void ExecuteToggleRawView(ChatMessage message)
+        {
+            if (message == null)
+            {
+                LoggerService.Current.WriteDebug("[gap89-raw-cmd] message is null, aborting");
+                return;
+            }
+
+            message.ViewMode = message.ViewMode == MessageViewMode.Pretty
+                ? MessageViewMode.Raw
+                : MessageViewMode.Pretty;
+
+            LoggerService.Current.WriteDebug($"[gap89-raw-cmd] Message {message.Id} view = {message.ViewMode}.");
         }
 
         /// <summary>

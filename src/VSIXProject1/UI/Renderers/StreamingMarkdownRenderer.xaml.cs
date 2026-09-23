@@ -162,6 +162,39 @@ namespace ContinueVS.UI.Renderers
             set => SetValue(MessageProperty, value);
         }
 
+        /// <summary>
+        /// gap89: Per-card raw/processed view selector. <see cref="MessageViewMode.Pretty"/> is the
+        /// resting default (full Markdig render); <see cref="MessageViewMode.Raw"/> shows the uniform
+        /// verbatim source (flat, monospaced, no rendering, code blocks included — the markdown
+        /// pipeline is NEVER invoked on raw). Re-renders the card when the view toggles.
+        /// </summary>
+        public static readonly DependencyProperty ViewModeProperty =
+            DependencyProperty.Register(
+                nameof(ViewMode),
+                typeof(MessageViewMode),
+                typeof(StreamingMarkdownRenderer),
+                new PropertyMetadata(MessageViewMode.Pretty, (d, e) => ((StreamingMarkdownRenderer)d).OnViewModeChanged()));
+
+        public MessageViewMode ViewMode
+        {
+            get => (MessageViewMode)GetValue(ViewModeProperty);
+            set => SetValue(ViewModeProperty, value);
+        }
+
+        /// <summary>
+        /// gap89: View-mode toggle handler. In Raw mode the card is a flat verbatim source render
+        /// ("destination is the audience"); in Pretty mode it is the processed Markdig render ("the
+        /// reader is the audience"). This is an intent choice, not a rendering choice.
+        /// </summary>
+        private void OnViewModeChanged()
+        {
+            var content = _receivedContent ?? _boundMessage?.Content ?? Content ?? string.Empty;
+            if (ViewMode == MessageViewMode.Raw)
+                RenderRawVerbatim(content);
+            else
+                FullRenderIfNeeded();
+        }
+
         // ===================================================================
         // DP change handlers
         // ===================================================================
@@ -240,6 +273,9 @@ namespace ContinueVS.UI.Renderers
                 message.TokenAppended += OnTokenAppended;
                 message.PropertyChanged += OnMessagePropertyChanged;
 
+                // gap89: keep the per-card view in sync when the message owns it.
+                ViewMode = message.ViewMode;
+
                 // The DataContext may be set before the visual tree is loaded;
                 // run the full render for the finalized/bound content immediately.
                 if (message.IsFinalized)
@@ -262,6 +298,11 @@ namespace ContinueVS.UI.Renderers
             {
                 OnContentReceived(_boundMessage?.Content);
             }
+            // gap89: re-render when the per-card view toggle changes on the message.
+            else if (e.PropertyName == nameof(ChatMessage.ViewMode) && _boundMessage != null)
+            {
+                ViewMode = _boundMessage.ViewMode;
+            }
         }
 
         // ===================================================================
@@ -273,7 +314,8 @@ namespace ContinueVS.UI.Renderers
             if (_isUnloaded) return;
             content ??= string.Empty;
 
-            // Verbatim content is always rendered as-is (zero markdown, ever).
+            // Verbatim content is always rendered as-is (zero markdown, ever),
+            // regardless of the view toggle — user/tool cards have no pretty/raw split.
             if (ContentKind == MarkdownMode.Verbatim)
             {
                 RenderVerbatim(content);
@@ -281,6 +323,14 @@ namespace ContinueVS.UI.Renderers
             }
 
             _receivedContent = content;
+
+            // gap89: Raw view overrides the processed render for markdown cards — the
+            // destination is the audience, so show the uniform verbatim source flat.
+            if (ViewMode == MessageViewMode.Raw)
+            {
+                RenderRawVerbatim(content);
+                return;
+            }
 
             // Markdown content: if the message is finalized, do the single full
             // markdig pass; otherwise keep whatever streaming has produced so far.
@@ -310,6 +360,14 @@ namespace ContinueVS.UI.Renderers
                 }
 
                 var markdown = _receivedContent ?? _boundMessage?.Content ?? Content ?? string.Empty;
+
+                // gap89: raw view short-circuits before the Markdig pipeline (state-guaranteed).
+                if (ViewMode == MessageViewMode.Raw)
+                {
+                    RenderRawVerbatim(markdown);
+                    return;
+                }
+
                 RenderFullMarkdig(markdown);
             }
             finally
@@ -347,6 +405,32 @@ namespace ContinueVS.UI.Renderers
             // honored (no markdown normalization, no spurious block parsing).
             var normalized = text.Replace("\r\n", "\n").Replace("\r", "\n");
             return normalized.Split('\n');
+        }
+
+        // ===================================================================
+        // gap89: Raw (verbatim) view for markdown cards.
+        // "Pretty is for the user; raw is for the destination."
+        // Uniform flat source — code blocks included, NO rendering, NO emphasis,
+        // NO chrome. The Markdig pipeline is never invoked on raw (state-guaranteed).
+        // ===================================================================
+
+        private void RenderRawVerbatim(string text)
+        {
+            _document.Blocks.Clear();
+
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            foreach (var para in SplitLines(text))
+            {
+                var p = new Paragraph
+                {
+                    Margin = new Thickness(0),
+                    FontFamily = new FontFamily("Consolas,Courier New,monospace")
+                };
+                p.Inlines.Add(new Run(para));
+                _document.Blocks.Add(p);
+            }
         }
 
         // ===================================================================

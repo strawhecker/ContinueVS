@@ -50,6 +50,7 @@
                             Content="{Binding Content}"
                             ContentKind="{Binding Role, Converter={StaticResource RoleToRendererModeConverter}}"
                             Message="{Binding}"
+                            ViewMode="{Binding ViewMode}"
                             Visibility="{Binding Role, Converter={StaticResource RoleToRendererVisibilityConverter}}"
                             HorizontalAlignment="Stretch"
                             MinWidth="0" />
@@ -118,6 +119,25 @@
                         VerticalAlignment="Top"
                         Margin="0,-4,-4,0">
                     <TextBlock x:Name="MinimizeButtonIcon" Text="_" FontSize="14" Foreground="{DynamicResource VsBrush.WindowText}" 
+                               TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </Button>
+
+                <!-- gap89: Raw/Processed view toggle (appears on hover, positioned upper right).
+                     Rests in Pretty (<> = process view) and flips to Raw (source view) while active.
+                     Raw is a non-sticky destination-facing transition: reverts to Pretty on leave/copy. -->
+                <Button x:Name="RawToggleButton"
+                        Width="28" 
+                        Height="28" 
+                        Padding="2"
+                        Visibility="Hidden"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTip="Toggle raw / processed (pretty) view"
+                        Click="RawToggleButton_Click"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,-4,50,0">
+                    <TextBlock x:Name="RawToggleIcon" Text="&lt;&gt;" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource VsBrush.WindowText}" 
                                TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Button>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}">
