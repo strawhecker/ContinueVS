@@ -232,7 +232,7 @@ namespace ContinueVS.Tests.Core.Types
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools();
 
             Assert.NotNull(tools);
-            Assert.Equal(25, tools.Count());
+            Assert.Equal(27, tools.Count());
         }
 
         [Fact]
@@ -454,6 +454,68 @@ namespace ContinueVS.Tests.Core.Types
             Assert.Equal(
                 "Save the current plan to the workspace with a title. Use this whenever the user asks to save/write/finalize the plan but does not provide a file path.",
                 tool.Description);
+        }
+
+        [Fact]
+        public void GetReadPlanTool_ReturnsValidDefinition()
+        {
+            var tool = BuiltInToolsRegistry.GetReadPlanTool();
+
+            Assert.NotNull(tool);
+            Assert.Equal("read_plan", tool.Name);
+            Assert.NotNull(tool.Description);
+            Assert.Equal("builtin", tool.ToolType);
+            Assert.Equal("Built-In", tool.Category);
+            Assert.True(tool.IsEnabled);
+            Assert.Single(tool.Parameters);
+            Assert.Equal("path", tool.Parameters[0].Name);
+            Assert.False(tool.Parameters[0].IsRequired);
+            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Equal(2, tool.SupportedModes.Count);
+        }
+
+        [Fact]
+        public void GetUpdatePlanTool_ReturnsValidDefinition()
+        {
+            var tool = BuiltInToolsRegistry.GetUpdatePlanTool();
+
+            Assert.NotNull(tool);
+            Assert.Equal("update_plan", tool.Name);
+            Assert.NotNull(tool.Description);
+            Assert.Equal("builtin", tool.ToolType);
+            Assert.Equal("Built-In", tool.Category);
+            Assert.True(tool.IsEnabled);
+            Assert.Equal(3, tool.Parameters.Count);
+            Assert.Contains(tool.Parameters, p => p.Name == "find" && p.IsRequired);
+            Assert.Contains(tool.Parameters, p => p.Name == "replace" && p.IsRequired);
+            Assert.Contains(tool.Parameters, p => p.Name == "path" && !p.IsRequired);
+            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Equal(2, tool.SupportedModes.Count);
+        }
+
+        [Fact]
+        public void GetReadPlanAndUpdatePlan_NotAvailableInReadOnlyModes()
+        {
+            foreach (var tool in new[]
+            {
+                BuiltInToolsRegistry.GetReadPlanTool(),
+                BuiltInToolsRegistry.GetUpdatePlanTool()
+            })
+            {
+                Assert.DoesNotContain(ChatMode.Plan, tool.SupportedModes);
+                Assert.DoesNotContain(ChatMode.Ask, tool.SupportedModes);
+                Assert.DoesNotContain(ChatMode.Reason, tool.SupportedModes);
+            }
+        }
+
+        [Fact]
+        public void GetAllBuiltInTools_ContainsReadAndUpdatePlanTools()
+        {
+            var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+            Assert.Contains(tools, t => t.Name == "read_plan");
+            Assert.Contains(tools, t => t.Name == "update_plan");
         }
 
         [Fact]

@@ -81,6 +81,9 @@ namespace ContinueVS.Core.Types
         public const string Tool_RunPytestEnabled = "tool.runPytestEnabled";
         public const string Tool_WritePlanEnabled = "tool.writePlanEnabled";
         public const string Tool_AskUserEnabled = "tool.askUserEnabled";
+        // Active-plan binding + read_plan/update_plan tools. Enabled by default (the beneficiary
+        // wants it on); any new user may change it themselves.
+        public const string Tool_PlanToolsEnabled = "tool.planToolsEnabled";
 
         /// <summary>
         /// Returns a dictionary of all default settings values.
@@ -151,7 +154,8 @@ namespace ContinueVS.Core.Types
                 // run_pytest is disabled by default: no pytest tests exist in this .NET project
                 { Tool_RunPytestEnabled, false },
                 { Tool_WritePlanEnabled, true },
-                { Tool_AskUserEnabled, true }
+                { Tool_AskUserEnabled, true },
+                { Tool_PlanToolsEnabled, true }
             };
         }
 

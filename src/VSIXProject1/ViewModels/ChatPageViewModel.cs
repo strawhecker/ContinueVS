@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -807,6 +807,102 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
+        /// Refreshes (or clears) the active-plan binding at message-send time (send-only check).
+        /// The plan is bound ONLY when the user's active document is a plan file under
+        /// ~/.continueVS/plans/ — never "any doc". Three-state rules:
+        ///   - Active doc is a plan under the plans dir            → bind it.
+        ///   - Plan still open in a viewer but active elsewhere   → keep the existing binding.
+        ///   - Bound plan closed (not open anywhere)              → clear the binding (null).
+        /// Non-silent: when status is unknown, the binding is kept (we never silently clear), and the
+        /// plan tools surface an explicit "no active plan" when no path resolves.
+        /// </summary>
+        private async Task RefreshActivePlanBindingAsync()
+        {
+            try
+            {
+                if (_toolService == null)
+                    return;
+
+                var (wasBound, boundPath) = _toolService.GetActivePlanBinding();
+
+                // 1. Determine the active document.
+                string? active = null;
+                if (_ideService != null)
+                {
+                    var activeDoc = await _ideService.GetActiveDocumentPathAsync();
+                    if (!string.IsNullOrWhiteSpace(activeDoc) && activeDoc != "none")
+                        active = activeDoc;
+                }
+
+                // 2. Is the active document a plan under ~/.continueVS/plans/?
+                bool activeIsPlan = IsPlanPath(active);
+
+                if (activeIsPlan)
+                {
+                    // Bind the active plan (set or re-bind on switch).
+                    _toolService.SetActivePlanPath(active);
+                    LoggerService.Current.WriteDebug($"[active-plan-bind] Bound active plan: {active}");
+                    return;
+                }
+
+                // 3. Active doc is NOT a plan. If we already have a binding, keep it only while the
+                //    bound plan is still open in a viewer (active-elsewhere keeps the binding).
+                if (wasBound && !string.IsNullOrWhiteSpace(boundPath) && _ideService != null)
+                {
+                    var open = await _ideService.IsOpenInViewerAsync(boundPath!);
+                    if (open == true)
+                    {
+                        // Still open in a viewer → keep.
+                        return;
+                    }
+
+                    if (open == false)
+                    {
+                        // Closed → clear the binding.
+                        _toolService.SetActivePlanPath(null);
+                        LoggerService.Current.WriteDebug("[active-plan-bound] Cleared binding (plan closed).");
+                        return;
+                    }
+
+                    // open == null (unknown) → keep the binding; never silently clear on an
+                    // unavailable query.
+                    return;
+                }
+
+                // 4. No binding existed and the active doc isn't a plan → ensure a clean null state.
+                _toolService.SetActivePlanPath(null);
+            }
+            catch (Exception ex)
+            {
+                // Non-silent but non-fatal: never crash the send path over plan binding.
+                LoggerService.Current.WriteError($"[active-plan-bind] Refresh failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the given path resides under ~/.continueVS/plans/ (the only paths that
+        /// may ever be bound as the active plan — "." is never accepted).
+        /// </summary>
+        private static bool IsPlanPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            try
+            {
+                var normalized = Path.GetFullPath(path);
+                var plansDir = Path.GetFullPath(
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".continueVS", "plans"));
+                var sep = Path.DirectorySeparatorChar;
+                return normalized.StartsWith(plansDir + sep, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Resets tool call limit state when a new user action (send) begins (gap79).
         /// The tool budget is per-action: ONLY a real user Send resets the counter.
         /// Auto-continuations (ContinueConversationWithOllamaAsync) never call this,
@@ -1578,6 +1674,11 @@ namespace ContinueVS.ViewModels
                 _instructionExecutorService.ClearPauseCheckpoint();
 
                 ResetToolCallLimitForAction();
+
+                // Active-plan binding refresh (send-only). Snapshots the plan the user has open as
+                // the active document under ~/.continueVS/plans/ and binds it for the read_plan /
+                // update_plan tools for this send. Non-saved, session-scoped (held via IToolService).
+                await RefreshActivePlanBindingAsync();
 
                 var userMessage = new ChatMessage
                 {

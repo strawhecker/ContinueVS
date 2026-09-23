@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
@@ -17,6 +18,7 @@ namespace ContinueVS.Tests.Services
         private class StubDteProvider : IDteProvider
         {
             public string ActiveFilepath { get; set; } = string.Empty;
+            public List<string> OpenDocumentPaths { get; set; } = new();
             public string SelectedText { get; set; } = string.Empty;
             public Selection? CursorSelection { get; set; }
 
@@ -24,6 +26,7 @@ namespace ContinueVS.Tests.Services
             public string GetSolutionDirectory() => string.Empty;
             public string GetSelectedText() => SelectedText;
             public string GetActiveDocumentContent() => string.Empty;
+            public List<string> GetOpenDocumentPaths() => OpenDocumentPaths;
             public List<string> GetRecentFiles(int maxCount) => new List<string>();
             public Selection? GetCursorSelection() => CursorSelection;
         }
@@ -126,6 +129,51 @@ namespace ContinueVS.Tests.Services
 
             // Assert
             Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task IsOpenInViewerAsync_ReturnsTrue_WhenPathIsOpen()
+        {
+            // Arrange
+            var openPath = @"C:\Users\test\.continueVS\plans\refactor_20240101_000000.md";
+            var stub = new StubDteProvider { OpenDocumentPaths = new List<string> { openPath } };
+            var sut = new VsIdeService(stub);
+
+            // Act / Assert
+            Assert.True(await sut.IsOpenInViewerAsync(openPath));
+        }
+
+        [Fact]
+        public async Task IsOpenInViewerAsync_ReturnsFalse_WhenPathNotOpen()
+        {
+            // Arrange
+            var stub = new StubDteProvider { OpenDocumentPaths = new List<string> { @"C:\Other\file.cs" } };
+            var sut = new VsIdeService(stub);
+
+            // Act / Assert
+            Assert.Equal(false, await sut.IsOpenInViewerAsync(@"C:\Users\test\.continueVS\plans\nope.md"));
+        }
+
+        [Fact]
+        public async Task IsOpenInViewerAsync_ReturnsNull_WhenNoDocumentsReported()
+        {
+            // Arrange
+            var stub = new StubDteProvider { OpenDocumentPaths = new List<string>() };
+            var sut = new VsIdeService(stub);
+
+            // Act / Assert
+            Assert.Null(await sut.IsOpenInViewerAsync(@"C:\Users\test\.continueVS\plans\a.md"));
+        }
+
+        [Fact]
+        public async Task IsOpenInViewerAsync_ReturnsFalse_ForEmptyPath()
+        {
+            // Arrange
+            var stub = new StubDteProvider { OpenDocumentPaths = new List<string> { @"C:\a.cs" } };
+            var sut = new VsIdeService(stub);
+
+            // Act / Assert
+            Assert.Equal(false, await sut.IsOpenInViewerAsync(string.Empty));
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Xunit;
+using Xunit;
 using System.Collections.Generic;
 using ContinueVS.Services.Interfaces;
 
@@ -25,6 +25,7 @@ namespace ContinueVS.Tests.Services
             public List<string> GetRecentFiles(int maxCount) => new List<string>(RecentFilesData.GetRange(0, System.Math.Min(maxCount, RecentFilesData.Count)));
             public string GetActiveFilepath() => ActiveFilepath;
             public string GetSolutionDirectory() => string.Empty;
+            public List<string> GetOpenDocumentPaths() => new List<string>();
             public Selection? GetCursorSelection() => null;
         }
 

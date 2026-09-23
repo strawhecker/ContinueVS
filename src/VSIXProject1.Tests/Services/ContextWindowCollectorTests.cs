@@ -1,4 +1,4 @@
-﻿using Xunit;
+using Xunit;
 using System;
 using System.Collections.Generic;
 using ContinueVS.Services;
@@ -44,6 +44,8 @@ namespace ContinueVS.Tests.Services
             }
 
             public string GetSolutionDirectory() => string.Empty;
+
+            public List<string> GetOpenDocumentPaths() => new List<string>();
 
             public Selection? GetCursorSelection() => null;
         }

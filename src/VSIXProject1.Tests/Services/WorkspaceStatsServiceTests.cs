@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,6 +24,7 @@ namespace ContinueVS.Services.Tests
 
             public Task<string> GetActiveDocumentPathAsync() => OnGetActiveDocumentPath();
             public Task<string> ReadCurrentlyOpenFileAsync() => Task.FromResult(string.Empty);
+            public Task<bool?> IsOpenInViewerAsync(string path) => Task.FromResult<bool?>(false);
             public Task<string> GetBranchAsync() => OnGetBranchAsync();
             public Task<string> GetGitRootPathAsync() => OnGetGitRootPathAsync();
 

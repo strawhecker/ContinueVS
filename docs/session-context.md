@@ -8,6 +8,67 @@
 
 ---
 
+### Active-Plan Binding + Read/Update Plan Tools (BRIDGE v2.1)
+
+**Status:** ✅ Complete | Type: Active-Plan Binding + LLM-Driven Plan Tools
+
+**Summary:** Added a session-scoped, non-saved active-plan binding (captured when the user's active
+document is a plan under `~/.continueVS/plans/`) plus two wide-open, repo-root-restricted tools the
+LLM uses to read and update that plan (`read_plan`, `update_plan`). The LLM owns all text shaping
+(find → replace, pass/fail markers); the tools are dumb, verified find/replace + read primitives that
+are never silent about "no active plan". Enabled by default behind `tool.planToolsEnabled`.
+
+**IDE open-document wiring (new capability):**
+- `IDteProvider.GetOpenDocumentPaths()` — enumerates `DTE.Documents` full paths (the pattern already
+  used by `GetRecentFiles`, UI-thread guarded, best-effort empty on failure). Added to `IIdeService`
+  as `IsOpenInViewerAsync(path)` returning `Task<bool?>` (true open / false not / null unknown) so the
+  send-time binding check can implement "active-elsewhere keeps the binding, closed clears it" without
+  ever silently clearing on an unavailable query.
+- Implemented in `VsIdeService.cs`; `null` when no/unknown open set, `false` on empty path.
+
+**Active-plan binding (session/request scope, non-saved):**
+- `ChatPageViewModel.RefreshActivePlanBindingAsync()` runs at send time (send-only check), right after
+  `ResetToolCallLimitForAction()`:
+  - Active doc is a plan under `~/.continueVS/plans/` → bind it (`SetActivePlanPath`).
+  - Bound plan still open in a viewer (active elsewhere) → keep.
+  - Bound plan closed → clear (null).
+  - Non-silent: unknown status keeps the binding; plan tools surface an explicit "no active plan".
+- `IsPlanPath` helper restricts binding to `~/.continueVS/plans/` only (never "any doc").
+
+**Built-in tools (`BuiltInTools.cs`):**
+- `GetReadPlanTool()`: optional `path` (repo-root-relative); default = bound plan. Returns full text +
+  which plan. Non-silent "no active plan" when unbound + no path.
+- `GetUpdatePlanTool()`: required `find` + `replace`, optional `path`. Repo-root restricted. Does exact
+  find/replace, returns match count (count 0 → visible no-op, plan unchanged). Never silent.
+- Both `SupportedModes = { Agent, Debug }`; registered in `GetAllBuiltInTools()` (25 → 27).
+- `ToolService`: `InvokeBuiltInAsync` cases `read_plan`/`update_plan` + internal implementations
+  `ReadPlanInternalAsync` / `UpdatePlanInternalAsync` / `ResolvePlanTargetAsync` (repo-root resolution
+  via `GetGitRootPathAsync`) / `CountOccurrences`; `ToolNameToUserSettingKey` maps both to
+  `tool.planToolsEnabled`.
+- `IToolService.SetActivePlanPath(path)` / `GetActivePlanBinding()` + `ToolService` implementation with
+  a `_planBindingLock` guarded `_activePlanPath`.
+- `UserSettings.Tool_PlanToolsEnabled = "tool.planToolsEnabled"` default `true`.
+- `config/tools-defaults.json`: registered `read_plan` + `update_plan`.
+- `system-prompts.json` + `SystemPromptService`: `ACTIVE_PLAN_INSTRUCTIONS` added to Agent and Debug
+  default prompts (read the plan with read_plan, update it with update_plan per step, manage ⏳/✅
+  markers, track progress across unit + integration testing).
+
+**Tests:**
+- `ToolServiceUpdatePlanTests.cs` (NEW, 10): binding round-trip, read_plan no-binding → "no active plan",
+  read_plan bound → returns text, read_plan explicit repo-relative path, update_plan replaces all + count,
+  update_plan no-match → 0 + unchanged, update_plan empty find → error, `tool.planToolsEnabled` default
+  true, read_plan/update_plan available in Agent mode, not available in Plan mode.
+- `VsIdeServiceTests.cs` (+4): `IsOpenInViewerAsync` open / not-open / unknown (null) / empty path.
+- `BuiltInToolsTests.cs` (+4): read_plan + update_plan definitions, mode gating, present in registry.
+- Count updates: registry 25 → 27; available tools 18 → 20.
+- Updated manual `IDteProvider`/`IIdeService` stubs (`ContextWindowCollectorTests`,
+  `GetWorkspaceFilesReproTests`, `DteProviderTests`, `VsIdeServiceTests`, `WorkspaceStatsServiceTests`).
+
+**Validation:** `dotnet clean` (0/0) → `dotnet build --force` (0 warnings, 0 errors) → `dotnet test`:
+**1517 passed, 0 failed, 0 skipped**.
+
+---
+
 ### gap-session-tests-temp: Route All Session-Creating Unit Tests to a Temp Folder with Cleanup
 
 **Status:** ✅ Complete | Type: Test Isolation / Hygiene

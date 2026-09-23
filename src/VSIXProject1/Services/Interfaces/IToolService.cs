@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,6 +95,20 @@ namespace ContinueVS.Services.Interfaces
             string serverId,
             string toolName,
             IDictionary<string, object> args);
+
+        /// <summary>
+        /// Sets the active (bound) plan path for the current session scope (non-saved, in-memory).
+        /// Captured at message-send time when the user's active document is a plan under
+        /// ~/.continueVS/plans/. Consumed by the read_plan / update_plan tools.
+        /// </summary>
+        /// <param name="path">The absolute plan path, or null to clear the binding.</param>
+        void SetActivePlanPath(string? path);
+
+        /// <summary>
+        /// Gets the currently bound active plan path (may be null when no plan is bound), and a
+        /// boolean indicating whether a binding is present.
+        /// </summary>
+        (bool isBound, string? path) GetActivePlanBinding();
 
         /// <summary>
         /// Event raised when a tool execution error occurs.

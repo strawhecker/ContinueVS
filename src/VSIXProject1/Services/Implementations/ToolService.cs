@@ -32,6 +32,12 @@ namespace ContinueVS.Services.Implementations
         private readonly object _registryLock = new object();
         private readonly ToolOverrideProcessor _overrideProcessor = new();
 
+        // Active-plan binding (session-scoped, non-saved). Captured at message-send time when the
+        // user's active document is a plan under ~/.continueVS/plans/. Consumed by read_plan /
+        // update_plan tools. Guarded to remain thread-safe across the tool-loop.
+        private readonly object _planBindingLock = new object();
+        private string? _activePlanPath;
+
         /// <summary>
         /// Static mapping of tool names to UserSettings constants for filtering.
         /// Used to check if a tool should be available based on user settings.
@@ -65,6 +71,8 @@ namespace ContinueVS.Services.Implementations
             { "single_find_and_replace", UserSettings.Tool_SingleFindAndReplaceEnabled },
             { "run_pytest", UserSettings.Tool_RunPytestEnabled },
             { "write_plan", UserSettings.Tool_WritePlanEnabled },
+            { "read_plan", UserSettings.Tool_PlanToolsEnabled },
+            { "update_plan", UserSettings.Tool_PlanToolsEnabled },
             { "ask_user", UserSettings.Tool_AskUserEnabled }
         };
 
@@ -416,6 +424,8 @@ namespace ContinueVS.Services.Implementations
                     GetArgString(args, "name"),
                     GetArgString(args, "code")),
                 "write_plan" => await WritePlanInternalAsync(args, ct),
+                "read_plan" => await ReadPlanInternalAsync(args, ct),
+                "update_plan" => await UpdatePlanInternalAsync(args, ct),
                 "ask_user" => await InvokeAskUserAsync(args, ct),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
@@ -570,6 +580,187 @@ namespace ContinueVS.Services.Implementations
                 Error?.Invoke(this, errorArgs);
                 return CreateErrorResult(toolName, ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Sets the active (bound) plan path for the current session scope. Non-saved, in-memory.
+        /// </summary>
+        public void SetActivePlanPath(string? path)
+        {
+            lock (_planBindingLock)
+            {
+                _activePlanPath = string.IsNullOrWhiteSpace(path) ? null : path;
+            }
+        }
+
+        /// <summary>
+        /// Gets the currently bound active plan path (false + null when none bound).
+        /// </summary>
+        public (bool isBound, string? path) GetActivePlanBinding()
+        {
+            lock (_planBindingLock)
+            {
+                return (string.IsNullOrWhiteSpace(_activePlanPath) == false, _activePlanPath);
+            }
+        }
+
+        /// <summary>
+        /// Resolves the target plan path for read_plan / update_plan. Prefers an explicitly supplied
+        /// repo-root-relative 'path' argument; otherwise falls back to the bound active plan.
+        /// Returns null when neither a path nor a binding is available. The caller decides how null
+        /// is surfaced (the tools must be non-silent about "no active plan").
+        /// </summary>
+        private async Task<string?> ResolvePlanTargetAsync(string? explicitPath)
+        {
+            if (!string.IsNullOrWhiteSpace(explicitPath))
+            {
+                try
+                {
+                    var gitRoot = await _ideService.GetGitRootPathAsync();
+                    if (!string.IsNullOrWhiteSpace(gitRoot))
+                    {
+                        // Repo-root restricted: resolve relative to the git root so the tool cannot
+                        // reach arbitrary PC paths.
+                        var combined = Path.IsPathRooted(explicitPath)
+                            ? explicitPath
+                            : Path.Combine(gitRoot, explicitPath);
+                        return Path.GetFullPath(combined);
+                    }
+                }
+                catch
+                {
+                    // Fall through to the binding below.
+                }
+            }
+
+            var (isBound, boundPath) = GetActivePlanBinding();
+            if (isBound && !string.IsNullOrWhiteSpace(boundPath))
+                return Path.GetFullPath(boundPath);
+
+            return null;
+        }
+
+        /// <summary>
+        /// read_plan: read the bound (active) plan file and return its full text plus which plan it
+        /// came from. Non-silent: when no plan is bound and no explicit path is given, returns an
+        /// explicit "no active plan" signal.
+        /// </summary>
+        private async Task<ToolResult> ReadPlanInternalAsync(IDictionary<string, object> args, CancellationToken ct)
+        {
+            try
+            {
+                var explicitPath = GetArgString(args, "path");
+                var target = await ResolvePlanTargetAsync(explicitPath);
+
+                if (target == null)
+                {
+                    return CreateErrorResult(
+                        "read_plan",
+                        "No active plan bound. Open a plan file (~/.continueVS/plans/...) as the active " +
+                        "document and send again to bind it, or pass an explicit repo-root-relative 'path'.");
+                }
+
+                if (!File.Exists(target))
+                {
+                    return CreateErrorResult("read_plan", $"Plan file not found: {target}");
+                }
+
+                var contents = await ReadFileAsync(target);
+                return new ToolResult
+                {
+                    ToolName = "read_plan",
+                    Output = $"=== Plan: {target} ===\n\n{contents}",
+                    IsSuccess = true,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "path", target }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("read_plan", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// update_plan: apply an exact find/replace to the bound (active) plan file. Repo-root
+        /// restricted. Returns the match count so a bad 'find' (count 0) is visible instead of
+        /// silently doing nothing. Never silent on "no active plan".
+        /// </summary>
+        private async Task<ToolResult> UpdatePlanInternalAsync(IDictionary<string, object> args, CancellationToken ct)
+        {
+            try
+            {
+                var find = GetArgString(args, "find");
+                var replace = GetArgString(args, "replace");
+                if (string.IsNullOrEmpty(find))
+                {
+                    return CreateErrorResult("update_plan", "find cannot be null or empty");
+                }
+
+                var explicitPath = GetArgString(args, "path");
+                var target = await ResolvePlanTargetAsync(explicitPath);
+
+                if (target == null)
+                {
+                    return CreateErrorResult(
+                        "update_plan",
+                        "No active plan bound. Open a plan file (~/.continueVS/plans/...) as the active " +
+                        "document and send again to bind it, or pass an explicit repo-root-relative 'path'.");
+                }
+
+                if (!File.Exists(target))
+                {
+                    return CreateErrorResult("update_plan", $"Plan file not found: {target}");
+                }
+
+                var contents = await ReadFileAsync(target);
+                // Count exact occurrences before mutating.
+                var count = CountOccurrences(contents, find);
+                var updated = contents.Replace(find, replace);
+
+                await WriteFileAsync(target, updated);
+
+                var result = count == 0
+                    ? $"No matches of the given text found; plan is unchanged ({target})." +
+                      "Re-read the plan and adjust your 'find' to match exactly."
+                    : $"Replaced {count} occurrence(s) in plan ({target}).";
+
+                return new ToolResult
+                {
+                    ToolName = "update_plan",
+                    Output = result,
+                    IsSuccess = true,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "path", target },
+                        { "matches", count.ToString() }
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("update_plan", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Counts non-overlapping occurrences of <paramref name="needle"/> in <paramref name="haystack"/>
+        /// using an ordinal (case-sensitive, exact) comparison. Used to surface no-op find/replace.
+        /// </summary>
+        private static int CountOccurrences(string haystack, string needle)
+        {
+            if (string.IsNullOrEmpty(haystack) || string.IsNullOrEmpty(needle))
+                return 0;
+
+            int count = 0, index = 0;
+            while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                index += needle.Length;
+            }
+            return count;
         }
 
         /// <summary>

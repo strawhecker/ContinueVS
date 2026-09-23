@@ -26,6 +26,7 @@ namespace ContinueVS.Tests.Services
             public string GetSelectedText() => string.Empty;
             public string GetActiveDocumentContent() => string.Empty;
             public List<string> GetRecentFiles(int maxCount) => new List<string>();
+            public List<string> GetOpenDocumentPaths() => new List<string>();
             public Selection? GetCursorSelection() => null;
         }
 

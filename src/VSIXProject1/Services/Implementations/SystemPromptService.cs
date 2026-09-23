@@ -1,4 +1,4 @@
-﻿using ContinueVS.Core.Types;
+using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -199,6 +199,12 @@ namespace ContinueVS.Services.Implementations
 
             const string PLAN_FILE_INSTRUCTIONS = "When the user asks you to save, write, or finalize the current plan — and does not provide a specific file path — call write_plan(title, plan)...";
 
+            const string ACTIVE_PLAN_INSTRUCTIONS =
+                "When a plan is bound (a plan file under ~/.continueVS/plans/ is open as your active document), " +
+                "use the read_plan tool to pull up the current plan and the update_plan tool to record progress in it. " +
+                "Update the plan frequently as you work each step — e.g. replacing '⏳' with '✅' as steps pass. " +
+                "Use the plan to track progress across unit testing and integration testing.";
+
             const string ASK_USER_INSTRUCTIONS =
                 "Use the ask_user tool when you genuinely need information, clarification, or confirmation from the user to continue.\n" +
                 "Prefer acting autonomously when you have enough context — do not ask for permission on every step.\n" +
@@ -215,6 +221,7 @@ namespace ContinueVS.Services.Implementations
                            BRIEF_LAZY_INSTRUCTIONS + "\n\n" +
                            //READ_FILE_INSTRUCTIONS + "\n\n" +
                            PLAN_FILE_INSTRUCTIONS + "\n\n" +
+                           ACTIVE_PLAN_INSTRUCTIONS + "\n\n" +
                            ASK_USER_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
                            "</important_rules>" +
@@ -238,6 +245,7 @@ namespace ContinueVS.Services.Implementations
                            BRIEF_LAZY_INSTRUCTIONS + "\n" +
                            //READ_FILE_INSTRUCTIONS + "\n\n" +
                            PLAN_FILE_INSTRUCTIONS + "\n\n" +
+                           ACTIVE_PLAN_INSTRUCTIONS + "\n\n" +
                            ASK_USER_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("debug");

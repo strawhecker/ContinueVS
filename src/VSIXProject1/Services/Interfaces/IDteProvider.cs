@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace ContinueVS.Services.Interfaces
 {
@@ -37,6 +37,13 @@ namespace ContinueVS.Services.Interfaces
         /// Get the current cursor selection from the active document, or null if unavailable.
         /// </summary>
         Selection? GetCursorSelection();
+
+        /// <summary>
+        /// Get the full paths of all documents currently open in the IDE (viewer/tab) via
+        /// <c>DTE.Documents</c>. Used to decide whether a plan file is still open in a viewer
+        /// even when it is no longer the active document ("open elsewhere keeps the binding").
+        /// </summary>
+        System.Collections.Generic.List<string> GetOpenDocumentPaths();
     }
 }
 

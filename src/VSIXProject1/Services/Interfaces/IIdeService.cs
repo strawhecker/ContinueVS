@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -207,6 +207,17 @@ namespace ContinueVS.Services.Interfaces
         /// </summary>
         /// <returns>The contents of the currently open file, or an empty string if no file is open.</returns>
         Task<string> ReadCurrentlyOpenFileAsync();
+
+        /// <summary>
+        /// Determines whether a document with the given path is currently open in the IDE viewer
+        /// (any tab/window), not necessarily the active document. Used by active-plan binding to
+        /// keep a plan bound while it is still open in a viewer but the active document is elsewhere.
+        /// Best-effort: on failure this returns null (binding status unknown) rather than false,
+        /// so callers do not silently clear a binding on an unavailable query.
+        /// </summary>
+        /// <param name="path">The absolute file path to check.</param>
+        /// <returns>True if open, false if not open, null if status is unknown.</returns>
+        Task<bool?> IsOpenInViewerAsync(string path);
 
         /// <summary>
         /// Gets the current git branch.

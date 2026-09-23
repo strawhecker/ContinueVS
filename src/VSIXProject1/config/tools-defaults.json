@@ -365,6 +365,52 @@
       "returnsDescription": "Confirmation that the folder was created successfully"
     },
     {
+      "name": "read_plan",
+      "description": "Read the active plan file (the plan the user has open under ~/.continueVS/plans/, bound at send time). Use this to pull up the current plan so you can work through its steps. If a plan is bound, it is read by default; you may pass an explicit 'path' (repo-root-relative) to read a different plan. If there is no bound plan and no path, this returns an explicit 'no active plan' signal.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "string",
+          "description": "Optional. Repo-root-relative path to a plan file. If omitted, the bound (active) plan is used.",
+          "isRequired": false
+        }
+      ],
+      "returnsDescription": "The full plan text plus the plan file it came from"
+    },
+    {
+      "name": "update_plan",
+      "description": "Update the active plan file (the plan bound at send time under ~/.continueVS/plans/) with an exact find/replace. The plan text you read is the 'find' and the 'replace' is what it becomes. You manage your own pass/fail markers (e.g. replacing '⏳' with '✅' as steps complete). 'find' must match exactly. Returns the number of matches replaced, so if your 'find' is wrong you get count 0 and can correct it. Optionally pass an explicit 'path' (repo-root-relative) to update a different plan.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "parameters": [
+        {
+          "name": "find",
+          "type": "string",
+          "description": "The exact text in the plan to search for. Must match exactly.",
+          "isRequired": true
+        },
+        {
+          "name": "replace",
+          "type": "string",
+          "description": "The text to replace every exact match of 'find' with.",
+          "isRequired": true
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "description": "Optional. Repo-root-relative path to a plan file. If omitted, the bound (active) plan is used.",
+          "isRequired": false
+        }
+      ],
+      "returnsDescription": "The number of matches replaced and where"
+    },
+    {
       "name": "ask_user",
       "description": "Ask the user a question when you need information, clarification, or confirmation to continue. Use this ONLY when you genuinely cannot proceed without a user decision; prefer acting autonomously when you have enough context. Provide 'question' (the text to ask) and, if there is a limited set of reasonable choices, provide 'answers' (a list of suggested answer options). The user may pick one of the provided options or type their own free-text response. If no answers are supplied, the question is open-ended and the user will respond in prose.",
       "category": "Built-In",

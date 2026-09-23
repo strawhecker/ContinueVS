@@ -1,4 +1,4 @@
-﻿using EnvDTE;
+using EnvDTE;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -91,6 +91,28 @@ namespace ContinueVS.Services.Implementations
                 // Silently fail and return empty list
             }
             return recentFiles;
+        }
+
+        public List<string> GetOpenDocumentPaths()
+        {
+            var openDocs = new List<string>();
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                foreach (Document doc in _dte.Documents)
+                {
+                    if (!string.IsNullOrEmpty(doc.FullName))
+                    {
+                        openDocs.Add(doc.FullName);
+                    }
+                }
+            }
+            catch
+            {
+                // Best-effort: on failure return what we have (empty). Callers treat an empty
+                // result as "binding status unknown" rather than silently clearing.
+            }
+            return openDocs;
         }
 
         public string GetActiveFilepath()

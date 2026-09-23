@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -711,6 +711,79 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// read_plan: Read the active plan file (the plan bound at send-time when the user has a
+        /// plan open under ~/.continueVS/plans/). Returns the full plan text plus which plan it came
+        /// from. Non-silent: if no plan is bound and no path is given, returns an explicit
+        /// "no active plan" signal instead of an empty result.
+        /// Available in: Agent, Debug (plan-driven build loop modes).
+        /// </summary>
+        public static ToolDefinition GetReadPlanTool()
+        {
+            return CreateToolDefinition(
+                name: "read_plan",
+                description: "Read the active plan file (the plan the user has open under ~/.continueVS/plans/, bound at send time). " +
+                             "Use this to pull up the current plan so you can work through its steps. If a plan is bound, it is read by " +
+                             "default; you may pass an explicit 'path' (repo-root-relative) to read a different plan." +
+                             "If there is no bound plan and no path, this returns an explicit 'no active plan' signal.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "path",
+                        Type = "string",
+                        Description = "Optional. Repo-root-relative path to a plan file. If omitted, the bound (active) plan is used.",
+                        IsRequired = false
+                    }
+                },
+                returnsDescription: "The full plan text plus the plan file it came from",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// update_plan: Update the bound (active) plan file with an exact find/replace. The plan text
+        /// is the search and the replacement is the swap; you manage pass/fail markers (e.g. ⏳ to ✅)
+        /// yourself. Repo-root restricted. Returns a match count so a bad 'find' (count 0) is visible
+        /// rather than silently doing nothing.
+        /// Available in: Agent, Debug (plan-driven build loop modes).
+        /// </summary>
+        public static ToolDefinition GetUpdatePlanTool()
+        {
+            return CreateToolDefinition(
+                name: "update_plan",
+                description: "Update the active plan file (the plan bound at send time under ~/.continueVS/plans/) with an exact " +
+                             "find/replace. The plan text you read is the 'find' and the 'replace' is what it becomes. You manage your own " +
+                             "pass/fail markers (e.g. replacing '⏳' with '✅' as steps complete). 'find' must match exactly. Returns the number " +
+                             "of matches replaced, so if your 'find' is wrong you get count 0 and can correct it. Optionally pass an explicit " +
+                             "'path' (repo-root-relative) to update a different plan.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "find",
+                        Type = "string",
+                        Description = "The exact text in the plan to search for. Must match exactly.",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "replace",
+                        Type = "string",
+                        Description = "The text to replace every exact match of 'find' with.",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "path",
+                        Type = "string",
+                        Description = "Optional. Repo-root-relative path to a plan file. If omitted, the bound (active) plan is used.",
+                        IsRequired = false
+                    }
+                },
+                returnsDescription: "The number of matches replaced and where",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
         /// ask_user: Ask the user a question when the LLM needs information, clarification, or
         /// confirmation to continue. The user may pick from the provided answers (multiple choice)
         /// or type their own prose answer. When answers is omitted, the question is open-ended.
@@ -785,6 +858,8 @@ namespace ContinueVS.Core.Types
                 GetGrepSearchTool(),
                 GetSingleFindAndReplaceTool(),
                 GetWritePlanTool(),
+                GetReadPlanTool(),
+                GetUpdatePlanTool(),
                 GetAskUserTool()
             };
             LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");

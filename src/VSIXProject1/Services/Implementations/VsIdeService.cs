@@ -204,6 +204,29 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
+        public Task<bool?> IsOpenInViewerAsync(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return Task.FromResult<bool?>(false);
+
+            try
+            {
+                var openPaths = _dteProvider.GetOpenDocumentPaths();
+                // An empty enumeration is ambiguous (query may have failed or no docs are open).
+                // Return null so callers treat status as unknown rather than silently clearing.
+                if (openPaths == null || openPaths.Count == 0)
+                    return Task.FromResult<bool?>(null);
+
+                var normalized = Path.GetFullPath(path);
+                return Task.FromResult<bool?>(
+                    openPaths.Any(p => string.Equals(Path.GetFullPath(p), normalized, StringComparison.OrdinalIgnoreCase)));
+            }
+            catch
+            {
+                return Task.FromResult<bool?>(null);
+            }
+        }
+
         public Task<string> GetBranchAsync()
         {
             try
