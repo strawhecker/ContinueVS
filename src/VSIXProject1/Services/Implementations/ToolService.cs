@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -1422,7 +1422,7 @@ namespace ContinueVS.Services.Implementations
                 if (string.IsNullOrEmpty(filepath))
                     return CreateErrorResult("open_file", "filepath cannot be null or empty");
 
-                await _ideService.OpenFileAsync(filepath);
+                await _ideService.OpenFileInEditorAsync(filepath);
                 return new ToolResult
                 {
                     ToolName = "open_file",
@@ -1586,7 +1586,7 @@ namespace ContinueVS.Services.Implementations
 
                 var path = await _planOutputService.SavePlanAsync(title, plan, ct);
 
-                await _ideService.OpenFileAsync(path);
+                await _ideService.OpenFileInEditorAsync(path);
 
                 return new ToolResult
                 {

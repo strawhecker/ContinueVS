@@ -849,7 +849,7 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
-        public async Task OpenFileAsync(string filepath)
+        public Task OpenFileAsync(string filepath)
         {
             if (string.IsNullOrWhiteSpace(filepath))
                 throw new ArgumentException("filepath must not be empty.", nameof(filepath));
@@ -857,8 +857,10 @@ namespace ContinueVS.Services.Implementations
             if (!File.Exists(filepath))
                 throw new FileNotFoundException($"File not found: {filepath}");
 
-            // Stub implementation - would use DTE to open the file in editor
-            await Task.CompletedTask;
+            // Delegate to the real DTE-based editor-open path so any caller (e.g. write_plan,
+            // open_file) actually opens the file as the active IDE document instead of hitting an
+            // empty stub.
+            return OpenFileInEditorCoreAsync(filepath);
         }
     }
 }

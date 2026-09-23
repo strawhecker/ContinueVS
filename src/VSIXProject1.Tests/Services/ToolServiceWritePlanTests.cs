@@ -69,7 +69,7 @@ namespace ContinueVS.Tests.Services
             planServiceMock.Verify(
                 s => s.SavePlanAsync("Refactor Plan", "# Refactor Plan\nStep 1...", It.IsAny<CancellationToken>()),
                 Times.Once);
-            ideServiceMock.Verify(s => s.OpenFileAsync(savedPath), Times.Once);
+            ideServiceMock.Verify(s => s.OpenFileInEditorAsync(savedPath), Times.Once);
         }
 
         [Fact]
@@ -97,7 +97,7 @@ namespace ContinueVS.Tests.Services
             planServiceMock.Verify(
                 s => s.SavePlanAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
                 Times.Never);
-            ideServiceMock.Verify(s => s.OpenFileAsync(It.IsAny<string>()), Times.Never);
+            ideServiceMock.Verify(s => s.OpenFileInEditorAsync(It.IsAny<string>()), Times.Never);
         }
 
         [Fact]

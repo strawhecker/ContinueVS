@@ -8,6 +8,28 @@
 
 ---
 
+### fix-write-plan-open: `write_plan` / `open_file` Now Open the Plan as the Active IDE Document
+
+**Status:** ✅ Complete | Type: Bug Fix (IDE file-open routing)
+
+**Problem:** `write_plan` saved the plan to disk but the IDE never loaded it as the current document. The tool routed through `IIdeService.OpenFileAsync`, which was an explicit **stub** in `VsIdeService` that only threw if the file was missing and otherwise did nothing (no DTE call). The real editor-opening logic lived in `OpenFileInEditorAsync` → `OpenFileInEditorCoreAsync` (uses `dte.ItemOperations.OpenFile(...)` on the UI thread via `ThreadHelper`). `write_plan` never called it, so the file was saved but never made active. `open_file` had the same defect. Unit tests masked it because they mocked `IIdeService` and only verified `OpenFileAsync` was called — never exercising the real DTE path.
+
+**Implementation:**
+- `src/VSIXProject1/Services/Implementations/ToolService.cs`:
+  - `WritePlanInternalAsync`: `await _ideService.OpenFileAsync(path)` → `await _ideService.OpenFileInEditorAsync(path)`.
+  - `OpenFileInternalAsync` (the `open_file` tool): `await _ideService.OpenFileAsync(filepath)` → `await _ideService.OpenFileInEditorAsync(filepath)`.
+- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`:
+  - `OpenFileAsync` now delegates to `OpenFileInEditorCoreAsync` (the real DTE-based open) so no caller can silently hit the empty stub. Keeps its null + file-exists guards before delegating.
+
+**Files Modified:**
+- `src/VSIXProject1/Services/Implementations/ToolService.cs`
+- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`
+- `src/VSIXProject1.Tests/Services/ToolServiceWritePlanTests.cs` (verify `OpenFileInEditorAsync` instead of `OpenFileAsync`)
+
+**Validation:** `dotnet build` both projects → 0 warnings / 0 errors. `ToolServiceWritePlanTests` 7/7 passing; `VsIdeServiceTests` 7/7 passing.
+
+---
+
 ### gap-workspacefiles-fast: GetWorkspaceFiles Folder-by-Folder Walk on Background Thread
 
 **Status:** ✅ Complete | Type: Performance / File-Enumeration Rewrite
