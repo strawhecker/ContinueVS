@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="ContinueVS.a4507790-4510-4158-b192-87339e7b1a34" Version="1.0" Language="en-US" Publisher="ContinueVS" />
+    <Identity Id="ContinueVS.a4507790-4510-4158-b192-87339e7b1a34" Version="1.0.1" Language="en-US" Publisher="ContinueVS" />
     <DisplayName>Continue for Visual Studio</DisplayName>
-    <Description xml:space="preserve">The open-source AI coding assistant — Continue — for Visual Studio.
+    <Description xml:space="preserve">The open-source AI coding assistant - Continue - for Visual Studio.
 
 Features:
 • AI chat panel (View → Continue Chat, Ctrl+Shift+J)
@@ -26,7 +26,7 @@ Requires an internet connection on first run to download the Continue AI engine 
     <InstallationTarget Id="Microsoft.VisualStudio.Professional" Version="[17.14, )">
       <ProductArchitecture>amd64</ProductArchitecture>
     </InstallationTarget>
-    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise"   Version="[17.14, )">
+    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise" Version="[17.14, )">
       <ProductArchitecture>amd64</ProductArchitecture>
     </InstallationTarget>
   </Installation>
@@ -38,16 +38,11 @@ Requires an internet connection on first run to download the Continue AI engine 
   </Prerequisites>
   <Assets>
     <!-- Package registration -->
-    <Asset Type="Microsoft.VisualStudio.VsPackage"
-           d:Source="Project" d:ProjectName="%CurrentProject%"
-           Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
     <!-- MEF components (ghost-text adornment factory, etc.) -->
-    <Asset Type="Microsoft.VisualStudio.MefComponent"
-           d:Source="Project" d:ProjectName="%CurrentProject%"
-           Path="|%CurrentProject%|" />
+    <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
     <!-- Theme resource files -->
-    <Asset Type="Microsoft.VisualStudio.Assembly"
-           d:Source="Project" d:ProjectName="%CurrentProject%"
-           Path="|%CurrentProject%|UI\Styles\Themes\ThemeDark.xaml" />
+    <Asset Type="Microsoft.VisualStudio.Assembly" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|UI\Styles\Themes\ThemeDark.xaml" />
   </Assets>
 </PackageManifest>
+

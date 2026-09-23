@@ -1,26 +1,30 @@
-param(
-    [Parameter(Mandatory = $true)]
-    [string]$NewVersion
-)
+#Requires -Version 5.1
+$ErrorActionPreference = 'Stop'
 
-$manifest = 'src/VSIXProject1/source.extension.vsixmanifest'
-if (-not (Test-Path $manifest)) {
-    Write-Error "Manifest not found: $manifest"
-    exit 1
-}
+git pull --rebase
+if ($LASTEXITCODE -ne 0) { throw "git pull failed" }
 
-# Keep the original encoding / line endings intact where possible
-$xml = [xml](Get-Content $manifest -Raw)
-$xml.PackageManifest.Metadata.Identity.Version = $NewVersion
+$manifest = "src\VSIXProject1\source.extension.vsixmanifest"
+$content  = Get-Content $manifest -Raw
 
-# Save with UTF-8 (no BOM) and XML declaration to keep the manifest valid
-$settings = [System.Xml.XmlWriterSettings]::new()
-$settings.Indent = $true
-$settings.Encoding = [System.Text.UTF8Encoding]::new($false)
-$settings.OmitXmlDeclaration = $false
+$identity = [regex]::Match($content, '<Identity[^>]*?Version="([0-9]+\.[0-9]+\.[0-9]+)"')
+if (-not $identity.Success) { throw "Could not find Identity version in $manifest" }
 
-$writer = [System.Xml.XmlWriter]::Create($manifest, $settings)
-$xml.Save($writer)
-$writer.Close()
+$oldVer  = $identity.Groups[1].Value
+$parts   = $oldVer -split '\.'
+$parts[2] = [int]$parts[2] + 1
+$newVer  = $parts -join '.'
 
-Write-Host "Bumped VSIX version to $NewVersion" -ForegroundColor Green
+# Write the new version back into the manifest
+$content = $content.Replace("Version=`"$oldVer`"", "Version=`"$newVer`"")
+Set-Content -Path $manifest -Value $content
+
+Write-Output "Bumping $oldVer -> $newVer"
+
+git add $manifest
+git commit -m "Bump version from $oldVer to $newVer"
+if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
+
+git tag "v$newVer"
+git push
+git push --tags
