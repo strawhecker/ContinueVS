@@ -16,6 +16,6 @@ namespace ContinueVS.Services.Events
         /// <summary>
         /// Timestamp when this event was generated.
         /// </summary>
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

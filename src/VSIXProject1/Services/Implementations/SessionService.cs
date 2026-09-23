@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -80,8 +80,8 @@ namespace ContinueVS.Services.Implementations
                         Id = Guid.NewGuid().ToString(),
                         Title = "New Conversation",
                         Messages = new List<ChatMessage>(),
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now,
                         IsActive = true
                     };
                 }
@@ -101,8 +101,8 @@ namespace ContinueVS.Services.Implementations
                 Id = Guid.NewGuid().ToString(),
                 Title = title ?? "New Conversation",
                 Messages = new List<ChatMessage>(),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
                 IsActive = true,
                 ToolCallsExecuted = 0
             };
@@ -120,7 +120,7 @@ namespace ContinueVS.Services.Implementations
                 SessionId = newSession.Id,
                 ChangeType = SessionChangeType.Created,
                 Session = newSession,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -131,7 +131,7 @@ namespace ContinueVS.Services.Implementations
         public async Task SaveCurrentSessionAsync()
         {
             var session = GetCurrentSession();
-            session.UpdatedAt = DateTime.UtcNow;
+            session.UpdatedAt = DateTime.Now;
             await SaveSessionToFileAsync(session);
 
             SessionChanged?.Invoke(this, new SessionChangedEventArgs
@@ -139,7 +139,7 @@ namespace ContinueVS.Services.Implementations
                 SessionId = session.Id,
                 ChangeType = SessionChangeType.Updated,
                 Session = session,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -173,7 +173,7 @@ namespace ContinueVS.Services.Implementations
                 ChangeType = SessionChangeType.Updated,
                 Session = session,
                 CurrentMode = session.Mode,  // Restore mode from persisted Session.Mode (gap27_5)
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -200,14 +200,14 @@ namespace ContinueVS.Services.Implementations
 
             if (message.Timestamp == null)
             {
-                message.Timestamp = DateTime.UtcNow;
+                message.Timestamp = DateTime.Now;
             }
 
             lock (_lockObj)
             {
                 session.Messages.Add(message);
                 _messageIndex[message.Id!] = message;
-                session.UpdatedAt = DateTime.UtcNow;
+                session.UpdatedAt = DateTime.Now;
             }
 
             await AppendDeltaAndFlushAsync(new SessionDeltaAdd
@@ -222,7 +222,7 @@ namespace ContinueVS.Services.Implementations
                 SessionId = session.Id,
                 Message = message,
                 IsStreaming = false,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -255,7 +255,7 @@ namespace ContinueVS.Services.Implementations
 
                 updatedMessage.Id = messageId; // Preserve ID
                 SessionDeltaLog.MergeInto(existing, updatedMessage);
-                session.UpdatedAt = DateTime.UtcNow;
+                session.UpdatedAt = DateTime.Now;
             }
 
             await AppendDeltaAndFlushAsync(new SessionDeltaUpdate
@@ -289,7 +289,7 @@ namespace ContinueVS.Services.Implementations
 
                 session.Messages.Remove(message);
                 _messageIndex.Remove(messageId);
-                session.UpdatedAt = DateTime.UtcNow;
+                session.UpdatedAt = DateTime.Now;
             }
 
             await AppendDeltaAndFlushAsync(new SessionDeltaDelete
@@ -321,7 +321,7 @@ namespace ContinueVS.Services.Implementations
                 }
 
                 message.IsDeleted = true;
-                session.UpdatedAt = DateTime.UtcNow;
+                session.UpdatedAt = DateTime.Now;
             }
 
             await AppendDeltaAndFlushAsync(new SessionDeltaSoftDelete
@@ -352,7 +352,7 @@ namespace ContinueVS.Services.Implementations
                 }
 
                 message.IsDeleted = false;
-                session.UpdatedAt = DateTime.UtcNow;
+                session.UpdatedAt = DateTime.Now;
             }
 
             await AppendDeltaAndFlushAsync(new SessionDeltaUndelete
@@ -449,7 +449,7 @@ namespace ContinueVS.Services.Implementations
                 SessionId = sessionId,
                 ChangeType = SessionChangeType.Deleted,
                 Session = null,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
 
             await Task.CompletedTask;
@@ -508,7 +508,7 @@ namespace ContinueVS.Services.Implementations
                 if (currentTokens > maxTokens)
                 {
                     var toRemove = messagesToConsider
-                        .OrderBy(m => m.Timestamp ?? DateTime.UtcNow)
+                        .OrderBy(m => m.Timestamp ?? DateTime.Now)
                         .ToList();
 
                     // Remove messages from oldest to newest until under threshold
@@ -531,7 +531,7 @@ namespace ContinueVS.Services.Implementations
                         }
                     }
 
-                    session.UpdatedAt = DateTime.UtcNow;
+                    session.UpdatedAt = DateTime.Now;
                 }
             }
 
@@ -656,7 +656,7 @@ namespace ContinueVS.Services.Implementations
                 Id = result.Id ?? sessionId,
                 Title = result.Title ?? "New Conversation",
                 Messages = order,
-                CreatedAt = result.CreatedAt ?? DateTime.UtcNow,
+                CreatedAt = result.CreatedAt ?? DateTime.Now,
                 UpdatedAt = File.GetLastWriteTimeUtc(filePath),
                 IsActive = false,
                 Mode = result.Mode
@@ -764,7 +764,7 @@ namespace ContinueVS.Services.Implementations
                 ChangeType = SessionChangeType.Updated,
                 Session = session,
                 CurrentMode = newMode,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 

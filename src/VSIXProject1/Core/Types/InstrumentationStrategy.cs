@@ -43,7 +43,7 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// UTC timestamp when the strategy was created.
         /// </summary>
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Validates the strategy has required fields.

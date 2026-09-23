@@ -73,7 +73,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                         Strategy = "Instrumentation",
                         Result = "Completed",
                         ChangesAppliedCount = 0,
-                        ExecutedAt = DateTime.UtcNow
+                        ExecutedAt = DateTime.Now
                     };
                 }
 
@@ -94,7 +94,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                     Strategy = strategy.Description,
                     Result = "Completed",
                     ChangesAppliedCount = changesApplied,
-                    ExecutedAt = DateTime.UtcNow
+                    ExecutedAt = DateTime.Now
                 };
             }
             catch (Exception ex)
@@ -107,7 +107,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                     Strategy = "Instrumentation",
                     Result = "Failed",
                     ChangesAppliedCount = changesApplied,
-                    ExecutedAt = DateTime.UtcNow,
+                    ExecutedAt = DateTime.Now,
                     ErrorMessage = ex.Message
                 };
             }

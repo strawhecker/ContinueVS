@@ -13,7 +13,7 @@ namespace ContinueVS.Core.Types
     {
         private string _text = string.Empty;
         private List<InlineRun> _inlineRuns = new();
-        private DateTime _timestamp = DateTime.UtcNow;
+        private DateTime _timestamp = DateTime.Now;
 
         /// <summary>
         /// The raw text content of this line.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -36,7 +36,7 @@ namespace ContinueVS.Core.Types
                 IsEnabled = isEnabled,
                 IsAsync = true,
                 ToolType = "builtin",
-                LastModified = DateTime.UtcNow,
+                LastModified = DateTime.Now,
                 SupportedModes = supportedModes ?? new List<ChatMode>()
             };
             return tool;

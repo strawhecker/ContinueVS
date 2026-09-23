@@ -30,9 +30,9 @@ namespace ContinueVS.Tests.Services
             await service.CreateNewSessionAsync("Test Session");
             var session = service.GetCurrentSession();
 
-            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "First", Timestamp = DateTime.UtcNow.AddSeconds(-3) };
-            var msg2 = new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Second", Timestamp = DateTime.UtcNow.AddSeconds(-2) };
-            var msg3 = new ChatMessage { Role = ChatMessageRole.User, Content = "Third", Timestamp = DateTime.UtcNow.AddSeconds(-1) };
+            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "First", Timestamp = DateTime.Now.AddSeconds(-3) };
+            var msg2 = new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Second", Timestamp = DateTime.Now.AddSeconds(-2) };
+            var msg3 = new ChatMessage { Role = ChatMessageRole.User, Content = "Third", Timestamp = DateTime.Now.AddSeconds(-1) };
 
             await service.AddMessageAsync(msg1);
             await service.AddMessageAsync(msg2);
@@ -58,8 +58,8 @@ namespace ContinueVS.Tests.Services
             await service.CreateNewSessionAsync("Test Session");
             var session = service.GetCurrentSession();
 
-            var systemMsg = new ChatMessage { Role = ChatMessageRole.System, Content = "System prompt", Timestamp = DateTime.UtcNow.AddSeconds(-5) };
-            var userMsg = new ChatMessage { Role = ChatMessageRole.User, Content = "User query", Timestamp = DateTime.UtcNow.AddSeconds(-1) };
+            var systemMsg = new ChatMessage { Role = ChatMessageRole.System, Content = "System prompt", Timestamp = DateTime.Now.AddSeconds(-5) };
+            var userMsg = new ChatMessage { Role = ChatMessageRole.User, Content = "User query", Timestamp = DateTime.Now.AddSeconds(-1) };
 
             await service.AddMessageAsync(systemMsg);
             await service.AddMessageAsync(userMsg);
@@ -81,8 +81,8 @@ namespace ContinueVS.Tests.Services
             var service = CreateSessionService();
             await service.CreateNewSessionAsync("Test Session");
 
-            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "First", Timestamp = DateTime.UtcNow.AddSeconds(-2) };
-            var msg2 = new ChatMessage { Role = ChatMessageRole.User, Content = "Second", Timestamp = DateTime.UtcNow.AddSeconds(-1) };
+            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "First", Timestamp = DateTime.Now.AddSeconds(-2) };
+            var msg2 = new ChatMessage { Role = ChatMessageRole.User, Content = "Second", Timestamp = DateTime.Now.AddSeconds(-1) };
 
             await service.AddMessageAsync(msg1);
             await service.AddMessageAsync(msg2);
@@ -136,8 +136,8 @@ namespace ContinueVS.Tests.Services
             await service.CreateNewSessionAsync("Test Session");
             var sessionId = service.GetCurrentSession().Id;
 
-            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "First", Timestamp = DateTime.UtcNow.AddSeconds(-1) };
-            var msg2 = new ChatMessage { Role = ChatMessageRole.User, Content = "Second", Timestamp = DateTime.UtcNow };
+            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "First", Timestamp = DateTime.Now.AddSeconds(-1) };
+            var msg2 = new ChatMessage { Role = ChatMessageRole.User, Content = "Second", Timestamp = DateTime.Now };
 
             await service.AddMessageAsync(msg1);
             await service.AddMessageAsync(msg2);

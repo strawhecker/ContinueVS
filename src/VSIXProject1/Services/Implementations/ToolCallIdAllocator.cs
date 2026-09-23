@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Threading;
@@ -28,7 +28,7 @@ namespace ContinueVS.Services.Implementations
             {
                 if (_baseTicks == 0)
                 {
-                    _baseTicks = DateTime.UtcNow.Ticks;
+                    _baseTicks = DateTime.Now.Ticks;
                     _increment = 0;
                 }
 

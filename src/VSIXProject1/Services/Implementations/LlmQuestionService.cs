@@ -49,7 +49,7 @@ namespace ContinueVS.Services.Implementations
                 QuestionText = questionText,
                 Context = llmResponse,
                 QuestionType = questionType,
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 AutoAnswerHint = ExtractAutoAnswerHint(questionText)
             };
         }

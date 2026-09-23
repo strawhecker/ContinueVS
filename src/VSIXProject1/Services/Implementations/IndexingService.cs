@@ -33,7 +33,7 @@ namespace ContinueVS.Services.Implementations
                 TotalFiles = 0,
                 CurrentFile = null,
                 PercentComplete = 0,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             };
         }
 
@@ -50,13 +50,13 @@ namespace ContinueVS.Services.Implementations
                 TotalFiles = 0,
                 CurrentFile = null,
                 PercentComplete = 0,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             };
 
             ProgressChanged?.Invoke(this, new IndexingProgressEventArgs
             {
                 Progress = _currentStatus,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -73,7 +73,7 @@ namespace ContinueVS.Services.Implementations
             ProgressChanged?.Invoke(this, new IndexingProgressEventArgs
             {
                 Progress = _currentStatus,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -90,7 +90,7 @@ namespace ContinueVS.Services.Implementations
             ProgressChanged?.Invoke(this, new IndexingProgressEventArgs
             {
                 Progress = _currentStatus,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -107,13 +107,13 @@ namespace ContinueVS.Services.Implementations
                 TotalFiles = 0,
                 CurrentFile = null,
                 PercentComplete = 0,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             };
 
             ProgressChanged?.Invoke(this, new IndexingProgressEventArgs
             {
                 Progress = _currentStatus,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 

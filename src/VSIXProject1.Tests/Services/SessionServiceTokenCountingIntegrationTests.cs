@@ -24,8 +24,8 @@ namespace ContinueVS.Tests.Services
             var service = CreateSessionServiceWithTokenCounter();
             var session = service.GetCurrentSession();
             // Create two messages that together exceed a small token limit
-            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = "a", Timestamp = DateTime.UtcNow.AddSeconds(-1) });
-            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = new string('b', 800), Timestamp = DateTime.UtcNow });
+            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = "a", Timestamp = DateTime.Now.AddSeconds(-1) });
+            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = new string('b', 800), Timestamp = DateTime.Now });
 
             // Act
             // msg1: ~51 tokens (short msg minimum)
@@ -44,8 +44,8 @@ namespace ContinueVS.Tests.Services
             // Arrange
             var service = CreateSessionServiceWithTokenCounter();
             var session = service.GetCurrentSession();
-            var systemMsg = new ChatMessage { Role = ChatMessageRole.System, Content = new string('a', 400), Timestamp = DateTime.UtcNow.AddSeconds(-2) };
-            var userMsg = new ChatMessage { Role = ChatMessageRole.User, Content = "Hello", Timestamp = DateTime.UtcNow };
+            var systemMsg = new ChatMessage { Role = ChatMessageRole.System, Content = new string('a', 400), Timestamp = DateTime.Now.AddSeconds(-2) };
+            var userMsg = new ChatMessage { Role = ChatMessageRole.User, Content = "Hello", Timestamp = DateTime.Now };
             session.Messages.Add(systemMsg);
             session.Messages.Add(userMsg);
 
@@ -69,9 +69,9 @@ namespace ContinueVS.Tests.Services
             var session = service.GetCurrentSession();
 
             // Add 3 small messages with different timestamps
-            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "AA", Timestamp = DateTime.UtcNow.AddSeconds(-2) };
-            var msg2 = new ChatMessage { Role = ChatMessageRole.User, Content = "BB", Timestamp = DateTime.UtcNow.AddSeconds(-1) };
-            var msg3 = new ChatMessage { Role = ChatMessageRole.User, Content = "CC", Timestamp = DateTime.UtcNow };
+            var msg1 = new ChatMessage { Role = ChatMessageRole.User, Content = "AA", Timestamp = DateTime.Now.AddSeconds(-2) };
+            var msg2 = new ChatMessage { Role = ChatMessageRole.User, Content = "BB", Timestamp = DateTime.Now.AddSeconds(-1) };
+            var msg3 = new ChatMessage { Role = ChatMessageRole.User, Content = "CC", Timestamp = DateTime.Now };
 
             session.Messages.Add(msg1);
             session.Messages.Add(msg2);
@@ -127,8 +127,8 @@ namespace ContinueVS.Tests.Services
             // Arrange
             var service = CreateSessionServiceWithTokenCounter();
             var session = service.GetCurrentSession();
-            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = "a", Timestamp = DateTime.UtcNow.AddSeconds(-1) });
-            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = new string('b', 800), Timestamp = DateTime.UtcNow });
+            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = "a", Timestamp = DateTime.Now.AddSeconds(-1) });
+            session.Messages.Add(new ChatMessage { Role = ChatMessageRole.User, Content = new string('b', 800), Timestamp = DateTime.Now });
 
             // Act
             var originalUpdateTime = session.UpdatedAt;

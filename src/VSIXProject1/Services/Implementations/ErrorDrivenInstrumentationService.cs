@@ -94,7 +94,7 @@ namespace ContinueVS.Services.Implementations
                     SuggestedStrategy = strategy,
                     ConfidenceScore = CalculateConfidence(errorList.Count),
                     MatchFingerprint = fingerprint,
-                    GeneratedAt = DateTime.UtcNow
+                    GeneratedAt = DateTime.Now
                 };
 
                 if (_logger != null)

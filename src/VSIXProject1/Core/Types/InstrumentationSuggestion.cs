@@ -49,6 +49,6 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Timestamp (UTC) when this suggestion was generated.
         /// </summary>
-        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+        public DateTime GeneratedAt { get; set; } = DateTime.Now;
     }
 }

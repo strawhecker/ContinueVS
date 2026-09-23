@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -322,12 +322,12 @@ namespace ContinueVS.Tests.Services
                         Status = ExecutionStatus.Succeeded,
                         Evidence = "Phase 1 completed",
                         AttemptCount = 1,
-                        StartTime = DateTime.UtcNow,
-                        EndTime = DateTime.UtcNow.AddSeconds(5)
+                        StartTime = DateTime.Now,
+                        EndTime = DateTime.Now.AddSeconds(5)
                     }
                 },
-                StartedAt = DateTime.UtcNow,
-                CompletedAt = DateTime.UtcNow.AddSeconds(5),
+                StartedAt = DateTime.Now,
+                CompletedAt = DateTime.Now.AddSeconds(5),
                 OverallStatus = ExecutionStatus.Succeeded,
                 AttemptCount = 1
             };

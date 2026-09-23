@@ -19,7 +19,7 @@ namespace VSIXProject1.Tests.Services
 
         public HandlerMetricsCollectorTests()
         {
-            _tempDir = Path.Combine(Path.GetTempPath(), "metrics-test-" + DateTime.UtcNow.Ticks);
+            _tempDir = Path.Combine(Path.GetTempPath(), "metrics-test-" + DateTime.Now.Ticks);
             _collector = new HandlerMetricsCollector();
         }
 
@@ -44,7 +44,7 @@ namespace VSIXProject1.Tests.Services
             // Assert
             Assert.NotNull(snapshot);
             Assert.NotEqual(default(DateTime), snapshot.Timestamp);
-            Assert.True(snapshot.Timestamp.Kind == DateTimeKind.Utc);
+            Assert.True(snapshot.Timestamp.Kind == DateTimeKind.Local);
         }
 
         [Fact]
@@ -93,7 +93,7 @@ namespace VSIXProject1.Tests.Services
             // Arrange
             var snapshot = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };
@@ -116,7 +116,7 @@ namespace VSIXProject1.Tests.Services
 
             var snapshot = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };
@@ -141,7 +141,7 @@ namespace VSIXProject1.Tests.Services
             // Arrange
             var snapshot = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };
@@ -228,7 +228,7 @@ namespace VSIXProject1.Tests.Services
 
             var snapshot = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };
@@ -247,7 +247,7 @@ namespace VSIXProject1.Tests.Services
             // Arrange
             var snapshot = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };
@@ -307,7 +307,7 @@ namespace VSIXProject1.Tests.Services
             // Arrange
             var snapshot = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = new[]
                 {
                     new HandlerMetric
@@ -340,14 +340,14 @@ namespace VSIXProject1.Tests.Services
             // Arrange
             var snapshot1 = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };
 
             var snapshot2 = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow.AddSeconds(1),
+                Timestamp = DateTime.Now.AddSeconds(1),
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };
@@ -433,7 +433,7 @@ namespace VSIXProject1.Tests.Services
             // Arrange
             var snapshot = new HandlerMetricsSnapshot
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = DateTime.Now,
                 Handlers = Array.Empty<HandlerMetric>(),
                 Metadata = new Dictionary<string, object>()
             };

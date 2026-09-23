@@ -23,7 +23,7 @@ namespace ContinueVS.Services
             public Dictionary<string, object>? Settings { get; set; }
             public DateTime ExpiresAt { get; set; }
 
-            public bool IsExpired => DateTime.UtcNow > ExpiresAt;
+            public bool IsExpired => DateTime.Now > ExpiresAt;
         }
 
         private static readonly object s_cacheLock = new object();
@@ -64,7 +64,7 @@ namespace ContinueVS.Services
                 s_cachedSettings = new CacheEntry
                 {
                     Settings = settings,
-                    ExpiresAt = DateTime.UtcNow.Add(s_cacheTtl),
+                    ExpiresAt = DateTime.Now.Add(s_cacheTtl),
                 };
             }
 

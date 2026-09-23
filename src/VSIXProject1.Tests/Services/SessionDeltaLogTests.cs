@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -43,7 +43,7 @@ namespace VSIXProject1.Tests.Services
 
         private static ChatMessage Msg(string content, ChatMessageRole role = ChatMessageRole.User)
         {
-            return new ChatMessage { Id = Guid.NewGuid().ToString("N"), Role = role, Content = content, Timestamp = DateTime.UtcNow };
+            return new ChatMessage { Id = Guid.NewGuid().ToString("N"), Role = role, Content = content, Timestamp = DateTime.Now };
         }
 
         [Fact]

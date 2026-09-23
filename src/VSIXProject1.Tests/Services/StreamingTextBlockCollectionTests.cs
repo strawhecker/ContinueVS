@@ -82,9 +82,9 @@ namespace ContinueVS.Tests.Services
         public void AppendChunk_TracksTimestamp()
         {
             var collection = new StreamingTextBlockCollection();
-            var before = DateTime.UtcNow;
+            var before = DateTime.Now;
             collection.AppendChunk("Test");
-            var after = DateTime.UtcNow;
+            var after = DateTime.Now;
 
             Assert.Single(collection);
             Assert.True(collection[0].Timestamp >= before && collection[0].Timestamp <= after);

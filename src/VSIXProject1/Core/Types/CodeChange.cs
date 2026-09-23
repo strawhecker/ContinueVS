@@ -44,7 +44,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this change was created.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Description of what this change accomplishes.

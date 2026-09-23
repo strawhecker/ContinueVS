@@ -73,7 +73,7 @@ namespace ContinueVS.Tests.Services
             var themeCache = new ThemeCache
             {
                 Colors = cachedColors,
-                CachedAt = DateTime.UtcNow
+                CachedAt = DateTime.Now
             };
 
             var mockStorageService = new Mock<ILocalStorageService>();
@@ -118,7 +118,7 @@ namespace ContinueVS.Tests.Services
             var themeCache = new ThemeCache
             {
                 Colors = new Dictionary<string, string>(),
-                CachedAt = DateTime.UtcNow
+                CachedAt = DateTime.Now
             };
 
             var mockStorageService = new Mock<ILocalStorageService>();
@@ -200,9 +200,9 @@ namespace ContinueVS.Tests.Services
             var service = new ThemeCacheService(mockStorageService.Object);
 
             // Act
-            var beforeCache = DateTime.UtcNow;
+            var beforeCache = DateTime.Now;
             service.CacheThemeColors(colors);
-            var afterCache = DateTime.UtcNow;
+            var afterCache = DateTime.Now;
 
             // Assert
             Assert.NotNull(capturedCache);

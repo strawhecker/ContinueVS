@@ -93,7 +93,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when the configuration was last modified.
         /// </summary>
         [JsonIgnore]
-        public DateTime LastModified { get; set; } = DateTime.UtcNow;
+        public DateTime LastModified { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Optional full path to the git executable (e.g. "C:\Program Files\Git\bin\git.exe").

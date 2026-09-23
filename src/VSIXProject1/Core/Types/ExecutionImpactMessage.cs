@@ -56,7 +56,7 @@ namespace ContinueVS.Core.Types
         {
             Role = ChatMessageRole.System;
             Content = "Execution Impact Summary";
-            Timestamp = DateTime.UtcNow;
+            Timestamp = DateTime.Now;
         }
 
         /// <summary>

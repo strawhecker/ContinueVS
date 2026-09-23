@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -315,11 +315,11 @@ namespace ContinueVS.Services.Implementations
                 });
                 }
 
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Message count: {messages.Count}");
+                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Message count: {messages.Count}");
 
                 // Build OpenAI request as JSON object
                 var modelId = model.Name ?? "unknown";
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Model name: {model.Name}, Using: {modelId}");
+                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Model name: {model.Name}, Using: {modelId}");
 
                 var requestObj = new Dictionary<string, object>
             {
@@ -351,7 +351,7 @@ namespace ContinueVS.Services.Implementations
                     _logger?.WriteDebug($"[gap71-messenger-openai-tools] Populated request.tools with {toolSchemas.Count} schemas for mode {options.Mode}");
                 }
 
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Building request - Model: {modelId}, Stream: true, Temperature: {options.Temperature}");
+                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Building request - Model: {modelId}, Stream: true, Temperature: {options.Temperature}");
 
                 // Dump context before sending if debug flag is enabled
                 if (options.Messages != null)
@@ -363,16 +363,16 @@ namespace ContinueVS.Services.Implementations
                 // POST to OpenAI chat completions endpoint
                 var endpoint = $"{(model.BaseUrl ?? "").TrimEnd('/')}/v1/chat/completions";
                 var json = JsonConvert.SerializeObject(requestObj);
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Endpoint: {endpoint}");
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Request JSON: {json}");
+                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Endpoint: {endpoint}");
+                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Request JSON: {json}");
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 if (_logger != null)
                     _logger?.WriteDebug($"MessengerService: POST to {endpoint}");
 
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}: {content}");
-                //LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Sending HTTP POST request to {endpoint}...");
+                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Sending HTTP POST request to {endpoint}: {content}");
+                //LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Sending HTTP POST request to {endpoint}...");
                 // ResponseHeadersRead prevents HttpClient from buffering the entire response body before returning.
                 var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
 
@@ -386,7 +386,7 @@ namespace ContinueVS.Services.Implementations
                 try
                 {
                     response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Response : status code: {response.StatusCode}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Response : status code: {response.StatusCode}");
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -397,23 +397,23 @@ namespace ContinueVS.Services.Implementations
                         }
                         catch (Exception readEx)
                         {
-                            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Failed to read error response body: {readEx.Message}");
+                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Failed to read error response body: {readEx.Message}");
                         }
 
-                        LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
+                        LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
                         throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {responseBodyText}");
                     }
 
-                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Status code confirmed successful");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Status code confirmed successful");
                 }
                 catch (HttpRequestException ex)
                 {
-                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] HttpRequestException: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] HttpRequestException: {ex.Message}");
                     throw new LlmException($"HTTP request to OpenAI-compatible endpoint failed: {ex.Message}", ex);
                 }
                 catch (TaskCanceledException ex)
                 {
-                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] TaskCanceledException: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] TaskCanceledException: {ex.Message}");
                     throw new LlmException(
                         $"OpenAI-compatible request timeout or was cancelled. " +
                         $"Ensure endpoint is running at {model.BaseUrl}/v1/chat/completions and model '{model.Name}' is available. " +
@@ -421,11 +421,11 @@ namespace ContinueVS.Services.Implementations
                 }
                 catch (Exception ex)
                 {
-                    LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
                     throw new LlmException($"Unexpected error during OpenAI-compatible streaming: {ex.Message}", ex);
                 }
 
-                LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Starting to read response stream...");
+                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Starting to read response stream...");
 
                 // Read response stream line-by-line (SSE format with "data: " prefix)
                 using (var stream = await response.Content.ReadAsStreamAsync())
@@ -442,12 +442,12 @@ namespace ContinueVS.Services.Implementations
                             continue;
 
                         lineCount++;
-                        LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Received line {lineCount}: {line}");
+                        LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Received line {lineCount}: {line}");
 
                         // Parse SSE format: "data: {json}"
                         if (!line.StartsWith("data: "))
                         {
-                            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Skipping non-data line: {line}");
+                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Skipping non-data line: {line}");
                             continue;
                         }
 
@@ -456,7 +456,7 @@ namespace ContinueVS.Services.Implementations
                         // Check for stream termination marker
                         if (jsonData == "[DONE]")
                         {
-                            LoggerService.Current.WriteDebug($"[ProcessOpenAiStreamAsync] Stream terminated with [DONE] marker");
+                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Stream terminated with [DONE] marker");
                             break;
                         }
 
@@ -538,7 +538,7 @@ namespace ContinueVS.Services.Implementations
                     Role = ChatMessageRole.Assistant,
                     IsDone = finishReason == "stop",
                     DoneReason = finishReason,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 };
 
                 return chunk;
@@ -894,7 +894,7 @@ namespace ContinueVS.Services.Implementations
                                     Role = ChatMessageRole.Assistant,
                                     IsDone = ollamaResponse.Done,
                                     DoneReason = ollamaResponse.DoneReason,
-                                    Timestamp = DateTime.UtcNow
+                                    Timestamp = DateTime.Now
                                 };
 
                                 if (typeof(TChunk) == typeof(CompletionChunk))
@@ -931,7 +931,7 @@ namespace ContinueVS.Services.Implementations
                                         IsDone = true,
                                         DoneReason = ollamaResponse.DoneReason,
                                         ToolCallsText = toolCallsText,
-                                        Timestamp = DateTime.UtcNow
+                                        Timestamp = DateTime.Now
                                     };
 
                                     if (typeof(TChunk) == typeof(CompletionChunk))

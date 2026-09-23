@@ -41,7 +41,7 @@ namespace ContinueVS.Core.Types
         {
             ErrorFingerprint = errorFingerprint ?? throw new ArgumentNullException(nameof(errorFingerprint));
             OccurrenceCount = 1;
-            LastOccurrenceTime = DateTime.UtcNow;
+            LastOccurrenceTime = DateTime.Now;
             GroupedFingerprints = new HashSet<string>();
         }
 
@@ -51,7 +51,7 @@ namespace ContinueVS.Core.Types
         public void IncrementCount()
         {
             OccurrenceCount++;
-            LastOccurrenceTime = DateTime.UtcNow;
+            LastOccurrenceTime = DateTime.Now;
         }
 
         /// <summary>

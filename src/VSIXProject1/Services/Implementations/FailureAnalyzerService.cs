@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -258,7 +258,7 @@ namespace ContinueVS.Services.Implementations
                 NewContent = GenerateRefinedContent(originalChange, hypotheses.FirstOrDefault()),
                 Description = $"Refined: {originalChange.Description} (addressing: {hypotheses.FirstOrDefault()})",
                 Baseline = originalChange.Baseline,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             };
         }
 

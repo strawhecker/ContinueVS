@@ -66,7 +66,7 @@ namespace ContinueVS.Core.Types
             string sessionId = ""
         )
         {
-            Timestamp = DateTime.UtcNow;
+            Timestamp = DateTime.Now;
             Fingerprint = fingerprint ?? throw new ArgumentNullException(nameof(fingerprint));
             ExceptionType = exceptionType ?? throw new ArgumentNullException(nameof(exceptionType));
             ExceptionMessage = exceptionMessage ?? string.Empty;

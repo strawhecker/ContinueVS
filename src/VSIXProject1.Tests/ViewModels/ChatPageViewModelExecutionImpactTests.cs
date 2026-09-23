@@ -127,7 +127,7 @@ namespace ContinueVS.Tests.ViewModels
         public void ExecutionImpactMessage_CreationWithPhases()
         {
             // Arrange
-            var startTime = DateTime.UtcNow;
+            var startTime = DateTime.Now;
             var phases = new List<PhaseExecutionResult>
             {
                 new PhaseExecutionResult
@@ -184,7 +184,7 @@ namespace ContinueVS.Tests.ViewModels
             // Arrange
             var phases = new List<PhaseExecutionResult>
             {
-                new PhaseExecutionResult { Status = ExecutionStatus.Failed, PhaseId = "phase1", StartTime = DateTime.UtcNow }
+                new PhaseExecutionResult { Status = ExecutionStatus.Failed, PhaseId = "phase1", StartTime = DateTime.Now }
             };
 
             var message = new ExecutionImpactMessage();

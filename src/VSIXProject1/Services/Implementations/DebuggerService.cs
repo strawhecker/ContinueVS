@@ -31,7 +31,7 @@ namespace ContinueVS.Services.Implementations
                 var state = new RuntimeState
                 {
                     IsRunning = false,
-                    CapturedAt = DateTime.UtcNow
+                    CapturedAt = DateTime.Now
                 };
 
                 state.Locals["placeholder"] = "debug-state";
@@ -120,7 +120,7 @@ namespace ContinueVS.Services.Implementations
                 var state = new RuntimeState
                 {
                     IsRunning = false,
-                    CapturedAt = DateTime.UtcNow,
+                    CapturedAt = DateTime.Now,
                     CurrentLine = 2,
                     CurrentFile = "Program.cs"
                 };

@@ -31,13 +31,13 @@ namespace ContinueVS.Core.Types
         /// Timestamp when the session was created.
         /// </summary>
         [JsonProperty("createdAt")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Timestamp when the session was last updated.
         /// </summary>
         [JsonProperty("updatedAt")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Whether this is the currently active session.

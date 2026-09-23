@@ -78,6 +78,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when execution began.
         /// </summary>
         [JsonProperty("executedAt")]
-        public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
+        public DateTime ExecutedAt { get; set; } = DateTime.Now;
     }
 }

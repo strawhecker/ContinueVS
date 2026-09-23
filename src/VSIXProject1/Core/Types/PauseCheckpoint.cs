@@ -28,7 +28,7 @@ namespace ContinueVS.Core.Types
         /// UTC timestamp when pause was triggered (checkpoint captured).
         /// </summary>
         [JsonProperty("pauseTimestamp")]
-        public DateTime PauseTimestamp { get; set; } = DateTime.UtcNow;
+        public DateTime PauseTimestamp { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Snapshot of available session context items at pause moment.

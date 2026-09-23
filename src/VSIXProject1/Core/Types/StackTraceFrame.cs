@@ -62,6 +62,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this frame was extracted.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

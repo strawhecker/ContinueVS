@@ -42,7 +42,7 @@ namespace ContinueVS.Services.Implementations
                 Status = ContinueVS.Services.Interfaces.McpServerStatusType.Connected,
                 Message = "Connected",
                 ToolCount = 0,
-                LastUpdated = DateTime.UtcNow
+                LastUpdated = DateTime.Now
             };
 
             if (config.Id != null)
@@ -53,7 +53,7 @@ namespace ContinueVS.Services.Implementations
                 ServerId = config.Id,
                 Status = ContinueVS.Services.Events.McpServerStatusType.Connected,
                 Message = $"Server {config.Name ?? config.Id} connected",
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -74,7 +74,7 @@ namespace ContinueVS.Services.Implementations
                     ServerId = serverId,
                     Status = ContinueVS.Services.Events.McpServerStatusType.Disconnected,
                     Message = $"Server {status.Name ?? serverId} disconnected",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
             }
         }

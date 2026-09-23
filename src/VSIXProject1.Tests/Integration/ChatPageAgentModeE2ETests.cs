@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -183,7 +183,7 @@ namespace ContinueVS.Tests.Integration
                 ToolName = "read_file",
                 Output = "File contents here",
                 IsSuccess = true,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             };
 
             _mockToolService.Setup(x => x.InvokeAsync(
@@ -359,7 +359,7 @@ namespace ContinueVS.Tests.Integration
                     ToolName = "read_file",
                     Output = "file content",
                     IsSuccess = true,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
 
             _mockToolService.Setup(x => x.InvokeAsync("grep_search", It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()))
@@ -368,7 +368,7 @@ namespace ContinueVS.Tests.Integration
                     ToolName = "grep_search",
                     Output = "public void Method1()",
                     IsSuccess = true,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
 
             _mockToolService.Setup(x => x.InvokeAsync("find_symbol", It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()))
@@ -377,7 +377,7 @@ namespace ContinueVS.Tests.Integration
                     ToolName = "find_symbol",
                     Output = "Found in file.cs:line 10",
                     IsSuccess = true,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
 
             // Act

@@ -26,6 +26,6 @@ namespace ContinueVS.Services.Events
         /// <summary>
         /// Timestamp when the message was added.
         /// </summary>
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

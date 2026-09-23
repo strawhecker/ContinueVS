@@ -117,7 +117,7 @@ namespace ContinueVS.Services.Implementations
                     Id = Guid.NewGuid().ToString(),
                     Role = ChatMessageRole.System,
                     Content = formattedContent,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 };
 
                 // Add to messages collection
@@ -275,7 +275,7 @@ namespace ContinueVS.Services.Implementations
                 Title = title,
                 Message = message,
                 Type = type,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 

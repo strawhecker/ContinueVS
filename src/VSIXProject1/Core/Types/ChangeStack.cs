@@ -34,7 +34,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this change stack was created.
         /// </summary>
         [JsonProperty("createdAt")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Records a new change and its baseline in this stack's history.

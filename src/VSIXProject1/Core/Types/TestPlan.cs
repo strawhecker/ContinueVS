@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -37,6 +37,16 @@ namespace ContinueVS.Core.Types
         /// This timestamp represents the plan definition, not its execution.
         /// </summary>
         [JsonProperty("createdAt")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// Reasonings text captured from the LLM stream while generating the phases.
+        /// The phase generator uses a reasoning-capable model whose internal chain-of-thought
+        /// arrives in the <c>Reasoning</c> delta separate from <c>Content</c>. This is surfaced
+        /// to the user as a read-only thinking card so the plan-making activity is visible.
+        /// Not part of the persisted plan definition (JsonIgnore keeps it out of storage).
+        /// </summary>
+        [JsonProperty("reasoningText")]
+        public string? ReasoningText { get; set; }
     }
 }

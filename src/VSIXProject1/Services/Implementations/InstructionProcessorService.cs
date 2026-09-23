@@ -56,7 +56,17 @@ namespace ContinueVS.Services.Implementations
             // calls. Advertising tools previously caused the model to emit tool_calls and
             // return no text (=> "LLM returned empty response").
             var responseBuilder = new StringBuilder();
-            var streamOptions = new StreamOptions { SuppressTools = true };
+            // Capture reasoning separately from content. The phase generator uses a reasoning
+            // capable model whose chain-of-thought arrives in the Reasoning delta (separate
+            // from Content). Previously this reasoning was dropped; now it is preserved so the
+            // UI can show a read-only thinking card for the plan-making activity (gap-plan-reasoning).
+            var reasoningBuilder = new StringBuilder();
+            // gap-phaselog: Log under its own prefix so the phase generator's internal
+            // LLM stream is distinguishable from the visible chat stream (which logs under
+            // the default "ProcessOpenAiStreamAsync" prefix). Prevents the two from being
+            // mistaken for one another in the debug log (the phase stream never produces
+            // chat cards by design).
+            var streamOptions = new StreamOptions { SuppressTools = true, LogPrefix = "PhaseGen-LLM" };
             try
             {
                 await foreach (var chunk in _llmService.StreamAsync(messages, streamOptions, cancellationToken))
@@ -64,6 +74,8 @@ namespace ContinueVS.Services.Implementations
                     if (cancellationToken.IsCancellationRequested)
                         break;
                     responseBuilder.Append(chunk.Content);
+                    if (!string.IsNullOrEmpty(chunk.Reasoning))
+                        reasoningBuilder.Append(chunk.Reasoning);
                 }
             }
             catch (Exception ex)
@@ -88,7 +100,8 @@ namespace ContinueVS.Services.Implementations
             var testPlan = new TestPlan
             {
                 Title = $"Debug Plan for: {instruction.Text.Substring(0, Math.Min(50, instruction.Text.Length))}",
-                Phases = phases
+                Phases = phases,
+                ReasoningText = reasoningBuilder.ToString()
             };
 
             if (_logger != null)

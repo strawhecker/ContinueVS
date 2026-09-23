@@ -110,6 +110,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this symbol was indexed.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

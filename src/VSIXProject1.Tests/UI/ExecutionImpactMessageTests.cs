@@ -44,7 +44,7 @@ namespace ContinueVS.Tests.UI
         {
             // Arrange
             var message = new ExecutionImpactMessage();
-            var startTime = DateTime.UtcNow;
+            var startTime = DateTime.Now;
             var phases = new List<PhaseExecutionResult>
             {
                 new PhaseExecutionResult { PhaseId = "phase1", StartTime = startTime, EndTime = startTime.AddSeconds(1), Status = ExecutionStatus.Succeeded },
@@ -64,7 +64,7 @@ namespace ContinueVS.Tests.UI
         {
             // Arrange
             var message = new ExecutionImpactMessage();
-            var startTime = DateTime.UtcNow;
+            var startTime = DateTime.Now;
             var endTime = startTime.AddSeconds(5);
             var phases = new List<PhaseExecutionResult>
             {
@@ -83,7 +83,7 @@ namespace ContinueVS.Tests.UI
         {
             // Arrange
             var message = new ExecutionImpactMessage();
-            var startTime = DateTime.UtcNow;
+            var startTime = DateTime.Now;
             var phases = new List<PhaseExecutionResult>
             {
                 new PhaseExecutionResult { PhaseId = "phase1", StartTime = startTime, EndTime = startTime.AddSeconds(1), Status = ExecutionStatus.Succeeded },

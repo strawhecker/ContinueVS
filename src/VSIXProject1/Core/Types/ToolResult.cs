@@ -54,7 +54,7 @@ namespace ContinueVS.Core.Types
         /// Used for latency tracking, result validation, and debugging.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Duration in milliseconds from tool invocation start to completion.

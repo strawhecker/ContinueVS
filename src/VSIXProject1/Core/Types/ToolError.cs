@@ -70,7 +70,7 @@ namespace ContinueVS.Core.Types
         /// Used for auditing, error tracking, and correlation with logs.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Duration in milliseconds from tool invocation start to error occurrence.

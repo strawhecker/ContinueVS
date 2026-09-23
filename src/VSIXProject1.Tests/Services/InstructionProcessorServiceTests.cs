@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -260,7 +260,7 @@ namespace ContinueVS.Tests.Services
             Assert.False(string.IsNullOrEmpty(result.Title));
             Assert.Contains("Debug the system", result.Title);
             Assert.NotEmpty(result.Phases);
-            Assert.True(result.CreatedAt <= DateTime.UtcNow);
+            Assert.True(result.CreatedAt <= DateTime.Now);
         }
 
         [Fact]
@@ -282,7 +282,7 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(InternalPhaseType.Analysis, phase.Type);
             Assert.Contains("root cause", phase.Description);
             Assert.Equal(InternalPhaseStatus.Pending, phase.Status);
-            Assert.True(phase.CreatedAt <= DateTime.UtcNow);
+            Assert.True(phase.CreatedAt <= DateTime.Now);
         }
 
         /// <summary>

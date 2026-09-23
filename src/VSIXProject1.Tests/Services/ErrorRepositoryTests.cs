@@ -143,7 +143,7 @@ namespace VSIXProject1.Tests.Services
             await repo.InitializeAsync();
 
             // Create an old error manually (bypass timestamp creation)
-            var oldTimestamp = DateTime.UtcNow.AddDays(-35);
+            var oldTimestamp = DateTime.Now.AddDays(-35);
             var oldRecord = new ErrorRecord(
                 timestamp: oldTimestamp,
                 fingerprint: "fp-old",

@@ -44,7 +44,7 @@ namespace ContinueVS.Core.Types
             Fingerprint = fingerprint ?? throw new ArgumentNullException(nameof(fingerprint));
             ExceptionType = exceptionType ?? string.Empty;
             TopFrameSummaries = topFrameSummaries ?? Array.Empty<string>();
-            Timestamp = DateTime.UtcNow;
+            Timestamp = DateTime.Now;
         }
 
         /// <summary>

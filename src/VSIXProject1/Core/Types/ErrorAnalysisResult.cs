@@ -56,7 +56,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when error was captured.
         /// </summary>
         [JsonProperty("capturedAt")]
-        public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CapturedAt { get; set; } = DateTime.Now;
 
         public ErrorAnalysisResult()
         {

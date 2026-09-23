@@ -47,7 +47,7 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Timestamp when state was captured.
         /// </summary>
-        public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CapturedAt { get; set; } = DateTime.Now;
     }
 
     /// <summary>

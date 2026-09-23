@@ -37,7 +37,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this phase was created.
         /// </summary>
         [JsonProperty("createdAt")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Runtime execution annotation (not persisted with plan definition).

@@ -41,6 +41,6 @@ namespace ContinueVS.Services.Events
         /// <summary>
         /// Timestamp when the change occurred.
         /// </summary>
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

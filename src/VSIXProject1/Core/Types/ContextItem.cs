@@ -91,6 +91,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this context was added.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

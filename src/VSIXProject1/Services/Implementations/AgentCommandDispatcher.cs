@@ -86,7 +86,7 @@ namespace ContinueVS.Services.Implementations
                     ToolName = commandName,
                     IsSuccess = false,
                     Output = $"Tool execution failed: {ex.Message}",
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = DateTime.Now,
                     DurationMs = sw.ElapsedMilliseconds
                 };
             }

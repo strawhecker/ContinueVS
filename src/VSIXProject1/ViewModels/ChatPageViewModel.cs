@@ -2005,8 +2005,14 @@ namespace ContinueVS.ViewModels
                                 Text = assistantMessage.Content
                             };
                             LoggerService.Current.WriteDebug($"[gap45_3] Handing off to InstructionExecutorService (mode={CurrentMode})");
-                            await _instructionExecutorService.ExecuteInstructionAsync(
+                            var testPlan = await _instructionExecutorService.ExecuteInstructionAsync(
                                 execInstruction, changeStackId, targetDir, cancellationToken: _streamingCts.Token);
+
+                            // gap-plan-cards: Surface the plan generation to the chat so the user
+                            // is aware that additional (hidden) plan-make work occurred. This is
+                            // read-only disclosure: it never feeds back into the LLM and never
+                            // modifies the phases.
+                            await SurfacePhaseGenerationAsync(testPlan, assistantMessage.Content);
                         }
 
                         break;
@@ -2057,6 +2063,79 @@ namespace ContinueVS.ViewModels
                 {
                     LoggerService.Current.WriteDebug("[ExecuteSendMessage] _streamingCts already disposed in finally");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Surfaces the phase-generation activity of the internal plan executor to the chat as
+        /// read-only cards, so the user is always aware that hidden plan-make work occurred.
+        /// This is disclosure only — it never feeds the phases back into the LLM and never
+        /// mutates the <see cref="TestPlan"/>.
+        /// </summary>
+        /// <param name="testPlan">The generated test plan (may be null if execution failed).</param>
+        /// <param name="instructionText">The source instruction text (assistant content) that drove the plan.</param>
+        private async Task SurfacePhaseGenerationAsync(TestPlan? testPlan, string instructionText)
+        {
+            try
+            {
+                if (testPlan == null)
+                {
+                    LoggerService.Current.WriteDebug("[gap-plan-cards] No test plan returned; skipping phase disclosure cards.");
+                    return;
+                }
+
+                // 1) Reasoning card (Role=Thinking) from the captured reasoning text.
+                //    Mirrors the visible-path reasoning card so the plan-making chain-of-thought
+                //    is visible instead of silently dropped.
+                //    Note: captured into a local non-null variable because string.IsNullOrWhiteSpace
+                //    has no [NotNullWhen(false)] annotation, so the compiler would otherwise flag
+                //    ReasoningText (nullable) on the Content assignment and .Length below.
+                var reasoningText = testPlan.ReasoningText ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(reasoningText))
+                {
+                    var reasoningMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Thinking,
+                        Content = reasoningText,
+                        IsThinking = true,
+                        IsExpanded = false
+                    };
+                    await SwitchToMainThreadAsync();
+                    Messages.Add(reasoningMessage);
+                    await _sessionService.AddMessageAsync(reasoningMessage);
+                    LoggerService.Current.WriteDebug(
+                        $"[gap-plan-cards] Added reasoning disclosure card ({reasoningText.Length} chars)");
+                }
+
+                // 2) Read-only plan card (Role=System) summarizing the generated phases.
+                //    Reuses ExecutionImpactMessage, which routes to the colored border template.
+                if (testPlan.Phases is { Count: > 0 })
+                {
+                    var planCard = new ExecutionImpactMessage();
+                    var phaseResults = testPlan.Phases.Select(p => new PhaseExecutionResult
+                    {
+                        PhaseId = p.Type.ToString(),
+                        Status = p.Status == InternalPhaseStatus.Completed
+                            ? ExecutionStatus.Succeeded
+                            : p.Status == InternalPhaseStatus.Failed
+                                ? ExecutionStatus.Failed
+                                : ExecutionStatus.Pending,
+                        Evidence = p.Description
+                    });
+                    planCard.Initialize(phaseResults);
+                    planCard.Content = $"Debug Plan ({testPlan.Phases.Count} phases) — read-only preview";
+                    await SwitchToMainThreadAsync();
+                    Messages.Add(planCard);
+                    await _sessionService.AddMessageAsync(planCard);
+                    LoggerService.Current.WriteDebug(
+                        $"[gap-plan-cards] Added plan disclosure card with {testPlan.Phases.Count} phases");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Disclosure must never break the turn or hide the real response.
+                LoggerService.Current.WriteError(
+                    $"[gap-plan-cards] Failed to surface phase cards; continuing turn: {ex.Message}", ex);
             }
         }
 
@@ -2507,7 +2586,7 @@ namespace ContinueVS.ViewModels
                     {
                         StreamedText = streamedText,
                         ChunkCount = buffer.Count,
-                        PauseTimestamp = DateTime.UtcNow,
+                        PauseTimestamp = DateTime.Now,
                         SessionContextSnapshot = snapshot
                     };
 
@@ -3182,7 +3261,7 @@ namespace ContinueVS.ViewModels
                                     Status = ExecutionStatus.Succeeded,
                                     Evidence = moreResults[i].ToolName ?? "tool"
                                 };
-                                phase.EndTime = DateTime.UtcNow;
+                                phase.EndTime = DateTime.Now;
                                 phases.Add(phase);
                             }
                             executionImpact.Initialize(phases);

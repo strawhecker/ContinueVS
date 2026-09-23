@@ -195,9 +195,9 @@ namespace ContinueVS.Tests.Services
             var mockConfigService = CreateMockConfigService();
             var service = new UIStateService(mockConfigService.Object);
 
-            var beforeSave = DateTime.UtcNow.AddSeconds(-1);
+            var beforeSave = DateTime.Now.AddSeconds(-1);
             await service.SaveToolPolicyAsync("test_tool", ToolPolicy.AutoApprove);
-            var afterSave = DateTime.UtcNow.AddSeconds(1);
+            var afterSave = DateTime.Now.AddSeconds(1);
 
             var state = await service.GetUIStateAsync();
             Assert.InRange(state.LastModified, beforeSave, afterSave);

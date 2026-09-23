@@ -54,7 +54,7 @@ namespace ContinueVS.Services.Implementations
                 return;
 
             var maskedMessage = MaskSensitiveData(message);
-            var breadcrumb = new BreadcrumbRecord(DateTime.UtcNow, level, maskedMessage, _sessionId);
+            var breadcrumb = new BreadcrumbRecord(DateTime.Now, level, maskedMessage, _sessionId);
 
             _breadcrumbs.Enqueue(breadcrumb);
 

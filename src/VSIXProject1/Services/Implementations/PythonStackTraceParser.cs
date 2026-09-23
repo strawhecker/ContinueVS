@@ -152,7 +152,7 @@ namespace ContinueVS.Services.Implementations
                             LineNumber = lineNum,
                             ExceptionType = frames.Count == 0 ? exceptionType : null,
                             ExceptionMessage = frames.Count == 0 ? exceptionMessage : null,
-                            Timestamp = DateTime.UtcNow
+                            Timestamp = DateTime.Now
                         });
                     }
                 }

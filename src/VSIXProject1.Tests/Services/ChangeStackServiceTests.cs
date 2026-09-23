@@ -262,8 +262,8 @@ namespace ContinueVS.Tests.Services
                 Assert.Equal(originalContent, appliedChange.Baseline.BaselineContent);
 
                 // Baseline should be immutable (dates should be close to creation time)
-                Assert.True(appliedChange.Baseline.CreatedAt <= DateTime.UtcNow);
-                Assert.True((DateTime.UtcNow - appliedChange.Baseline.CreatedAt).TotalSeconds < 5);
+                Assert.True(appliedChange.Baseline.CreatedAt <= DateTime.Now);
+                Assert.True((DateTime.Now - appliedChange.Baseline.CreatedAt).TotalSeconds < 5);
             }
             finally
             {

@@ -143,10 +143,10 @@ namespace ContinueVS.Tests.Services
             field?.SetValue(configService, config);
             initializedField?.SetValue(configService, true);
 
-            var beforeSave = DateTime.UtcNow.AddSeconds(-1);
+            var beforeSave = DateTime.Now.AddSeconds(-1);
             var uiState = new UIState();
             await configService.SaveUIStateAsync(uiState);
-            var afterSave = DateTime.UtcNow.AddSeconds(1);
+            var afterSave = DateTime.Now.AddSeconds(1);
 
             var savedJson = config.CustomSettings["ui.state"] as string;
             var deserializedState = JsonConvert.DeserializeObject<UIState>(savedJson!);

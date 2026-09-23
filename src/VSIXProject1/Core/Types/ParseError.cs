@@ -60,6 +60,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this error was recorded.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

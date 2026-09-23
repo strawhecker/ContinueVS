@@ -126,7 +126,7 @@ namespace ContinueVS.Services.Implementations
                             Strategy = phase.Type.ToString(),
                             Result = "Skipped",
                             ChangesAppliedCount = 0,
-                            ExecutedAt = DateTime.UtcNow,
+                            ExecutedAt = DateTime.Now,
                             ErrorMessage = $"No executor registered for phase type {phase.Type}"
                         };
                         phase.Status = InternalPhaseStatus.Failed;
@@ -165,7 +165,7 @@ namespace ContinueVS.Services.Implementations
                             Strategy = phase.Type.ToString(),
                             Result = "Failed",
                             ChangesAppliedCount = 0,
-                            ExecutedAt = DateTime.UtcNow,
+                            ExecutedAt = DateTime.Now,
                             ErrorMessage = ex.Message
                         };
                         phase.Status = InternalPhaseStatus.Failed;

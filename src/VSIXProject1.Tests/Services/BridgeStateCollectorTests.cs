@@ -85,10 +85,10 @@ namespace VSIXProject1.Tests.Services
         [Fact]
         public async Task CreateSnapshotAsync_RecordsAccurateTimestamp()
         {
-            var before = DateTime.UtcNow;
+            var before = DateTime.Now;
             var collector = new BridgeStateCollector();
             var snapshot = await collector.CreateSnapshotAsync();
-            var after = DateTime.UtcNow;
+            var after = DateTime.Now;
 
             Assert.NotNull(snapshot);
             Assert.True(snapshot.CapturedAt >= before);

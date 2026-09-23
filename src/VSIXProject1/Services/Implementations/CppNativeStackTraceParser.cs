@@ -150,7 +150,7 @@ namespace ContinueVS.Services.Implementations
                             MethodName = simpleMatch.Groups["function"].Value,
                             ExceptionType = exceptionType,
                             ExceptionMessage = exceptionMessage,
-                            Timestamp = DateTime.UtcNow
+                            Timestamp = DateTime.Now
                         };
                         frames.Add(frame);
                         frameIndex++;
@@ -196,7 +196,7 @@ namespace ContinueVS.Services.Implementations
                 FilePath = filePath,
                 ExceptionType = exceptionType,
                 ExceptionMessage = exceptionMessage,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             };
 
             if (int.TryParse(lineStr, out var lineNum))
@@ -225,7 +225,7 @@ namespace ContinueVS.Services.Implementations
                 FilePath = filePath,
                 ExceptionType = exceptionType,
                 ExceptionMessage = exceptionMessage,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             };
 
             if (int.TryParse(lineStr, out var lineNum))

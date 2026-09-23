@@ -111,7 +111,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when UIState was last modified.
         /// </summary>
         [JsonProperty("lastModified")]
-        public DateTime LastModified { get; set; } = DateTime.UtcNow;
+        public DateTime LastModified { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Schema version for migration compatibility.

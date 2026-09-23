@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -139,6 +139,15 @@ namespace ContinueVS.Services.Interfaces
         /// Defaults to false (tools are advertised as normal).
         /// </summary>
         public bool SuppressTools { get; set; }
+
+        /// <summary>
+        /// Label used as the bracketed prefix for HTTP/SSE diagnostic log lines while this
+        /// stream is active. Lets internal pure-text generators (e.g. phase planning) log
+        /// under their own prefix (e.g. "PhaseGen-LLM") instead of being indistinguishable
+        /// from the visible chat stream under "ProcessOpenAiStreamAsync".
+        /// Defaults to "ProcessOpenAiStreamAsync" so existing call sites are unchanged.
+        /// </summary>
+        public string LogPrefix { get; set; } = "ProcessOpenAiStreamAsync";
     }
 
     /// <summary>
@@ -174,6 +183,6 @@ namespace ContinueVS.Services.Interfaces
         /// <summary>
         /// Timestamp of the interaction.
         /// </summary>
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

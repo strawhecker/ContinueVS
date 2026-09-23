@@ -40,7 +40,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this attempt was executed.
         /// </summary>
         [JsonProperty("executedAt")]
-        public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
+        public DateTime ExecutedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Whether this attempt succeeded (true) or failed (false).

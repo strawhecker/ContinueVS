@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -55,7 +55,7 @@ namespace ContinueVS.Services.Implementations
                         {
                             FilePath = keyPath,
                             BaselineContent = retrievedContent ?? string.Empty,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.Now
                         }
                     };
                     return new ReadDedupDecision
@@ -87,7 +87,7 @@ namespace ContinueVS.Services.Implementations
                 {
                     FilePath = keyPath,
                     BaselineContent = retrievedContent ?? string.Empty,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 });
                 return new ReadDedupDecision
                 {
@@ -116,7 +116,7 @@ namespace ContinueVS.Services.Implementations
                 {
                     FilePath = keyPath,
                     BaselineContent = content ?? string.Empty,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 });
             }
         }

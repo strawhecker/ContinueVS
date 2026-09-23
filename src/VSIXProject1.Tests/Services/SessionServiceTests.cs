@@ -551,10 +551,10 @@ namespace VSIXProject1.Tests.Services
             var model = new ModelInfo { ContextWindow = 300 };
             var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "sys" };
             // Add two old turns (will be pruned) and one recent turn (will be kept)
-            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = new string('x', 400), Timestamp = DateTime.UtcNow.AddMinutes(-10) });
-            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = new string('y', 400), Timestamp = DateTime.UtcNow.AddMinutes(-9) });
-            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "recent Q", Timestamp = DateTime.UtcNow.AddMinutes(-1) });
-            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "recent A", Timestamp = DateTime.UtcNow });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = new string('x', 400), Timestamp = DateTime.Now.AddMinutes(-10) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = new string('y', 400), Timestamp = DateTime.Now.AddMinutes(-9) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "recent Q", Timestamp = DateTime.Now.AddMinutes(-1) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "recent A", Timestamp = DateTime.Now });
 
             // Act
             var result = _sessionService.PackageMessages(model, systemMessage, "new Q");

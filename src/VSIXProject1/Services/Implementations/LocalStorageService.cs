@@ -242,7 +242,7 @@ namespace ContinueVS.Services.Implementations
                     Key = key,
                     OldValue = oldValue,
                     NewValue = newValue,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
             }
             catch (Exception ex)

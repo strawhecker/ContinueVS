@@ -35,8 +35,8 @@ namespace ContinueVS.Tests.ViewModels
                 Id = Guid.NewGuid().ToString(),
                 Messages = new List<ChatMessage>(),
                 Title = "Test",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
             mock.Setup(x => x.GetCurrentSession()).Returns(session);
             mock.Setup(x => x.AddMessageAsync(It.IsAny<ChatMessage>())).Returns(Task.CompletedTask);

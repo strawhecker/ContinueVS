@@ -33,7 +33,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when the phase execution started.
         /// </summary>
         [JsonProperty("executedAt")]
-        public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
+        public DateTime ExecutedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Optional error message if the phase failed.

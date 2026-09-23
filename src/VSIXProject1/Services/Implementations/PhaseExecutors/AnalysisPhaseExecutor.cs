@@ -46,7 +46,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
                 Strategy = "Analysis",
                 Result = "Completed",
                 ChangesAppliedCount = 0,
-                ExecutedAt = DateTime.UtcNow
+                ExecutedAt = DateTime.Now
             };
         }
     }

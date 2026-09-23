@@ -25,7 +25,7 @@ namespace ContinueVS.Tests.Services.Implementations
                     IsEnabled = true,
                     IsAsync = true,
                     ToolType = "builtin",
-                    LastModified = DateTime.UtcNow
+                    LastModified = DateTime.Now
                 },
                 new ToolDefinition
                 {
@@ -37,7 +37,7 @@ namespace ContinueVS.Tests.Services.Implementations
                     IsEnabled = true,
                     IsAsync = true,
                     ToolType = "builtin",
-                    LastModified = DateTime.UtcNow
+                    LastModified = DateTime.Now
                 },
                 new ToolDefinition
                 {
@@ -49,7 +49,7 @@ namespace ContinueVS.Tests.Services.Implementations
                     IsEnabled = true,
                     IsAsync = true,
                     ToolType = "builtin",
-                    LastModified = DateTime.UtcNow
+                    LastModified = DateTime.Now
                 }
             };
         }

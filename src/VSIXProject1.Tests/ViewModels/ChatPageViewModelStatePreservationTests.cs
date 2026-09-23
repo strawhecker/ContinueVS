@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -96,7 +96,7 @@ namespace ContinueVS.Tests.ViewModels
             {
                 StreamedText = streamedText,
                 ChunkCount = buffer.Count,
-                PauseTimestamp = DateTime.UtcNow,
+                PauseTimestamp = DateTime.Now,
                 SessionContextSnapshot = new Dictionary<string, string>()
             };
             await mockDebugSessionService.Object.SetPauseCheckpointAsync(checkpoint);
@@ -105,7 +105,7 @@ namespace ContinueVS.Tests.ViewModels
             Assert.NotNull(capturedCheckpoint);
             Assert.Equal("Initial response", capturedCheckpoint.StreamedText);
             Assert.Equal(2, capturedCheckpoint.ChunkCount);
-            Assert.True(capturedCheckpoint.PauseTimestamp <= DateTime.UtcNow);
+            Assert.True(capturedCheckpoint.PauseTimestamp <= DateTime.Now);
         }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace ContinueVS.Tests.ViewModels
             {
                 StreamedText = "Test response",
                 ChunkCount = 1,
-                PauseTimestamp = DateTime.UtcNow,
+                PauseTimestamp = DateTime.Now,
                 SessionContextSnapshot = new Dictionary<string, string> { { "File", "Main.cs" } }
             };
 

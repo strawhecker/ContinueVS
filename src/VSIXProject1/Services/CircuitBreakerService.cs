@@ -217,7 +217,7 @@ namespace VSIXProject1.Services
                     if (newState != oldState)
                     {
                         circuit.State = newState;
-                        circuit.LastStateChange = DateTime.UtcNow;
+                        circuit.LastStateChange = DateTime.Now;
                         circuit.StateReason = reason;
 
                         _aggregateMetrics.TotalStateChanges++;
@@ -232,7 +232,7 @@ namespace VSIXProject1.Services
                             OldState = oldState,
                             NewState = newState,
                             Reason = reason,
-                            Timestamp = DateTime.UtcNow,
+                            Timestamp = DateTime.Now,
                         });
                     }
                 }
@@ -243,7 +243,7 @@ namespace VSIXProject1.Services
                     {
                         Handler = handlerType,
                         State = newState,
-                        LastStateChange = DateTime.UtcNow,
+                        LastStateChange = DateTime.Now,
                         StateReason = reason,
                     };
                     _aggregateMetrics.TotalCircuits++;
@@ -256,7 +256,7 @@ namespace VSIXProject1.Services
                         OldState = CircuitState.Closed,
                         NewState = newState,
                         Reason = reason,
-                        Timestamp = DateTime.UtcNow,
+                        Timestamp = DateTime.Now,
                     });
                 }
             }
@@ -344,7 +344,7 @@ namespace VSIXProject1.Services
                     AlertType = alertType,
                     Severity = severity,
                     Details = details ?? new Dictionary<string, object>(),
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = DateTime.Now,
                 });
             }
             finally
@@ -431,7 +431,7 @@ namespace VSIXProject1.Services
             _aggregateMetrics.ClosedCircuits = closed;
             _aggregateMetrics.OpenCircuits = open;
             _aggregateMetrics.HalfOpenCircuits = halfOpen;
-            _aggregateMetrics.LastUpdated = DateTime.UtcNow;
+            _aggregateMetrics.LastUpdated = DateTime.Now;
         }
 
         /// <summary>Dispose service</summary>

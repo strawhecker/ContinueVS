@@ -45,7 +45,7 @@ namespace VSIXProject1.Tests.Services
             // Arrange
             var message = "Application started";
             var level = BreadcrumbLevel.Info;
-            var beforeTime = DateTime.UtcNow;
+            var beforeTime = DateTime.Now;
 
             // Act
             await _service.RecordBreadcrumbAsync(message, level);
@@ -57,7 +57,7 @@ namespace VSIXProject1.Tests.Services
             Assert.Equal(message, record.Message);
             Assert.Equal(level, record.Level);
             Assert.True(record.Timestamp >= beforeTime);
-            Assert.True(record.Timestamp <= DateTime.UtcNow);
+            Assert.True(record.Timestamp <= DateTime.Now);
             Assert.False(string.IsNullOrEmpty(record.SessionId));
         }
 

@@ -25,6 +25,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this baseline was captured.
         /// </summary>
         [JsonProperty("createdAt")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

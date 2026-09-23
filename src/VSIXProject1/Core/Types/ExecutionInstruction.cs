@@ -32,6 +32,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this instruction was created.
         /// </summary>
         [JsonProperty("createdAt")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

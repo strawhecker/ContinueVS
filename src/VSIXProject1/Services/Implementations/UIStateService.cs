@@ -59,7 +59,7 @@ namespace ContinueVS.Services.Implementations
 
             var uiState = await _configService.GetUIStateAsync();
             uiState.ToolSettings[toolName] = policy;
-            uiState.LastModified = DateTime.UtcNow;
+            uiState.LastModified = DateTime.Now;
             await _configService.SaveUIStateAsync(uiState);
         }
 
@@ -97,7 +97,7 @@ namespace ContinueVS.Services.Implementations
 
             var uiState = await _configService.GetUIStateAsync();
             uiState.ToolGroupSettings[groupName] = enabled;
-            uiState.LastModified = DateTime.UtcNow;
+            uiState.LastModified = DateTime.Now;
             await _configService.SaveUIStateAsync(uiState);
         }
 
@@ -135,7 +135,7 @@ namespace ContinueVS.Services.Implementations
 
             var uiState = await _configService.GetUIStateAsync();
             uiState.RuleSettings[ruleName] = enabled;
-            uiState.LastModified = DateTime.UtcNow;
+            uiState.LastModified = DateTime.Now;
             await _configService.SaveUIStateAsync(uiState);
         }
 
@@ -166,7 +166,7 @@ namespace ContinueVS.Services.Implementations
             {
                 throw new ArgumentNullException(nameof(state));
             }
-            state.LastModified = DateTime.UtcNow;
+            state.LastModified = DateTime.Now;
             await _configService.SaveUIStateAsync(state);
         }
     }

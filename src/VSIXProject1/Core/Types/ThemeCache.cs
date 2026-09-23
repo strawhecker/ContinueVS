@@ -19,6 +19,6 @@ namespace ContinueVS.Core.Types
         /// Timestamp when the theme was cached.
         /// Used to track cache staleness and enable cache invalidation if needed.
         /// </summary>
-        public DateTime CachedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CachedAt { get; set; } = DateTime.Now;
     }
 }

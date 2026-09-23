@@ -31,7 +31,7 @@ namespace ContinueVS.Tests.Services
         public void PhaseExecutionResult_CalculatesDuration_Correctly()
         {
             // Arrange
-            var startTime = DateTime.UtcNow;
+            var startTime = DateTime.Now;
             var endTime = startTime.AddMilliseconds(500);
 
             var result = new PhaseExecutionResult
@@ -59,7 +59,7 @@ namespace ContinueVS.Tests.Services
             {
                 PhaseId = "phase-1",
                 Status = ExecutionStatus.Running,
-                StartTime = DateTime.UtcNow,
+                StartTime = DateTime.Now,
                 EndTime = null
             };
 
@@ -85,7 +85,7 @@ namespace ContinueVS.Tests.Services
         public void TestPlanExecution_ComputedDurationMs_ReflectsStartAndEnd()
         {
             // Arrange
-            var startTime = DateTime.UtcNow;
+            var startTime = DateTime.Now;
             var endTime = startTime.AddMilliseconds(1000);
 
             var execution = new TestPlanExecution
@@ -113,7 +113,7 @@ namespace ContinueVS.Tests.Services
             {
                 Id = "exec-1",
                 PlanId = "plan-1",
-                StartedAt = DateTime.UtcNow,
+                StartedAt = DateTime.Now,
                 CompletedAt = null
             };
 
@@ -159,7 +159,7 @@ namespace ContinueVS.Tests.Services
             var result = new PhaseExecutionResult();
 
             // Assert
-            Assert.Equal(DateTimeKind.Utc, result.StartTime.Kind);
+            Assert.Equal(DateTimeKind.Local, result.StartTime.Kind);
         }
 
         [Fact]
@@ -169,7 +169,7 @@ namespace ContinueVS.Tests.Services
             var execution = new TestPlanExecution();
 
             // Assert
-            Assert.Equal(DateTimeKind.Utc, execution.StartedAt.Kind);
+            Assert.Equal(DateTimeKind.Local, execution.StartedAt.Kind);
         }
 
         [Fact]

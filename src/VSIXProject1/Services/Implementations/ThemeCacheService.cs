@@ -41,7 +41,7 @@ namespace ContinueVS.Services.Implementations
                 var themeCache = new ThemeCache
                 {
                     Colors = new Dictionary<string, string>(colors),
-                    CachedAt = DateTime.UtcNow
+                    CachedAt = DateTime.Now
                 };
 
                 _localStorageService.SetItem(ThemeCacheKey, themeCache);

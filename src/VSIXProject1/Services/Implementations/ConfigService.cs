@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -176,7 +176,7 @@ namespace ContinueVS.Services.Implementations
                     }
 
                     _currentConfig.ConfigFilePath = ConfigFilePath;
-                    _currentConfig.LastModified = DateTime.UtcNow;
+                    _currentConfig.LastModified = DateTime.Now;
                     _logger?.WriteDebug($"[gap64-init] Final state - SelectedModelId: {_currentConfig.SelectedModelId ?? "NULL"}, Models: {string.Join(", ", _currentConfig.Models.Select(m => m.Name))}, CustomSettings count: {_currentConfig.CustomSettings?.Count ?? 0}");
 
                     lock (_lock)
@@ -224,7 +224,7 @@ namespace ContinueVS.Services.Implementations
                 {
                     ThrowIfNotInitialized();
                     _currentConfig.Models.Add(model);
-                    _currentConfig.LastModified = DateTime.UtcNow;
+                    _currentConfig.LastModified = DateTime.Now;
                 }
             });
 
@@ -251,7 +251,7 @@ namespace ContinueVS.Services.Implementations
                     if (model != null)
                     {
                         _currentConfig.Models.Remove(model);
-                        _currentConfig.LastModified = DateTime.UtcNow;
+                        _currentConfig.LastModified = DateTime.Now;
                     }
                 }
             });
@@ -278,7 +278,7 @@ namespace ContinueVS.Services.Implementations
                     ThrowIfNotInitialized();
                     oldModelId = _currentConfig.SelectedModelId;
                     _currentConfig.SelectedModelId = modelId;
-                    _currentConfig.LastModified = DateTime.UtcNow;
+                    _currentConfig.LastModified = DateTime.Now;
                 }
             });
 
@@ -362,7 +362,7 @@ namespace ContinueVS.Services.Implementations
                     {
                         oldValue = tool.IsEnabled;
                         tool.IsEnabled = enabled;
-                        _currentConfig.LastModified = DateTime.UtcNow;
+                        _currentConfig.LastModified = DateTime.Now;
                     }
                 }
             });
@@ -402,7 +402,7 @@ namespace ContinueVS.Services.Implementations
                     if (profile != null)
                     {
                         _currentConfig.CustomSettings["selectedProfileId"] = profileId;
-                        _currentConfig.LastModified = DateTime.UtcNow;
+                        _currentConfig.LastModified = DateTime.Now;
                     }
                 }
             });
@@ -442,7 +442,7 @@ namespace ContinueVS.Services.Implementations
                         _currentConfig = JsonConvert.DeserializeObject<CoreTypes.ContinueConfig>(json) 
                             ?? null!;
                         _currentConfig.ConfigFilePath = ConfigFilePath;
-                        _currentConfig.LastModified = DateTime.UtcNow;
+                        _currentConfig.LastModified = DateTime.Now;
                     }
                 }
 
@@ -517,7 +517,7 @@ namespace ContinueVS.Services.Implementations
                 Profiles = new List<CoreTypes.ProfileInfo>(),
                 CustomSettings = new Dictionary<string, object>(),
                 ConfigFilePath = ConfigFilePath,
-                LastModified = DateTime.UtcNow,
+                LastModified = DateTime.Now,
                 SelectedModelId = models[0].Id
             };
 
@@ -715,7 +715,7 @@ namespace ContinueVS.Services.Implementations
                 ConfigKey = configKey,
                 OldValue = oldValue,
                 NewValue = newValue,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
         }
 
@@ -797,7 +797,7 @@ namespace ContinueVS.Services.Implementations
                     const string uiStateKey = "ui.state";
                     var jsonString = JsonConvert.SerializeObject(state, Formatting.Indented);
                     _currentConfig.CustomSettings[uiStateKey] = jsonString;
-                    _currentConfig.LastModified = DateTime.UtcNow;
+                    _currentConfig.LastModified = DateTime.Now;
 
                     _logger?.WriteDebug($"[ConfigService.SaveUIStateAsync] Saved UIState to CustomSettings[\"{uiStateKey}\"]");
                 }
@@ -822,7 +822,7 @@ namespace ContinueVS.Services.Implementations
 
                     const string defaultModeKey = "defaultMode";
                     _currentConfig.CustomSettings[defaultModeKey] = mode.ToString();
-                    _currentConfig.LastModified = DateTime.UtcNow;
+                    _currentConfig.LastModified = DateTime.Now;
 
                     _logger?.WriteDebug($"[ConfigService.SaveDefaultModeAsync] Saved default mode {mode} to CustomSettings[\"{defaultModeKey}\"]");
                 }
@@ -877,7 +877,7 @@ namespace ContinueVS.Services.Implementations
 
                     const string defaultPolicyKey = "defaultContinuationPolicy";
                     _currentConfig.CustomSettings[defaultPolicyKey] = policy.ToString();
-                    _currentConfig.LastModified = DateTime.UtcNow;
+                    _currentConfig.LastModified = DateTime.Now;
 
                     _logger?.WriteDebug($"[ConfigService.SaveDefaultPolicyAsync] Saved default policy {policy} to CustomSettings[\"{defaultPolicyKey}\"]");
                 }

@@ -201,7 +201,7 @@ namespace ContinueVS.Services.Implementations
 
                 try
                 {
-                    var cutoffTime = DateTime.UtcNow.AddDays(-days);
+                    var cutoffTime = DateTime.Now.AddDays(-days);
                     var files = Directory.GetFiles(_errorsDirectory, "*.json");
                     var deletedCount = 0;
 

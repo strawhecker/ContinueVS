@@ -82,7 +82,7 @@ namespace ContinueVS.Services.Implementations
             {
                 FilePath = filePath,
                 BaselineContent = baselineContent,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
             change.Baseline = baseline;
 

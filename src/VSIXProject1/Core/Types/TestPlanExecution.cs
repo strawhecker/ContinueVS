@@ -35,7 +35,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this execution started (UTC).
         /// </summary>
         [JsonProperty("startedAt")]
-        public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+        public DateTime StartedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Timestamp when this execution completed (UTC). Null if still running.

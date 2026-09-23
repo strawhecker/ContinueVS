@@ -125,7 +125,7 @@ namespace ContinueVS.Services
             {
                 var snapshot = new HandlerMetricsSnapshot
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = DateTime.Now,
                     Handlers = Array.Empty<HandlerMetric>(),
                     Metadata = new Dictionary<string, object>()
                 };
@@ -284,7 +284,7 @@ namespace ContinueVS.Services
                     return;
                 }
 
-                var cutoffDate = DateTime.UtcNow.AddDays(-retentionDays);
+                var cutoffDate = DateTime.Now.AddDays(-retentionDays);
                 var oldFiles = dirInfo.GetFiles("metrics-*.jsonl")
                     .Where(f => f.LastWriteTimeUtc < cutoffDate)
                     .ToList();

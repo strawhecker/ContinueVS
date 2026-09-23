@@ -152,7 +152,7 @@ namespace ContinueVS.Tests.Diagnostics
             var tracePoint = new ExecutionTracePoint("t1", "Package");
 
             // Assert
-            Assert.Equal(DateTimeKind.Utc, tracePoint.Timestamp.Kind);
+            Assert.Equal(DateTimeKind.Local, tracePoint.Timestamp.Kind);
         }
 
         [Fact]

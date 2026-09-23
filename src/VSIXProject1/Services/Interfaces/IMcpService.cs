@@ -153,7 +153,7 @@ namespace ContinueVS.Services.Interfaces
         /// <summary>
         /// Timestamp of the last status update.
         /// </summary>
-        public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+        public DateTime LastUpdated { get; set; } = DateTime.Now;
     }
 
     /// <summary>

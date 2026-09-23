@@ -46,7 +46,7 @@ namespace ContinueVS.Services.Implementations
             var stopwatch = Stopwatch.StartNew();
             var result = new ChangeExecutionResult
             {
-                ExecutedAt = DateTime.UtcNow
+                ExecutedAt = DateTime.Now
             };
 
             var config = _configService.GetCurrentConfig();

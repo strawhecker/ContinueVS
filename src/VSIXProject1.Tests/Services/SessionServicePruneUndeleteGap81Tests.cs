@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Linq;
@@ -137,10 +137,10 @@ namespace ContinueVS.Tests.Services
             await service.CreateNewSessionAsync("Test Session");
             var session = service.GetCurrentSession();
 
-            var keptUser = new ChatMessage { Role = ChatMessageRole.User, Content = "Keep me", Timestamp = DateTime.UtcNow.AddSeconds(-4) };
-            var keptAssistant = new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Kept response", Timestamp = DateTime.UtcNow.AddSeconds(-3) };
-            var prunedUser = new ChatMessage { Role = ChatMessageRole.User, Content = "Prune me", Timestamp = DateTime.UtcNow.AddSeconds(-2) };
-            var prunedAssistant = new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Pruned response", Timestamp = DateTime.UtcNow.AddSeconds(-1) };
+            var keptUser = new ChatMessage { Role = ChatMessageRole.User, Content = "Keep me", Timestamp = DateTime.Now.AddSeconds(-4) };
+            var keptAssistant = new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Kept response", Timestamp = DateTime.Now.AddSeconds(-3) };
+            var prunedUser = new ChatMessage { Role = ChatMessageRole.User, Content = "Prune me", Timestamp = DateTime.Now.AddSeconds(-2) };
+            var prunedAssistant = new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Pruned response", Timestamp = DateTime.Now.AddSeconds(-1) };
             keptUser.Id = "kept-user";
             keptAssistant.Id = "kept-asst";
             prunedUser.Id = "pruned-user";

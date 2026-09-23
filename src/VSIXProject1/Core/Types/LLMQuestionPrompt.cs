@@ -38,7 +38,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when the question was detected.
         /// </summary>
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Optional hint for the LLM to guide autonomous answering.

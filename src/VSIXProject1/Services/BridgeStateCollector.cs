@@ -20,7 +20,7 @@ namespace VSIXProject1.Services
         /// <summary>
         /// Timestamp when snapshot was captured (UTC).
         /// </summary>
-        public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CapturedAt { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Current bridge initialization phase.
@@ -73,7 +73,7 @@ namespace VSIXProject1.Services
                 return false;
 
             // Captured timestamp should not be in the future
-            if (CapturedAt > DateTime.UtcNow.AddSeconds(1)) // allow 1s clock skew
+            if (CapturedAt > DateTime.Now.AddSeconds(1)) // allow 1s clock skew
                 return false;
 
             return true;
@@ -133,7 +133,7 @@ namespace VSIXProject1.Services
             {
                 var snapshot = new BridgeStateSnapshot
                 {
-                    CapturedAt = DateTime.UtcNow,
+                    CapturedAt = DateTime.Now,
                     CurrentPhase = GetCurrentPhase(),
                     HandlerCount = GetHandlerCount(),
                     ActiveHandlers = GetActiveHandlers(),

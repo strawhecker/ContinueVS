@@ -86,7 +86,7 @@ namespace ContinueVS.Services.Implementations
                             FilePath = resolvedPath,
                             NewContent = string.Join(Environment.NewLine, lines),
                             Description = $"Instrumentation: {snippet.Reason}",
-                            Timestamp = DateTime.UtcNow
+                            Timestamp = DateTime.Now
                         };
 
                         // Record change in stack (ChangeStack is passed by reference and tracks locally)

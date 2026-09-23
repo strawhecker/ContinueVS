@@ -55,7 +55,7 @@ namespace ContinueVS.Core.Types
         /// Timestamp when this refinement was generated.
         /// </summary>
         [JsonProperty("generatedAt")]
-        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+        public DateTime GeneratedAt { get; set; } = DateTime.Now;
 
         public RefinementAttempt()
         {

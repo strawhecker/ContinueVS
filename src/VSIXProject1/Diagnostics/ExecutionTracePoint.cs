@@ -50,7 +50,7 @@ namespace ContinueVS.Diagnostics
                 throw new ArgumentException("Component cannot be null or whitespace.", nameof(component));
 
             Token = token;
-            Timestamp = DateTime.UtcNow;
+            Timestamp = DateTime.Now;
             Component = component;
             DurationMs = durationMs;
             Metadata = metadata;
