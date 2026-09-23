@@ -473,6 +473,36 @@ namespace VSIXProject1.Tests.Services
 
         #endregion
 
+        #region SetSessionTitleAsync Tests
+
+        [Fact]
+        public async Task SetSessionTitleAsync_UpdatesSessionTitle_AndFiresUpdatedEvent()
+        {
+            // Arrange
+            SessionChangedEventArgs? capturedArgs = null;
+            _sessionService.SessionChanged += (sender, args) => capturedArgs = args;
+
+            // Act
+            await _sessionService.SetSessionTitleAsync("My New Title");
+            var session = _sessionService.GetCurrentSession();
+
+            // Assert
+            Assert.Equal("My New Title", session.Title);
+            Assert.NotNull(capturedArgs);
+            Assert.Equal(SessionChangeType.Updated, capturedArgs.ChangeType);
+            Assert.Equal("My New Title", capturedArgs.Session?.Title);
+        }
+
+        [Fact]
+        public async Task SetSessionTitleAsync_ThrowsOnNullOrWhitespace()
+        {
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentException>(() => _sessionService.SetSessionTitleAsync(null!));
+            await Assert.ThrowsAsync<ArgumentException>(() => _sessionService.SetSessionTitleAsync("   "));
+        }
+
+        #endregion
+
         #region gap34 PackageMessages Tests
 
         [Fact]

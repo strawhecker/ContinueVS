@@ -653,6 +653,14 @@
             <!-- Mode Selector - gap27_1/27_6/27_7 -->
             <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="5" VerticalAlignment="Center">
 
+                <!-- Session Title (from first message) - gap session-title -->
+                <TextBlock Text="{Binding CurrentSessionTitle}" VerticalAlignment="Center" Margin="5,0,5,0"
+                           Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="14"
+                           TextTrimming="CharacterEllipsis" MaxWidth="420" MinWidth="80"
+                           TextWrapping="NoWrap" ToolTip="{Binding CurrentSessionTitle}"/>
+
+                <Separator Width="1" Margin="5,8" Background="#3E3E42"/>
+
                 <TextBlock Text="Model:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC"/>
                 <ComboBox ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel, Mode=TwoWay}" DisplayMemberPath="Name" Width="220" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}"/>
 

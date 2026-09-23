@@ -39,6 +39,32 @@ namespace VSIXProject1.Tests.Services
         }
 
         [Fact]
+        public async Task SetSessionTitleAsync_SurvivesReplayOnReopen()
+        {
+            // Arrange
+            var session = _service.GetCurrentSession();
+            string sessionId = session.Id;
+
+            // Act — set a derived title, then reopen into a fresh service over the same directory
+            await _service.SetSessionTitleAsync("Refactor the login handler");
+            await _service.SaveCurrentSessionAsync();
+
+            var reopened = new SessionService(new SimpleTokenCounterService(), _dir);
+            try
+            {
+                await reopened.LoadSessionAsync(sessionId);
+                var reloaded = reopened.GetCurrentSession();
+
+                // Assert — the title persisted via the init delta and survives replay
+                Assert.Equal("Refactor the login handler", reloaded.Title);
+            }
+            finally
+            {
+                reopened.Dispose();
+            }
+        }
+
+        [Fact]
         public async Task Add_Update_SameReference_IsO1_AndFiresPropertyChanged()
         {
             // Arrange

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -764,6 +764,33 @@ namespace ContinueVS.Services.Implementations
                 ChangeType = SessionChangeType.Updated,
                 Session = session,
                 CurrentMode = newMode,
+                Timestamp = DateTime.Now
+            });
+        }
+
+        /// <summary>
+        /// Sets the display title of the current session (gap session-title).
+        /// Mutates Session.Title, persists a fresh init delta so the title survives JSONL replay,
+        /// and fires SessionChanged (Updated) for UI/history propagation.
+        /// </summary>
+        public async Task SetSessionTitleAsync(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                throw new ArgumentException("Session title cannot be null or whitespace.", nameof(title));
+            }
+
+            var session = GetCurrentSession();
+            session.Title = title;
+
+            // Title is carried by the init delta; append a fresh one so replay sees it.
+            await SaveSessionToFileAsync(session);
+
+            SessionChanged?.Invoke(this, new SessionChangedEventArgs
+            {
+                SessionId = session.Id,
+                ChangeType = SessionChangeType.Updated,
+                Session = session,
                 Timestamp = DateTime.Now
             });
         }

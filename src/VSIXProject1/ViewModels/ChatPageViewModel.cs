@@ -230,11 +230,34 @@ namespace ContinueVS.ViewModels
         /// <summary>
         /// Gets or sets the currently active session metadata (gap76).
         /// Updated when user selects a session from history or creates a new one.
+        /// Setting also refreshes <see cref="CurrentSessionTitle"/> so the header text tracks.
         /// </summary>
         public SessionMetadata? CurrentSession
         {
             get => _currentSession;
-            set => Set(ref _currentSession, value);
+            set
+            {
+                if (Set(ref _currentSession, value))
+                {
+                    RaisePropertyChanged(nameof(CurrentSessionTitle));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Backing field for <see cref="CurrentSessionTitle"/>.
+        /// </summary>
+        private string? _currentSessionTitle;
+
+        /// <summary>
+        /// Gets the display title of the current session, shown at the top of the chat.
+        /// Falls back to the current session's Title or "New Conversation" when the session
+        /// metadata is unavailable. Raised on current-session change and title derivation.
+        /// </summary>
+        public string CurrentSessionTitle
+        {
+            get => _currentSessionTitle ?? CurrentSession?.Title ?? "New Conversation";
+            set => Set(ref _currentSessionTitle, value);
         }
 
         /// <summary>
@@ -774,6 +797,12 @@ namespace ContinueVS.ViewModels
                     LoggerService.Current.WriteDebug($"[gap27_5-restore] Session loaded with mode {e.CurrentMode.Value}, coerced to {restoredMode}");
                     CurrentMode = (ChatMode)restoredMode;
                 }
+
+                // gap session-title: keep the header title in sync when the active session title changes
+                if (e.Session != null)
+                {
+                    CurrentSessionTitle = e.Session.Title ?? CurrentSessionTitle;
+                }
             };
         }
 
@@ -808,6 +837,33 @@ namespace ContinueVS.ViewModels
             _continuationToolResults.Clear();
 
             LoggerService.Current.WriteDebug("[gap79-reset] Per-action tool budget reset for new user action. Fresh budget allocated.");
+        }
+
+        /// <summary>
+        /// Derives a display title from the first line of a user message (gap session-title).
+        /// Takes the first non-empty line, trims it, and caps it at <see cref="MaxSessionTitleLength"/>
+        /// characters with an ellipsis suffix. Returns null when no non-empty line exists.
+        /// </summary>
+        private const int MaxSessionTitleLength = 60;
+
+        private string? DeriveSessionTitle(string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return null;
+
+            // content is known non-null here (guarded by IsNullOrWhiteSpace above).
+            var firstLine = content!.Split('\n', '\r')
+                .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
+
+            if (string.IsNullOrWhiteSpace(firstLine))
+                return null;
+
+            var trimmed = firstLine!.Trim();
+
+            if (trimmed.Length <= MaxSessionTitleLength)
+                return trimmed;
+
+            return trimmed.Substring(0, MaxSessionTitleLength).TrimEnd() + "…";
         }
         /// <summary>
         /// Records the action selection for a specific code block (gap53).
@@ -1543,6 +1599,31 @@ namespace ContinueVS.ViewModels
 
                 // GAP22_4: Prune messages if needed before streaming
                 var session = _sessionService.GetCurrentSession();
+
+                // gap session-title: First send of a fresh session becomes its title.
+                // Only when this is the very first message (Messages.Count == 1) AND the title is
+                // still the default do we derive a name, so resends and loaded sessions are never overwritten.
+                bool isFirstMessage = session?.Messages.Count == 1;
+                bool isDefaultTitle = string.Equals(CurrentSession?.Title, "New Conversation", StringComparison.OrdinalIgnoreCase);
+                if (isFirstMessage && (string.IsNullOrWhiteSpace(CurrentSession?.Title) || isDefaultTitle))
+                {
+                    var derivedTitle = DeriveSessionTitle(userMessage.Content);
+                    if (!string.IsNullOrWhiteSpace(derivedTitle))
+                    {
+                        try
+                        {
+                            // derivedTitle is known non-null here (guarded by IsNullOrWhiteSpace above).
+                            await _sessionService.SetSessionTitleAsync(derivedTitle!);
+                            CurrentSessionTitle = derivedTitle!;
+                            LoggerService.Current.WriteDebug($"[session-title] Derived title from first message: {derivedTitle}");
+                        }
+                        catch (Exception titleEx)
+                        {
+                            LoggerService.Current.WriteError($"[session-title] Failed to set session title: {titleEx.Message}", titleEx);
+                        }
+                    }
+                }
+
                 if (session?.Messages.Count > 1)
                 {
                     var selectedModel = _configService.GetSelectedModel();

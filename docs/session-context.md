@@ -65,6 +65,38 @@ and removed afterwards.
 
 ---
 
+### gap-session-title: First Message Line Becomes the Session Title (Header + Naming)
+
+**Status:** ✅ Complete | Type: Session Title Derivation / UI
+
+**Problem:** New sessions display a generic "New Conversation" title. The user wanted the *first line of the first send* to become the session's title—shown at the top of the chat and used to name the session (persisted so it appears in history).
+
+**Implementation:**
+
+- **`ISessionService.SetSessionTitleAsync(string)`** (interface) / **`SessionService`** (impl):
+  - Validates non-whitespace; sets `Session.Title`, persists a fresh `SessionDeltaInit` (so the title survives JSONL replay), and fires `SessionChanged` (`SessionChangeType.Updated`).
+- **`ChatPageViewModel`**:
+  - Added `CurrentSessionTitle` property (bindable, change-notified) that falls back to `"New Conversation"`; kept in sync from `CurrentSession` changes and from `SessionChanged` (`e.Session.Title`).
+  - `ExecuteSendMessage` — on the **first send of a fresh session** (`session.Messages.Count == 1` **and** title is empty or the default `"New Conversation"`): derives a title from the **first non-empty line** of the input (`DeriveSessionTitle`), truncates at **60 chars + `…`**, calls `SetSessionTitleAsync`, and updates `CurrentSessionTitle`.
+  - `DeriveSessionTitle(string?)` helper: splits on `\n`/`\r`, takes the first non-whitespace line, trims, caps length; returns null when no line exists.
+  - Guard prevents overwriting real titles on subsequent sends / loaded sessions.
+- **`ChatPage.xaml`**: added a `TextBlock` bound to `CurrentSessionTitle` in the Mode-Selector row (top bar), with character ellipsis + tooltip so the title is visible at the top of the chat.
+
+**Files Modified:**
+- `src/VSIXProject1/Services/Interfaces/ISessionService.cs`
+- `src/VSIXProject1/Services/Implementations/SessionService.cs`
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+
+**Tests:**
+- `ChatPageViewModelSessionTitleTests.cs` (NEW): first send derives title from first line; second send does NOT overwrite; `CurrentSessionTitle` fallback + reflection of `CurrentSession.Title`.
+- `SessionServiceTests.cs`: `SetSessionTitleAsync` updates title + fires `Updated`; throws on null/whitespace.
+- `SessionServiceJsonlTests.cs`: derived title survives reopen/replay.
+
+**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1499 passed, 0 failed, 0 skipped**.
+
+---
+
 ### gap-workspacefiles-fast: GetWorkspaceFiles Folder-by-Folder Walk on Background Thread
 
 **Status:** ✅ Complete | Type: Performance / File-Enumeration Rewrite

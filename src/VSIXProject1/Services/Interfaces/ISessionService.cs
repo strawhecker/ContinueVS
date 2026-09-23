@@ -124,6 +124,15 @@ namespace ContinueVS.Services.Interfaces
         Task SetCurrentModeAsync(int newMode);
 
         /// <summary>
+        /// Sets the display title of the current session and persists a fresh init delta so the
+        /// title survives replay. Fires SessionChanged (Updated) for UI/history propagation.
+        /// </summary>
+        /// <param name="title">The new session title.</param>
+        /// <exception cref="ArgumentNullException">Thrown when title is null or whitespace.</exception>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task SetSessionTitleAsync(string title);
+
+        /// <summary>
         /// Packages messages for an LLM send: [systemMessage] + [token-budget-pruned history turns] + [new user turn].
         /// History is pruned oldest-first to fit within 80% of the model's ContextWindow (fallback 4096 if unset).
         /// The system message and new user turn are always preserved regardless of budget pressure.
