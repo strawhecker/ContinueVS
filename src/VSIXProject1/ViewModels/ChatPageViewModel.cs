@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -368,11 +368,11 @@ namespace ContinueVS.ViewModels
             }
         }
 
-        public string? StreamingResponse
-        {
-            get => _streamingResponse;
-            set => Set(ref _streamingResponse, value);
-        }
+        //public string? StreamingResponse
+        //{
+        //    get => _streamingResponse;
+        //    set => Set(ref _streamingResponse, value);
+        //}
 
         /// <summary>
         /// Gets or sets the available message width for text wrapping.
@@ -1642,7 +1642,7 @@ namespace ContinueVS.ViewModels
                     }
                 }
 
-                StreamingResponse = string.Empty;
+                //StreamingResponse = string.Empty;
 
                 // gap44_3: Resolve mode policy once per send — drives tool-loop gate and StreamOptions
                 var modeConfig = _modeConfigRegistry.GetConfig(CurrentMode);
@@ -1748,6 +1748,20 @@ namespace ContinueVS.ViewModels
                         Mode = CurrentMode
                     };
 
+                    var reasoningMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Thinking,
+                        Content = string.Empty,
+                        IsThinking = true,
+                        IsExpanded = false
+                    };
+                    // *** DO NOT DEFER THIS ADD ***
+                    // ADD reasoning message to UI IMMEDIATELY when first chunk arrives.
+                    // Only way to show real-time reasoning streaming in the UI.
+                    // Previous deferred approach caused reasoning to hide until completion.
+                    await SwitchToMainThreadAsync();
+                    Messages.Add(reasoningMessage);
+
                     // Create provisional assistant message BEFORE streaming starts
                     // This allows UI to display responses incrementally as chunks arrive
                     var assistantMessage = new ChatMessage
@@ -1767,7 +1781,7 @@ namespace ContinueVS.ViewModels
                     // THE REASONING MESSAGE MUST BE ADDED TO THE UI COLLECTION IMMEDIATELY DURING STREAMING.
                     // Do NOT comment out, defer, or conditionally add reasoning after streaming completes.
                     // The streaming UI visibility depends on real-time collection updates during chunk arrival.
-                    ChatMessage? reasoningMessage = null;
+                    //ChatMessage? reasoningMessage = null;
 
                     // Stream directly without retry wrapper:
                     // Streaming operations can't be safely retried because chunks are consumed as they arrive.
@@ -1834,7 +1848,7 @@ namespace ContinueVS.ViewModels
                                     assistantMessage.AppendChunk(chunk.Content!);
                                 else
                                     assistantMessage.Content += chunk.Content!;
-                                StreamingResponse += chunk.Content;
+                                //StreamingResponse += chunk.Content;
                             }
                         }
                         else if (chunk.Type == ChunkType.ToolCall)
@@ -2071,7 +2085,7 @@ namespace ContinueVS.ViewModels
                         messages.AddRange(toolResultMessages);
 
                         // Reset streaming response for next iteration
-                        StreamingResponse = string.Empty;
+                        //StreamingResponse = string.Empty;
                     }
                     else
                     {
@@ -2116,7 +2130,7 @@ namespace ContinueVS.ViewModels
             catch (OperationCanceledException)
             {
                 LoggerService.Current.WriteDebug("[ChatPageViewModel.ExecuteSendMessage] OperationCanceledException: User cancelled");
-                StreamingResponse += "\n[Cancelled by user]";
+                //StreamingResponse += "\n[Cancelled by user]";
             }
             catch (Exception ex)
             {
@@ -2241,7 +2255,7 @@ namespace ContinueVS.ViewModels
                     if (!string.IsNullOrEmpty(chunk.Reasoning))
                         _reasoningMessage.AppendChunk(chunk.Reasoning!);
                 }
-                else if (hasContent)
+                if (hasContent)
                 {
                     if (!_owner.Messages.Contains(_planningCard))
                         _owner.Messages.Add(_planningCard);
