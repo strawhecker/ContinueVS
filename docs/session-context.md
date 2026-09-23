@@ -9517,6 +9517,97 @@ Decoupling **"finalized"** from **"markdown"** is the key semantic: `IsFinalized
 
 ---
 
+Here's the full gap89 note, written in the same style and convention as the existing gap notes:
+
+---
+
+I now have your full gap89 in hand. Here's my proposed revision. It folds in the four conclusions we reached after it was written: **(1)** raw is uniform/verbatim — code blocks are *not* exempt, **(2)** the audience framing (pretty = user, raw = destination), **(3)** pretty is the resting default, raw is hover-gated + non-sticky, **(4)** raw = plain only, pretty = plain + RTF.
+
+---
+
+### gap89 — Per-Card Raw/Processed View Toggle + Dual-Format Clipboard Copy (RTF + Plain)
+
+**Status:** 🔴 Proposed | Type: Chat UI / Clipboard Output | Related: gap88 (unified renderer / single-source model), gap46/gap47 (raw Copy All), gap85 (tool-call bubbles), PipeTable/TaskList render fix (prerequisite)
+
+**Objective:**
+Today the only copy path (gap46/gap47 Copy All) writes `ChatMessage.Content` to the clipboard as **verbatim plain text** — there is no way to obtain a *formatted* render for pasting into rich-text documents (Word/WordPad/Outlook). Meanwhile the renderer only ever shows the processed view, so the user cannot see the raw source they are about to paste. This gap introduces a per-card **raw/processed view toggle** and splits copy into **raw | formatted**: both clipboard formats are placed at once in pretty mode, and the receiving application decides which it prefers.
+
+**Core principle (audience, not rendering):**
+> *"Pretty is for the user; raw is for the destination."*
+
+The toggle is not a *rendering* choice ("what should this look like?") — it's an *intent* choice ("who is this for right now?"). When you read LLM output you are the audience, so content is processed for comprehension (bold, tables, code chrome). When you are about to ship content elsewhere — a `.md` file, Visual Studio, a code editor — the destination is the audience, and it wants the exact source bytes, not interpretation. Raw being "hard to read" is not a bug; it's the feature: in raw mode the subject stops being *you* and becomes *where it's going*.
+
+From this single rule, all sub-decisions fall out coherently (no special cases):
+
+- **Pretty mode → format for the reader** (full Markdig render, code chrome per gap53).
+- **Raw mode → uniform verbatim, zero help** — *including code blocks.* The fence (```csharp … ```) is part of the raw markdown, not a separate finished good, so raw shows it flat with no chrome and no exemption. No delimiter emphasis either: emphasis is a reading aid = pretty-mode thinking, and in raw mode there is no reader to aid.
+- **Clipboard follows the audience:** raw → `UnicodeText` *only* (a destination wants the canonical source, not a rich object to interpret); pretty → `UnicodeText` *and* `RTF` (a reader pasting into Word wants the rich render, but a code editor still needs plain).
+
+**Interaction (pretty is the resting default):**
+- Every card rests in **Pretty**. Normal reading is "human consuming the card," so the default audience is the reader — raw-as-default would mean "default is for a destination," which is false for reading.
+- Raw is reachable **only via the hover-revealed toggle** (same chrome weight as the other per-card actions), and is **non-sticky**: it reverts to Pretty when you leave the card or after a copy. This enforces that raw is a *deliberate, conscious* transition to destination-facing mode — you can't stumble into it, and once you've shipped the bytes the card returns to being for you.
+
+**Implementation (this gap):**
+
+- ✅ **Per-card `ViewMode` state** (`Raw` | `Pretty`), hosted beside the gap88 renderer modes:
+  - `Pretty` — the full Markdig render (post-PipeTable/TaskList fix): prose + code chrome per gap53.
+  - `Raw` — uniform verbatim source, flat & monospaced, no rendering and no emphasis, code blocks included. Never runs the markdown pipeline on it.
+  - Resets to Pretty on card leave / after copy; never persisted as a resting state.
+
+- ✅ **Clipboard write follows `ViewMode`** (replaces/augments plain-text Copy All):
+  ```csharp
+  var data = new DataObject();
+  data.SetData(DataFormats.Rtf,       rtfString);     // pretty only
+  data.SetData(DataFormats.UnicodeText, rawString);   // always
+  Clipboard.SetDataObject(data, true);                 // true = survives app close
+  ```
+  - **Raw** → `UnicodeText` **only** (byte-faithful; a destination wants the source, no rich interpretation — this is a guarantee, not a limitation).
+  - **Pretty** → `UnicodeText` **+** `RTF` (Word/WordPad renders bold/tables/font/size via RTF; code editors still get plain).
+  - The receiving app picks its preferred format; **no destination detection** (no fragile "is this VS?" magic).
+
+- ✅ **Markdown→RTF path** (new): render the single-source raw markdown through the Markdig pipeline into a `FlowDocument`, then convert to RTF (HTML→RTF bridge or a minimal RTF writer). This is the real work of the gap; the plain path already exists (gap46/47).
+
+- ✅ **Model stays single-sourced** (gap88): one raw `ChatMessage.Content` backs both view states and both copy formats — no content is ever copied/duplicated between representations.
+
+**Acceptance criteria:**
+- [ ] Every card rests in Pretty; Raw is hover-revealed, per-card, non-sticky (reverts on leave/copy).
+- [ ] Raw view shows uniform verbatim source — code blocks *and* prose, no rendering, no emphasis, no chrome.
+- [ ] Raw-mode copy writes `UnicodeText` only, exactly the verbatim source (byte-faithful for VS/editors).
+- [ ] Pretty-mode copy writes a rich (RTF) object that Word/WordPad render correctly (bold/tables/font/size), **and** always co-ships `UnicodeText` so code editors still get usable text.
+- [ ] Both `DataFormats.Rtf` and `DataFormats.UnicodeText` are present on a single clipboard object (verified by a test inspecting the `DataObject`); raw mode carries only `UnicodeText`.
+- [ ] Code-block inner-copy (gap53) remains a convenience in Pretty mode and is independent of the toggle.
+- [ ] No destination detection; behavior is uniform and predictable.
+
+**Files (candidates):**
+- `src/VSIXProject1/Core/Types/ChatMessage.cs` — per-card `ViewMode` state (`[JsonIgnore]`, session-only).
+- `src/VSIXProject1/UI/Renderers/StreamingMarkdownRenderer.xaml(.cs)` — add Raw vs Pretty view branch (gap88 is the prerequisite host).
+- `src/VSIXProject1/Services/Implementations/RtfExporter.cs` (NEW) — Markdig→FlowDocument→RTF.
+- `src/VSIXProject1/Services/Implementations/ClipboardWriter.cs` (NEW) — view-state-aware `SetDataObject`.
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — rewire copy commands (gap46/47) to the writer honoring `ViewMode`; reset `ViewMode` on copy/leave.
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — hover-revealed raw-toggle glyph (e.g. `<>`) top-right per card; copy entry point.
+- `src/VSIXProject1.Tests/...` — tests: dual-format presence on one `DataObject` (pretty) vs plain-only (raw); raw byte-faithfulness; RTF validity/round-trip; non-sticky toggle reset; no code exemption in raw.
+
+**Validation:** feature-flagged A/B against current Copy All; `dotnet build --force` (0 warnings/0 errors); full test suite (current 1422 passing stay green) + new tests above.
+
+**Sequencing:** lands after gap88 (single-source model + renderer) and the PipeTable/TaskList render fix (so the formatted render is correct before we let users copy it). Reuses gap88's single raw source and gap46/47's existing plain-text copy; adds the RTF exporter + dual-format writer as the only new infrastructure.
+
+---
+
+## What changed vs. your current gap89
+
+| Section | Before | After |
+|---|---|---|
+| Core principle | "see-what-you-copy, single toggle" | **audience** ("pretty = user, raw = destination") — the single rule all else descends from |
+| Code blocks | **exempt** from toggle | **not exempt** — raw shows the fence flat, uniform |
+| Raw view | delimiter emphasis / reverse-video | **no help** — flat, no emphasis (emphasis is a reading aid, i.e. pretty-thinking) |
+| Default | "seeded from global default, overridable per card, persists" | **always Pretty**; raw hover-gated, non-sticky, reverts on leave/copy |
+| Raw clipboard | "focuses raw path (UnicodeText authoritative)" — ambiguous | **plain only, explicitly** (guarantee, not fallback) |
+| Code-block copy | "unchanged and independent" | gap53 inner-copy kept as a Pretty-mode *convenience* (an action, not a display exemption) |
+
+If you're happy with this, I can update `session-context.md` in place (switch me to **Agent mode**), or give me the word and I'll hold it as the canonical version here.
+
+---
+
 #### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
 
 | Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
