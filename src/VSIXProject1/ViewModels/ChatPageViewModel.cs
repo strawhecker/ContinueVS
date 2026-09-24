@@ -2014,37 +2014,37 @@ namespace ContinueVS.ViewModels
                         assistantMessage!.ToolCalls = new List<ToolCall>(_pendingToolCalls);
                     }
 
-                    // gap68: Parse and separate thinking from response content
-                    // Only parse for thinking tags if we didn't already extract reasoning via streaming
-                    ChatMessage? thinkingMessage = null;
+                    //// gap68: Parse and separate thinking from response content
+                    //// Only parse for thinking tags if we didn't already extract reasoning via streaming
+                    //ChatMessage? thinkingMessage = null;
 
-                    if (reasoningMessage == null)
-                    {
-                        var (parsedThinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
-                            assistantMessage!.Content,
-                            _streamingCts.Token);
+                    //if (reasoningMessage == null)
+                    //{
+                    //    var (parsedThinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
+                    //        assistantMessage!.Content,
+                    //        _streamingCts.Token);
 
-                        thinkingMessage = parsedThinkingMessage;
+                    //    thinkingMessage = parsedThinkingMessage;
 
-                        // Update assistant message content to exclude thinking (if any was extracted)
-                        if (thinkingMessage != null && !string.IsNullOrWhiteSpace(cleanedResponseContent))
-                        {
-                            assistantMessage!.Content = cleanedResponseContent;
-                            LoggerService.Current.WriteDebug(
-                                "[gap68-separate] Thinking separated from response. Response length now: " + cleanedResponseContent.Length);
-                        }
-                        else if (thinkingMessage != null && string.IsNullOrWhiteSpace(cleanedResponseContent))
-                        {
-                            // Thinking was extracted but no content remained, add the thinking message
-                            await SwitchToMainThreadAsync();
-                            Messages.Add(thinkingMessage);
-                        }
-                    }
-                    else
-                    {
-                        LoggerService.Current.WriteDebug(
-                            "[gap68-skip-parse] Reasoning already extracted via streaming; skipping post-stream parsing");
-                    }
+                    //    // Update assistant message content to exclude thinking (if any was extracted)
+                    //    if (thinkingMessage != null && !string.IsNullOrWhiteSpace(cleanedResponseContent))
+                    //    {
+                    //        assistantMessage!.Content = cleanedResponseContent;
+                    //        LoggerService.Current.WriteDebug(
+                    //            "[gap68-separate] Thinking separated from response. Response length now: " + cleanedResponseContent.Length);
+                    //    }
+                    //    else if (thinkingMessage != null && string.IsNullOrWhiteSpace(cleanedResponseContent))
+                    //    {
+                    //        // Thinking was extracted but no content remained, add the thinking message
+                    //        await SwitchToMainThreadAsync();
+                    //        Messages.Add(thinkingMessage);
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    LoggerService.Current.WriteDebug(
+                    //        "[gap68-skip-parse] Reasoning already extracted via streaming; skipping post-stream parsing");
+                    //}
 
                     // gap43_3 / gap45_3: Persist plan output when ExportsPlanFile is true for this mode (Agent, Plan, Debug)
                     if (modeConfig.ExportsPlanFile && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
@@ -2076,14 +2076,14 @@ namespace ContinueVS.ViewModels
                     // This prepares it to be re-added in the correct order at the end
                     Messages.Remove(assistantMessage);
 
-                    // Add thinking message first (if present)
-                    if (thinkingMessage != null && !string.IsNullOrEmpty(thinkingMessage.Content))
-                    {
-                        // Add debug cookie to verify thinking content is present
-                        //thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
-                        Messages.Add(thinkingMessage);
-                        LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
-                    }
+                    //// Add thinking message first (if present)
+                    //if (thinkingMessage != null && !string.IsNullOrEmpty(thinkingMessage.Content))
+                    //{
+                    //    // Add debug cookie to verify thinking content is present
+                    //    //thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
+                    //    Messages.Add(thinkingMessage);
+                    //    LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
+                    //}
 
                     // *** REASONING ALREADY EXISTS - REORDER ONLY ***
                     // Reasoning message is already in the collection from streaming,
