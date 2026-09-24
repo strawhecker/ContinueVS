@@ -766,9 +766,14 @@ namespace ContinueVS.UI.Renderers
             var textAlignments = new List<TextAlignment>();
             foreach (var col in table.ColumnDefinitions)
             {
+                // Auto-size columns to their content so the table fits its data
+                // instead of stretching edge-to-edge. (Star sizing expands each
+                // column to fill all available width.)
                 var wpfCol = new TableColumn
                 {
-                    Width = new GridLength(col.Width > 0 ? col.Width : 1, GridUnitType.Star)
+                    Width = col.Width > 0
+                        ? new GridLength(col.Width, GridUnitType.Pixel)
+                        : GridLength.Auto
                 };
                 wpfTable.Columns.Add(wpfCol);
 
