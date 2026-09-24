@@ -1849,33 +1849,31 @@ namespace ContinueVS.ViewModels
                         Mode = CurrentMode
                     };
 
-                    ChatMessage? reasoningMessage = null;
-                    //var reasoningMessage = new ChatMessage
-                    //{
-                    //    Role = ChatMessageRole.Thinking,
-                    //    Content = string.Empty,
-                    //    IsThinking = true,
-                    //    IsExpanded = false
-                    //};
-                    //// *** DO NOT DEFER THIS ADD ***
-                    //// ADD reasoning message to UI IMMEDIATELY when first chunk arrives.
-                    //// Only way to show real-time reasoning streaming in the UI.
-                    //// Previous deferred approach caused reasoning to hide until completion.
-                    //await SwitchToMainThreadAsync();
-                    //Messages.Add(reasoningMessage);
+                    var reasoningMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Thinking,
+                        Content = string.Empty,
+                        IsThinking = true,
+                        IsExpanded = false
+                    };
+                    // *** DO NOT DEFER THIS ADD ***
+                    // ADD reasoning message to UI IMMEDIATELY when first chunk arrives.
+                    // Only way to show real-time reasoning streaming in the UI.
+                    // Previous deferred approach caused reasoning to hide until completion.
+                    await SwitchToMainThreadAsync();
+                    Messages.Add(reasoningMessage);
 
                     // Create provisional assistant message BEFORE streaming starts
                     // This allows UI to display responses incrementally as chunks arrive
-                    ChatMessage? assistantMessage = null;
-                    //var assistantMessage = new ChatMessage
-                    //{
-                    //    Role = ChatMessageRole.Assistant,
-                    //    Content = string.Empty,
-                    //    ToolCalls = null
-                    //};
-                    //// Add assistantMessage to UI collection immediately so binding updates work during streaming
-                    //await SwitchToMainThreadAsync();
-                    //Messages.Add(assistantMessage);
+                    var assistantMessage = new ChatMessage
+                    {
+                        Role = ChatMessageRole.Assistant,
+                        Content = string.Empty,
+                        ToolCalls = null
+                    };
+                    // Add assistantMessage to UI collection immediately so binding updates work during streaming
+                    await SwitchToMainThreadAsync();
+                    Messages.Add(assistantMessage);
 
                     // Optional reasoning message to hold provider reasoning (separate from content)
                     // *** SECURITY WARNING: LLM keyword conflict risk ***
@@ -1902,24 +1900,6 @@ namespace ContinueVS.ViewModels
                             if (!string.IsNullOrEmpty(chunk.Reasoning))
                             {
                                 await SwitchToMainThreadAsync();
-
-                                // Create reasoning message on first reasoning chunk
-                                if (reasoningMessage == null)
-                                {
-                                    reasoningMessage = new ChatMessage
-                                    {
-                                        Role = ChatMessageRole.Thinking,
-                                        Content = string.Empty,
-                                        IsThinking = true,
-                                        IsExpanded = false
-                                    };
-                                    // *** DO NOT DEFER THIS ADD ***
-                                    // ADD reasoning message to UI IMMEDIATELY when first chunk arrives.
-                                    // Only way to show real-time reasoning streaming in the UI.
-                                    // Previous deferred approach caused reasoning to hide until completion.
-                                    Messages.Add(reasoningMessage);
-                                    LoggerService.Current.WriteDebug($"[ChatPageViewModel.ExecuteSendMessage] Reasoning message created and added to UI for streaming");
-                                }
 
                                 // Append reasoning to reasoning message
                                 // *** INCREMENTAL UPDATE CRITICAL ***
@@ -1950,7 +1930,6 @@ namespace ContinueVS.ViewModels
                                     assistantMessage?.AppendChunk(chunk.Content!);
                                 else
                                     assistantMessage?.Content += chunk.Content!;
-                                //StreamingResponse += chunk.Content;
                             }
                         }
                         else if (chunk.Type == ChunkType.ToolCall)
