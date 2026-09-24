@@ -11348,7 +11348,45 @@ because `assistantMessage` is create-upfront non-null).
 
 ---
 
-```
+### gap89c: Make the `<>` Raw/Processed Toggle Persistent + Hide on User/Tool Cards
+
+**Status:** ✅ Complete | Type: Persistence + Visibility Fix
+
+**Problem:** The `<>` raw/process toggle on message cards *appeared* not to work: the raw render
+path was correct end-to-end (`RawToggleButton_Click` → `SetProperty(ViewMode)` → renderer
+`OnViewModeChanged()` → `RenderRawVerbatim`), but the raw view was intentionally **non-sticky**.
+`MessageGrid_MouseLeave`, `ChatMessageControl_Unloaded`, and the two copy paths all reverted
+`ViewMode` back to `Pretty` the moment the pointer left the card (or on scroll/teardown/copy), so
+the toggle flashed and snapped back. Separately, the tool card in `ChatPage.xaml` offered a `<>`
+button wired to a ViewModel command, but tool content is verbatim by kind (raw === pretty), and that
+renderer never bound `ViewMode` — a structural no-op.
+
+**Fix (5 changes):**
+- **Persistent raw** — removed the revert-to-Pretty blocks in `ChatMessageControl_Unloaded` and
+  `MessageGrid_MouseLeave`; removed the revert-after-copy blocks in `CopyAllButton_Click` and
+  `CodeActionDropdown_SelectionChanged`. `RawToggleButton_Click` is now the sole thing that changes
+  `ViewMode`, so `<>` is a genuine persistent Pretty⇄Raw toggle.
+- **Hide on user/tool** — `ApplyRawToggleState()` now sets `RawToggleButton.Visibility` to `Visible`
+  only for `ChatMessageRole.Assistant` / `Thinking` (markdown-capable) and `Collapsed` for User/Tool
+  (verbatim, no pretty/raw split). XAML comment updated to reflect persistence + role gating.
+- **Remove tool-card toggle** — deleted the `<>` button (bound to `ToggleRawViewCommand`) from the
+  tool-card bottom toggles in `src/VSIXProject1/UI/Pages/ChatPage.xaml`.
+- **Remove dead command** — deleted `ToggleRawViewCommand` property, its initialization, and
+  `ExecuteToggleRawView` from `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`.
+- **Tests** — emptied `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelGap89Tests.cs` of the
+  now-removed command's tests (raw/processed toggle now lives in the card control code-behind).
+
+**Copy semantics preserved:** `ClipboardWriter.Copy(message)` still honors `ViewMode` (Pretty → RTF +
+plain; Raw → plain only, byte-faithful); only the automatic post-copy revert was removed.
+
+**Files Modified:**
+- `src/VSIXProject1/UI/Views/ChatMessageControl.xaml.cs`
+- `src/VSIXProject1/UI/Views/ChatMessageControl.xaml`
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+- `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelGap89Tests.cs`
+
+---
 
 
 

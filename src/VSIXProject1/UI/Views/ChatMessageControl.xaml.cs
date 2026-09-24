@@ -165,13 +165,6 @@ namespace ContinueVS.UI.Views
                 comboBox.SelectionChanged -= CodeActionDropdown_SelectionChanged;
             }
 
-            // gap89: reset the per-card view to pretty when the card leaves the visual tree,
-            // so raw never persists as a resting state (non-sticky by design).
-            if (DataContext is ChatMessage leaving && leaving.ViewMode != MessageViewMode.Pretty)
-            {
-                leaving.ViewMode = MessageViewMode.Pretty;
-            }
-
             var rawToggle = FindName("RawToggleButton") as Button;
             if (rawToggle != null)
             {
@@ -399,18 +392,12 @@ namespace ContinueVS.UI.Views
             var comboBox = FindName("CodeActionDropdown") as ComboBox;
             if (comboBox != null && comboBox.Visibility != System.Windows.Visibility.Collapsed)
                 comboBox.Visibility = System.Windows.Visibility.Hidden;
-
-            // gap89: non-sticky raw view — reverting to Pretty when the pointer leaves the card.
-            if (DataContext is ChatMessage left && left.ViewMode != MessageViewMode.Pretty)
-            {
-                left.ViewMode = MessageViewMode.Pretty;
-            }
         }
 
         /// <summary>
         /// Copies the entire response message, honoring the per-card view mode (gap89):
         /// Pretty → RTF + plain on one DataObject; Raw → plain only, byte-faithful.
-        /// After a copy the view reverts to Pretty (non-sticky by design).
+        /// The raw view is persistent and is not reverted by a copy.
         /// </summary>
         private void CopyAllButton_Click(object sender, RoutedEventArgs e)
         {
@@ -426,12 +413,7 @@ namespace ContinueVS.UI.Views
             else
                 LoggerService.Current.WriteError("[gap89-copy-all-error] Failed to copy via ClipboardWriter");
 
-            // Non-sticky raw view: return to Pretty after the copy ships the bytes.
-            if (message.ViewMode != MessageViewMode.Pretty)
-            {
-                message.ViewMode = MessageViewMode.Pretty;
-                ApplyRawToggleState();
-            }
+            // The raw view is persistent (gap89); a copy does not revert it.
         }
 
         /// <summary>
@@ -456,6 +438,8 @@ namespace ContinueVS.UI.Views
         /// The glyph is always visible: normal WindowText in Pretty (== the XAML default,
         /// which we re-apply here defensively) and orange+bold in Raw so the active,
         /// destination-facing raw view is unmistakable at a glance.
+        /// The toggle is only shown on markdown-capable cards (Assistant / Thinking);
+        /// user and tool cards are verbatim by kind and are hidden (raw === pretty there).
         /// </summary>
         private void ApplyRawToggleState()
         {
@@ -463,7 +447,18 @@ namespace ContinueVS.UI.Views
             var icon = FindName("RawToggleIcon") as TextBlock;
             var btn = FindName("RawToggleButton") as Button;
 
-            bool raw = msg?.ViewMode == MessageViewMode.Raw;
+            // gap89: hide the toggle on cards whose content has no pretty/raw split
+            // (User/Tool are verbatim) so we don't offer a dead control.
+            bool showToggle = msg != null &&
+                (msg.Role == ChatMessageRole.Assistant || msg.Role == ChatMessageRole.Thinking);
+            if (btn != null)
+            {
+                btn.Visibility = showToggle
+                    ? System.Windows.Visibility.Visible
+                    : System.Windows.Visibility.Collapsed;
+            }
+
+            bool raw = showToggle && msg?.ViewMode == MessageViewMode.Raw;
             if (icon != null)
             {
                 icon.FontWeight = raw ? FontWeights.Bold : FontWeights.Normal;
@@ -525,12 +520,7 @@ namespace ContinueVS.UI.Views
                 else
                     LoggerService.Current.WriteError("[gap89-dropdown-copy-error] Failed to copy via ClipboardWriter");
 
-                // Non-sticky raw view: return to Pretty after the copy.
-                if (message != null && message.ViewMode != MessageViewMode.Pretty)
-                {
-                    message.ViewMode = MessageViewMode.Pretty;
-                    ApplyRawToggleState();
-                }
+                // The raw view is persistent (gap89); a copy does not revert it.
             }
             else if (selectedItem.Content.ToString().Contains("Apply"))
             {

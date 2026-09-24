@@ -191,29 +191,8 @@
                                 </TextBlock>
 
                                 <!-- Bottom toggles: always visible while scrolling to the bottom of the tool card -->
-                                <!-- gap89: raw/processed view toggle for the tool card.
-                                     Rests in Pretty; flips to Raw (destination-facing) while active. -->
-                                <Button Grid.Row="2" Grid.Column="0" Width="24" Height="24" Padding="2" Margin="4,0"
-                                        HorizontalAlignment="Left"
-                                        Background="Transparent" BorderThickness="0"
-                                        Foreground="#CCCCCC" FontSize="12" FontWeight="Bold" Cursor="Hand"
-                                        Command="{Binding Path=DataContext.ToggleRawViewCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                        CommandParameter="{Binding}"
-                                        ToolTip="Toggle raw / processed view">
-                                    <TextBlock Foreground="#CCCCCC" TextAlignment="Center">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Text" Value="&lt;&gt;"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ViewMode}" Value="Raw">
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                        <Setter Property="Foreground" Value="#FFA500"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                </Button>
+                                <!-- gap89: raw/processed toggle removed for tool cards — tool content is
+                                     verbatim by kind (raw === pretty), so a raw toggle would be a no-op. -->
                                 <!-- gap85: delete/undelete toggle (soft-delete via tombstone).
                                      Icon flips ✕ -> ↺ and commands swap based on IsDeleted. -->
                                 <Button Grid.Row="2" Grid.Column="1" Width="24" Height="24" Padding="2" Margin="4,0"

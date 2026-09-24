@@ -105,9 +105,11 @@
                                TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Button>
 
-                <!-- gap89: Raw/Processed view toggle (always visible, positioned upper right).
+                <!-- gap89: Raw/Processed view toggle (persistent per-card, positioned upper right).
                      Rests in Pretty (<> = process view) and flips to Raw (source view) while active.
-                     Raw is a non-sticky destination-facing transition: reverts to Pretty on leave/copy.
+                     Raw persists until toggled back (sticky by design); visibility is driven by
+                     ApplyRawToggleState so it only appears on markdown-capable Assistant/Thinking cards
+                     (User/Tool are verbatim with no pretty/raw split).
                      The glyph stays a visible WindowText in Pretty and turns orange+bold while Raw. -->
                 <Button x:Name="RawToggleButton"
                         Width="28" 
