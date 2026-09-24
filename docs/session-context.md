@@ -11283,6 +11283,47 @@ The minimize/maximize engine (icon flip via `ApplyMinimizedState()`, `ToggleMini
 
 ---
 
+### step-chatstream-cards: Create-Both-Upfront / Prune-Dead Streaming Cards
+
+**Status:** ✅ Complete | Type: Streaming UI Refactor
+
+**Problem:** Both `reasoningMessage` and `assistantMessage` are created & added up front so their
+first non-empty chunk renders in the correct order (`[reasoning, assistant]`) with real-time
+streaming. Ordering had previously been "repaired" post-stream via a fragile remove/re-add shuffle.
+A side effect of always creating both was **empty cards** (a Thinking card with no prose, an
+Assistant card with no prose) that don't respond to scroll-wheel.
+
+**Implementation (`ChatPageViewModel.ExecuteSendMessage`):**
+
+- **Kept** create-both-upfront (source of correct ordering) + the "DO NOT DEFER THIS ADD" comments.
+- **Deleted** the entire POST-STREAM REORDER block (the `Messages.Remove(assistantMessage)` …
+  conditional re-add of reasoning … `Messages.Add(assistantMessage)` shuffle). Ordering is now
+  structural, never repaired by shuffling.
+- **Added a prune keep/drop predicate** right after the stream `foreach`:
+  - `keepReasoning = reasoningMessage != null && !string.IsNullOrWhiteSpace(reasoningMessage.Content)`
+  - `keepAssistant = !string.IsNullOrWhiteSpace(assistantMessage.Content) || _pendingToolCalls.Count > 0`
+    (a tool-call turn keeps its Assistant context even with empty prose).
+  - UI: dead cards removed from `Messages`; session: only survivors `FinalizeStreaming()` +
+    `AddMessageAsync`. Conditional disposal on removal (`is IDisposable` — `ChatMessage` itself is
+    not IDisposable; this is future-proofing for a disposable card-content wrapper).
+- **gap78** (LLM context) left intact: assistant with tool calls still added to `messages[]` even
+  though its empty UI bubble was pruned — decoupling UI display from LLM context so subsequent
+  `Tool` results correlate.
+
+**Invariants:** ordering structural; pure-tool-call turn shows no empty bubble yet still feeds the
+`Assistant(toolCalls=[...])` context entry; downstream uses gated by
+`!string.IsNullOrWhiteSpace(assistantMessage.Content)` remain NRE-safe after pruning.
+
+**Out of scope:** the commented-out gap68 thinking parser stays commented (re-enabling later is safe
+because `assistantMessage` is create-upfront non-null).
+
+**Files Modified:**
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+
+**Validation:** `dotnet clean` (0/0) → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test` (--no-build): **1517 passed, 0 failed, 0 skipped**.
+
+---
+
 ```
 
 

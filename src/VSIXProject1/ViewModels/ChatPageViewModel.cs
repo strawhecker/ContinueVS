@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -2053,55 +2053,38 @@ namespace ContinueVS.ViewModels
                         LoggerService.Current.WriteDebug($"[gap43_3] Plan saved to: {savedPath}");
                     }
 
-                    // Finalize reasoning message streaming if present
-                    reasoningMessage?.FinalizeStreaming();
-                    if (reasoningMessage != null)
-                        await _sessionService.AddMessageAsync(reasoningMessage);
+                    // *** CARD PRUNING (create-both-upfront, prune-dead) ***
+                    // Both cards were created & added up front so their first non-empty chunk
+                    // renders in the correct order ([reasoning, assistant]) with real-time
+                    // streaming. Ordering is structural now — NEVER repaired by remove/re-add
+                    // shuffling. Here we only drop dead cards (empty bubbles that don't respond
+                    // to scroll-wheel) and persist/serve only the survivors.
+                    bool keepReasoning = reasoningMessage != null &&
+                                         !string.IsNullOrWhiteSpace(reasoningMessage.Content);
+                    // A tool-call turn carries no prose but MUST keep its Assistant context
+                    // entry so Tool results correlate; its empty UI bubble is still pruned.
+                    bool keepAssistant = !string.IsNullOrWhiteSpace(assistantMessage.Content) ||
+                                         _pendingToolCalls.Count > 0;
 
-                    // Finalize the assistant message streaming to convert buffer to cached string
-                    assistantMessage.FinalizeStreaming();
-                    await _sessionService.AddMessageAsync(assistantMessage);
-                    LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
-
-                    // *** POST-STREAM REORDERING: Collection already has all messages ***
-                    // Reorder messages to ensure correct display: thinking, reasoning, response
-                    // The assistant message was added DURING streaming (for incremental UI updates),
-                    // The reasoning message was added DURING streaming (for incremental UI updates),
-                    // but we need to reorder them to display in the correct order: thinking, reasoning, response
-                    // NOTE: Reasoning message is already in the collection from streaming, so we reorder, not re-add.
-                    // Do NOT skip the removal/re-add of reasoning; it must be repositioned after thinking.
+                    // PRUNE: remove dead cards (live order already correct, no reordering)
                     await SwitchToMainThreadAsync();
+                    if (!keepReasoning && reasoningMessage is IDisposable dr) dr.Dispose();
+                    if (!keepReasoning) Messages.Remove(reasoningMessage!);
+                    if (!keepAssistant && assistantMessage is IDisposable da) da.Dispose();
+                    if (!keepAssistant) Messages.Remove(assistantMessage);
 
-                    // Remove assistant message from its current position (it should be the last item or near it)
-                    // This prepares it to be re-added in the correct order at the end
-                    Messages.Remove(assistantMessage);
-
-                    //// Add thinking message first (if present)
-                    //if (thinkingMessage != null && !string.IsNullOrEmpty(thinkingMessage.Content))
-                    //{
-                    //    // Add debug cookie to verify thinking content is present
-                    //    //thinkingMessage.Content += "\n\n🍪 [DEBUG: Thinking message cookie]";
-                    //    Messages.Add(thinkingMessage);
-                    //    LoggerService.Current.WriteDebug($"[UI-ordering] Thinking message added to UI");
-                    //}
-
-                    // *** REASONING ALREADY EXISTS - REORDER ONLY ***
-                    // Reasoning message is already in the collection from streaming,
-                    // so only move it if it's not already in the right position.
-                    // Do NOT add it twice or skip this reordering step.
-                    if (reasoningMessage != null && !string.IsNullOrEmpty(reasoningMessage.Content))
+                    // SESSION: persist only survivors
+                    if (keepReasoning)
                     {
-                        // Add debug cookie to verify reasoning content is present
-                        //reasoningMessage.Content += "\n\n🍪 [DEBUG: Reasoning message cookie]";
-                        // Remove and re-add to ensure correct position after thinking
-                        Messages.Remove(reasoningMessage);
-                        Messages.Add(reasoningMessage);
-                        LoggerService.Current.WriteDebug($"[UI-ordering] Reasoning message reordered to UI");
+                        reasoningMessage!.FinalizeStreaming();
+                        await _sessionService.AddMessageAsync(reasoningMessage);
                     }
-
-                    // Add the response (assistant message) last
-                    Messages.Add(assistantMessage);
-                    LoggerService.Current.WriteDebug($"[UI-ordering] Assistant message re-added to UI in correct position (response)");
+                    if (keepAssistant)
+                    {
+                        assistantMessage.FinalizeStreaming();
+                        await _sessionService.AddMessageAsync(assistantMessage);
+                        LoggerService.Current.WriteDebug($"[a9-command-assistant] Assistant message added. Role={assistantMessage.Role}, Content length={assistantMessage.Content.Length}, ToolCallsCount={_pendingToolCalls.Count}");
+                    }
 
                     // After assistant message completes:
                     if (!string.IsNullOrWhiteSpace(assistantMessage.Content))
