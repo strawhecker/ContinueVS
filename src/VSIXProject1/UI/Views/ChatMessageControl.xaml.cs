@@ -164,12 +164,6 @@ namespace ContinueVS.UI.Views
             {
                 comboBox.SelectionChanged -= CodeActionDropdown_SelectionChanged;
             }
-
-            var rawToggle = FindName("RawToggleButton") as Button;
-            if (rawToggle != null)
-            {
-                rawToggle.Click -= RawToggleButton_Click;
-            }
         }
 
         private void ChatMessageControl_Loaded(object sender, RoutedEventArgs e)
@@ -191,12 +185,9 @@ namespace ContinueVS.UI.Views
                 comboBox.SelectionChanged += CodeActionDropdown_SelectionChanged;
             }
 
-            // gap89: wire the raw/processed view toggle to the bound message.
-            var rawToggle = FindName("RawToggleButton") as Button;
-            if (rawToggle != null)
-            {
-                rawToggle.Click += RawToggleButton_Click;
-            }
+            // gap89: apply the raw/processed view toggle state to the bound message.
+            // Note: RawToggleButton is wired to RawToggleButton_Click via XAML (Click=""),
+            // so it fires exactly once per click — do not subscribe again here.
             ApplyRawToggleState();
 
             // gap85: Apply delete/undelete + minimize/maximize icons and toggle collapse state
