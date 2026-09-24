@@ -841,16 +841,6 @@ namespace ContinueVS.UI.Renderers
                 wpfTable.RowGroups[0].Rows.Add(wpfRow);
             }
 
-            // A WPF Table is a block element and by default stretches to fill the
-            // FlowDocument's full width (with Auto columns the leftover space just
-            // sits after the last column, and with Star columns it's distributed
-            // evenly – the "wide, equal-width" symptom). To make the table fit its
-            // data and stay left-justified, measure the table at its natural
-            // (content) size and pin Width to that value. Must measure AFTER all
-            // rows/cells are populated so DesiredSize reflects the real content.
-            wpfTable.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            wpfTable.Width = wpfTable.DesiredSize.Width;
-
             return wpfTable;
         }
 
