@@ -16,11 +16,12 @@ namespace ContinueVS.UI.Renderers
     /// <summary>
     /// WPF UserControl for rendering markdown text.
     /// Accepts a plain string Content, parses it with Markdig synchronously,
-    /// and renders all prose into ONE shared FlowDocument inside a single,
-    /// read-only RichTextBox so that multi-line selection + copy works
-    /// continuously across the whole response. Code blocks (with their gap53
-    /// Copy/Apply dropdown) are embedded via BlockUIContainer to preserve
-    /// visual ordering.
+    /// and renders all prose into ONE shared FlowDocument hosted inside a
+    /// read-only FlowDocumentScrollViewer so that multi-line selection + copy
+    /// works continuously across the whole response, and the scroll wheel
+    /// bubbles correctly to the parent conversation ScrollViewer. Code blocks
+    /// (with their gap53 Copy/Apply dropdown) are embedded via
+    /// BlockUIContainer to preserve visual ordering.
     /// Implements debounced rendering during streaming to handle partial/incomplete markdown gracefully.
     /// </summary>
     public partial class MarkdownBlockRenderer : UserControl
@@ -68,37 +69,14 @@ namespace ContinueVS.UI.Renderers
             {
                 PagePadding = new Thickness(0),
                 TextAlignment = TextAlignment.Left,
-                // Default 200px column layout collapses text to one character
-                // per line; we keep PageWidth in sync with actual width instead.
-                PageWidth = 1
+                // FlowDocumentScrollViewer auto-fits column width to its host,
+                // so no PageWidth size-sync hack is needed here.
+                PageWidth = double.NaN
             };
 
-            var display = new RichTextBox
-            {
-                Document = _document,
-                IsReadOnly = true,
-                IsTabStop = false,
-                IsDocumentEnabled = true,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(0),
-                Margin = new Thickness(0),
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Cursor = System.Windows.Input.Cursors.IBeam
-            };
-            display.SetResourceReference(RichTextBox.ForegroundProperty, "VsBrush.WindowText");
-            display.SizeChanged += Display_SizeChanged;
-
-            RootPanel.Children.Add(display);
-        }
-
-        private void Display_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (e.NewSize.Width > 0)
-            {
-                _document.PageWidth = e.NewSize.Width;
-            }
+            RootDocumentViewer.Document = _document;
+            RootDocumentViewer.SetResourceReference(
+                FlowDocumentScrollViewer.ForegroundProperty, "VsBrush.WindowText");
         }
 
         /// <summary>
@@ -135,10 +113,10 @@ namespace ContinueVS.UI.Renderers
 
         private void OnMaxMessageWidthChanged(double newWidth)
         {
-            // Apply the width constraint to RootPanel so text can wrap
-            if (RootPanel != null && newWidth > 0)
+            // Apply the width constraint to the document viewer so text can wrap
+            if (RootDocumentViewer != null && newWidth > 0)
             {
-                RootPanel.MaxWidth = newWidth;
+                RootDocumentViewer.MaxWidth = newWidth;
             }
         }
 
@@ -198,7 +176,7 @@ namespace ContinueVS.UI.Renderers
         /// <summary>
         /// Debounce timer tick handler: performs the actual markdown rendering.
         /// Called after a delay to allow streaming content to stabilize.
-        /// Rebuilds only the shared document; the host RichTextBox stays put.
+        /// Rebuilds only the shared document; the host FlowDocumentScrollViewer stays put.
         /// </summary>
         private void RenderDebounceTimer_Tick(object? sender, EventArgs e)
         {

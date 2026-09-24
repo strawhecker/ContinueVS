@@ -6,8 +6,11 @@
              mc:Ignorable="d"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              HorizontalAlignment="Stretch">
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel x:Name="RootPanel" Orientation="Vertical" HorizontalAlignment="Stretch"/>
-    </ScrollViewer>
+    <FlowDocumentScrollViewer x:Name="RootDocumentViewer"
+                              HorizontalAlignment="Stretch"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              IsSelectionEnabled="True"
+                              IsToolBarVisible="False"/>
 </UserControl>
 
