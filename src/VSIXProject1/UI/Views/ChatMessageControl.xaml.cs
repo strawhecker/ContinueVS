@@ -15,7 +15,12 @@ namespace ContinueVS.UI.Views
     public partial class ChatMessageControl : UserControl
     {
         private static readonly MarkdownPipeline _pipeline =
-            new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+            new MarkdownPipelineBuilder()
+                .UseAdvancedExtensions()  // GFM: Tables, Grid tables, Task lists, Strikethrough
+                .UseEmojiAndSmiley()      // :smile: → emoji
+                .UseMathematics()         // $$LaTeX$$ math
+                .DisableHtml()            // security: block LLM HTML injection
+                .Build();
 
         private ChatMessage? _boundMessage;
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -21,9 +21,12 @@ namespace ContinueVS.Services
 
         public MarkdownService()
         {
-            // Configure Markdig pipeline with standard markdown + extra features
+            // Configure Markdig pipeline with standard markdown + GFM extras
             _pipeline = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()
+                .UseAdvancedExtensions()  // GFM: Tables, Grid tables, Task lists, Strikethrough
+                .UseEmojiAndSmiley()      // :smile: → emoji
+                .UseMathematics()         // $$LaTeX$$ math
+                .DisableHtml()            // security: block LLM HTML injection
                 .Build();
         }
 

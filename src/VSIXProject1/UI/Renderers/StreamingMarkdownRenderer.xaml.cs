@@ -42,7 +42,12 @@ namespace ContinueVS.UI.Renderers
     public partial class StreamingMarkdownRenderer : UserControl
     {
         private static readonly MarkdownPipeline _pipeline =
-            new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+            new MarkdownPipelineBuilder()
+                .UseAdvancedExtensions()  // GFM: Tables, Grid tables, Task lists, Strikethrough
+                .UseEmojiAndSmiley()      // :smile: → emoji
+                .UseMathematics()         // $$LaTeX$$ math
+                .DisableHtml()            // security: block LLM HTML injection
+                .Build();
 
         /// <summary>
         /// Monospace font fallback chain using ONLY real, installed font names.
