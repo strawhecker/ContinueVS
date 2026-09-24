@@ -647,6 +647,21 @@ namespace ContinueVS.ViewModels
         public RelayCommand PauseCommand { get; }
 
         /// <summary>
+        /// Command to delete a session from history by ID (gap91).
+        /// Confirms with the user first, then removes the session (and its JSONL log),
+        /// refreshes the available-sessions list, and falls back to a fresh/new state
+        /// when the deleted session was the active one.
+        /// </summary>
+        public RelayCommand<string> DeleteSessionCommand { get; }
+
+        /// <summary>
+        /// Command to export a session to a JSON file by ID (gap91).
+        /// Calls ExportSessionAsync which writes the session read-only to Downloads
+        /// and reports the resulting file path in a success notification.
+        /// </summary>
+        public RelayCommand<string> ExportSessionCommand { get; }
+
+        /// <summary>
         /// gap89: Command to toggle a message's raw/processed (pretty) view.
         /// Flips the message's ViewMode between Pretty (reader) and Raw (destination).
         /// Applies uniformly to user, reason, response, and tool-call entries; the
@@ -780,6 +795,8 @@ namespace ContinueVS.ViewModels
                     ExecuteApplyCodeBlock(codeContent);
             });
             OptimizeAndContinueCommand = new RelayCommand(() => _ = ExecuteOptimizeAndContinueAsync());
+            DeleteSessionCommand = new RelayCommand<string>(id => _ = ExecuteDeleteSessionAsync(id!));
+            ExportSessionCommand = new RelayCommand<string>(id => _ = ExecuteExportSessionAsync(id!));
 
             _ = InitializeAsync();
             _configService.ConfigChanged += ConfigService_ConfigChanged;
@@ -2787,6 +2804,90 @@ namespace ContinueVS.ViewModels
             {
                 LoggerService.Current.WriteError($"[gap76-load] Failed to load session: {ex.Message}", ex);
                 await _notificationService.ShowErrorAsync($"Failed to load session: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Executes the session delete command (gap91).
+        /// Confirms with the user, then deletes the session via <see cref="ISessionService.DeleteSessionAsync"/>,
+        /// refreshes the available-sessions list, and falls back to a new chat when the deleted
+        /// session was the active one.
+        /// </summary>
+        private async Task ExecuteDeleteSessionAsync(string sessionId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sessionId))
+                {
+                    LoggerService.Current.WriteDebug("[gap91-delete] Session ID is null/empty, aborting");
+                    return;
+                }
+
+                var title = AvailableSessions.FirstOrDefault(s => s.Id == sessionId)?.Title;
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    title = CurrentSession?.Id == sessionId ? CurrentSession?.Title : null;
+                }
+                var displayTitle = string.IsNullOrWhiteSpace(title) ? sessionId : title!;
+
+                var confirmed = await _notificationService.ShowConfirmationAsync(
+                    "Delete Session",
+                    $"Remove chat '{displayTitle}'? This cannot be undone.");
+
+                if (!confirmed)
+                {
+                    LoggerService.Current.WriteDebug("[gap91-delete] User cancelled session deletion");
+                    return;
+                }
+
+                await _sessionService.DeleteSessionAsync(sessionId);
+                LoggerService.Current.WriteDebug($"[gap91-delete] Deleted session {sessionId}");
+
+                // If the deleted session was the active one, fall back to a new chat.
+                if (CurrentSession?.Id == sessionId)
+                {
+                    await ExecuteNewChatAsync();
+                }
+                else
+                {
+                    await RefreshSessionsAsync();
+                }
+
+                await _notificationService.ShowNotificationAsync(
+                    "Session Deleted", $"Chat '{displayTitle}' was deleted.", NotificationType.Success);
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[gap91-delete] Failed to delete session: {ex.Message}", ex);
+                await _notificationService.ShowErrorAsync($"Failed to delete session: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Executes the session export command (gap91).
+        /// Exports the session read-only to a JSON file via <see cref="ISessionService.ExportSessionAsync"/>
+        /// and reports the resulting file path.
+        /// </summary>
+        private async Task ExecuteExportSessionAsync(string sessionId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sessionId))
+                {
+                    LoggerService.Current.WriteDebug("[gap91-export] Session ID is null/empty, aborting");
+                    return;
+                }
+
+                var path = await _sessionService.ExportSessionAsync(sessionId);
+                LoggerService.Current.WriteDebug($"[gap91-export] Exported session {sessionId} to {path}");
+
+                await _notificationService.ShowNotificationAsync(
+                    "Session Exported", $"Session exported to: {path}", NotificationType.Success);
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[gap91-export] Failed to export session: {ex.Message}", ex);
+                await _notificationService.ShowErrorAsync($"Failed to export session: {ex.Message}");
             }
         }
 

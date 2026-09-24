@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
@@ -96,6 +97,18 @@ namespace ContinueVS.Services.Interfaces
         /// <param name="sessionId">The ID of the session to delete.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task DeleteSessionAsync(string sessionId);
+
+        /// <summary>
+        /// Exports a session (messages + metadata) to a JSON file (gap91).
+        /// The session is serialized read-only; the store is never mutated.
+        /// </summary>
+        /// <param name="sessionId">The ID of the session to export.</param>
+        /// <param name="exportDirectory">Optional target directory. Defaults to the user's
+        /// Downloads folder (falling back to the session storage directory when unavailable).</param>
+        /// <returns>The absolute path of the written export file.</returns>
+        /// <exception cref="ArgumentException">Thrown when sessionId is null or whitespace.</exception>
+        /// <exception cref="FileNotFoundException">Thrown when the session's log does not exist.</exception>
+        Task<string> ExportSessionAsync(string sessionId, string? exportDirectory = null);
 
         /// <summary>
         /// Event raised when the current session changes.

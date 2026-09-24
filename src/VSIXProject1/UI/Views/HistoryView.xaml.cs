@@ -1,13 +1,14 @@
-﻿using System;
+using System;
 using System.Windows.Controls;
 using ContinueVS.ViewModels;
 
 namespace ContinueVS.UI.Views
 {
     /// <summary>
-    /// Interaction logic for HistoryView.xaml (gap76).
+    /// Interaction logic for HistoryView.xaml (gap76, gap91).
     /// Displays list of available sessions sorted by last modified.
-    /// Clicking a session loads it into the chat view.
+    /// Clicking a session loads it into the chat view. Hovering a row reveals a
+    /// delete (✕) button; right-clicking opens a menu with Delete and Export (gap91).
     /// </summary>
     public partial class HistoryView : UserControl
     {
@@ -46,6 +47,36 @@ namespace ContinueVS.UI.Views
 
             // Load the selected session asynchronously
             _ = viewModel.LoadSessionAsync(selectedSession.Id);
+        }
+
+        /// <summary>
+        /// Handles right-click "Delete session" menu item (gap91).
+        /// The session ID is carried on the MenuItem's Tag via PlacementTarget binding.
+        /// </summary>
+        private void OnDeleteSessionClick(object sender, System.Windows.RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var sessionId = menuItem?.Tag as string;
+            if (string.IsNullOrWhiteSpace(sessionId))
+                return;
+
+            var viewModel = this.DataContext as ChatPageViewModel;
+            viewModel?.DeleteSessionCommand?.Execute(sessionId);
+        }
+
+        /// <summary>
+        /// Handles right-click "Export session" menu item (gap91).
+        /// The session ID is carried on the MenuItem's Tag via PlacementTarget binding.
+        /// </summary>
+        private void OnExportSessionClick(object sender, System.Windows.RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var sessionId = menuItem?.Tag as string;
+            if (string.IsNullOrWhiteSpace(sessionId))
+                return;
+
+            var viewModel = this.DataContext as ChatPageViewModel;
+            viewModel?.ExportSessionCommand?.Execute(sessionId);
         }
     }
 }

@@ -8,249 +8,6 @@
 
 ---
 
-### Active-Plan Binding + Read/Update Plan Tools (BRIDGE v2.1)
-
-**Status:** ✅ Complete | Type: Active-Plan Binding + LLM-Driven Plan Tools
-
-**Summary:** Added a session-scoped, non-saved active-plan binding (captured when the user's active
-document is a plan under `~/.continueVS/plans/`) plus two wide-open, repo-root-restricted tools the
-LLM uses to read and update that plan (`read_plan`, `update_plan`). The LLM owns all text shaping
-(find → replace, pass/fail markers); the tools are dumb, verified find/replace + read primitives that
-are never silent about "no active plan". Enabled by default behind `tool.planToolsEnabled`.
-
-**IDE open-document wiring (new capability):**
-- `IDteProvider.GetOpenDocumentPaths()` — enumerates `DTE.Documents` full paths (the pattern already
-  used by `GetRecentFiles`, UI-thread guarded, best-effort empty on failure). Added to `IIdeService`
-  as `IsOpenInViewerAsync(path)` returning `Task<bool?>` (true open / false not / null unknown) so the
-  send-time binding check can implement "active-elsewhere keeps the binding, closed clears it" without
-  ever silently clearing on an unavailable query.
-- Implemented in `VsIdeService.cs`; `null` when no/unknown open set, `false` on empty path.
-
-**Active-plan binding (session/request scope, non-saved):**
-- `ChatPageViewModel.RefreshActivePlanBindingAsync()` runs at send time (send-only check), right after
-  `ResetToolCallLimitForAction()`:
-  - Active doc is a plan under `~/.continueVS/plans/` → bind it (`SetActivePlanPath`).
-  - Bound plan still open in a viewer (active elsewhere) → keep.
-  - Bound plan closed → clear (null).
-  - Non-silent: unknown status keeps the binding; plan tools surface an explicit "no active plan".
-- `IsPlanPath` helper restricts binding to `~/.continueVS/plans/` only (never "any doc").
-
-**Built-in tools (`BuiltInTools.cs`):**
-- `GetReadPlanTool()`: optional `path` (repo-root-relative); default = bound plan. Returns full text +
-  which plan. Non-silent "no active plan" when unbound + no path.
-- `GetUpdatePlanTool()`: required `find` + `replace`, optional `path`. Repo-root restricted. Does exact
-  find/replace, returns match count (count 0 → visible no-op, plan unchanged). Never silent.
-- Both `SupportedModes = { Agent, Debug }`; registered in `GetAllBuiltInTools()` (25 → 27).
-- `ToolService`: `InvokeBuiltInAsync` cases `read_plan`/`update_plan` + internal implementations
-  `ReadPlanInternalAsync` / `UpdatePlanInternalAsync` / `ResolvePlanTargetAsync` (repo-root resolution
-  via `GetGitRootPathAsync`) / `CountOccurrences`; `ToolNameToUserSettingKey` maps both to
-  `tool.planToolsEnabled`.
-- `IToolService.SetActivePlanPath(path)` / `GetActivePlanBinding()` + `ToolService` implementation with
-  a `_planBindingLock` guarded `_activePlanPath`.
-- `UserSettings.Tool_PlanToolsEnabled = "tool.planToolsEnabled"` default `true`.
-- `config/tools-defaults.json`: registered `read_plan` + `update_plan`.
-- `system-prompts.json` + `SystemPromptService`: `ACTIVE_PLAN_INSTRUCTIONS` added to Agent and Debug
-  default prompts (read the plan with read_plan, update it with update_plan per step, manage ⏳/✅
-  markers, track progress across unit + integration testing).
-
-**Tests:**
-- `ToolServiceUpdatePlanTests.cs` (NEW, 10): binding round-trip, read_plan no-binding → "no active plan",
-  read_plan bound → returns text, read_plan explicit repo-relative path, update_plan replaces all + count,
-  update_plan no-match → 0 + unchanged, update_plan empty find → error, `tool.planToolsEnabled` default
-  true, read_plan/update_plan available in Agent mode, not available in Plan mode.
-- `VsIdeServiceTests.cs` (+4): `IsOpenInViewerAsync` open / not-open / unknown (null) / empty path.
-- `BuiltInToolsTests.cs` (+4): read_plan + update_plan definitions, mode gating, present in registry.
-- Count updates: registry 25 → 27; available tools 18 → 20.
-- Updated manual `IDteProvider`/`IIdeService` stubs (`ContextWindowCollectorTests`,
-  `GetWorkspaceFilesReproTests`, `DteProviderTests`, `VsIdeServiceTests`, `WorkspaceStatsServiceTests`).
-
-**Validation:** `dotnet clean` (0/0) → `dotnet build --force` (0 warnings, 0 errors) → `dotnet test`:
-**1517 passed, 0 failed, 0 skipped**.
-
----
-
-### gap-session-tests-temp: Route All Session-Creating Unit Tests to a Temp Folder with Cleanup
-
-**Status:** ✅ Complete | Type: Test Isolation / Hygiene
-
-**Problem:** Several unit tests constructed `SessionService` via its **single-argument constructor**
-(`new SessionService(tokenCounter)`), which defaults to persisting session files in
-`~/.continueVS/sessions` — the real user folder. This polluted real user data, was not isolated,
-and could clobber actual ContinueVS sessions.
-
-**Implementation:**
-
-- **`src/VSIXProject1.Tests/Fixtures/TempSessionServiceFactory.cs` (NEW)** — a disposable factory that
-  roots a `SessionService` in a unique temp directory (`%TEMP%\ContinueVS-Test-Session-{guid}`) via the
-  2-arg ctor `SessionService(ITokenCountingService, string storageDirectory)`. `Dispose()` recursively
-  deletes the temp directory. `Create(tokenCounter)` and `DirectoryPath` (for cross-instance sharing) exposed.
-- Routed all offender classes through the factory (or the 2-arg ctor with a temp dir) and rewired cleanup
-  into existing `IDisposable` (adding `IDisposable` where missing):
-  - `SessionServiceTests.cs` — now passes a temp dir into the 2-arg ctor (also removed the dead `_testSessionsDir`
-    var that was created but never passed to the service).
-  - `SessionServicePruningTests.cs`, `SessionServicePruneUndeleteGap81Tests.cs`,
-    `SessionServiceTokenCountingIntegrationTests.cs`, `SessionServiceContextBudgetTests.cs` — route each
-    construction through the factory.
-  - `ModeChangePropagationTests.cs` — uses a temp dir (2-arg ctor) + disposable cleanup.
-  - `ModePersistenceTests.cs` — all `new SessionService(...)` instances point at the shared `_testTempDir`
-    so save/load across instances share one location and get cleaned up.
-- Already-safe classes (`SessionServiceJsonlTests.cs`, `SessionDeltaLogTests.cs`) were left unchanged.
-
-**Result:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) →
-`dotnet test`: full suite passes (1492 passed). Verified the real user folder
-(`~/.continueVS/sessions`) receives **no test output** — the only files written there are the live
-ContinueVS tool's own ongoing sessions. All session-creating unit tests are now isolated to `%TEMP%`
-and removed afterwards.
-
----
-
-### fix-write-plan-open: `write_plan` / `open_file` Now Open the Plan as the Active IDE Document
-
-**Status:** ✅ Complete | Type: Bug Fix (IDE file-open routing)
-
-**Problem:** `write_plan` saved the plan to disk but the IDE never loaded it as the current document. The tool routed through `IIdeService.OpenFileAsync`, which was an explicit **stub** in `VsIdeService` that only threw if the file was missing and otherwise did nothing (no DTE call). The real editor-opening logic lived in `OpenFileInEditorAsync` → `OpenFileInEditorCoreAsync` (uses `dte.ItemOperations.OpenFile(...)` on the UI thread via `ThreadHelper`). `write_plan` never called it, so the file was saved but never made active. `open_file` had the same defect. Unit tests masked it because they mocked `IIdeService` and only verified `OpenFileAsync` was called — never exercising the real DTE path.
-
-**Implementation:**
-- `src/VSIXProject1/Services/Implementations/ToolService.cs`:
-  - `WritePlanInternalAsync`: `await _ideService.OpenFileAsync(path)` → `await _ideService.OpenFileInEditorAsync(path)`.
-  - `OpenFileInternalAsync` (the `open_file` tool): `await _ideService.OpenFileAsync(filepath)` → `await _ideService.OpenFileInEditorAsync(filepath)`.
-- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`:
-  - `OpenFileAsync` now delegates to `OpenFileInEditorCoreAsync` (the real DTE-based open) so no caller can silently hit the empty stub. Keeps its null + file-exists guards before delegating.
-
-**Files Modified:**
-- `src/VSIXProject1/Services/Implementations/ToolService.cs`
-- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`
-- `src/VSIXProject1.Tests/Services/ToolServiceWritePlanTests.cs` (verify `OpenFileInEditorAsync` instead of `OpenFileAsync`)
-
-**Validation:** `dotnet build` both projects → 0 warnings / 0 errors. `ToolServiceWritePlanTests` 7/7 passing; `VsIdeServiceTests` 7/7 passing.
-
----
-
-### gap-session-title: First Message Line Becomes the Session Title (Header + Naming)
-
-**Status:** ✅ Complete | Type: Session Title Derivation / UI
-
-**Problem:** New sessions display a generic "New Conversation" title. The user wanted the *first line of the first send* to become the session's title—shown at the top of the chat and used to name the session (persisted so it appears in history).
-
-**Implementation:**
-
-- **`ISessionService.SetSessionTitleAsync(string)`** (interface) / **`SessionService`** (impl):
-  - Validates non-whitespace; sets `Session.Title`, persists a fresh `SessionDeltaInit` (so the title survives JSONL replay), and fires `SessionChanged` (`SessionChangeType.Updated`).
-- **`ChatPageViewModel`**:
-  - Added `CurrentSessionTitle` property (bindable, change-notified) that falls back to `"New Conversation"`; kept in sync from `CurrentSession` changes and from `SessionChanged` (`e.Session.Title`).
-  - `ExecuteSendMessage` — on the **first send of a fresh session** (`session.Messages.Count == 1` **and** title is empty or the default `"New Conversation"`): derives a title from the **first non-empty line** of the input (`DeriveSessionTitle`), truncates at **60 chars + `…`**, calls `SetSessionTitleAsync`, and updates `CurrentSessionTitle`.
-  - `DeriveSessionTitle(string?)` helper: splits on `\n`/`\r`, takes the first non-whitespace line, trims, caps length; returns null when no line exists.
-  - Guard prevents overwriting real titles on subsequent sends / loaded sessions.
-- **`ChatPage.xaml`**: added a `TextBlock` bound to `CurrentSessionTitle` in the Mode-Selector row (top bar), with character ellipsis + tooltip so the title is visible at the top of the chat.
-
-**Files Modified:**
-- `src/VSIXProject1/Services/Interfaces/ISessionService.cs`
-- `src/VSIXProject1/Services/Implementations/SessionService.cs`
-- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
-- `src/VSIXProject1/UI/Pages/ChatPage.xaml`
-
-**Tests:**
-- `ChatPageViewModelSessionTitleTests.cs` (NEW): first send derives title from first line; second send does NOT overwrite; `CurrentSessionTitle` fallback + reflection of `CurrentSession.Title`.
-- `SessionServiceTests.cs`: `SetSessionTitleAsync` updates title + fires `Updated`; throws on null/whitespace.
-- `SessionServiceJsonlTests.cs`: derived title survives reopen/replay.
-
-**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1499 passed, 0 failed, 0 skipped**.
-
----
-
-### gap-workspacefiles-fast: GetWorkspaceFiles Folder-by-Folder Walk on Background Thread
-
-**Status:** ✅ Complete | Type: Performance / File-Enumeration Rewrite
-
-**Problem:** `VsIdeService.GetWorkspaceFiles` used `Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories)` which re-stats every folder path repeatedly, and fell back to `TopDirectoryOnly` on any access-denied dir, and stat-checked reparse points on each directory. This made `grep_search` / `file_glob_search` / `search_codebase` slow on large workspaces.
-
-**Implementation (src/VSIXProject1/Services/Implementations/VsIdeService.cs):**
-- Replaced the single `AllDirectories` scan with `CollectWorkspaceFiles(root, pattern)`: a stack-based walk that enumerates **each folder's files exactly once** via `EnumerateFiles(dir, pattern, TopDirectoryOnly)`, then pushes that folder's direct subfolders via `EnumerateDirectories(dir, "*", TopDirectoryOnly)` onto a stack to recurse. "src" is checked once; each subfolder is then recursed through.
-- Excluded subtrees (`bin`/`obj`/`node_modules`/`.git`/etc.) are pruned while walking — we never descend into them.
-- Runs on a background thread pool thread (`Task.Run(...).GetAwaiter().GetResult()`) and materializes the result, so the I/O-bound walk never blocks the caller, and callers (which enumerate/materialize `IEnumerable<string>`) are unchanged.
-- Removed the now-unused `IsReparsePoint` helper entirely.
-- Removed the `(new DirectoryInfo(d).Attributes & FileAttributes.ReparsePoint) == 0` reparse-point clause from `ListDirectoryAsync`.
-
-**Validation:** No compiler/IDE problems detected; no references to `IsReparsePoint` remain. VSTHRD002 fix: replaced `Task.Run(...).GetAwaiter().GetResult()` with a dedicated `System.Threading.Thread` (fully-qualified due to `EnvDTE.Thread` ambiguity) blocked via `Thread.Join()`, keeping the synchronous `IIdeService` signature and avoiding the vs-threading analyzer. Removed the obsolete `IsReparsePoint_OnBareSegment_DoesNotThrow` test from `GetWorkspaceFilesReproTests.cs` (the helper was intentionally removed). `dotnet build` clean (0 warnings/0 errors); `dotnet test` passes (1446/1446).
-
----
-
-### gap-binarygrep: grep_search Filters Binary & Oversized Files Before Reading
-
-**Status:** ✅ Complete | Type: Tool Context Sanitization (grep et al.)
-
-**Problem:** `grep_search` read every workspace file via `ReadFileAsync` (which does `File.ReadAllText`) with no binary guard. Binaries (DLLs, images, archives), `node_modules`/`bin` leftovers, and large generated files were force-decoded as text and regex-matched — dumping junk lines into the tool result and polluting the LLM context ("using findstr/grep is an unmitigated disaster ... it pulls in binary files and fills the context"). `findstr` (raw shell via `run_terminal_command`) is out of scope (intentionally raw); the fix is the built-in `grep_search` (`search_codebase`, `file_glob_search` share the same `GetWorkspaceFiles` path and are protected by the same candidate filter where they read).
-
-**Implementation (src/VSIXProject1/Services/Implementations/ToolService.cs):**
-- `GrepSearchInternalAsync` now filters workspace files through `IsGrepCandidateFile()` **before** reading (extension blocklist + 2 MB size cap), re-verifies via `IsTextContent()` (NUL-byte / control-char header sniff on the first 4 KB) immediately before `ReadFileAsync`, imposes a 50-match cap (existing) with early break, and adds `filesScanned` metadata.
-- Added `BinaryFileExtensions` static `HashSet` (images, fonts, archives, compiled/binaries, media, docs/office, generated/lockfiles).
-- Added `IsGrepCandidateFile(string)` and `IsTextContent(string)` helpers; both fail-closed (skip file) on any I/O error.
-
-**Tests (src/VSIXProject1.Tests/Services/ToolServiceGrepSearchTests.cs, NEW — 5):**
-- Binary-extension file (`.dll`) skipped — `ReadFileAsync` never invoked on it; `.cs` still read and matched.
-- NUL-byte `.dat` content skipped by header sniff before the full read.
-- Text file with match returns the matching line.
-- No matches → `"No matches found"`.
-- Empty pattern → error result.
-
-**Validation:** `dotnet build ContinueVS.slnx --force` → 0 warnings, 0 errors. New grep tests: 5/5 passing.
-
----
-
-### gap90: Tool Bars Show Empty Yellow Background — Tool Content Not Rendered  (REVERTED — see gap90b)
-
-**Status:** ⚠️ Original fix superseded by gap90b (revert tool calls to the correct renderer). | Type: UI Rendering Fix (Tool role)
-
-**Original symptom:** Tool-call messages rendered as a yellow (WarningBrush) bar with **no text** — "the tools are showing a yellow background… however there is no text in the tool bars" — and "the box does not size well."
-
-**Original (1990) fix — now reverted:** routed Tool through `StreamingReasoningRenderer` (extended `RoleToStreamingReasoningVisibility` to include Tool) and painted the bubble `Brushes.Transparent`. That regressed elsewhere: tool bubbles became a **black bar with unsized/invisible text**, because `StreamingReasoningRenderer` latches its `FlowDocument.PageWidth` from a `RichTextBox_SizeChanged` event and is not built for tool-call bubbles. Reverted in gap90b.
-
----
-
-### gap90b: Revert Tool Calls to the Correct Renderer (ToolInvocationTemplate)
-
-**Status:** ✅ Complete | Type: UI Rendering Fix (Tool role) — revert of gap90
-
-**Problem:** The gap90 fix routed Tool content through `StreamingReasoningRenderer` and made the bubble transparent. Result: tool bars rendered **black with text that had no width/size** — "the tool bars are now black, they have text but not size or show it."
-
-**Root cause:**
-1. `ChatPage.xaml`'s `ItemsControl` declared **both** `ItemTemplateSelector` and a fallback `ItemTemplate`. WPF gives `ItemTemplate` precedence, so `ChatMessageTemplateSelector` was never consulted and *every* role — including Tool — rendered through `ChatMessageControl`.
-2. Because Tool landed in `ChatMessageControl`, gap90 forced it through `StreamingReasoningRenderer` (transparent bg, `PageWidth = 1` latched only by `RichTextBox_SizeChanged`, `Foreground` = `VsBrush.WindowText`). That renderer is not sized for tool-call bubbles → zero-width/invisible text over a black/transparent panel.
-
-**Fix (revert tool calls to the correct renderer):**
-- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — removed the fallback `ItemTemplate` on the message `ItemsControl`, so `ItemTemplateSelector` actually drives routing. Each role now routes to its correct template; Tool → `ToolInvocationTemplate` (the dedicated, correctly-sized, orange-bordered tool-call bubble with `ToolCallLabel`, `ToolCallDescription` (gap87), `ToolFileName` (gap85), toggle buttons). User/Assistant/Thinking selector templates still host `ChatMessageControl` (identical to the removed fallback), so only Tool/System/Question/ExecutionImpact routing changes — exactly the intended correction.
-- `src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs` — removed `ChatMessageRole.Tool` from the Visible set (User/Thinking only). Tool no longer routes through `StreamingReasoningRenderer`.
-- `src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs` — `ChatMessageRole.Tool` back to `WarningBrush` (instead of `Transparent`), so any Tool message that still falls through `ChatMessageControl` shows a visible tinted bubble, not a black/transparent bar.
-
-**Files Modified:**
-- src/VSIXProject1/UI/Pages/ChatPage.xaml (removed fallback ItemTemplate so ItemTemplateSelector is honored)
-- src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs (Tool excluded again)
-- src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs (Tool → WarningBrush)
-
-**Validation:** `dotnet build src\VSIXProject1\VSIXProject1.csproj --force` → 0 warnings, 0 errors. (`ConverterTests` only asserts `SolidColorBrush` for User/Assistant/System; unchanged.)
-
-**Result:** Tool calls now render through the dedicated, correctly-sized `ToolInvocationTemplate` — visible text, proper wrapping/sizing, no black bar.
-
----
-
-## Execution Rules
-
-- âœ… **Atomic steps**: One action per step (create, implement, wire, test)
-- âœ… **Dependencies tracked**: Each step notes what it depends on
-- âœ… **Existing code reuse**: Flag "use existing X vs. create new"
-- âœ… **Build validation**: Every 5-10 steps, verify compilation
-- âœ… **No skipping**: Steps are ordered; don't jump ahead
-
----
-
-## GAP ANALYSIS: ContinueVS UI vs. Continue.js Reference Architecture
-
-**Purpose:** Ordered list of gaps between current ContinueVS implementation and Continue.js reference.  
-**Approach:** Bottom-up DAG from AGENTS.md, mapped to ContinueVS structure.  
-**Priority:** Ordered by user's end-to-end test goals.
-
----
-
 ### gap1: Ollama Config Predefinition (CRITICAL BLOCKER)
 **Status:** âœ… Complete | Type: Predefined Configuration  
 **Implementation:**
@@ -9826,59 +9583,326 @@ From this single rule, all sub-decisions fall out coherently (no special cases):
 | Raw clipboard | "focuses raw path (UnicodeText authoritative)" — ambiguous | **plain only, explicitly** (guarantee, not fallback) |
 | Code-block copy | "unchanged and independent" | gap53 inner-copy kept as a Pretty-mode *convenience* (an action, not a display exemption) |
 
-If you're happy with this, I can update `session-context.md` in place (switch me to **Agent mode**), or give me the word and I'll hold it as the canonical version here.
 
 ---
 
-#### **COMPARISON TABLE: TypeScript vs C# Settings Architecture**
+### Active-Plan Binding + Read/Update Plan Tools (BRIDGE v2.1)
 
-| Aspect | TypeScript (Continue.js) | C# (ContinueVS) | Gap |
-|--------|--------------------------|-----------------|-----|
-| **User Settings** | 19 settings in CustomSettings | 19 implemented âœ… | 0 |
-| **Config Persistence** | Partial + Redux (localStorage) | Partial (config.json only) | 50% |
-| **Redux UIState** | Full (tool policies, dialogs, etc.) | Missing | HIGH |
-| **localStorage Wrapper** | LocalStorageContext + type safety | None | HIGH |
-| **Theme Caching** | In localStorage â†’ CSS vars | Hardcoded defaults | MEDIUM |
-| **Settings Migration** | v0â†’v1 via Redux-persist | None | MEDIUM |
-| **Cross-Tab Sync** | Custom events | File polling (not implemented) | LOW |
-| **Onboarding Dismissal** | localStorage persistence | Manual (config.json) | MEDIUM |
-| **Total Implementation** | ~95% (multi-layer) | ~55% (single-layer) | 40% gap |
+**Status:** ✅ Complete | Type: Active-Plan Binding + LLM-Driven Plan Tools
+
+**Summary:** Added a session-scoped, non-saved active-plan binding (captured when the user's active
+document is a plan under `~/.continueVS/plans/`) plus two wide-open, repo-root-restricted tools the
+LLM uses to read and update that plan (`read_plan`, `update_plan`). The LLM owns all text shaping
+(find → replace, pass/fail markers); the tools are dumb, verified find/replace + read primitives that
+are never silent about "no active plan". Enabled by default behind `tool.planToolsEnabled`.
+
+**IDE open-document wiring (new capability):**
+- `IDteProvider.GetOpenDocumentPaths()` — enumerates `DTE.Documents` full paths (the pattern already
+  used by `GetRecentFiles`, UI-thread guarded, best-effort empty on failure). Added to `IIdeService`
+  as `IsOpenInViewerAsync(path)` returning `Task<bool?>` (true open / false not / null unknown) so the
+  send-time binding check can implement "active-elsewhere keeps the binding, closed clears it" without
+  ever silently clearing on an unavailable query.
+- Implemented in `VsIdeService.cs`; `null` when no/unknown open set, `false` on empty path.
+
+**Active-plan binding (session/request scope, non-saved):**
+- `ChatPageViewModel.RefreshActivePlanBindingAsync()` runs at send time (send-only check), right after
+  `ResetToolCallLimitForAction()`:
+  - Active doc is a plan under `~/.continueVS/plans/` → bind it (`SetActivePlanPath`).
+  - Bound plan still open in a viewer (active elsewhere) → keep.
+  - Bound plan closed → clear (null).
+  - Non-silent: unknown status keeps the binding; plan tools surface an explicit "no active plan".
+- `IsPlanPath` helper restricts binding to `~/.continueVS/plans/` only (never "any doc").
+
+**Built-in tools (`BuiltInTools.cs`):**
+- `GetReadPlanTool()`: optional `path` (repo-root-relative); default = bound plan. Returns full text +
+  which plan. Non-silent "no active plan" when unbound + no path.
+- `GetUpdatePlanTool()`: required `find` + `replace`, optional `path`. Repo-root restricted. Does exact
+  find/replace, returns match count (count 0 → visible no-op, plan unchanged). Never silent.
+- Both `SupportedModes = { Agent, Debug }`; registered in `GetAllBuiltInTools()` (25 → 27).
+- `ToolService`: `InvokeBuiltInAsync` cases `read_plan`/`update_plan` + internal implementations
+  `ReadPlanInternalAsync` / `UpdatePlanInternalAsync` / `ResolvePlanTargetAsync` (repo-root resolution
+  via `GetGitRootPathAsync`) / `CountOccurrences`; `ToolNameToUserSettingKey` maps both to
+  `tool.planToolsEnabled`.
+- `IToolService.SetActivePlanPath(path)` / `GetActivePlanBinding()` + `ToolService` implementation with
+  a `_planBindingLock` guarded `_activePlanPath`.
+- `UserSettings.Tool_PlanToolsEnabled = "tool.planToolsEnabled"` default `true`.
+- `config/tools-defaults.json`: registered `read_plan` + `update_plan`.
+- `system-prompts.json` + `SystemPromptService`: `ACTIVE_PLAN_INSTRUCTIONS` added to Agent and Debug
+  default prompts (read the plan with read_plan, update it with update_plan per step, manage ⏳/✅
+  markers, track progress across unit + integration testing).
+
+**Tests:**
+- `ToolServiceUpdatePlanTests.cs` (NEW, 10): binding round-trip, read_plan no-binding → "no active plan",
+  read_plan bound → returns text, read_plan explicit repo-relative path, update_plan replaces all + count,
+  update_plan no-match → 0 + unchanged, update_plan empty find → error, `tool.planToolsEnabled` default
+  true, read_plan/update_plan available in Agent mode, not available in Plan mode.
+- `VsIdeServiceTests.cs` (+4): `IsOpenInViewerAsync` open / not-open / unknown (null) / empty path.
+- `BuiltInToolsTests.cs` (+4): read_plan + update_plan definitions, mode gating, present in registry.
+- Count updates: registry 25 → 27; available tools 18 → 20.
+- Updated manual `IDteProvider`/`IIdeService` stubs (`ContextWindowCollectorTests`,
+  `GetWorkspaceFilesReproTests`, `DteProviderTests`, `VsIdeServiceTests`, `WorkspaceStatsServiceTests`).
+
+**Validation:** `dotnet clean` (0/0) → `dotnet build --force` (0 warnings, 0 errors) → `dotnet test`:
+**1517 passed, 0 failed, 0 skipped**.
 
 ---
 
-#### **WHAT IS 100% WORKING**
+### gap-session-tests-temp: Route All Session-Creating Unit Tests to a Temp Folder with Cleanup
 
-**User Settings Implementation (13/19 settings):**
+**Status:** ✅ Complete | Type: Test Isolation / Hygiene
 
-1. âœ… **Show Session Tabs** (bool)
-2. âœ… **Wrap Codeblocks** (bool)
-3. âœ… **Show Chat Scrollbar** (bool)
-4. âœ… **Text-to-Speech Output** (bool)
-5. âœ… **Enable Session Titles** (bool)
-6. âœ… **Format Markdown** (bool)
-7. âœ… **Font Size** (int, 10-24)
-8. âœ… **Multiline Autocompletions** (enum)
-9. âœ… **Autocomplete Timeout** (ms)
-10. âœ… **Autocomplete Debounce** (ms)
-11. âœ… **Disable Autocomplete in Files** (string)
-12. âœ… **Add Current File by Default** (bool)
-13. âœ… **Enable Experimental Tools** (bool)
+**Problem:** Several unit tests constructed `SessionService` via its **single-argument constructor**
+(`new SessionService(tokenCounter)`), which defaults to persisting session files in
+`~/.continueVS/sessions` — the real user folder. This polluted real user data, was not isolated,
+and could clobber actual ContinueVS sessions.
 
-**Storage & Retrieval:** Files created: `UserSettings.cs`, `SettingsViewModel.cs`, `SettingsControl.xaml`
+**Implementation:**
 
-**Test Status:** All 519 tests passing
+- **`src/VSIXProject1.Tests/Fixtures/TempSessionServiceFactory.cs` (NEW)** — a disposable factory that
+  roots a `SessionService` in a unique temp directory (`%TEMP%\ContinueVS-Test-Session-{guid}`) via the
+  2-arg ctor `SessionService(ITokenCountingService, string storageDirectory)`. `Dispose()` recursively
+  deletes the temp directory. `Create(tokenCounter)` and `DirectoryPath` (for cross-instance sharing) exposed.
+- Routed all offender classes through the factory (or the 2-arg ctor with a temp dir) and rewired cleanup
+  into existing `IDisposable` (adding `IDisposable` where missing):
+  - `SessionServiceTests.cs` — now passes a temp dir into the 2-arg ctor (also removed the dead `_testSessionsDir`
+    var that was created but never passed to the service).
+  - `SessionServicePruningTests.cs`, `SessionServicePruneUndeleteGap81Tests.cs`,
+    `SessionServiceTokenCountingIntegrationTests.cs`, `SessionServiceContextBudgetTests.cs` — route each
+    construction through the factory.
+  - `ModeChangePropagationTests.cs` — uses a temp dir (2-arg ctor) + disposable cleanup.
+  - `ModePersistenceTests.cs` — all `new SessionService(...)` instances point at the shared `_testTempDir`
+    so save/load across instances share one location and get cleaned up.
+- Already-safe classes (`SessionServiceJsonlTests.cs`, `SessionDeltaLogTests.cs`) were left unchanged.
+
+**Result:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) →
+`dotnet test`: full suite passes (1492 passed). Verified the real user folder
+(`~/.continueVS/sessions`) receives **no test output** — the only files written there are the live
+ContinueVS tool's own ongoing sessions. All session-creating unit tests are now isolated to `%TEMP%`
+and removed afterwards.
 
 ---
 
-#### **CONTINUE.JS REFERENCE CITATIONS**
+### fix-write-plan-open: `write_plan` / `open_file` Now Open the Plan as the Active IDE Document
 
-- **UIState Redux Slice:** AGENTS.md lines 840-900 (uiSlice.ts)
-- **Tool Policies:** AGENTS.md lines 2375-2378, 3553-3566 (tool policy enum)
-- **localStorage Wrapper:** AGENTS.md lines 658-661 (localStorage.ts)
-- **LocalStorageContext:** AGENTS.md lines 708-710 (LocalStorage.tsx)
-- **Theme Caching:** AGENTS.md lines 226-280 (setDocumentStylesFromTheme, cache functions)
-- **Settings Migration:** AGENTS.md lines 66-90 (Redux-persist createMigrate)
-- **Font Size Sync:** AGENTS.md lines 16-63 (LocalStorageProvider)
+**Status:** ✅ Complete | Type: Bug Fix (IDE file-open routing)
+
+**Problem:** `write_plan` saved the plan to disk but the IDE never loaded it as the current document. The tool routed through `IIdeService.OpenFileAsync`, which was an explicit **stub** in `VsIdeService` that only threw if the file was missing and otherwise did nothing (no DTE call). The real editor-opening logic lived in `OpenFileInEditorAsync` → `OpenFileInEditorCoreAsync` (uses `dte.ItemOperations.OpenFile(...)` on the UI thread via `ThreadHelper`). `write_plan` never called it, so the file was saved but never made active. `open_file` had the same defect. Unit tests masked it because they mocked `IIdeService` and only verified `OpenFileAsync` was called — never exercising the real DTE path.
+
+**Implementation:**
+- `src/VSIXProject1/Services/Implementations/ToolService.cs`:
+  - `WritePlanInternalAsync`: `await _ideService.OpenFileAsync(path)` → `await _ideService.OpenFileInEditorAsync(path)`.
+  - `OpenFileInternalAsync` (the `open_file` tool): `await _ideService.OpenFileAsync(filepath)` → `await _ideService.OpenFileInEditorAsync(filepath)`.
+- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`:
+  - `OpenFileAsync` now delegates to `OpenFileInEditorCoreAsync` (the real DTE-based open) so no caller can silently hit the empty stub. Keeps its null + file-exists guards before delegating.
+
+**Files Modified:**
+- `src/VSIXProject1/Services/Implementations/ToolService.cs`
+- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`
+- `src/VSIXProject1.Tests/Services/ToolServiceWritePlanTests.cs` (verify `OpenFileInEditorAsync` instead of `OpenFileAsync`)
+
+**Validation:** `dotnet build` both projects → 0 warnings / 0 errors. `ToolServiceWritePlanTests` 7/7 passing; `VsIdeServiceTests` 7/7 passing.
+
+---
+
+### gap-session-title: First Message Line Becomes the Session Title (Header + Naming)
+
+**Status:** ✅ Complete | Type: Session Title Derivation / UI
+
+**Problem:** New sessions display a generic "New Conversation" title. The user wanted the *first line of the first send* to become the session's title—shown at the top of the chat and used to name the session (persisted so it appears in history).
+
+**Implementation:**
+
+- **`ISessionService.SetSessionTitleAsync(string)`** (interface) / **`SessionService`** (impl):
+  - Validates non-whitespace; sets `Session.Title`, persists a fresh `SessionDeltaInit` (so the title survives JSONL replay), and fires `SessionChanged` (`SessionChangeType.Updated`).
+- **`ChatPageViewModel`**:
+  - Added `CurrentSessionTitle` property (bindable, change-notified) that falls back to `"New Conversation"`; kept in sync from `CurrentSession` changes and from `SessionChanged` (`e.Session.Title`).
+  - `ExecuteSendMessage` — on the **first send of a fresh session** (`session.Messages.Count == 1` **and** title is empty or the default `"New Conversation"`): derives a title from the **first non-empty line** of the input (`DeriveSessionTitle`), truncates at **60 chars + `…`**, calls `SetSessionTitleAsync`, and updates `CurrentSessionTitle`.
+  - `DeriveSessionTitle(string?)` helper: splits on `\n`/`\r`, takes the first non-whitespace line, trims, caps length; returns null when no line exists.
+  - Guard prevents overwriting real titles on subsequent sends / loaded sessions.
+- **`ChatPage.xaml`**: added a `TextBlock` bound to `CurrentSessionTitle` in the Mode-Selector row (top bar), with character ellipsis + tooltip so the title is visible at the top of the chat.
+
+**Files Modified:**
+- `src/VSIXProject1/Services/Interfaces/ISessionService.cs`
+- `src/VSIXProject1/Services/Implementations/SessionService.cs`
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml`
+
+**Tests:**
+- `ChatPageViewModelSessionTitleTests.cs` (NEW): first send derives title from first line; second send does NOT overwrite; `CurrentSessionTitle` fallback + reflection of `CurrentSession.Title`.
+- `SessionServiceTests.cs`: `SetSessionTitleAsync` updates title + fires `Updated`; throws on null/whitespace.
+- `SessionServiceJsonlTests.cs`: derived title survives reopen/replay.
+
+**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1499 passed, 0 failed, 0 skipped**.
+
+---
+
+### gap-workspacefiles-fast: GetWorkspaceFiles Folder-by-Folder Walk on Background Thread
+
+**Status:** ✅ Complete | Type: Performance / File-Enumeration Rewrite
+
+**Problem:** `VsIdeService.GetWorkspaceFiles` used `Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories)` which re-stats every folder path repeatedly, and fell back to `TopDirectoryOnly` on any access-denied dir, and stat-checked reparse points on each directory. This made `grep_search` / `file_glob_search` / `search_codebase` slow on large workspaces.
+
+**Implementation (src/VSIXProject1/Services/Implementations/VsIdeService.cs):**
+- Replaced the single `AllDirectories` scan with `CollectWorkspaceFiles(root, pattern)`: a stack-based walk that enumerates **each folder's files exactly once** via `EnumerateFiles(dir, pattern, TopDirectoryOnly)`, then pushes that folder's direct subfolders via `EnumerateDirectories(dir, "*", TopDirectoryOnly)` onto a stack to recurse. "src" is checked once; each subfolder is then recursed through.
+- Excluded subtrees (`bin`/`obj`/`node_modules`/`.git`/etc.) are pruned while walking — we never descend into them.
+- Runs on a background thread pool thread (`Task.Run(...).GetAwaiter().GetResult()`) and materializes the result, so the I/O-bound walk never blocks the caller, and callers (which enumerate/materialize `IEnumerable<string>`) are unchanged.
+- Removed the now-unused `IsReparsePoint` helper entirely.
+- Removed the `(new DirectoryInfo(d).Attributes & FileAttributes.ReparsePoint) == 0` reparse-point clause from `ListDirectoryAsync`.
+
+**Validation:** No compiler/IDE problems detected; no references to `IsReparsePoint` remain. VSTHRD002 fix: replaced `Task.Run(...).GetAwaiter().GetResult()` with a dedicated `System.Threading.Thread` (fully-qualified due to `EnvDTE.Thread` ambiguity) blocked via `Thread.Join()`, keeping the synchronous `IIdeService` signature and avoiding the vs-threading analyzer. Removed the obsolete `IsReparsePoint_OnBareSegment_DoesNotThrow` test from `GetWorkspaceFilesReproTests.cs` (the helper was intentionally removed). `dotnet build` clean (0 warnings/0 errors); `dotnet test` passes (1446/1446).
+
+---
+
+### gap-binarygrep: grep_search Filters Binary & Oversized Files Before Reading
+
+**Status:** ✅ Complete | Type: Tool Context Sanitization (grep et al.)
+
+**Problem:** `grep_search` read every workspace file via `ReadFileAsync` (which does `File.ReadAllText`) with no binary guard. Binaries (DLLs, images, archives), `node_modules`/`bin` leftovers, and large generated files were force-decoded as text and regex-matched — dumping junk lines into the tool result and polluting the LLM context ("using findstr/grep is an unmitigated disaster ... it pulls in binary files and fills the context"). `findstr` (raw shell via `run_terminal_command`) is out of scope (intentionally raw); the fix is the built-in `grep_search` (`search_codebase`, `file_glob_search` share the same `GetWorkspaceFiles` path and are protected by the same candidate filter where they read).
+
+**Implementation (src/VSIXProject1/Services/Implementations/ToolService.cs):**
+- `GrepSearchInternalAsync` now filters workspace files through `IsGrepCandidateFile()` **before** reading (extension blocklist + 2 MB size cap), re-verifies via `IsTextContent()` (NUL-byte / control-char header sniff on the first 4 KB) immediately before `ReadFileAsync`, imposes a 50-match cap (existing) with early break, and adds `filesScanned` metadata.
+- Added `BinaryFileExtensions` static `HashSet` (images, fonts, archives, compiled/binaries, media, docs/office, generated/lockfiles).
+- Added `IsGrepCandidateFile(string)` and `IsTextContent(string)` helpers; both fail-closed (skip file) on any I/O error.
+
+**Tests (src/VSIXProject1.Tests/Services/ToolServiceGrepSearchTests.cs, NEW — 5):**
+- Binary-extension file (`.dll`) skipped — `ReadFileAsync` never invoked on it; `.cs` still read and matched.
+- NUL-byte `.dat` content skipped by header sniff before the full read.
+- Text file with match returns the matching line.
+- No matches → `"No matches found"`.
+- Empty pattern → error result.
+
+**Validation:** `dotnet build ContinueVS.slnx --force` → 0 warnings, 0 errors. New grep tests: 5/5 passing.
+
+---
+
+### gap90: Tool Bars Show Empty Yellow Background — Tool Content Not Rendered  (REVERTED — see gap90b)
+
+**Status:** ⚠️ Original fix superseded by gap90b (revert tool calls to the correct renderer). | Type: UI Rendering Fix (Tool role)
+
+**Original symptom:** Tool-call messages rendered as a yellow (WarningBrush) bar with **no text** — "the tools are showing a yellow background… however there is no text in the tool bars" — and "the box does not size well."
+
+**Original (1990) fix — now reverted:** routed Tool through `StreamingReasoningRenderer` (extended `RoleToStreamingReasoningVisibility` to include Tool) and painted the bubble `Brushes.Transparent`. That regressed elsewhere: tool bubbles became a **black bar with unsized/invisible text**, because `StreamingReasoningRenderer` latches its `FlowDocument.PageWidth` from a `RichTextBox_SizeChanged` event and is not built for tool-call bubbles. Reverted in gap90b.
+
+---
+
+### gap90b: Revert Tool Calls to the Correct Renderer (ToolInvocationTemplate)
+
+**Status:** ✅ Complete | Type: UI Rendering Fix (Tool role) — revert of gap90
+
+**Problem:** The gap90 fix routed Tool content through `StreamingReasoningRenderer` and made the bubble transparent. Result: tool bars rendered **black with text that had no width/size** — "the tool bars are now black, they have text but not size or show it."
+
+**Root cause:**
+1. `ChatPage.xaml`'s `ItemsControl` declared **both** `ItemTemplateSelector` and a fallback `ItemTemplate`. WPF gives `ItemTemplate` precedence, so `ChatMessageTemplateSelector` was never consulted and *every* role — including Tool — rendered through `ChatMessageControl`.
+2. Because Tool landed in `ChatMessageControl`, gap90 forced it through `StreamingReasoningRenderer` (transparent bg, `PageWidth = 1` latched only by `RichTextBox_SizeChanged`, `Foreground` = `VsBrush.WindowText`). That renderer is not sized for tool-call bubbles → zero-width/invisible text over a black/transparent panel.
+
+**Fix (revert tool calls to the correct renderer):**
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — removed the fallback `ItemTemplate` on the message `ItemsControl`, so `ItemTemplateSelector` actually drives routing. Each role now routes to its correct template; Tool → `ToolInvocationTemplate` (the dedicated, correctly-sized, orange-bordered tool-call bubble with `ToolCallLabel`, `ToolCallDescription` (gap87), `ToolFileName` (gap85), toggle buttons). User/Assistant/Thinking selector templates still host `ChatMessageControl` (identical to the removed fallback), so only Tool/System/Question/ExecutionImpact routing changes — exactly the intended correction.
+- `src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs` — removed `ChatMessageRole.Tool` from the Visible set (User/Thinking only). Tool no longer routes through `StreamingReasoningRenderer`.
+- `src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs` — `ChatMessageRole.Tool` back to `WarningBrush` (instead of `Transparent`), so any Tool message that still falls through `ChatMessageControl` shows a visible tinted bubble, not a black/transparent bar.
+
+**Files Modified:**
+- src/VSIXProject1/UI/Pages/ChatPage.xaml (removed fallback ItemTemplate so ItemTemplateSelector is honored)
+- src/VSIXProject1/ViewModels/Converters/RoleToStreamingReasoningVisibility.cs (Tool excluded again)
+- src/VSIXProject1/ViewModels/Converters/RoleToColorConverter.cs (Tool → WarningBrush)
+
+**Validation:** `dotnet build src\VSIXProject1\VSIXProject1.csproj --force` → 0 warnings, 0 errors. (`ConverterTests` only asserts `SolidColorBrush` for User/Assistant/System; unchanged.)
+
+**Result:** Tool calls now render through the dedicated, correctly-sized `ToolInvocationTemplate` — visible text, proper wrapping/sizing, no black bar.
+
+---
+
+## Execution Rules
+
+- âœ… **Atomic steps**: One action per step (create, implement, wire, test)
+- âœ… **Dependencies tracked**: Each step notes what it depends on
+- âœ… **Existing code reuse**: Flag "use existing X vs. create new"
+- âœ… **Build validation**: Every 5-10 steps, verify compilation
+- âœ… **No skipping**: Steps are ordered; don't jump ahead
+
+---
+
+## GAP ANALYSIS: ContinueVS UI vs. Continue.js Reference Architecture
+
+**Purpose:** Ordered list of gaps between current ContinueVS implementation and Continue.js reference.  
+**Approach:** Bottom-up DAG from AGENTS.md, mapped to ContinueVS structure.  
+**Priority:** Ordered by user's end-to-end test goals.
+
+---
+
+### gap91 — Delete & Export Sessions (Hover ✕ + Right-Click Context Menu)
+
+**Status:** ✅ Completed | Type: Session Management / Chat UI Feature | Related: gap76 (session history/selection), asset `DeleteSessionAsync`/`ListSessionsAsync` (already implemented in ISessionService)
+
+**Objective:**
+Give the user a way to manage their saved sessions from the session-history list. Two affordances, as decided by the user:
+- a **hover-revealed ✕ (delete)** button on each session row (primary, discoverable), and
+- a **right-click Context Menu** on each session row with two options: **Delete** and **Export** (secondary, power-user / extensible).
+
+The goal is a session-level complement to the existing message-level delete (gap17/gap81) — the user can remove a whole conversation or export it, not just individual messages.
+
+**Why it matters (the decisions that must hold):**
+
+1. **X-on-hover is the primary affordance.**
+   - Right-click alone is invisible until a user guesses it exists; the hover ✕ is discoverable the moment the cursor touches a row.
+   - One click vs. a two-step right-click → "Delete" — faster and matches familiar chat/tab patterns (browsers, VS Code, Slack).
+
+2. **Right-click is secondary + extensible.**
+   - The context menu carries **Delete** and **Export** (two options) and is the natural home for future actions (Rename, Copy Link, etc.).
+   - Do NOT pick one over the other — the user explicitly wants **both**: hover ✕ (delete) AND a right-click menu with delete + export.
+
+3. **Delete is destructive — require confirmation.**
+   - A whole conversation is gone; both paths (✕ and right-click Delete) must show a confirmation ("Remove chat 'Title'? This cannot be undone.") before calling `DeleteSessionAsync`.
+
+4. **Export writes a file.**
+   - Export serializes the session (messages + metadata) to a `.json` file — the user's Downloads folder (or a Save dialog). No delete, pure read/export.
+
+5. **After delete, re-select correctly.**
+   - If the deleted session was the current one, fall back to the most recent remaining session (or an empty/new state if none). Mirror the gap52 behavior.
+
+**Decided behavior:**
+
+- **Hover ✕ button** (`🗑` / `✕`) at the top-right of each session row in the `HistoryView` ListBox row — revealed only on hover (browser-tab pattern), always-deletable.
+- **Right-click `ContextMenu`** on the same row with two items:
+  - **Delete** (🗑) → same confirmation → `ISessionService.DeleteSessionAsync(sessionId)` → refresh `AvailableSessions`.
+  - **Export** (📤) → `ISessionService.ExportSessionAsync(sessionId)` (new) → writes `{title}_{yyyyMMdd_HHmmss}.json` to Downloads → notify ("Session exported to {path}").
+- **Confirmation dialog** for delete only; export happens immediately.
+- **In `ChatPageViewModel`** (the DataContext of HistoryView): add `DeleteSessionCommand<string>` and `ExportSessionCommand<string>`; after delete, remove from `AvailableSessions`, clear if it was current via existing `CreateNewSessionAsync()`/refresh path, and refresh the list (`ListSessionsAsync` already exists).
+
+**Service work required:**
+
+1. `ExportSessionAsync(string sessionId)` — **new** method on `ISessionService`/`SessionService`. Reads the session's messages + metadata (title, created/updated, mode, messageCount), serializes to a JSON object `{ "messages": [...], "metadata": {...} }`, writes to the user's Downloads folder, returns the file path. Reuses existing session JSON serialization.
+2. `DeleteSessionAsync(string sessionId)` — **already implemented** (fires `SessionChanged`/`SessionChangeType.Deleted`). Only UI wiring is missing.
+
+**Files (candidates):**
+- `src/VSIXProject1/Services/Interfaces/ISessionService.cs` — add `ExportSessionAsync`.
+- `src/VSIXProject1/Services/Implementations/SessionService.cs` — implement `ExportSessionAsync`.
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — `DeleteSessionCommand`, `ExportSessionCommand`, confirmation + refresh logic (`AvailableSessions` is already populated via `ListSessionsAsync`).
+- `src/VSIXProject1/UI/Views/HistoryView.xaml(.cs)` — hover ✕ button + `ContextMenu` (Delete / Export) on each session row.
+- `src/VSIXProject1.Tests/...` — `ExportSessionAsync` unit tests (writes file, correct JSON shape, Downloads fallback, error handling), ViewModel delete/export tests (confirmation, refresh, current-session fallback).
+
+**Testing strategy:**
+- Unit: `ExportSessionAsync` writes a valid file with messages + metadata; delete removes + fires event; export does not mutate the store.
+- ViewModel: delete confirms, removes from `AvailableSessions`, falls back to most-recent; export shows notification with path.
+- UI (manual): hover shows ✕, click deletes with confirmation; right-click shows Delete/Export, both work.
+
+**Risks & decisions:**
+- **Downloads path:** resolve via `Environment.GetFolderPath(SpecialFolder.UserProfile)\Downloads` with graceful fallback to a Save dialog when unavailable.
+- **Filename collision:** timestamp suffix prevents overwrites.
+- **Delete vs. export naming:** keep `DeleteSessionAsync`/`ExportSessionAsync` parallel to the existing message-level `DeleteMessageAsync` naming.
+- Confirmation reuses the existing `INotificationService.ShowConfirmationAsync` pattern (gap57 chat-based / gap90 TextDialog) — no new modal.
+
+**Sequencing:** lands after gap76 (history list + selection already wired). `ExportSessionAsync` is the only new service method; the rest is UI + ViewModel wiring over existing session infrastructure.
+
+**Implementation (completed):**
+- `ISessionService.cs` — added `Task<string> ExportSessionAsync(string sessionId, string? exportDirectory = null)`; throws `ArgumentException` on null/whitespace id and `FileNotFoundException` when the session's log is missing.
+- `SessionService.cs` — implemented `ExportSessionAsync`: flushes the delta log, loads the full session, builds a `SessionExport` DTO, writes an indented JSON file. Target dir = caller-supplied → `~/Downloads/SavedChats` → session storage fallback. Filename `{sanitizedTitle}_{yyyyMMdd_HHmmss}.json` (timestamp avoids collisions). Pure read — store never mutated. Added `ResolveExportDirectory` and `SanitizeFileName` helpers.
+- `Core/Types/SessionExport.cs` — new read-only export DTO (`sessionId`, `title`, `createdAt`, `updatedAt`, `mode`, `messageCount`, `messages`).
+- `ChatPageViewModel.cs` — added `DeleteSessionCommand` and `ExportSessionCommand` (`RelayCommand<string>`), wired in the ctor. `ExecuteDeleteSessionAsync` confirms via `ShowConfirmationAsync`, calls `DeleteSessionAsync`, falls back to `ExecuteNewChatAsync()` when the deleted session was current, else `RefreshSessionsAsync()`, then notifies. `ExecuteExportSessionAsync` calls `ExportSessionAsync` and notifies with the resulting path. Both catch/log errors and notify on failure.
+- `UI/Views/HistoryView.xaml` — row DataTemplate is now a `DockPanel`: hover-revealed ✕ Button (Bound to `DeleteSessionCommand`, param `{Binding Id}`, Visibility via `BooleanToVisibilityConverter` on the ancestor `ListBoxItem.IsMouseOver`), plus a `ContextMenu` on the item Border with **Delete session** and **Export session** items carrying the session `Id` via `PlacementTarget.DataContext.Id` into `Tag`.
+- `UI/Views/HistoryView.xaml.cs` — added `OnDeleteSessionClick` / `OnExportSessionClick` handlers (ContextMenu lives outside the visual tree, so the ViewModel commands are invoked from code-behind via `Tag`).
+- `SessionServiceTests.cs` — added a gap91 export region (4 tests): writes file with messages+metadata, does not mutate store, throws on null/whitespace id, throws `FileNotFoundException` when session missing.
+
+**Verification:** `dotnet build ContinueVS.slnx --force` → 0 warnings / 0 errors. `dotnet test ContinueVS.slnx --no-build` → 1521 passed, 0 failed (incl. 4 new `ExportSessionAsync` tests).
 
 ---
 

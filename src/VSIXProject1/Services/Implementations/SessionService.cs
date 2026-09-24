@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Events;
 using ContinueVS.Services.Interfaces;
+using Newtonsoft.Json;
 
 namespace ContinueVS.Services.Implementations
 {
@@ -453,6 +454,92 @@ namespace ContinueVS.Services.Implementations
             });
 
             await Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Exports a session (messages + metadata) to a JSON file (gap91).
+        /// Loads the full session by replaying its JSONL log, serializes it read-only to a
+        /// <see cref="SessionExport"/> DTO, and writes an indented JSON file. The store is never
+        /// mutated (pure export). Default target is the user's Downloads folder (falling back to
+        /// the session storage directory when the Downloads folder cannot be resolved); the
+        /// filename is <c>{sanitizedTitle}_{yyyyMMdd_HHmmss}.json</c> to avoid collisions.
+        /// </summary>
+        /// <param name="sessionId">The ID of the session to export.</param>
+        /// <param name="exportDirectory">Optional target directory (used by tests for isolation).</param>
+        /// <returns>The absolute path of the written export file.</returns>
+        public async Task<string> ExportSessionAsync(string sessionId, string? exportDirectory = null)
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                throw new ArgumentException("Session ID cannot be null or empty.", nameof(sessionId));
+            }
+
+            // Flush any in-flight writes so the reader sees an ordered, complete log.
+            _deltaLog.FlushSync();
+
+            var session = await LoadSessionFromFileAsync(sessionId);
+
+            var export = new SessionExport
+            {
+                SessionId = session.Id,
+                Title = session.Title,
+                CreatedAt = session.CreatedAt,
+                UpdatedAt = session.UpdatedAt,
+                Mode = session.Mode,
+                MessageCount = session.Messages.Count,
+                Messages = session.Messages
+            };
+
+            var json = JsonConvert.SerializeObject(export, Formatting.Indented);
+
+            var directory = ResolveExportDirectory(exportDirectory);
+            Directory.CreateDirectory(directory);
+
+            var safeTitle = SanitizeFileName(session.Title ?? "session");
+            var fileName = $"{safeTitle}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var filePath = Path.Combine(directory, fileName);
+
+            await Task.Run(() => File.WriteAllText(filePath, json, System.Text.Encoding.UTF8));
+
+            LoggerService.Current.WriteDebug($"[gap91-export] Session {sessionId} exported to {filePath}");
+            return filePath;
+        }
+
+        /// <summary>
+        /// Resolves the directory an exported session is written to (gap91).
+        /// Uses the caller-supplied directory first (tests), then the user's Downloads folder,
+        /// falling back to the session storage directory when Downloads cannot be resolved.
+        /// </summary>
+        private static string ResolveExportDirectory(string? exportDirectory)
+        {
+            if (!string.IsNullOrWhiteSpace(exportDirectory))
+            {
+                return exportDirectory!;
+            }
+
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var downloads = Path.Combine(userProfile, "Downloads");
+
+            if (Directory.Exists(downloads))
+            {
+                var savedChats = Path.Combine(downloads, "SavedChats");
+                return savedChats;
+            }
+
+            return DefaultSessionStoragePath;
+        }
+
+        /// <summary>
+        /// Removes characters that are invalid in Windows file names (gap91).
+        /// </summary>
+        private static string SanitizeFileName(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var sanitized = new string(name
+                .Select(ch => invalid.Contains(ch) ? '_' : ch)
+                .ToArray())
+                .Trim();
+            return string.IsNullOrWhiteSpace(sanitized) ? "session" : sanitized;
         }
 
         /// <summary>

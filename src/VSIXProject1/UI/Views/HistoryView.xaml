@@ -17,6 +17,16 @@
                                     BorderThickness="1"
                                     CornerRadius="4"
                                     Padding="{TemplateBinding Padding}">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Delete session"
+                                                  Tag="{Binding PlacementTarget.DataContext.Id, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  Click="OnDeleteSessionClick"/>
+                                        <MenuItem Header="Export session"
+                                                  Tag="{Binding PlacementTarget.DataContext.Id, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  Click="OnExportSessionClick"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
                                 <ContentPresenter />
                             </Border>
                             <ControlTemplate.Triggers>
@@ -57,28 +67,50 @@
                      Padding="8">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Vertical">
-                            <!-- Session Title -->
-                            <TextBlock Text="{Binding Title}" 
-                                       FontWeight="Bold" 
-                                       Foreground="White"
-                                       TextTrimming="CharacterEllipsis"/>
-
-                            <!-- Session Metadata -->
-                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                <TextBlock Text="{Binding UpdatedAt, StringFormat='{}Last: {0:g}'}" 
-                                           Foreground="#A0A0A0" 
-                                           FontSize="11"
-                                           Margin="0,0,12,0"/>
-                                <TextBlock Foreground="#A0A0A0" FontSize="11">
-                                    <TextBlock.Text>
-                                        <MultiBinding StringFormat="{}{0} messages">
-                                            <Binding Path="MessageCount"/>
-                                        </MultiBinding>
-                                    </TextBlock.Text>
-                                </TextBlock>
+                        <DockPanel>
+                            <!-- Right: hover-revealed delete (✕) button + ContextMenu (gap91) -->
+                            <StackPanel DockPanel.Dock="Right"
+                                        VerticalAlignment="Center"
+                                        Margin="6,0,0,0">
+                                <Button Content="✕"
+                                        FontSize="12"
+                                        Width="20"
+                                        Height="20"
+                                        Padding="0"
+                                        Margin="0,0,3,0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="#A0A0A0"
+                                        ToolTip="Delete session"
+                                        Command="{Binding DataContext.DeleteSessionCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding Id}"
+                                        Visibility="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             </StackPanel>
-                        </StackPanel>
+
+                            <!-- Left: title + metadata -->
+                            <StackPanel Orientation="Vertical">
+                                <!-- Session Title -->
+                                <TextBlock Text="{Binding Title}" 
+                                           FontWeight="Bold" 
+                                           Foreground="White"
+                                           TextTrimming="CharacterEllipsis"/>
+
+                                <!-- Session Metadata -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                    <TextBlock Text="{Binding UpdatedAt, StringFormat='{}Last: {0:g}'}" 
+                                               Foreground="#A0A0A0" 
+                                               FontSize="11"
+                                               Margin="0,0,12,0"/>
+                                    <TextBlock Foreground="#A0A0A0" FontSize="11">
+                                        <TextBlock.Text>
+                                            <MultiBinding StringFormat="{}{0} messages">
+                                                <Binding Path="MessageCount"/>
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                            </StackPanel>
+                        </DockPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
                 <ListBox.ItemContainerStyle>

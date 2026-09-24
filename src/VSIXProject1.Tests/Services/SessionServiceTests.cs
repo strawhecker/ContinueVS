@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
@@ -9,6 +10,7 @@ using ContinueVS.Services.Events;
 using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Tests.Fixtures;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace VSIXProject1.Tests.Services
@@ -439,6 +441,129 @@ namespace VSIXProject1.Tests.Services
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(
                 () => _sessionService.DeleteSessionAsync(null!));
+        }
+
+        #endregion
+
+        #region ExportSessionAsync Tests (gap91)
+
+        [Fact]
+        public async Task ExportSessionAsync_WritesFile_WithMessagesAndMetadata()
+        {
+            // Arrange
+            await _sessionService.CreateNewSessionAsync("Important Chat");
+            var session = _sessionService.GetCurrentSession();
+            var sessionId = session.Id;
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "Hello" });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "Hi there" });
+            await _sessionService.SaveCurrentSessionAsync();
+
+            var exportDir = Path.Combine(Path.GetTempPath(), "ContinueVS-Test-Export-" + Guid.NewGuid().ToString("N"));
+
+            try
+            {
+                // Act
+                var exportedPath = await _sessionService.ExportSessionAsync(sessionId, exportDir);
+
+                // Assert
+                Assert.True(File.Exists(exportedPath), "Exported file should exist on disk");
+                Assert.StartsWith(exportDir, exportedPath);
+                Assert.EndsWith(".json", exportedPath);
+
+                var json = File.ReadAllText(exportedPath);
+                var export = JsonConvert.DeserializeObject<SessionExport>(json);
+
+                Assert.NotNull(export);
+                Assert.Equal(sessionId, export!.SessionId);
+                Assert.Equal("Important Chat", export.Title);
+                Assert.Equal(2, export.MessageCount);
+                Assert.Equal(2, export.Messages.Count);
+                Assert.Equal("Hello", export.Messages[0].Content);
+                Assert.Equal("Hi there", export.Messages[1].Content);
+            }
+            finally
+            {
+                if (Directory.Exists(exportDir))
+                {
+                    Directory.Delete(exportDir, recursive: true);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ExportSessionAsync_DoesNotMutateStore()
+        {
+            // Arrange
+            await _sessionService.CreateNewSessionAsync("Readonly Check");
+            var sessionId = _sessionService.GetCurrentSession().Id;
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "Only message" });
+            await _sessionService.SaveCurrentSessionAsync();
+
+            var exportDir = Path.Combine(Path.GetTempPath(), "ContinueVS-Test-Export-" + Guid.NewGuid().ToString("N"));
+
+            try
+            {
+                // Act — capture session list before and after export
+                var before = new List<SessionMetadata>();
+                await foreach (var s in _sessionService.ListSessionsAsync(100))
+                {
+                    before.Add(s);
+                }
+
+                await _sessionService.ExportSessionAsync(sessionId, exportDir);
+
+                var after = new List<SessionMetadata>();
+                await foreach (var s in _sessionService.ListSessionsAsync(100))
+                {
+                    after.Add(s);
+                }
+
+                // Assert — export must not add/remove/change sessions
+                Assert.Equal(before.Count, after.Count);
+                Assert.All(after, s => Assert.Contains(before, b => b.Id == s.Id));
+
+                // Session content unchanged
+                var reloaded = _sessionService.GetCurrentSession();
+                Assert.Single(reloaded.Messages);
+                Assert.Equal("Only message", reloaded.Messages[0].Content);
+            }
+            finally
+            {
+                if (Directory.Exists(exportDir))
+                {
+                    Directory.Delete(exportDir, recursive: true);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ExportSessionAsync_ThrowsOnNullOrWhitespaceSessionId()
+        {
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentException>(() => _sessionService.ExportSessionAsync(null!));
+            await Assert.ThrowsAsync<ArgumentException>(() => _sessionService.ExportSessionAsync("   "));
+        }
+
+        [Fact]
+        public async Task ExportSessionAsync_ThrowsWhenSessionMissing()
+        {
+            // Arrange — a session id with no backing log file
+            var missingId = Guid.NewGuid().ToString("N");
+            var exportDir = Path.Combine(Path.GetTempPath(), "ContinueVS-Test-Export-" + Guid.NewGuid().ToString("N"));
+
+            try
+            {
+                // Act & Assert
+                await Assert.ThrowsAsync<FileNotFoundException>(
+                    () => _sessionService.ExportSessionAsync(missingId, exportDir));
+            }
+            finally
+            {
+                if (Directory.Exists(exportDir))
+                {
+                    Directory.Delete(exportDir, recursive: true);
+                }
+            }
         }
 
         #endregion
