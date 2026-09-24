@@ -752,14 +752,18 @@ namespace ContinueVS.UI.Renderers
 
         private BlockUIContainer RenderTable(Markdig.Extensions.Tables.Table table)
         {
-            // Render the table as a WPF Grid wrapped in a BlockUIContainer instead
-            // of a WPF Table. A WPF Table is a flow block element whose column
-            // sizing we don't fully control: with Auto columns it stretches
-            // edge-to-edge and redistributes leftover space evenly (the "card-wide,
-            // equal-width columns" symptom), and pinning Width doesn't stop that.
-            // A Grid with GridLength.Auto columns sizes each column to its content,
-            // and HorizontalAlignment.Left keeps the whole table content-sized and
-            // left-justified – matching how HTML tables behave.
+            // Render the table as a WPF Grid wrapped in a BlockUIContainer.
+            //
+            // Why not a WPF Table / GridLength.Auto alone: a wrapping TextBlock
+            // measures its desired width against the full available width, so
+            // Auto columns all report roughly the same large size -> the table
+            // stretches edge-to-edge and every column comes out equal. That's the
+            // "card-wide, equal-width columns" symptom.
+            //
+            // Fix: measure each column's NATURAL width (wrapping disabled) first,
+            // then apply explicit pixel column widths capped to the card width. If
+            // the natural table is wider than the card, columns scale down
+            // proportionally (HTML-table behavior) instead of being equalized.
             var grid = new Grid
             {
                 Margin = new Thickness(0, 2, 0, 2),
@@ -767,16 +771,36 @@ namespace ContinueVS.UI.Renderers
                 VerticalAlignment = VerticalAlignment.Top
             };
 
-            // One column per parsed table column. Auto = fit content (never
-            // equalized). A parsed explicit width (col.Width > 0, in px) is honored.
-            foreach (var col in table.ColumnDefinitions)
+            int colCount = table.ColumnDefinitions.Count;
+
+            // Pass 1: build every cell (so we can measure before it's in the tree)
+            // and record each column's natural (no-wrap) width.
+            var cells = new List<(Border Border, TextBlock Text, int Row, int Col)>();
+            var naturalWidths = new double[Math.Max(colCount, 1)];
+
+            // Populate the cell's text from its markdown blocks (reusing the
+            // inline -> run mapping so bold/italic/code in cells still work).
+            void Populate(TextBlock t, Markdig.Extensions.Tables.TableCell cell)
             {
-                grid.ColumnDefinitions.Add(new ColumnDefinition
+                foreach (var subBlock in cell)
                 {
-                    Width = col.Width > 0
-                        ? new GridLength(col.Width, GridUnitType.Pixel)
-                        : GridLength.Auto
-                });
+                    if (subBlock is ParagraphBlock para)
+                    {
+                        if (para.Inline != null)
+                        {
+                            foreach (var inline in para.Inline)
+                                AppendInline(t.Inlines, inline);
+                        }
+                    }
+                    else if (subBlock is Markdig.Extensions.Tables.Table nestedTable)
+                    {
+                        // Nested table: render its grid and host it as a UIElement
+                        // inside this cell's inline flow.
+                        var nested = RenderTable(nestedTable);
+                        if (nested.Child is UIElement nestedElement)
+                            t.Inlines.Add(new InlineUIContainer(nestedElement));
+                    }
+                }
             }
 
             int rowIndex = 0;
@@ -791,7 +815,19 @@ namespace ContinueVS.UI.Renderers
                 foreach (var cell in tableRow)
                 {
                     if (cell is not Markdig.Extensions.Tables.TableCell tableCell)
-                        continue;
+                    { colIndex++; continue; }
+
+                    // Build content first so we can measure its natural width.
+                    var cellText = new TextBlock
+                    {
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Populate(cellText, tableCell);
+
+                    // Natural width with wrapping disabled (one visual line).
+                    cellText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                    if (colIndex < colCount)
+                        naturalWidths[colIndex] = Math.Max(naturalWidths[colIndex], cellText.DesiredSize.Width);
 
                     var border = new Border
                     {
@@ -803,60 +839,65 @@ namespace ContinueVS.UI.Renderers
                             : Brushes.Transparent
                     };
 
-                    // Build cell content as a text block, reusing the inline
-                    // -> run mapping so bold/italic/code inside cells still work.
-                    var cellText = new TextBlock
-                    {
-                        TextWrapping = TextWrapping.Wrap,
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-
-                    foreach (var subBlock in tableCell)
-                    {
-                        if (subBlock is ParagraphBlock para)
-                        {
-                            if (para.Inline != null)
-                            {
-                                foreach (var inline in para.Inline)
-                                    AppendInline(cellText.Inlines, inline);
-                            }
-                        }
-                        else if (subBlock is Markdig.Extensions.Tables.Table nestedTable)
-                        {
-                            // Nested table: recurse into its grid and host it.
-                            var nested = RenderTable(nestedTable);
-                            cellText.Inlines.Add(new InlineUIContainer(nested));
-                        }
-                    }
-
-                    border.Child = cellText;
-
-                    // Column alignment (left/center/right) from the parsed table.
-                    if (colIndex < table.ColumnDefinitions.Count)
-                    {
-                        switch (table.ColumnDefinitions[colIndex].Alignment)
-                        {
-                            case Markdig.Extensions.Tables.TableColumnAlign.Center:
-                                cellText.TextAlignment = TextAlignment.Center;
-                                break;
-                            case Markdig.Extensions.Tables.TableColumnAlign.Right:
-                                cellText.TextAlignment = TextAlignment.Right;
-                                break;
-                            default:
-                                cellText.TextAlignment = TextAlignment.Left;
-                                break;
-                        }
-                    }
-
-                    Grid.SetColumn(border, colIndex);
-                    Grid.SetRow(border, rowIndex);
-                    grid.Children.Add(border);
+                    cells.Add((border, cellText, rowIndex, colIndex));
                     colIndex++;
                 }
-
                 rowIndex++;
             }
 
+            // Pass 2: convert natural widths into capped pixel column widths.
+            double available = double.IsNaN(_document.PageWidth)
+                ? 700
+                : Math.Max(_document.PageWidth - 16, 160);
+            double paddingAndBorder = colCount * (6 + 6 + 2); // Padding + border.
+            double total = paddingAndBorder;
+            foreach (var w in naturalWidths) total += w;
+
+            // Scale the whole table down proportionally only if it overflows.
+            double scale = total > available ? available / Math.Max(total, 1) : 1.0;
+            var columnWidths = new double[Math.Max(colCount, 1)];
+            for (int c = 0; c < columnWidths.Length; c++)
+            {
+                double w = Math.Max(Math.Min(naturalWidths[c] * scale,
+                    available / Math.Max(colCount, 1)), 24);
+                columnWidths[c] = w;
+                grid.ColumnDefinitions.Add(new ColumnDefinition
+                {
+                    Width = new GridLength(w, GridUnitType.Pixel)
+                });
+            }
+
+            // Pass 3: lay cells into the grid with wrapping ON + per-cell cap.
+            foreach (var (border, text, r, c) in cells)
+            {
+                text.TextWrapping = TextWrapping.Wrap;
+                if (c < columnWidths.Length)
+                    text.MaxWidth = columnWidths[c];
+
+                // Column alignment (left/center/right) from the parsed table.
+                if (c < colCount)
+                {
+                    switch (table.ColumnDefinitions[c].Alignment)
+                    {
+                        case Markdig.Extensions.Tables.TableColumnAlign.Center:
+                            text.TextAlignment = TextAlignment.Center;
+                            break;
+                        case Markdig.Extensions.Tables.TableColumnAlign.Right:
+                            text.TextAlignment = TextAlignment.Right;
+                            break;
+                        default:
+                            text.TextAlignment = TextAlignment.Left;
+                            break;
+                    }
+                }
+
+                border.Child = text;
+                Grid.SetColumn(border, c);
+                Grid.SetRow(border, r);
+                grid.Children.Add(border);
+            }
+
+            grid.MaxWidth = available;
             return new BlockUIContainer(grid);
         }
 
