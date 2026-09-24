@@ -750,53 +750,42 @@ namespace ContinueVS.UI.Renderers
             return section;
         }
 
-        private Table RenderTable(Markdig.Extensions.Tables.Table table)
+        private BlockUIContainer RenderTable(Markdig.Extensions.Tables.Table table)
         {
-            var wpfTable = new Table
+            // Render the table as a WPF Grid wrapped in a BlockUIContainer instead
+            // of a WPF Table. A WPF Table is a flow block element whose column
+            // sizing we don't fully control: with Auto columns it stretches
+            // edge-to-edge and redistributes leftover space evenly (the "card-wide,
+            // equal-width columns" symptom), and pinning Width doesn't stop that.
+            // A Grid with GridLength.Auto columns sizes each column to its content,
+            // and HorizontalAlignment.Left keeps the whole table content-sized and
+            // left-justified – matching how HTML tables behave.
+            var grid = new Grid
             {
                 Margin = new Thickness(0, 2, 0, 2),
-                CellSpacing = 0,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(90, 90, 90)),
-                BorderThickness = new Thickness(1)
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top
             };
 
-            // Column definitions from the parsed table (respects GFM alignment).
-            // Alignment is applied per-cell below (TableCell.TextAlignment); here we
-            // just carry the parsed alignment + width through for each column.
-            var textAlignments = new List<TextAlignment>();
+            // One column per parsed table column. Auto = fit content (never
+            // equalized). A parsed explicit width (col.Width > 0, in px) is honored.
             foreach (var col in table.ColumnDefinitions)
             {
-                // Auto-size columns to their content so the table fits its data
-                // instead of stretching edge-to-edge. (Star sizing expands each
-                // column to fill all available width.)
-                var wpfCol = new TableColumn
+                grid.ColumnDefinitions.Add(new ColumnDefinition
                 {
                     Width = col.Width > 0
                         ? new GridLength(col.Width, GridUnitType.Pixel)
                         : GridLength.Auto
-                };
-                wpfTable.Columns.Add(wpfCol);
-
-                switch (col.Alignment)
-                {
-                    case Markdig.Extensions.Tables.TableColumnAlign.Center:
-                        textAlignments.Add(TextAlignment.Center);
-                        break;
-                    case Markdig.Extensions.Tables.TableColumnAlign.Right:
-                        textAlignments.Add(TextAlignment.Right);
-                        break;
-                    default:
-                        textAlignments.Add(TextAlignment.Left);
-                        break;
-                }
+                });
             }
 
+            int rowIndex = 0;
             foreach (var row in table)
             {
                 if (row is not Markdig.Extensions.Tables.TableRow tableRow)
                     continue;
 
-                var wpfRow = new TableRow();
+                grid.RowDefinitions.Add(new RowDefinition());
 
                 int colIndex = 0;
                 foreach (var cell in tableRow)
@@ -804,54 +793,71 @@ namespace ContinueVS.UI.Renderers
                     if (cell is not Markdig.Extensions.Tables.TableCell tableCell)
                         continue;
 
-                    var wpfCell = new TableCell
+                    var border = new Border
                     {
                         BorderBrush = new SolidColorBrush(Color.FromRgb(90, 90, 90)),
                         BorderThickness = new Thickness(1),
-                        Padding = new Thickness(6, 2, 6, 2)
+                        Padding = new Thickness(6, 2, 6, 2),
+                        Background = tableRow.IsHeader
+                            ? new SolidColorBrush(Color.FromRgb(55, 55, 55))
+                            : Brushes.Transparent
                     };
 
-                    if (tableRow.IsHeader)
+                    // Build cell content as a text block, reusing the inline
+                    // -> run mapping so bold/italic/code inside cells still work.
+                    var cellText = new TextBlock
                     {
-                        wpfCell.Background = new SolidColorBrush(Color.FromRgb(55, 55, 55));
-                    }
-
-                    if (colIndex < textAlignments.Count)
-                        wpfCell.TextAlignment = textAlignments[colIndex];
+                        TextWrapping = TextWrapping.Wrap,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
 
                     foreach (var subBlock in tableCell)
                     {
                         if (subBlock is ParagraphBlock para)
                         {
-                            wpfCell.Blocks.Add(MakeTextParagraph(para.Inline));
+                            if (para.Inline != null)
+                            {
+                                foreach (var inline in para.Inline)
+                                    AppendInline(cellText.Inlines, inline);
+                            }
                         }
                         else if (subBlock is Markdig.Extensions.Tables.Table nestedTable)
                         {
-                            wpfCell.Blocks.Add(RenderTable(nestedTable));
+                            // Nested table: recurse into its grid and host it.
+                            var nested = RenderTable(nestedTable);
+                            cellText.Inlines.Add(new InlineUIContainer(nested));
                         }
                     }
 
-                    wpfRow.Cells.Add(wpfCell);
+                    border.Child = cellText;
+
+                    // Column alignment (left/center/right) from the parsed table.
+                    if (colIndex < table.ColumnDefinitions.Count)
+                    {
+                        switch (table.ColumnDefinitions[colIndex].Alignment)
+                        {
+                            case Markdig.Extensions.Tables.TableColumnAlign.Center:
+                                cellText.TextAlignment = TextAlignment.Center;
+                                break;
+                            case Markdig.Extensions.Tables.TableColumnAlign.Right:
+                                cellText.TextAlignment = TextAlignment.Right;
+                                break;
+                            default:
+                                cellText.TextAlignment = TextAlignment.Left;
+                                break;
+                        }
+                    }
+
+                    Grid.SetColumn(border, colIndex);
+                    Grid.SetRow(border, rowIndex);
+                    grid.Children.Add(border);
                     colIndex++;
                 }
 
-                if (wpfTable.RowGroups.Count == 0)
-                    wpfTable.RowGroups.Add(new TableRowGroup());
-
-                wpfTable.RowGroups[0].Rows.Add(wpfRow);
+                rowIndex++;
             }
 
-            // A WPF Table is a block element and by default stretches to fill the
-            // FlowDocument's full width (with Auto columns the leftover space just
-            // sits after the last column, and with Star columns it's distributed
-            // evenly – the "wide, equal-width" symptom). To make the table fit its
-            // data and stay left-justified, measure the table at its natural
-            // (content) size and pin Width to that value. Must measure AFTER all
-            // rows/cells are populated so DesiredSize reflects the real content.
-            wpfTable.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            wpfTable.Width = wpfTable.DesiredSize.Width;
-
-            return wpfTable;
+            return new BlockUIContainer(grid);
         }
 
         private Paragraph MakeHorizontalRule()
