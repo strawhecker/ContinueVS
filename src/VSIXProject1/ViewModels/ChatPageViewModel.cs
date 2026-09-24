@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -1849,32 +1849,33 @@ namespace ContinueVS.ViewModels
                         Mode = CurrentMode
                     };
 
-                    var reasoningMessage = new ChatMessage
-                    {
-                        Role = ChatMessageRole.Thinking,
-                        Content = string.Empty,
-                        IsThinking = true,
-                        IsExpanded = false
-                    };
-                    // *** DO NOT DEFER THIS ADD ***
-                    // ADD reasoning message to UI IMMEDIATELY when first chunk arrives.
-                    // Only way to show real-time reasoning streaming in the UI.
-                    // Previous deferred approach caused reasoning to hide until completion.
-                    await SwitchToMainThreadAsync();
-                    Messages.Add(reasoningMessage);
+                    ChatMessage? reasoningMessage = null;
+                    //var reasoningMessage = new ChatMessage
+                    //{
+                    //    Role = ChatMessageRole.Thinking,
+                    //    Content = string.Empty,
+                    //    IsThinking = true,
+                    //    IsExpanded = false
+                    //};
+                    //// *** DO NOT DEFER THIS ADD ***
+                    //// ADD reasoning message to UI IMMEDIATELY when first chunk arrives.
+                    //// Only way to show real-time reasoning streaming in the UI.
+                    //// Previous deferred approach caused reasoning to hide until completion.
+                    //await SwitchToMainThreadAsync();
+                    //Messages.Add(reasoningMessage);
 
                     // Create provisional assistant message BEFORE streaming starts
                     // This allows UI to display responses incrementally as chunks arrive
-                    var assistantMessage = new ChatMessage
-                    {
-                        Role = ChatMessageRole.Assistant,
-                        Content = string.Empty,
-                        ToolCalls = null
-                    };
-
-                    // Add assistantMessage to UI collection immediately so binding updates work during streaming
-                    await SwitchToMainThreadAsync();
-                    Messages.Add(assistantMessage);
+                    ChatMessage? assistantMessage = null;
+                    //var assistantMessage = new ChatMessage
+                    //{
+                    //    Role = ChatMessageRole.Assistant,
+                    //    Content = string.Empty,
+                    //    ToolCalls = null
+                    //};
+                    //// Add assistantMessage to UI collection immediately so binding updates work during streaming
+                    //await SwitchToMainThreadAsync();
+                    //Messages.Add(assistantMessage);
 
                     // Optional reasoning message to hold provider reasoning (separate from content)
                     // *** SECURITY WARNING: LLM keyword conflict risk ***
@@ -1946,9 +1947,9 @@ namespace ContinueVS.ViewModels
                                 // PropertyChanged(IsFinalized). When the A/B flag is OFF (default),
                                 // keep the legacy Content += behavior unchanged.
                                 if (ContinueVS.UI.Renderers.UseStreamingMarkdownRenderer.IsEnabled)
-                                    assistantMessage.AppendChunk(chunk.Content!);
+                                    assistantMessage?.AppendChunk(chunk.Content!);
                                 else
-                                    assistantMessage.Content += chunk.Content!;
+                                    assistantMessage?.Content += chunk.Content!;
                                 //StreamingResponse += chunk.Content;
                             }
                         }
@@ -2017,9 +2018,9 @@ namespace ContinueVS.ViewModels
                     // "User cancelled" even though the user simply answered the question.
                     // Using CancellationToken.None keeps the answer-wait isolated from the
                     // streaming lifecycle so answering is never misreported as a cancel.
-                    if (!string.IsNullOrWhiteSpace(assistantMessage.Content) && _llmQuestionService != null)
+                    if (!string.IsNullOrWhiteSpace(assistantMessage!.Content) && _llmQuestionService != null)
                     {
-                        var detectedQuestion = await _llmQuestionService.DetectLLMQuestionAsync(assistantMessage.Content, CancellationToken.None);
+                        var detectedQuestion = await _llmQuestionService.DetectLLMQuestionAsync(assistantMessage!.Content, CancellationToken.None);
                         if (detectedQuestion != null)
                         {
                             LoggerService.Current.WriteDebug($"[gap54-detect] Question detected in response: {detectedQuestion.QuestionText}");
@@ -2031,7 +2032,7 @@ namespace ContinueVS.ViewModels
                     // Finalize the message with tool calls and add to session
                     if (_pendingToolCalls.Count > 0)
                     {
-                        assistantMessage.ToolCalls = new List<ToolCall>(_pendingToolCalls);
+                        assistantMessage!.ToolCalls = new List<ToolCall>(_pendingToolCalls);
                     }
 
                     // gap68: Parse and separate thinking from response content
@@ -2041,7 +2042,7 @@ namespace ContinueVS.ViewModels
                     if (reasoningMessage == null)
                     {
                         var (parsedThinkingMessage, cleanedResponseContent) = await ParseThinkingFromResponseAsync(
-                            assistantMessage.Content,
+                            assistantMessage!.Content,
                             _streamingCts.Token);
 
                         thinkingMessage = parsedThinkingMessage;
@@ -2049,7 +2050,7 @@ namespace ContinueVS.ViewModels
                         // Update assistant message content to exclude thinking (if any was extracted)
                         if (thinkingMessage != null && !string.IsNullOrWhiteSpace(cleanedResponseContent))
                         {
-                            assistantMessage.Content = cleanedResponseContent;
+                            assistantMessage!.Content = cleanedResponseContent;
                             LoggerService.Current.WriteDebug(
                                 "[gap68-separate] Thinking separated from response. Response length now: " + cleanedResponseContent.Length);
                         }
