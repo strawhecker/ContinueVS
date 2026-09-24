@@ -1935,18 +1935,14 @@ namespace ContinueVS.ViewModels
                             if (!string.IsNullOrEmpty(chunk.Content))
                             {
                                 await SwitchToMainThreadAsync();
-                                // gap88: when the unified renderer is enabled, route response
-                                // streaming through the incremental AppendChunk path
-                                // (TokenAppended → unified renderer streaming mode) instead of
-                                // Content += (full replacement which would flip IsFinalized
-                                // prematurely). The Content setter / FinalizeStreaming still
-                                // produce the single finalized full render via
-                                // PropertyChanged(IsFinalized). When the A/B flag is OFF (default),
-                                // keep the legacy Content += behavior unchanged.
-                                if (ContinueVS.UI.Renderers.UseStreamingMarkdownRenderer.IsEnabled)
-                                    assistantMessage?.AppendChunk(chunk.Content!);
-                                else
-                                    assistantMessage?.Content += chunk.Content!;
+                                // gap88: the unified renderer is the single renderer for all
+                                // cards, so response streaming always routes through the
+                                // incremental AppendChunk path (TokenAppended → unified renderer
+                                // streaming mode) instead of Content += (full replacement which
+                                // would flip IsFinalized prematurely). The Content setter /
+                                // FinalizeStreaming still produce the single finalized full
+                                // render via PropertyChanged(IsFinalized).
+                                assistantMessage?.AppendChunk(chunk.Content!);
                             }
                         }
                         else if (chunk.Type == ChunkType.ToolCall)

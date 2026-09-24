@@ -6,7 +6,6 @@ using ContinueVS.Core.Types;
 using ContinueVS.Services;
 using ContinueVS.Services.Implementations;
 using ContinueVS.UI.Pages;
-using ContinueVS.UI.Renderers;
 using ContinueVS.ViewModels;
 using Markdig;
 using Markdig.Syntax;
@@ -44,33 +43,23 @@ namespace ContinueVS.UI.Views
             // Unsubscribe from the previous message to avoid leaks.
             if (_boundMessage != null)
             {
-                _boundMessage.TokenAppended -= OnTokenAppended;
                 _boundMessage.PropertyChanged -= OnMessagePropertyChanged;
                 _boundMessage = null;
             }
 
-            // Subscribe to the new message's token stream so the streaming
-            // reasoning renderer receives each incremental segment directly,
-            // and to its PropertyChanged so code-block state is evaluated the
-            // moment Content changes (not deferred until the next Loaded).
+            // Subscribe to the new message's PropertyChanged so code-block state is
+            // evaluated the moment Content changes (not deferred until the next Loaded).
+            // Note: streaming tokens are rendered by the unified StreamingMarkdownRenderer,
+            // which subscribes to the message's TokenAppended itself via its Message DP —
+            // ChatMessageControl only needs PropertyChanged for dropdown/minimize state.
             if (DataContext is ChatMessage message)
             {
                 _boundMessage = message;
-                message.TokenAppended += OnTokenAppended;
                 message.PropertyChanged += OnMessagePropertyChanged;
 
                 // Evaluate immediately at bind time (runs on the UI thread here).
                 ReevaluateCodeBlockState();
                 ApplyDropdownVisibility();
-            }
-        }
-
-        private void OnTokenAppended(string token)
-        {
-            var renderer = FindName("StreamingReasoningRenderer") as StreamingReasoningRenderer;
-            if (renderer != null)
-            {
-                renderer.AppendToken(token);
             }
         }
 
@@ -157,7 +146,6 @@ namespace ContinueVS.UI.Views
             // is unloaded (session switch / list virtualization).
             if (_boundMessage != null)
             {
-                _boundMessage.TokenAppended -= OnTokenAppended;
                 _boundMessage.PropertyChanged -= OnMessagePropertyChanged;
                 _boundMessage = null;
             }
@@ -341,16 +329,14 @@ namespace ContinueVS.UI.Views
             }
 
             bool minimized = message?.IsMinimized == true;
-            var streaming = FindName("StreamingReasoningRenderer") as FrameworkElement;
-            var markdown = FindName("MarkdownBlockRenderer") as FrameworkElement;
+            var renderer = FindName("StreamingMarkdownRenderer") as FrameworkElement;
             var placeholder = FindName("MinimizedPlaceholder") as TextBlock;
             var copyAll = FindName("CopyAllButton") as Button;
             var dropdown = FindName("CodeActionDropdown") as ComboBox;
 
             if (minimized)
             {
-                if (streaming != null) streaming.Visibility = Visibility.Collapsed;
-                if (markdown != null) markdown.Visibility = Visibility.Collapsed;
+                if (renderer != null) renderer.Visibility = Visibility.Collapsed;
                 if (placeholder != null) placeholder.Visibility = Visibility.Visible;
                 if (copyAll != null) copyAll.Visibility = Visibility.Collapsed;
                 if (dropdown != null) dropdown.Visibility = Visibility.Collapsed;
@@ -359,19 +345,8 @@ namespace ContinueVS.UI.Views
             {
                 if (placeholder != null) placeholder.Visibility = Visibility.Collapsed;
                 ApplyDropdownVisibility();
-                // Re-apply role-based renderer visibility on restore.
-                if (streaming != null && DataContext is ChatMessage m)
-                {
-                    streaming.Visibility = m.Role switch
-                    {
-                        ChatMessageRole.User or ChatMessageRole.Thinking => Visibility.Visible,
-                        _ => Visibility.Collapsed
-                    };
-                }
-                if (markdown != null && DataContext is ChatMessage m2)
-                {
-                    markdown.Visibility = m2.Role == ChatMessageRole.Assistant ? Visibility.Visible : Visibility.Collapsed;
-                }
+                // The unified renderer's visibility is bound to the message role via the
+                // converters, so it is reapplied automatically on restore.
             }
         }
 

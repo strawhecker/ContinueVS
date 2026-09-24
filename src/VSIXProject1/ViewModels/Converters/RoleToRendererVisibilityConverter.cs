@@ -8,14 +8,11 @@ using ContinueVS.UI.Renderers;
 namespace ContinueVS.ViewModels.Converters
 {
     /// <summary>
-    /// gap88: Controls the unified renderer's visibility per role.
+    /// Controls the unified renderer's visibility per role.
     ///
-    /// When the A/B flag is OFF (default), the unified renderer is always
-    /// Collapsed — zero behavior change (legacy renderers remain untouched).
-    ///
-    /// When ON, only the roles the unified renderer actually hosts in
-    /// ChatMessageControl are Visible (User, Thinking, Assistant). Tool cards
-    /// route through the dedicated ToolInvocationTemplate (gap90b), so Tool stays
+    /// The unified <see cref="StreamingMarkdownRenderer"/> is the single renderer for
+    /// user, thinking, and assistant cards, so those roles are always Visible. Tool
+    /// cards route through the dedicated ToolInvocationTemplate (gap90b), so Tool stays
     /// Collapsed here — the unified renderer is still available/verbatim for tool
     /// cards wherever the tool template chooses to use it.
     /// </summary>
@@ -23,9 +20,6 @@ namespace ContinueVS.ViewModels.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (!UseStreamingMarkdownRenderer.IsEnabled)
-                return Visibility.Collapsed;
-
             if (value is ChatMessageRole role)
             {
                 switch (role)

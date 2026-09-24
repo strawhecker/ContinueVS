@@ -11,8 +11,6 @@
         <local:RoleToAlignmentConverter x:Key="RoleToAlignmentConverter"/>
         <local:RoleToColorConverter x:Key="RoleToColorConverter"/>
         <local:RoleToVisibilityConverter x:Key="RoleToVisibilityConverter"/>
-        <local:RoleToStreamingReasoningVisibility x:Key="RoleToStreamingReasoningVisibility"/>
-        <local:RoleToMarkdownBlockVisibility x:Key="RoleToMarkdownBlockVisibility"/>
         <local:RoleToRendererModeConverter x:Key="RoleToRendererModeConverter"/>
         <local:RoleToRendererVisibilityConverter x:Key="RoleToRendererVisibilityConverter"/>
     </UserControl.Resources>
@@ -26,25 +24,10 @@
             <Grid HorizontalAlignment="Stretch" MinWidth="0">
                 <Border x:Name="MessageBorder" Background="{Binding Role, Converter={StaticResource RoleToColorConverter}}" CornerRadius="8" Padding="10">
                     <Grid MinWidth="0" HorizontalAlignment="Stretch">
-                        <!-- User/Thinking: lightweight text rendering -->
-                        <renderers:StreamingReasoningRenderer 
-                            x:Name="StreamingReasoningRenderer"
-                            RendererContent="{Binding Content}" 
-                            Visibility="{Binding Role, Converter={StaticResource RoleToStreamingReasoningVisibility}}"
-                            HorizontalAlignment="Stretch"
-                            MinWidth="0" />
-
-                        <!-- Assistant: rich markdown rendering (parses Content string internally with debouncing) -->
-                        <renderers:MarkdownBlockRenderer 
-                            x:Name="MarkdownBlockRenderer"
-                            Content="{Binding Content}" 
-                            Visibility="{Binding Role, Converter={StaticResource RoleToMarkdownBlockVisibility}}"
-                            HorizontalAlignment="Stretch"
-                            MinWidth="0" />
-
-                        <!-- gap88: Unified chat card renderer (state-driven, feature-flagged A/B).
+                        <!-- gap88: Unified chat card renderer (state-driven).
                              Hosts user/tool/reasoning/response cards via content-kind + phase.
-                             Enabled by RendererMode != Disabled (see RoleToRendererModeConverter). -->
+                             This is the ONLY renderer for all message roles; per-card visibility
+                             is driven by RoleToRendererModeConverter / RoleToRendererVisibilityConverter. -->
                         <renderers:StreamingMarkdownRenderer
                             x:Name="StreamingMarkdownRenderer"
                             Content="{Binding Content}"
