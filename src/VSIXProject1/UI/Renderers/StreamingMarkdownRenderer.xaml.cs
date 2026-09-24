@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ContinueVS.Core.Parsers;
@@ -95,6 +96,20 @@ namespace ContinueVS.UI.Renderers
             _richTextBox.SizeChanged += HostText_SizeChanged;
             _richTextBox.PreviewMouseWheel += HostText_PreviewMouseWheel;
 
+            // When a long response is taller than the conversation viewport, clicking
+            // or dragging to select text raises a RequestBringIntoView routed event.
+            // The outer ScrollViewer handles that by scrolling to reveal the focused
+            // caret — but for a tall card it can only align the card's TOP to the top
+            // of the viewport, yanking the content being selected out of view
+            // ("snaps to the top of the response"). The card is read-only and we own
+            // scrolling, so suppress that repositioning while the user drag-selects.
+            // Keyboard caret navigation still brings text into view (left button not
+            // pressed, nothing captured → we let it through).
+            _richTextBox.AddHandler(
+                Control.RequestBringIntoViewEvent,
+                new RequestBringIntoViewEventHandler(HostText_RequestBringIntoView),
+                handledEventsToo: true);
+
             // Honor an explicitly-set Foreground (e.g. tool cards set #CCCCCC);
             // otherwise fall back to the VS theme text brush. The RichTextBox
             // sets its own Foreground, so we must re-apply here for it to cascade.
@@ -127,6 +142,21 @@ namespace ContinueVS.UI.Renderers
             if (e.NewSize.Width > 0)
             {
                 _document.PageWidth = e.NewSize.Width;
+            }
+        }
+
+        /// <summary>
+        /// Prevents the conversation <see cref="ScrollViewer"/> from snapping a tall card
+        /// to the top of the viewport while the user is dragging to select/copy text.
+        /// </summary>
+        private void HostText_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
+        {
+            // Only suppress the scroll-to-reveal during an active mouse drag selection.
+            // If the left button is not pressed (no capture), allow normal behavior
+            // (e.g. keyboard caret navigation scrolling text into view).
+            if (Mouse.LeftButton == MouseButtonState.Pressed && _richTextBox != null)
+            {
+                e.Handled = true;
             }
         }
 
