@@ -635,6 +635,10 @@ namespace ContinueVS.UI.Renderers
                     _document.Blocks.Add(MakeHorizontalRule());
                     break;
 
+                case Markdig.Extensions.Tables.Table table:
+                    _document.Blocks.Add(RenderTable(table));
+                    break;
+
                 case CodeBlock indentedCode:
                     _document.Blocks.Add(new BlockUIContainer(
                         BuildPlainCodeControl(ExtractCodeLines(indentedCode))));
@@ -714,6 +718,95 @@ namespace ContinueVS.UI.Renderers
             }
 
             return section;
+        }
+
+        private Table RenderTable(Markdig.Extensions.Tables.Table table)
+        {
+            var wpfTable = new Table
+            {
+                Margin = new Thickness(0, 2, 0, 2),
+                CellSpacing = 0,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(90, 90, 90)),
+                BorderThickness = new Thickness(1)
+            };
+
+            // Column definitions from the parsed table (respects GFM alignment).
+            // Alignment is applied per-cell below (TableCell.TextAlignment); here we
+            // just carry the parsed alignment + width through for each column.
+            var textAlignments = new List<TextAlignment>();
+            foreach (var col in table.ColumnDefinitions)
+            {
+                var wpfCol = new TableColumn
+                {
+                    Width = new GridLength(col.Width > 0 ? col.Width : 1, GridUnitType.Star)
+                };
+                wpfTable.Columns.Add(wpfCol);
+
+                switch (col.Alignment)
+                {
+                    case Markdig.Extensions.Tables.TableColumnAlign.Center:
+                        textAlignments.Add(TextAlignment.Center);
+                        break;
+                    case Markdig.Extensions.Tables.TableColumnAlign.Right:
+                        textAlignments.Add(TextAlignment.Right);
+                        break;
+                    default:
+                        textAlignments.Add(TextAlignment.Left);
+                        break;
+                }
+            }
+
+            foreach (var row in table)
+            {
+                if (row is not Markdig.Extensions.Tables.TableRow tableRow)
+                    continue;
+
+                var wpfRow = new TableRow();
+
+                int colIndex = 0;
+                foreach (var cell in tableRow)
+                {
+                    if (cell is not Markdig.Extensions.Tables.TableCell tableCell)
+                        continue;
+
+                    var wpfCell = new TableCell
+                    {
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(90, 90, 90)),
+                        BorderThickness = new Thickness(1),
+                        Padding = new Thickness(6, 2, 6, 2)
+                    };
+
+                    if (tableRow.IsHeader)
+                    {
+                        wpfCell.Background = new SolidColorBrush(Color.FromRgb(55, 55, 55));
+                    }
+
+                    if (colIndex < textAlignments.Count)
+                        wpfCell.TextAlignment = textAlignments[colIndex];
+
+                    foreach (var subBlock in tableCell)
+                    {
+                        if (subBlock is ParagraphBlock para)
+                        {
+                            wpfCell.Blocks.Add(MakeTextParagraph(para.Inline));
+                        }
+                        else if (subBlock is Markdig.Extensions.Tables.Table nestedTable)
+                        {
+                            wpfCell.Blocks.Add(RenderTable(nestedTable));
+                        }
+                    }
+
+                    wpfRow.Cells.Add(wpfCell);
+                    colIndex++;
+                }
+
+                if (wpfTable.RowGroups.Count == 0)
+                    wpfTable.RowGroups.Add(new TableRowGroup());
+
+                wpfTable.RowGroups[0].Rows.Add(wpfRow);
+            }
+
+            return wpfTable;
         }
 
         private Paragraph MakeHorizontalRule()
