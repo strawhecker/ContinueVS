@@ -403,10 +403,6 @@ namespace ContinueVS.UI.Views
             DeleteButton.Visibility = System.Windows.Visibility.Visible;
             MinimizeButton.Visibility = System.Windows.Visibility.Visible;
 
-            var rawToggle = FindName("RawToggleButton") as Button;
-            if (rawToggle != null)
-                rawToggle.Visibility = System.Windows.Visibility.Visible;
-
             var copyAllButton = FindName("CopyAllButton") as Button;
             if (copyAllButton != null && copyAllButton.Visibility != System.Windows.Visibility.Collapsed)
                 copyAllButton.Visibility = System.Windows.Visibility.Visible;
@@ -420,10 +416,6 @@ namespace ContinueVS.UI.Views
         {
             DeleteButton.Visibility = System.Windows.Visibility.Hidden;
             MinimizeButton.Visibility = System.Windows.Visibility.Hidden;
-
-            var rawToggle = FindName("RawToggleButton") as Button;
-            if (rawToggle != null)
-                rawToggle.Visibility = System.Windows.Visibility.Hidden;
 
             var copyAllButton = FindName("CopyAllButton") as Button;
             if (copyAllButton != null && copyAllButton.Visibility != System.Windows.Visibility.Collapsed)
@@ -486,6 +478,9 @@ namespace ContinueVS.UI.Views
 
         /// <summary>
         /// gap89: Reflects the current per-card view on the toggle icon/tip.
+        /// The glyph is always visible: normal WindowText in Pretty (== the XAML default,
+        /// which we re-apply here defensively) and orange+bold in Raw so the active,
+        /// destination-facing raw view is unmistakable at a glance.
         /// </summary>
         private void ApplyRawToggleState()
         {
@@ -499,10 +494,31 @@ namespace ContinueVS.UI.Views
                 icon.FontWeight = raw ? FontWeights.Bold : FontWeights.Normal;
                 icon.Foreground = raw
                     ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 165, 0))
-                    : System.Windows.Media.Brushes.Transparent;
+                    : TryGetWindowTextBrush();
             }
             if (btn != null)
                 btn.ToolTip = raw ? "Viewing raw source — switch to processed" : "View raw source (destination-facing)";
+        }
+
+        /// <summary>
+        /// Resolves the theme-aware WindowText brush (same key the XAML uses), falling back
+        /// to a neutral BrushText if the resource isn't currently available (e.g. pre-load).
+        /// </summary>
+        private static System.Windows.Media.Brush? TryGetWindowTextBrush()
+        {
+            try
+            {
+                if (Application.Current != null &&
+                    Application.Current.TryFindResource("VsBrush.WindowText") is System.Windows.Media.Brush brush)
+                {
+                    return brush;
+                }
+            }
+            catch
+            {
+                // ignore resource lookup failures; fall through to the neutral fallback
+            }
+            return System.Windows.Media.Brushes.Black;
         }
 
         /// <summary>

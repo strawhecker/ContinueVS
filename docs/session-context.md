@@ -11244,6 +11244,25 @@ The entire tool pipeline is now properly gated at multiple levels, preventing un
 
 ---
 
+### gap89b: Make the `<>` Raw/Processed Toggle Visible, Clickable, and Workable (reasoning + response cards)
+
+**Status:** ✅ Complete | Type: UI Affordance Fix (per-card raw/pretty toggle)
+
+**Problem (verified in code):** The gap89 `<>` raw/pretty toggle existed on every card but its icon was functionally invisible in the resting (Pretty) state. `ApplyRawToggleState()` set the glyph `Foreground` to `Brushes.Transparent` whenever not in Raw, so the `<>` only ever appeared (orange) *after* the card was already toggled to Raw. Additionally the button was `Visibility="Hidden"` and only revealed on hover — so even on hover the user saw only an empty 28×28 box with a tooltip. Net effect on reasoning/response cards: no visible affordance to reach the destination-facing raw view, though the renderer/state wiring (`StreamingMarkdownRenderer` + `ChatMessage.ViewMode`) was already correct end-to-end.
+
+**Fix (two edits + one helper):**
+- `src/VSIXProject1/UI/Views/ChatMessageControl.xaml` — `RawToggleButton` changed `Visibility="Hidden"` → `Visible` so the `<>` is always visible at rest (same control is also used by tool cards; per BRIDGE, that is acceptable/intended).
+- `src/VSIXProject1/UI/Views/ChatMessageControl.xaml.cs`:
+  - Removed the `RawToggleButton` `Visibility` reveal/hide from `MessageGrid_MouseEnter` / `MessageGrid_MouseLeave` (button is now always visible; Delete/Minimize keep their hover-reveal).
+  - `ApplyRawToggleState()` — Pretty now resolves the theme `VsBrush.WindowText` (via new `TryGetWindowTextBrush()`, fallback black) instead of `Brushes.Transparent`; Raw keeps orange+bold. ToolTip text unchanged (raw vs processed) so the active state is still distinguishable.
+- Added `private static Brush? TryGetWindowTextBrush()` helper (theme-aware, mirroring the renderer's `TryGetBrush` resource lookup, `Application.Current.TryFindResource("VsBrush.WindowText")`).
+
+**Result:** the `<>` is now always visible on reasoning/response cards, clickable, and flips the card between processed (Markdig render) and raw (flat verbatim) views, with orange+bold indicating active Raw.
+
+**Validation:** `dotnet clean` → `dotnet build src\VSIXProject1\VSIXProject1.csproj --force` → 0 warnings, 0 errors.
+
+---
+
 ### BUGFIX (gap85): Minimize/Maximize Toggle Not Shown for User, Reason, and Response
 **Status:** ✅ Root-Caused & Fixed | Type: UI Visibility Regression
 
