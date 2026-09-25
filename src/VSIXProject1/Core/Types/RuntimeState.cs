@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ContinueVS.Core.Types
@@ -74,5 +74,10 @@ namespace ContinueVS.Core.Types
         /// Frame index (0 = current frame).
         /// </summary>
         public int FrameIndex { get; set; }
+
+        /// <summary>
+        /// Id of the thread that owns this frame (gap92_2 inspection surface).
+        /// </summary>
+        public int ThreadId { get; set; }
     }
 }

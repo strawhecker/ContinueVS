@@ -78,6 +78,40 @@ namespace ContinueVS.Services.Tests
             public Task<RuntimeState?> ExecuteStepAsync(DebugStepAction action, CancellationToken cancellationToken = default) => Task.FromResult<RuntimeState?>(null);
             public Task ResumeExecutionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task<bool> IsDebuggerActiveAsync() => Task.FromResult(false);
+
+            // gap92_2 inspection surface — benign stubs (not exercised by WorkspaceStatsService)
+            public Task<DebugInspectionResult<List<CallStackFrame>>> GetCallStackAsync(DebugSessionState state, int threadId, int maxFrames, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<List<CallStackFrame>>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> SelectFrameAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<StatementInfo>> GetStatementAsync(DebugSessionState state, int threadId, int frameIndex, int contextLines, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<StatementInfo>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<List<VariableInfo>>> GetLocalsAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<List<VariableInfo>>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<List<VariableInfo>>> GetArgumentsAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<List<VariableInfo>>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<VariableInfo>> GetThisAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<VariableInfo>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<List<ThreadInfo>>> GetThreadsAsync(DebugSessionState state, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<List<ThreadInfo>>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<List<ModuleInfo>>> GetModulesAsync(DebugSessionState state, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<List<ModuleInfo>>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<ProcessInfo>> GetProcessInfoAsync(DebugSessionState state, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<ProcessInfo>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<List<ExceptionSettingInfo>>> ListExceptionSettingsAsync(DebugSessionState state, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<List<ExceptionSettingInfo>>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<ExceptionInfo>> GetCurrentExceptionAsync(DebugSessionState state, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<ExceptionInfo>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<string>> GetOutputAsync(DebugSessionState state, int maxChars, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<string>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> EnableBreakpointAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> DisableBreakpointAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> ConditionBreakpointAsync(DebugSessionState state, string breakpointId, string condition, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> ClearBreakpointByIdAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
         }
 
         private static string CreateTempDir()

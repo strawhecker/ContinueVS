@@ -88,6 +88,28 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// Gates an inspection call (gap92_2) against the required <see cref="InspectionGate"/>, returning
+        /// a benign <c>(Ok, State, Reason)</c> triple instead of throwing. When the gate is satisfied the
+        /// returned state is the live captured <see cref="DebugSessionState"/>; otherwise it is a benign
+        /// rejection echo with a reason such as <c>"requires-break-mode"</c> or <c>"debugger-not-active"</c>.
+        /// Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // DTE access; only ever invoked on the UI thread via DebuggerService
+        public static (bool Ok, DebugSessionState State, string? Reason) RequireInspection(EnvDTE.Debugger? debugger, InspectionGate gate)
+        {
+            if (!IsDebuggerLive(debugger))
+                return (false, NotActiveState("debugger-not-active"), "debugger-not-active");
+
+            var state = CaptureState(debugger);
+
+            if (gate == InspectionGate.Paused && !IsDebuggerPaused(debugger))
+                return (false, state, "requires-break-mode");
+
+            return (true, state, null);
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
         /// Captures the current live debugger state into a <see cref="DebugSessionState"/> echo.
         /// Never throws; any COM failure yields a <see cref="NotActiveState"/>.
         /// </summary>

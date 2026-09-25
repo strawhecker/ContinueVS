@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
@@ -57,5 +58,93 @@ namespace ContinueVS.Services.Interfaces
         /// </summary>
         /// <returns>True if debugger is active and paused at breakpoint.</returns>
         Task<bool> IsDebuggerActiveAsync();
+
+        // -----------------------------------------------------------------------
+        // gap92_2 — Inspection surface (Tier-0, read-only, guard-gated)
+        // Each method returns a uniform DebugInspectionResult<T> state-echo and never throws.
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Reads the call stack (frames) for <paramref name="threadId"/>, capped at
+        /// <paramref name="maxFrames"/>. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<List<CallStackFrame>>> GetCallStackAsync(DebugSessionState state, int threadId, int maxFrames, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Establishes the frame cursor (<paramref name="threadId"/>, <paramref name="frameIndex"/>)
+        /// that later step/evaluate binds bind to. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> SelectFrameAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads the source statement (file, line, text, surrounding lines) at the selected frame.
+        /// Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<StatementInfo>> GetStatementAsync(DebugSessionState state, int threadId, int frameIndex, int contextLines, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads the local variables of the selected frame. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<List<VariableInfo>>> GetLocalsAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads the argument list of the selected frame. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<List<VariableInfo>>> GetArgumentsAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads the "this" object of the selected frame. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<VariableInfo>> GetThisAsync(DebugSessionState state, int threadId, int frameIndex, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Enumerates all threads across being-debugged processes. Live (any) mode.
+        /// </summary>
+        Task<DebugInspectionResult<List<ThreadInfo>>> GetThreadsAsync(DebugSessionState state, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Enumerates loaded modules. Live (any) mode. Not exposed by EnvDTE; benign rejection.
+        /// </summary>
+        Task<DebugInspectionResult<List<ModuleInfo>>> GetModulesAsync(DebugSessionState state, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads the current being-debugged process. Live (any) mode.
+        /// </summary>
+        Task<DebugInspectionResult<ProcessInfo>> GetProcessInfoAsync(DebugSessionState state, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lists exception-handling settings. Live (any) mode. Not exposed by EnvDTE; benign rejection.
+        /// </summary>
+        Task<DebugInspectionResult<List<ExceptionSettingInfo>>> ListExceptionSettingsAsync(DebugSessionState state, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads the current (most recent) exception, when paused.
+        /// </summary>
+        Task<DebugInspectionResult<ExceptionInfo>> GetCurrentExceptionAsync(DebugSessionState state, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads captured debugger/console output. Live (any) mode. Not exposed by EnvDTE; benign rejection.
+        /// </summary>
+        Task<DebugInspectionResult<string>> GetOutputAsync(DebugSessionState state, int maxChars, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Enables a breakpoint by id.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> EnableBreakpointAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Disables a breakpoint by id.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> DisableBreakpointAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Sets a condition on a breakpoint by id.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> ConditionBreakpointAsync(DebugSessionState state, string breakpointId, string condition, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Clears a breakpoint by id.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> ClearBreakpointByIdAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default);
     }
 }

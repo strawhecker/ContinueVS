@@ -10059,7 +10059,25 @@ Locked decisions: **gap95 = new gap** for non-debug DTE tools; **gap93 = Option 
 - Tests: `DebuggerInteropTests.cs` (19) + `DebugStateGuardTests.cs` (9) against hand-rolled `Fakes/FakeDebugger.cs` (28 passing). Test project gained `Microsoft.VisualStudio.Interop` runtime reference so EnvDTE COM types materialize in the test host.
 - Validation: `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1555 passed, 0 failed, 0 skipped**.
 
-**Deferred:** gap92_2 (inspection surface), gap92_3 (evaluate/mutate tier-2), gap93 (routing), gap94 (lifecycle), gap95 (non-debug DTE).
+**Deferred:** gap92_3 (evaluate/mutate tier-2), gap93 (routing), gap94 (lifecycle), gap95 (non-debug DTE).
+
+---
+
+### gap92_2: Inspection Surface — Stack, Frames, Variables, Threads, Modules, Process, Exceptions, Output
+
+**Status:** ✅ Complete | Implemented (2026-09-25) | Type: Debugger Automation (inspection surface) | Related: gap92_1 (uses accessor + guard), gap92_3 (evaluate/mutate consume frame cursor); assets `IDebuggerService`
+
+**Implementation Summary:**
+- New `Core/Types/DebugInspectionResult.cs` — uniform `{ Ok, State, Data, Reason }` state-echo wrapper returned by every inspection method; never throws.
+- New inspection DTOs (additive, `RuntimeState` core shape stable): `ThreadInfo.cs`, `ModuleInfo.cs`, `ProcessInfo.cs`, `ExceptionInfo.cs`, `VariableInfo.cs`, `StatementInfo.cs` (+ `SurroundingLine`), `ExceptionSettingInfo.cs`, `InspectionGate.cs` enum (`Any` | `Paused`); extended `CallStackFrame` with `ThreadId`.
+- `DebugStateGuard.RequireInspection(debugger, gate)` added — gates Paused methods (stack/frame/statement/locals/args/this/current-exception/breakpoint-lifecycle) vs Any methods (threads/modules/process/exception-settings/output); returns benign rejection, never throws.
+- `DebuggerInterop` gained the inspection interop: `GetCallStack` (per-thread, capped), `SelectFrame` (frame-cursor model: sets threadId + frameIndex in echoed state), `GetStatement` (breakpoint-last-hit file:line on current frame), `GetLocals`/`GetArguments` (stringified `VariableInfo`, `MaxLocals` cap), `GetThis` (`GetExpression("this")`), `GetThreads` (enumerates `DebuggedProcesses[].Programs[].Threads`, dedup by id), `GetProcessInfo`, `GetCurrentException` (breakpoint-last-hit), `Enable/Disable/Condition/ClearBreakpointById` (by breakpoint name; condition deletes+recreates since EnvDTE `Condition` is read-only). Modules / exception settings / output are **not part of the EnvDTE debugger object model** → benign `"not-exposed-by-dte"` rejections (honest, non-throwing).
+- `IDebuggerService` extended with 16 async inspection methods (all guard-gated, all return `DebugInspectionResult<T>`); `DebuggerService` marshals each to the UI thread, applies `RequireInspection`, delegates to interop.
+- Verified threads/processes/stack/variables (EnvDTE-backed); modules/exceptions-settings/output returned as benign "not-exposed-by-dte" (per EnvDTE object model) — documented, not a defect.
+- Tests: `Fakes/FakeDebugger.cs` extended (`FakeThreads`, `FakePrograms`, `FakeProcesses`, per-frame `Arguments`, thread `Name/Priority/SuspendCount`, `FakeExpression.IsValidValue`, `FakeBreakpoint.FunctionName`, `CurrentProcess`, `ThisValue`, `DebuggedProcesses`). New `DebuggerInspectionTests.cs` (interop, 20) + `DebuggerServiceInspectionTests.cs` (gate/state-echo, 10). `WorkspaceStatsServiceTests` stub implements the 16 new interface members.
+- Validation: `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1582 passed, 0 failed, 0 skipped**.
+
+**Deferred:** gap92_3 (evaluate/mutate tier-2, uses `SelectFrameAsync` cursor), gap93 (routing / de-stub), gap94 (lifecycle), gap95 (non-debug DTE).
 
 **Problem:** No real access to `DTE.Debugger`, no state machine, and no state echo. These are the primitive that `_2`/`_3`/gap93/gap94 all build on.
 
