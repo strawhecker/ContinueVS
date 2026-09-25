@@ -44,6 +44,14 @@ namespace ContinueVS.Services.Interfaces
         /// even when it is no longer the active document ("open elsewhere keeps the binding").
         /// </summary>
         System.Collections.Generic.List<string> GetOpenDocumentPaths();
+
+        /// <summary>
+        /// Get the <c>EnvDTE.Debugger</c> automation object for the current debug session,
+        /// or <c>null</c> when no debugger is available. Must be called on the UI thread.
+        /// Every <c>Debugger</c> call in the debug stack flows through this accessor (gap92_1)
+        /// so no EnvDTE debug access bypasses it.
+        /// </summary>
+        EnvDTE.Debugger? GetDebugger();
     }
 }
 

@@ -47,6 +47,8 @@ namespace ContinueVS.Tests.Services
 
             public List<string> GetOpenDocumentPaths() => new List<string>();
 
+            public EnvDTE.Debugger? GetDebugger() => null;
+
             public Selection? GetCursorSelection() => null;
         }
 

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
@@ -24,6 +24,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <PackageReference Include="Moq" Version="4.20.70" />
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
+    <!-- Required at runtime so unit tests can materialize EnvDTE.Debugger COM types via our fakes.
+         The main VSIX project references the SDK with ExcludeAssets=runtime (interop is GAC at
+         runtime in VS); the test host needs the interop assembly copied to its output. -->
+    <PackageReference Include="Microsoft.VisualStudio.Interop" Version="17.14.40260" />
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
   </ItemGroup>
 

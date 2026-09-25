@@ -10048,7 +10048,18 @@ Locked decisions: **gap95 = new gap** for non-debug DTE tools; **gap93 = Option 
 
 ### gap92_1: Core Session State + Breakpoints + Control
 
-**Status:** ⬜ Planned | Type: Debugger Automation (core cutover) | Related: gap94 (lifecycle prerequisite), gap92_2/92_3 (consume); assets `IDebuggerService`
+**Status:** ✅ Complete | Implemented (2026-09-25) | Type: Debugger Automation (core cutover) | Related: gap94 (lifecycle prerequisite), gap92_2/92_3 (consume); assets `IDebuggerService`
+
+**Implementation Summary:**
+- `IDteProvider.GetDebugger()` added (returns `EnvDTE.Debugger?`, UI-thread accessor) + implemented in `DteProvider`.
+- New `Core/Types/DebugSessionState.cs` — additive state echo (`Mode`, `ThreadId`, `Frame`, `BreakReason`, `IsDebuggerActive`, `IsActiveProgram`, `IsBreakMode`).
+- New `Core/Types/DebugStateGuard.cs` — `IsDebuggerLive`, `IsDebuggerPaused`, `CaptureState`, `NotActiveState`; benign rejection instead of exceptions.
+- New `Services/Implementations/DebuggerInterop.cs` — unit-testable EnvDTE logic: `BuildState` (callstack via `Thread.StackFrames`, line via `BreakpointLastHit`), `CollectLocals`, `SetBreakpoint`/`ClearBreakpoint` (via `Breakpoints.Add` / `Delete`, file+line match), `ExecuteStep` (enum → `StepOver/Into/Out`/`Go`/`Break`), `ResumeExecution` (`Go(false)`), `IsActive`/`IsPaused`. All capped (`MaxLocals=100`, `MaxCallStackDepth=50`) and fail-soft on `COMException`.
+- `DebuggerService` rewritten to marshal every method to the UI thread (`SwitchToMainThreadAsync`) and delegate to `DebuggerInterop`; `ResumeExecutionAsync` keeps the 30s `ITimeoutHelper` guard.
+- Tests: `DebuggerInteropTests.cs` (19) + `DebugStateGuardTests.cs` (9) against hand-rolled `Fakes/FakeDebugger.cs` (28 passing). Test project gained `Microsoft.VisualStudio.Interop` runtime reference so EnvDTE COM types materialize in the test host.
+- Validation: `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1555 passed, 0 failed, 0 skipped**.
+
+**Deferred:** gap92_2 (inspection surface), gap92_3 (evaluate/mutate tier-2), gap93 (routing), gap94 (lifecycle), gap95 (non-debug DTE).
 
 **Problem:** No real access to `DTE.Debugger`, no state machine, and no state echo. These are the primitive that `_2`/`_3`/gap93/gap94 all build on.
 

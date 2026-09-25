@@ -26,6 +26,7 @@ namespace ContinueVS.Tests.Services
             public string GetActiveFilepath() => ActiveFilepath;
             public string GetSolutionDirectory() => string.Empty;
             public List<string> GetOpenDocumentPaths() => new List<string>();
+            public EnvDTE.Debugger? GetDebugger() => null;
             public Selection? GetCursorSelection() => null;
         }
 
