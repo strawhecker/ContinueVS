@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
@@ -9,13 +8,17 @@ using Microsoft.VisualStudio.Shell;
 namespace ContinueVS.Services.Implementations
 {
     /// <summary>
-    /// Visual Studio implementation of IDebuggerService.
-    /// Wraps DTE.Debugger to provide safe access to debug state, breakpoints, and stepping.
+    /// Visual Studio implementation of IDebuggerService (gap92_1).
+    /// Resolves the real <c>EnvDTE.Debugger</c> via <see cref="IDteProvider.GetDebugger"/> and marshals
+    /// every DTE interaction to the UI thread, delegating all DTE-touching logic to the unit-testable
+    /// <see cref="DebuggerInterop"/> helper. Fail-soft throughout: when the debugger is idle or a COM
+    /// call fails, methods return the benign empty state rather than throwing.
     /// </summary>
     internal class DebuggerService : IDebuggerService
     {
         private readonly IDteProvider _dteProvider;
         private readonly ITimeoutHelper _timeoutHelper;
+        private const int ResumeTimeoutSeconds = 30;
 
         public DebuggerService(IDteProvider dteProvider, ITimeoutHelper timeoutHelper)
         {
@@ -25,25 +28,12 @@ namespace ContinueVS.Services.Implementations
 
         public async Task<RuntimeState?> GetCurrentStateAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                // In a stub implementation, return placeholder state without real DTE interaction
-                var state = new RuntimeState
-                {
-                    IsRunning = false,
-                    CapturedAt = DateTime.Now
-                };
-
-                state.Locals["placeholder"] = "debug-state";
-                state.CallStack.Add(new CallStackFrame
-                {
-                    MethodName = "Main",
-                    FilePath = "Program.cs",
-                    LineNumber = 1,
-                    FrameIndex = 0
-                });
-
-                return await Task.FromResult<RuntimeState?>(state);
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                return DebuggerInterop.BuildState(debugger);
             }
             catch (OperationCanceledException)
             {
@@ -51,7 +41,21 @@ namespace ContinueVS.Services.Implementations
             }
             catch
             {
-                return null;
+                return DebuggerInterop.EmptyState();
+            }
+        }
+
+        public async Task<bool> IsDebuggerActiveAsync()
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                return DebuggerInterop.IsActive(debugger);
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -64,23 +68,9 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
-                // In a full implementation, interact with DTE.Debugger.Breakpoints
-                // For now, return a completed BreakpointInfo
-                var info = new BreakpointInfo
-                {
-                    FilePath = filePath,
-                    LineNumber = lineNumber,
-                    IsEnabled = true,
-                    HitCount = 0,
-                    Condition = condition,
-                    BreakpointId = Guid.NewGuid().ToString()
-                };
-
-                return await Task.FromResult<BreakpointInfo?>(info);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                return DebuggerInterop.SetBreakpoint(debugger, filePath, lineNumber, condition);
             }
             catch
             {
@@ -97,13 +87,9 @@ namespace ContinueVS.Services.Implementations
 
             try
             {
-                // In a full implementation, remove from DTE.Debugger.Breakpoints
-                // For now, assume successful removal
-                return await Task.FromResult(true);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                return DebuggerInterop.ClearBreakpoint(debugger, filePath, lineNumber);
             }
             catch
             {
@@ -113,28 +99,12 @@ namespace ContinueVS.Services.Implementations
 
         public async Task<RuntimeState?> ExecuteStepAsync(DebugStepAction action, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                // In a full implementation, execute DTE.Debugger step command
-                // For now, return updated state after stepping
-                var state = new RuntimeState
-                {
-                    IsRunning = false,
-                    CapturedAt = DateTime.Now,
-                    CurrentLine = 2,
-                    CurrentFile = "Program.cs"
-                };
-
-                state.Locals["placeholder"] = "stepped-state";
-                state.CallStack.Add(new CallStackFrame
-                {
-                    MethodName = "Main",
-                    FilePath = "Program.cs",
-                    LineNumber = 2,
-                    FrameIndex = 0
-                });
-
-                return await Task.FromResult<RuntimeState?>(state);
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                return DebuggerInterop.ExecuteStep(debugger, action);
             }
             catch (OperationCanceledException)
             {
@@ -142,39 +112,45 @@ namespace ContinueVS.Services.Implementations
             }
             catch
             {
-                return null;
+                return DebuggerInterop.EmptyState();
             }
+        }
+
+        private static bool IsPausedSafe(EnvDTE.Debugger? debugger)
+        {
+            bool paused = false;
+            ThreadHelper.JoinableTaskFactory.Run(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                paused = DebuggerInterop.IsPaused(debugger);
+            });
+            return paused;
         }
 
         public async Task ResumeExecutionAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                // Create timeout token if cancellation token not provided
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromSeconds(30));
+                cts.CancelAfter(TimeSpan.FromSeconds(ResumeTimeoutSeconds));
 
-                // In a full implementation, call DTE.Debugger.Go() to resume execution
-                // Simulate execution resuming
-                await Task.Delay(100, cts.Token);
+                // Issue the resume command on the UI thread.
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                DebuggerInterop.ResumeExecution(debugger);
+
+                // Wait for the debugger to leave break mode after Go(), honoring the timeout.
+                // Accessing CurrentMode here is only safe on the UI thread; resume-wait re-checks
+                // via the interop helper which is called infrequently during the wait loop.
+                while (IsPausedSafe(debugger))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await _timeoutHelper.DelayAsync(TimeSpan.FromMilliseconds(100), cts.Token);
+                }
             }
             catch (OperationCanceledException)
             {
                 throw new TimeoutException("Execution did not resume within 30 seconds.", new OperationCanceledException());
-            }
-        }
-
-        public async Task<bool> IsDebuggerActiveAsync()
-        {
-            try
-            {
-                // In a full implementation, check DTE.Debugger.CurrentMode and breakpoint state
-                // For now, return false (no active debugger in stub)
-                return await Task.FromResult(false);
-            }
-            catch
-            {
-                return false;
             }
         }
     }

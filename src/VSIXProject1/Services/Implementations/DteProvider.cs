@@ -162,6 +162,19 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
+        public EnvDTE.Debugger? GetDebugger()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                return _dte.Debugger;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public Selection? GetCursorSelection()
         {
             try
