@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using GalaSoft.MvvmLight;
 using ContinueVS.Core.Types;
@@ -42,6 +42,7 @@ namespace ContinueVS.ViewModels
         private bool _streamAfterToolRejection;
         private bool _dumpContextBeforeSend;
         private bool _dumpResponseAfterReceive;
+        private bool _enableAgentDebug;
 
         // Agent/Tool settings
         private int _maxToolCallsPerAction;
@@ -178,6 +179,18 @@ namespace ContinueVS.ViewModels
             set => Set(ref _dumpResponseAfterReceive, value);
         }
 
+        /// <summary>
+        /// Experimental gate for the agent self-diagnostics pipeline (gap23_4_1). Disabled by default.
+        /// When true, the plan-execution gathering/analyzing/reporting pipeline
+        /// (InstructionExecutorService and its phase generators/executors) is enabled.
+        /// When false, that pipeline never runs.
+        /// </summary>
+        public bool EnableAgentDebug
+        {
+            get => _enableAgentDebug;
+            set => Set(ref _enableAgentDebug, value);
+        }
+
         // Agent/Tool Properties
         /// <summary>
         /// Maximum tool calls allowed per user action (gap79). Resets on Send;
@@ -279,6 +292,7 @@ namespace ContinueVS.ViewModels
             _streamAfterToolRejection = GetBool(UserSettings.Experimental_StreamAfterToolRejection, defaults);
             _dumpContextBeforeSend = GetBool(UserSettings.Experimental_DumpContextBeforeSend, defaults);
             _dumpResponseAfterReceive = GetBool(UserSettings.Experimental_DumpResponseAfterReceive, defaults);
+            _enableAgentDebug = GetBool(UserSettings.Experimental_EnableAgentDebug, defaults);
 
             _maxToolCallsPerAction = GetInt(UserSettings.Agent_MaxToolCallsPerAction, defaults);
             // gap80: tool-loop iteration limits
@@ -330,6 +344,7 @@ namespace ContinueVS.ViewModels
                 StreamAfterToolRejection = GetBoolFromConfig(UserSettings.Experimental_StreamAfterToolRejection, config.CustomSettings);
                 DumpContextBeforeSend = GetBoolFromConfig(UserSettings.Experimental_DumpContextBeforeSend, config.CustomSettings);
                 DumpResponseAfterReceive = GetBoolFromConfig(UserSettings.Experimental_DumpResponseAfterReceive, config.CustomSettings);
+                EnableAgentDebug = GetBoolFromConfig(UserSettings.Experimental_EnableAgentDebug, config.CustomSettings);
 
                 // Load Agent/Tool settings
                 MaxToolCallsPerAction = GetIntFromConfig(UserSettings.Agent_MaxToolCallsPerAction, config.CustomSettings);
@@ -404,6 +419,7 @@ namespace ContinueVS.ViewModels
                 SetOrRemove(UserSettings.Experimental_StreamAfterToolRejection, StreamAfterToolRejection);
                 SetOrRemove(UserSettings.Experimental_DumpContextBeforeSend, DumpContextBeforeSend);
                 SetOrRemove(UserSettings.Experimental_DumpResponseAfterReceive, DumpResponseAfterReceive);
+                SetOrRemove(UserSettings.Experimental_EnableAgentDebug, EnableAgentDebug);
 
                 // Save Agent/Tool settings
                 SetOrRemove(UserSettings.Agent_MaxToolCallsPerAction, MaxToolCallsPerAction);

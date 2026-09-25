@@ -194,6 +194,13 @@
                                        Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
                         </StackPanel>
                     </CheckBox>
+                    <CheckBox IsChecked="{Binding EnableAgentDebug, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Enable Agent Monitor &amp; Plan-Execution Debugging (off by default)" FontWeight="Bold"/>
+                            <TextBlock Text="Enables the agent self-diagnostics pipeline that gathers, analyzes, and reports on plan execution. When off, this pipeline never runs." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
                 </StackPanel>
             </TabItem>
         </TabControl>

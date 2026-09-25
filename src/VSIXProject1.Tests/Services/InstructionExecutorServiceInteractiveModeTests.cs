@@ -57,7 +57,32 @@ namespace ContinueVS.Tests.Services
                 _mockInstructionProcessor.Object,
                 _mockChangeStackService.Object,
                 executorFactory,
-                _mockLogger.Object);
+                _mockLogger.Object,
+                CreateEnabledConfigService());
+        }
+
+        /// <summary>
+        /// Config service mock with experimental.enableAgentDebug=true so the executor
+        /// gate permits the pipeline to run.
+        /// </summary>
+        private static IConfigService CreateEnabledConfigService()
+        {
+            var config = BuildEnabledConfig();
+            var mock = new Mock<IConfigService>();
+            mock.Setup(x => x.GetCurrentConfig()).Returns(config);
+            return mock.Object;
+        }
+
+        private static ContinueVS.Core.Types.ContinueConfig BuildEnabledConfig()
+        {
+            var config = new ContinueVS.Core.Types.ContinueConfig
+            {
+                CustomSettings = new Dictionary<string, object>
+                {
+                    { UserSettings.Experimental_EnableAgentDebug, true }
+                }
+            };
+            return config;
         }
 
         [Fact]

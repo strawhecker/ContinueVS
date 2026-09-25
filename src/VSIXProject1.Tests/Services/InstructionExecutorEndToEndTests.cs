@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -53,7 +53,26 @@ namespace ContinueVS.Tests.Services
                 _mockInstructionProcessor.Object,
                 _mockChangeStackService.Object,
                 _executorFactory,
-                _mockLogger.Object);
+                _mockLogger.Object,
+                CreateEnabledConfigService());
+        }
+
+        /// <summary>
+        /// Config service mock with experimental.enableAgentDebug=true so the executor
+        /// gate permits the pipeline to run.
+        /// </summary>
+        private static IConfigService CreateEnabledConfigService()
+        {
+            var config = new ContinueVS.Core.Types.ContinueConfig
+            {
+                CustomSettings = new Dictionary<string, object>
+                {
+                    { UserSettings.Experimental_EnableAgentDebug, true }
+                }
+            };
+            var mock = new Mock<IConfigService>();
+            mock.Setup(x => x.GetCurrentConfig()).Returns(config);
+            return mock.Object;
         }
 
         /// <summary>

@@ -35,6 +35,10 @@ namespace ContinueVS.Core.Types
         public const string Experimental_StreamAfterToolRejection = "experimental.streamAfterToolRejection";
         public const string Experimental_DumpContextBeforeSend = "experimental.dumpContextBeforeSend";
         public const string Experimental_DumpResponseAfterReceive = "experimental.dumpResponseAfterReceive";
+        // Experimental gate for the agent self-diagnostics pipeline (gap23_4_1). Disabled by default:
+        // when off, the plan-execution gathering/analyzing/reporting pipeline (InstructionExecutorService
+        // and its phase generators/executors) never runs.
+        public const string Experimental_EnableAgentDebug = "experimental.enableAgentDebug";
 
         // Agent/Tool Settings
         public const string Agent_MaxToolCallsPerAction = "agent.maxToolCallsPerAction";
@@ -118,6 +122,7 @@ namespace ContinueVS.Core.Types
                 { Experimental_StreamAfterToolRejection, false },
                 { Experimental_DumpContextBeforeSend, false },
                 { Experimental_DumpResponseAfterReceive, false },
+                { Experimental_EnableAgentDebug, false },
 
                 // Agent/Tool defaults
                 { Agent_MaxToolCallsPerAction, 100 },

@@ -14,12 +14,17 @@ namespace ContinueVS.Services.Implementations
     /// Orchestrates the full workflow: load instruction → generate phases → execute phases sequentially.
     /// Shared by Agent and Debug modes; Debug-exclusive behaviour (debugger context) is injected upstream
     /// via ModeConfig.RequiresDebuggerContext before this service is invoked.
+    ///
+    /// The entire gather/analyze/report pipeline is gated behind the experimental setting
+    /// experimental.enableAgentDebug (disabled by default). When that flag is off,
+    /// ExecuteInstructionAsync short-circuits to a no-op empty TestPlan — the pipeline never runs.
     /// </summary>
     public class InstructionExecutorService : IInstructionExecutorService
     {
         private readonly IInstructionProcessorService _instructionProcessor;
         private readonly IChangeStackService _changeStackService;
         private readonly PhaseExecutorFactory _executorFactory;
+        private readonly ContinueVS.Services.Interfaces.IConfigService? _configService;
         private readonly IBridgeLogger? _logger;
         private TestPlan? _currentSessionState;
         private bool _isPaused = false;
@@ -29,7 +34,8 @@ namespace ContinueVS.Services.Implementations
             IInstructionProcessorService instructionProcessor,
             IChangeStackService changeStackService,
             PhaseExecutorFactory executorFactory,
-            IBridgeLogger? logger = null)
+            IBridgeLogger? logger = null,
+            ContinueVS.Services.Interfaces.IConfigService? configService = null)
         {
             if (instructionProcessor == null)
                 throw new ArgumentNullException(nameof(instructionProcessor));
@@ -41,6 +47,7 @@ namespace ContinueVS.Services.Implementations
             _instructionProcessor = instructionProcessor;
             _changeStackService = changeStackService;
             _executorFactory = executorFactory;
+            _configService = configService;
             _logger = logger;
         }
 
@@ -89,6 +96,23 @@ namespace ContinueVS.Services.Implementations
                 throw new ArgumentException("Change stack ID cannot be empty.", nameof(changeStackId));
             if (string.IsNullOrWhiteSpace(targetDir))
                 throw new ArgumentException("Target directory cannot be empty.", nameof(targetDir));
+
+            // gap23_4_1: The agent self-diagnostics (monitor+debug+report on plan execution)
+            // pipeline is disabled by default behind experimental.enableAgentDebug. When the
+            // flag is off (or unavailable), short-circuit to a no-op empty TestPlan so the
+            // gathering/analyzing/reporting pipeline never runs. Defense-in-depth beyond the
+            // ChatPageViewModel hand-off gate.
+            if (!IsAgentDebugEnabled())
+            {
+                if (_logger != null)
+                    _logger?.WriteDebug("InstructionExecutorService.ExecuteInstructionAsync: agent self-diagnostics disabled (experimental.enableAgentDebug=false) — returning no-op plan");
+                return new TestPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Title = "No-op (agent self-diagnostics disabled)",
+                    Phases = new List<InternalPhase>()
+                };
+            }
 
             if (_logger != null)
                 _logger?.WriteDebug($"InstructionExecutorService.ExecuteInstructionAsync: starting execution for '{instruction.Text}' (mode={mode})");
@@ -196,6 +220,30 @@ namespace ContinueVS.Services.Implementations
         }
 
         public TestPlan? GetSessionState() => _currentSessionState;
+
+        /// <summary>
+        /// Returns true when the agent self-diagnostics (plan-execution monitor/debug/report)
+        /// pipeline is enabled via the experimental setting experimental.enableAgentDebug.
+        /// Disabled (default) when the setting is absent/unavailable or not truthy.
+        /// </summary>
+        private bool IsAgentDebugEnabled()
+        {
+            if (_configService == null)
+                return false;
+
+            var config = _configService.GetCurrentConfig();
+            if (config?.CustomSettings?.TryGetValue(UserSettings.Experimental_EnableAgentDebug, out var val) == true)
+            {
+                return val switch
+                {
+                    true => true,
+                    "true" => true,
+                    1 or 1L => true,
+                    _ => false
+                };
+            }
+            return false;
+        }
 
         public bool IsPaused => _isPaused;
 

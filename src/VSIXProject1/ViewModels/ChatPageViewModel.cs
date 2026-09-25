@@ -2161,9 +2161,31 @@ namespace ContinueVS.ViewModels
                         // No tools or not in a tool-loop mode — break the loop
                         LoggerService.Current.WriteDebug($"[gap23_3-loop] No tools or not in Agent mode. Breaking loop.");
 
-                        // gap45_3: If phase execution is enabled for this mode, hand off to InstructionExecutorService
-                        if (modeConfig.AllowPhaseExecution && !string.IsNullOrWhiteSpace(assistantMessage.Content))
+                        // gap23_4_1: The agent self-diagnostics (monitor+debug+report on plan
+                        // execution) pipeline is gated behind the experimental flag
+                        // experimental.enableAgentDebug (disabled by default). When off, this
+                        // gathering/analyzing/reporting pipeline never runs.
+                        bool enableAgentDebug = false;
+                        if (_configService != null)
                         {
+                            var gateConfig = _configService.GetCurrentConfig();
+                            if (gateConfig?.CustomSettings?.TryGetValue(UserSettings.Experimental_EnableAgentDebug, out var gateVal) == true)
+                            {
+                                enableAgentDebug = gateVal switch
+                                {
+                                    true => true,
+                                    "true" => true,
+                                    1 or 1L => true,
+                                    _ => false
+                                };
+                            }
+                        }
+
+                        // gap45_3: If phase execution is enabled for this mode, hand off to InstructionExecutorService
+                        if (modeConfig.AllowPhaseExecution && enableAgentDebug && !string.IsNullOrWhiteSpace(assistantMessage.Content))
+                        {
+                            LoggerService.Current.WriteDebug($"[gap23_4-gate] self-diagnostics enabled — handing off to InstructionExecutorService");
+
                             var changeStackId = _changeStackService.CreateChangeStack();
                             var targetDir = System.Environment.CurrentDirectory;
                             if (_ideService != null)

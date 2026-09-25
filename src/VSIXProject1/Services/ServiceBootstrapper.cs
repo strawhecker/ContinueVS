@@ -351,7 +351,8 @@ namespace ContinueVS.Services
                 var changeStackService = sp.GetRequiredService<IChangeStackService>();
                 var executorFactory = sp.GetRequiredService<PhaseExecutorFactory>();
                 var logger = sp.GetRequiredService<IBridgeLogger>();
-                return new InstructionExecutorService(instructionProcessor, changeStackService, executorFactory, logger);
+                var configService = sp.GetRequiredService<IConfigService>();
+                return new InstructionExecutorService(instructionProcessor, changeStackService, executorFactory, logger, configService);
             });
 
             services.AddSingleton<IUIStateService>(sp =>

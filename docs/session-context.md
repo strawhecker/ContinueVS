@@ -9906,6 +9906,126 @@ The goal is a session-level complement to the existing message-level delete (gap
 
 ---
 
+Got it — you want the three gaps **scoped the way the format demands** (one cohesive unit each), and the 4th item (test/mock rework) folds into its parent gap because every gap carries its own testing. Here are **gap92, gap93, gap94** in the session-context.md format:
+
+---
+
+### gap92: Real `IDebuggerService` Against `EnvDTE.Debugger`
+
+**Status:** ⬜ Planned (currently stubbed — stub returns fake state) | Type: IdeService / Debugger Automation (core) | Related: gap93, gap94; asset `IDebuggerService`, `DteProvider`; exists-in-part in `EnvDTE`
+
+**Problem:** `DebuggerService` (impl of `IDebuggerService`) is 100% fake. `GetCurrentStateAsync` returns a hardcoded `RuntimeState` with a fake `"placeholder"` local and a fake `Main/Program.cs` frame; `SetBreakpointAsync` fabricates a `BreakpointInfo` with a random GUID and never touches `DTE.Debugger.Breakpoints`; `ClearBreakpointAsync` always returns `true`; `ExecuteStepAsync` returns a fake "stepped-state"; `ResumeExecutionAsync` only does `Task.Delay(100)`; `IsDebuggerActiveAsync` always returns `false`. **Nothing reads `DTE.Debugger`.** `IDteProvider` doesn't even expose the Debugger object. So the whole debug feature is a `COMPLETED!` in name only — the lazy LLM stubbed it and claimed done.
+
+**Objective:** Make `IDebuggerService` drive the real Visual Studio automation object so the LLM can actually inspect runtime state, set/clear breakpoints, step, and resume under a real debug session. This is the single gap that turns the fake debugger into a real one.
+
+**Why it matters (the decisions that must hold):**
+1. **Get real access to `DTE.Debugger` first.** Add a `Debugger` accessor on `IDteProvider` (e.g. `EnvDTE.Debugger GetDebugger()`), reusing the existing `ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync()` + `GetServiceAsync(typeof(DTE))` UI-thread pattern from `VsIdeService`'s `OpenFileInEditorCoreAsync`. Every `EnvDTE.Debugger` call must run on the UI thread.
+2. **`IsDebuggerActiveAsync` reads `Debugger.CurrentMode`** (`dbgDebugMode.dbgRunMode` / `dbgBreakMode`) and/or `Debugger.CurrentProgram != null` — real truth, not `false`.
+3. **`GetCurrentStateAsync` walks the current session:** `Debugger.CurrentStackFrame` → `LocalVariables`/`Expression`s for locals, `Debugger.StackFrames` for the callstack, and positions each frame's line/file — replacing the placeholder `RuntimeState`.
+4. **`SetBreakpointAsync`/`ClearBreakpointAsync`** add to / delete from `Debugger.Breakpoints` by file + line (with optional condition), matching by file/line on clear — not a fabricated GUID.
+5. **`ExecuteStepAsync` maps `DebugStepAction` → `Debugger.StepOver()`/`StepInto()`/`StepOut()`** then re-reads `GetCurrentStateAsync`.
+6. **`ResumeExecutionAsync` calls `Debugger.Go(WaitForBreakToEnd: false)`**, keeping the existing 30s `ITimeoutHelper` guard.
+7. **Fail-soft:** wrap `COMException` from `Expression.Value`/`Type`/frame access so `WorkspaceStatsService.CollectDebugState` degrades to `DebugMode = "none"` instead of crashing the session.
+
+**Decided behavior:** `RuntimeState` keeps its shape (`IsRunning`, `CurrentLine`, `CurrentFile`, `DebugMode`, `CallStack` frames, `Locals` as pre-stringified `Dictionary<string,string>`). The service returns live values; on "not debugging" states it returns the benign `not-debugging` shape rather than throwing.
+
+**Service work required:**
+- `IDteProvider` / `DteProvider` — expose the `Debugger` object (new member) on the UI thread.
+- `DebuggerService` — implement all five methods against `EnvDTE.Debugger` using the accessor; add UI-thread marshaling; add `COMException` wrapping helpers; keep `ITimeoutHelper` on resume.
+
+**Files (candidates):**
+- `src/VSIXProject1/Services/Interfaces/IDteProvider.cs`
+- `src/VSIXProject1/Services/Implementations/DteProvider.cs`
+- `src/VSIXProject1/Services/Interfaces/IDebuggerService.cs`
+- `src/VSIXProject1/Services/Implementations/DebuggerService.cs`
+
+**Testing strategy:** Unit-test the seam on `IDteProvider` with a fake `Debugger` (so no live VS needed): state reflects the fake's `CurrentMode`/frames/expressions; breakpoint add/clear round-trips against a fake `Breakpoints` collection; step maps enum → `StepInto/Over/Out`; resume calls `Go`; `COMException` → benign state. Replace the current `StubDebuggerService` in `WorkspaceStatsServiceTests`/`RuntimeInspectionTests` with this fake, keeping those tests green.
+
+**Risks & decisions:** UI-thread affinity for all `EnvDTE` access; `Expression` walking can be slow/deep — cap local/callstack depth so `CollectDebugState` stays responsive; keep `RuntimeState` DTO shape stable so consumers (gap93, `WorkspaceStatsService`) don't churn.
+
+**Sequencing:** Must land **before** gap93 (gap93 depends on a real `IDebuggerService`). Independent of gap94.
+
+---
+
+### gap93: `IIdeService` Debug Methods Delegate to `IDebuggerService`
+
+**Status:** ⬜ Planned (currently stubbed; comments already say "In a real scenario, this would use IDebuggerService") | Type: IdeService wiring / de-stub | Related: gap92 (dependency), gap94; asset `IIdeService`/`VsIdeService`
+
+**Problem:** `VsIdeService` (impl of `IIdeService`) **duplicates** the debug surface and stubs it independently of `IDebuggerService`: `InspectVariablesAsync` returns `null`, `SetBreakpointAsync`/`ClearBreakpointAsync` fake completion, `StepAsync`/`ResumeDebugAsync` just fake timers. Two parallel fake implementations of the same debug behavior now exist (this one and gap92's `DebuggerService`). The `// This is a stub implementation. In a real scenario, this would use IDebuggerService.` comment marks exactly where the delegation should go.
+
+**Objective:** Remove the duplicate stub and make the higher-level `IIdeService` debug methods single-source-of-truth by **delegating to `IDebuggerService`** (gap92). No new behavior here — just correct composition so there's one real debug implementation, not two.
+
+**Why it matters (the decisions that must hold):**
+1. **Inject `IDebuggerService` into `VsIdeService`** (constructor param; the DI container already resolves it via `ServiceBootstrapper`).
+2. **Forward, don't re-implement:** `InspectVariablesAsync` → `GetCurrentStateAsync` (return locals/state; return the benign empty shape instead of `null` when not debugging); `SetBreakpointAsync`/`ClearBreakpointAsync` → same-named methods; `StepAsync` → `ExecuteStepAsync` with the action mapping; `ResumeDebugAsync` → `ResumeExecutionAsync`.
+3. **Keep null-service tolerance** in line with the rest of `VsIdeService`'s optional-injection pattern (graceful no-op / benign state if `IDebuggerService` is unavailable).
+4. **Remove the duplicate logic** so the stubbed bodies in `VsIdeService` are deleted, leaving one cohesive debug path (gap92).
+
+**Decided behavior:** `IIdeService` becomes a thin facade for the debug methods; all debug semantics live in `IDebuggerService`. Contract shapes (params/returns, e.g. `DebugStepAction`/`RuntimeState`/`BreakpointInfo`) stay identical so no callers change.
+
+**Service work required:**
+- `VsIdeService` — add `IDebuggerService` ctor param; delegate the four debug methods; delete the stub bodies; keep `InspectVariablesAsync`'s not-debugging benign shape.
+- `ServiceBootstrapper` — ensure `VsIdeService` gets `IDebuggerService` (already registered).
+
+**Files (candidates):**
+- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`
+- `src/VSIXProject1/Services/ServicesBootstrapper.cs` (registration check)
+
+**Testing strategy:** `VsIdeService` tests use a fake `IDebuggerService` (from gap92) and assert each debug method forwards the right call/params and returns the underlying result; null-service case returns benign shape without throwing. Existing `WorkspaceStatsService` debug-mode tests now run against the real delegation instead of the old double-stub.
+
+**Risks & decisions:** Avoid a circular dependency (`IIdeService` ↔ `IDebuggerService` must not both constructively depend on each other); keep `DebugStepAction` mapping in one place (either gap92 or here, not both).
+
+**Sequencing:** Depends on **gap92**. Independent of gap94. Smallest of the three gaps — pure composition.
+
+---
+
+### gap94: Launch / Start a Debug Session (`StartDebugging`)
+
+**Status:** ⬜ Planned (gap — **no capability exists at all**) | Type: IdeService / Debugger Automation (launch) | Related: gap92, gap93; asset `IIdeService`, `IToolService`
+
+**Problem:** There is **no way to start a debug session in the entire debug stack.** Every gap92/gap93 method (`ResumeExecutionAsync`, `ExecuteStepAsync`, `GetCurrentStateAsync`, breakpoints) operates on a debug session that must already exist — but nothing in `IDebuggerService` or `IIdeService` can actually **launch** the app. `DTE.Debugger.Resume`/`Go` continue an existing process; launching the startup project is a distinct capability. So "debug an app" is impossible end-to-end.
+
+**Objective:** Add a real start-debug capability so the LLM can go from "not debugging" → "debugging" by launching the current startup project (or attaching to a process), making the entire chain (gap92 state/step/break + gap93 facade) reachable for a fresh session.
+
+**Why it matters (the decisions that must hold):**
+1. **Launch is distinct from resume.** `Debugger.Go`/`StepX` continue an active session; starting one is `DTE.ExecuteCommand("Debug.Start")` (F5 on the startup project) or `Debugger.Launch`/attach. This must be its own method, not folded into `ResumeExecutionAsync`.
+2. **New `StartDebuggingAsync` on `IDebuggerService`** (with optional project/launch-profile parameters or `null` = startup project), plus a thin `StartDebuggingAsync` on `IIdeService` that forwards (parallel to gap93).
+3. **It is a prerequisite of the other methods at runtime** — while gap92/93 can be built first, they're only meaningful end-to-end once this exists; the `IsDebuggerActiveAsync → false` state is the entry condition this gap flips.
+4. **Keep `ITimeoutHelper` + UI-thread marshaling** and a fail-soft path (if no startup project / launch fails, report and stay `not-debugging` rather than throwing).
+5. **Out of scope in this gap:** attach-to-existing-process UI, launch-profile editing, and "restart on exit" — those are follow-ups; this gap = single start action from the startup project.
+
+**Decided behavior:** `IDebuggerService.StartDebuggingAsync(string? projectName = null, string? launchProfile = null)` → true if a debug session started / is active afterward, false (with reason) otherwise. `IIdeService.StartDebuggingAsync` delegates. No UI surface in this gap — callable via a tool/command.
+
+**Service work required:**
+- `IDebuggerService` / `DebuggerService` — add `StartDebuggingAsync` using `DTE.ExecuteCommand("Debug.Start")` on the current startup project (UI thread, timeout, fail-soft).
+- `IIdeService` / `VsIdeService` — add forwarding `StartDebuggingAsync` (delegates to `IDebuggerService`).
+
+**Files (candidates):**
+- `src/VSIXProject1/Services/Interfaces/IDebuggerService.cs`
+- `src/VSIXProject1/Services/Implementations/DebuggerService.cs`
+- `src/VSIXProject1/Services/Interfaces/IIdeService.cs`
+- `src/VSIXProject1/Services/Implementations/VsIdeService.cs`
+
+**Testing strategy:** Fake `Debugger` seam asserts `StartDebuggingAsync` issues the `Debug.Start` command and reports active when `CurrentMode` flips to run; fail-soft path (no startup project) returns `false` with reason and leaves state `not-debugging`; the `IIdeService` facade forwards. End-to-end (manual): LLM starts a session, then gap92 step/break/state work against the real launched process.
+
+**Risks & decisions:** `Debug.Start` requires a startup project set and may prompt on first launch — surface a clear reason string; don't block the UI thread during launch (timeout + `SwitchToMainThreadAsync` only for the command issue). Sequencing: can land after gap92/93 but is **required** before the debug feature is user-visible.
+
+**Sequencing:** Depends on **gap92** (uses its Debugger accessor); composes with **gap93**. This is what makes gaps 92+93 reachable for a fresh app.
+
+---
+
+### Why these three (and the "4th" disappearing)
+
+You were right: item 4 (test/mock rework) isn't a separate gap. The format bakes **testing into each gap**, and the `StubDebuggerService` → fake-`Debugger` seam rework is exactly the *testing strategy* of **gap92** (it's where the fake seam + mock migrations live). So:
+
+- **gap92** = the fake→real cutover (the big one, with its test seam + mock rework folded in).
+- **gap93** = the duplicate-stub de-duplication / delegation (pure composition, smallest).
+- **gap94** = the missing launch capability (enables the whole chain).
+
+Want me to write these three gap entries into `docs/session-context.md` (I can insert them after the gap91 section), or keep them here for review first? If you switch to agent mode, I'll add them to the file directly.
+
+---
+
 ## Phase 1: Core Types & Contracts (Steps 1-15)
 
 *Establish shared data models and service interfaces.*
