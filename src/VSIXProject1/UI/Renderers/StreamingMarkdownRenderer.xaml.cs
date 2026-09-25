@@ -1000,37 +1000,50 @@ namespace ContinueVS.UI.Renderers
             };
             DockPanel.SetDock(langLabel, Dock.Left);
 
-            var actionDropdown = new ComboBox
+            // Header bar actions: explicit Copy/Apply buttons (gap53). Replaced the
+            // ComboBox whose default selection was Copy, so clicking Copy did not
+            // change selection -> SelectionChanged never fired -> copy did nothing.
+            var actionsPanel = new StackPanel
             {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 2, 4, 2),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var copyButton = new Button
+            {
+                Content = "📋 Copy",
                 Height = 24,
-                Width = 100,
                 Background = new SolidColorBrush(Color.FromRgb(70, 70, 70)),
                 Foreground = new SolidColorBrush(Colors.White),
                 BorderThickness = new Thickness(0),
                 FontSize = 11,
-                SelectedIndex = 0,
-                Margin = new Thickness(0, 2, 4, 2),
-                Cursor = System.Windows.Input.Cursors.Hand
+                Margin = new Thickness(0, 0, 4, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Padding = new Thickness(8, 0, 8, 0)
             };
-            actionDropdown.Tag = blockId;
+            copyButton.Click += (s, e) => CopyCodeBlock(blockId, language, lines);
 
-            var copyItem = new ComboBoxItem { Content = "📋 Copy", IsSelected = true };
-            var applyItem = new ComboBoxItem { Content = "✔ Apply" };
-            actionDropdown.Items.Add(copyItem);
-            actionDropdown.Items.Add(applyItem);
-
-            actionDropdown.SelectionChanged += (s, e) =>
+            var applyButton = new Button
             {
-                if (s is ComboBox dropdown && dropdown.Tag is string bid)
-                {
-                    CodeBlockActionDropdown_SelectionChanged(dropdown, bid, language, lines);
-                }
+                Content = "✔ Apply",
+                Height = 24,
+                Background = new SolidColorBrush(Color.FromRgb(70, 70, 70)),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                FontSize = 11,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Padding = new Thickness(8, 0, 8, 0)
             };
+            applyButton.Click += (s, e) => ApplyCodeBlock(blockId, language, lines);
 
-            DockPanel.SetDock(actionDropdown, Dock.Right);
+            actionsPanel.Children.Add(copyButton);
+            actionsPanel.Children.Add(applyButton);
+
+            DockPanel.SetDock(actionsPanel, Dock.Right);
 
             header.Children.Add(langLabel);
-            header.Children.Add(actionDropdown);
+            header.Children.Add(actionsPanel);
             innerPanel.Children.Add(header);
 
             var codeText = new TextBox
@@ -1076,40 +1089,23 @@ namespace ContinueVS.UI.Renderers
             };
         }
 
-        private void CodeBlockActionDropdown_SelectionChanged(ComboBox comboBox, string blockId, string language, string content)
+        private void CopyCodeBlock(string blockId, string language, string content)
         {
-            if (comboBox == null) return;
-
-            var selectedItem = comboBox.SelectedItem as ComboBoxItem;
-            if (selectedItem == null) return;
-
             try
             {
-                string selectedAction = selectedItem.Content?.ToString() ?? "Copy";
-
-                if (selectedAction.Contains("Copy"))
-                {
-                    try
-                    {
-                        Clipboard.SetText(content);
-                        LoggerService.Current.WriteDebug($"[gap53-block-action] Code block copied (lang={language}, id={blockId})");
-                    }
-                    catch (Exception ex)
-                    {
-                        LoggerService.Current.WriteError($"[gap53-block-action-error] Failed to copy block: {ex.Message}", ex);
-                    }
-                }
-                else if (selectedAction.Contains("Apply"))
-                {
-                    LoggerService.Current.WriteDebug($"[gap53-block-action] Apply selected for block (lang={language}, id={blockId})");
-                }
-
-                comboBox.SelectedIndex = 0;
+                Clipboard.SetText(content);
+                LoggerService.Current.WriteDebug($"[gap53-block-action] Code block copied (lang={language}, id={blockId})");
             }
             catch (Exception ex)
             {
-                LoggerService.Current.WriteError($"[gap53-block-action-handler-error] Exception in handler: {ex.Message}", ex);
+                LoggerService.Current.WriteError($"[gap53-block-action-error] Failed to copy block: {ex.Message}", ex);
             }
+        }
+
+        private void ApplyCodeBlock(string blockId, string language, string content)
+        {
+            // Apply is intentionally a no-op for now; log the intent only.
+            LoggerService.Current.WriteDebug($"[gap53-block-action] Apply selected for block (lang={language}, id={blockId})");
         }
 
         private static void AppendInline(InlineCollection inlines, Markdig.Syntax.Inlines.Inline inline)
