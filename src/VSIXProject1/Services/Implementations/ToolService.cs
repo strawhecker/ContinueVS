@@ -27,6 +27,7 @@ namespace ContinueVS.Services.Implementations
         private readonly IBridgeLogger? _logger;
         private readonly IPlanOutputService? _planOutputService;
         private readonly IInteractivePromptService? _interactivePromptService;
+        private readonly IContextRetirementService? _contextRetirementService;
         private readonly Dictionary<string, ToolDefinition> _builtInToolRegistry = new();
         private readonly Dictionary<string, ToolDefinition> _mcpToolRegistry = new();
         private readonly object _registryLock = new object();
@@ -73,7 +74,8 @@ namespace ContinueVS.Services.Implementations
             { "write_plan", UserSettings.Tool_WritePlanEnabled },
             { "read_plan", UserSettings.Tool_PlanToolsEnabled },
             { "update_plan", UserSettings.Tool_PlanToolsEnabled },
-            { "ask_user", UserSettings.Tool_AskUserEnabled }
+            { "ask_user", UserSettings.Tool_AskUserEnabled },
+            { "retire_from_context", UserSettings.Tool_RetireFromContextEnabled }
         };
 
         public event EventHandler<ToolErrorEventArgs>? Error;
@@ -88,6 +90,7 @@ namespace ContinueVS.Services.Implementations
         /// <param name="logger">Optional logger for diagnostics.</param>
         /// <param name="planOutputService">Optional plan output service for persisting plans (write_plan).</param>
         /// <param name="interactivePromptService">Optional interactive prompt service for surfacing user questions (ask_user).</param>
+        /// <param name="contextRetirementService">Optional context retirement service for the retire_from_context tool.</param>
         public ToolService(
             IIdeService ideService,
             IConfigService configService,
@@ -95,7 +98,8 @@ namespace ContinueVS.Services.Implementations
             IMcpService? mcpService = null,
             IBridgeLogger? logger = null,
             IPlanOutputService? planOutputService = null,
-            IInteractivePromptService? interactivePromptService = null)
+            IInteractivePromptService? interactivePromptService = null,
+            IContextRetirementService? contextRetirementService = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -104,6 +108,7 @@ namespace ContinueVS.Services.Implementations
             _logger = logger;
             _planOutputService = planOutputService;
             _interactivePromptService = interactivePromptService;
+            _contextRetirementService = contextRetirementService;
 
             InitializeToolRegistry();
         }
@@ -427,6 +432,7 @@ namespace ContinueVS.Services.Implementations
                 "read_plan" => await ReadPlanInternalAsync(args, ct),
                 "update_plan" => await UpdatePlanInternalAsync(args, ct),
                 "ask_user" => await InvokeAskUserAsync(args, ct),
+                "retire_from_context" => await InvokeRetireFromContextAsync(args, ct),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -1873,6 +1879,104 @@ namespace ContinueVS.Services.Implementations
             }
             var trimmed = sb.ToString().Trim();
             return string.IsNullOrWhiteSpace(trimmed) ? "[no answer]" : trimmed;
+        }
+
+        /// <summary>
+        /// Internal implementation of the retire_from_context tool (context pruning &amp; error
+        /// supersession). Toggles the status of an earlier message between "active" and "retired":
+        /// retiring reuses the shared IsDeleted tombstone (via the context retirement service) so
+        /// the item is excluded from future context, and an auditable record is appended to the
+        /// idempotent reference file. Calling it again on the same message toggles back to active.
+        ///
+        /// Returns an EMPTY, successful result (terminus): the tool adds no content for the LLM to
+        /// reason about. When the harness sees an empty result with no other pending tool call, the
+        /// turn ends.
+        /// </summary>
+        private async Task<ToolResult> InvokeRetireFromContextAsync(IDictionary<string, object> args, CancellationToken ct)
+        {
+            try
+            {
+                var messageId = GetArgString(args, "message_id");
+                if (string.IsNullOrWhiteSpace(messageId))
+                {
+                    return CreateErrorResult("retire_from_context", "message_id cannot be null or empty");
+                }
+
+                var reason = GetArgString(args, "reason");
+                if (string.IsNullOrWhiteSpace(reason))
+                {
+                    return CreateErrorResult("retire_from_context", "reason cannot be null or empty");
+                }
+
+                var replacedById = GetArgString(args, "replaced_by_id");
+                if (string.IsNullOrWhiteSpace(replacedById))
+                {
+                    replacedById = null;
+                }
+
+                if (_contextRetirementService == null)
+                {
+                    return CreateErrorResult("retire_from_context", "Context retirement service not available");
+                }
+
+                if (_sessionService == null)
+                {
+                    return CreateErrorResult("retire_from_context", "Session service not available");
+                }
+
+                // Resolve the message so we can validate existence and capture verbatim bytes.
+                ChatMessage? target = null;
+                try
+                {
+                    var session = _sessionService.GetCurrentSession();
+                    target = session?.Messages.FirstOrDefault(m => string.Equals(m.Id, messageId, StringComparison.Ordinal));
+                }
+                catch
+                {
+                    // Session access may fail in unit-test contexts; the service will validate below.
+                }
+
+                if (target == null)
+                {
+                    return CreateErrorResult("retire_from_context", $"Message with ID '{messageId}' not found in current session");
+                }
+
+                var sessionId = _sessionService.GetCurrentSession()?.Id ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(sessionId))
+                {
+                    return CreateErrorResult("retire_from_context", "No active session");
+                }
+
+                bool isRetired = await _contextRetirementService.IsRetiredAsync(sessionId, messageId);
+
+                if (isRetired)
+                {
+                    // Toggle back to active — reason should describe the state being moved to.
+                    await _contextRetirementService.UnretireAsync(sessionId, messageId, reason);
+                    _logger?.WriteDebug($"[sv-retire] retire_from_context: unretired message {messageId} ({reason})");
+                }
+                else
+                {
+                    // Capture verbatim JSON so the original bytes survive in the reference file
+                    // regardless of later mutable changes to the live message.
+                    var verbatimJson = JsonConvert.SerializeObject(target, Formatting.None);
+                    await _contextRetirementService.RetireAsync(sessionId, messageId, reason, replacedById, verbatimJson);
+                    _logger?.WriteDebug($"[sv-retire] retire_from_context: retired message {messageId} ({reason}, replacedBy={replacedById ?? "none"})");
+                }
+
+                // Empty successful result => terminus. The harness ends the turn when there is no
+                // other pending tool call and no output to feed back into context.
+                return new ToolResult
+                {
+                    ToolName = "retire_from_context",
+                    Output = string.Empty,
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResult("retire_from_context", ex.Message);
+            }
         }
 
         /// <summary>

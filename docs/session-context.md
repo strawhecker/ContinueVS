@@ -11760,6 +11760,51 @@ plain; Raw → plain only, byte-faithful); only the automatic post-copy revert w
 
 ---
 
+### gap90: Context Pruning & Error Supersession (retire_from_context)
+**Status:** ✅ Complete | Type: Tool + Context Management
+**Implementation:**
+- Added `retire_from_context` built-in tool that toggles the status of an earlier message
+  (assistant answer or tool request/response) between "active" and "retired".
+- **Design (agreed):** Retiring REUSES the shared `ChatMessage.IsDeleted` tombstone — no new
+  `IsRetired` flag, no new exclusion code. Because `PackageMessages` (and every existing
+  serialize/filter path) already excludes `IsDeleted`, a retired message is automatically pulled
+  out of future context. Retirement metadata (reason, replaced_by_id, verbatim bytes) lives in a
+  dedicated append-only reference file, so "no lasting in-context pollution" and "auditable trail"
+  coexist.
+- **Reference file:** `~/.continueVS/retirements/retirements.jsonl` — append-only JSONL (gap83
+  delta-log philosophy); toggling re-emits a "retire"/"unretire" line, never rewrites.
+- **Tool is a terminus:** returns an empty successful result; the harness treats "empty result +
+  no other pending tool call" as end-of-turn.
+- **Tool definition** ships the LLM-authored description verbatim (parameters `message_id`
+  [required], `reason` [required], `replaced_by_id` [optional]); supported in Agent/Debug modes.
+- **System prompt:** appended the verbatim "## Context Pruning & Error Supersession" section to the
+  agent and debug prompts (correct-then-retire method, when-to/when-not-to-retire, terminus behavior).
+- **DI:** registered `IContextRetirementService`/`ContextRetirementService`; wired into
+  `ToolService` constructor and `ServiceBootstrapper`.
+- **User setting:** `tool.retireFromContextEnabled` (default true); mapped in ToolService settings
+  filter and UserSettings defaults.
+- **UI:** existing `IsDeleted` pruned-card presentation (dimmed, still visible/copyable) covers the
+  retired affordance automatically since retire reuses the same tombstone.
+
+**Files Modified:**
+- `src/VSIXProject1/Core/Types/RetirementRecord.cs` (new)
+- `src/VSIXProject1/Services/Interfaces/IContextRetirementService.cs` (new)
+- `src/VSIXProject1/Services/Implementations/ContextRetirementService.cs` (new)
+- `src/VSIXProject1/Core/Types/BuiltInTools.cs` (GetRetireFromContextTool + registry)
+- `src/VSIXProject1/Core/Types/UserSettings.cs` (tool.retireFromContextEnabled)
+- `src/VSIXProject1/Services/Implementations/ToolService.cs` (handler + routing + settings)
+- `src/VSIXProject1/Services/ServiceBootstrapper.cs` (DI registration)
+- `src/VSIXProject1/Services/Implementations/SystemPromptService.cs` (retire instructions)
+- `src/VSIXProject1.Tests/Services/ContextRetirementServiceTests.cs` (new, 6 tests)
+- `src/VSIXProject1.Tests/Services/ToolServiceRetireFromContextTests.cs` (new, 5 tests)
+- `src/VSIXProject1.Tests/Core/Types/BuiltInToolsTests.cs` (count 27→28)
+- `src/VSIXProject1.Tests/Core/Types/BuiltInToolsEnhancementTests.cs` (count 27→28)
+- `src/VSIXProject1.Tests/Services/ToolServiceTests.cs` (available-tool count 20→21)
+
+**Builds:** dotnet clean/build --force (0 warnings, 0 errors); dotnet test (1527 passed, 0 failed).
+
+---
+
 
 
 

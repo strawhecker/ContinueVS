@@ -98,7 +98,7 @@ namespace ContinueVS.Tests.Core.Types
         public void GetAllBuiltInTools_ReturnsCorrectCount()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
-            Assert.Equal(27, tools.Count);
+            Assert.Equal(28, tools.Count);
         }
 
         [Fact]

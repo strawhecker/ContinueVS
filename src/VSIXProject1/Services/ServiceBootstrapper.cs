@@ -108,6 +108,10 @@ namespace ContinueVS.Services
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();
             services.AddSingleton<IModeService, ModeService>();
+            // Context pruning & error supersession (retire_from_context): mediates the shared
+            // IsDeleted tombstone toggle plus the append-only retirement reference file.
+            services.AddSingleton<IContextRetirementService>(sp =>
+                new ContextRetirementService(sp.GetRequiredService<ISessionService>()));
             services.AddSingleton<IToolService>(sp =>
             {
                 var ideService = sp.GetRequiredService<IIdeService>();
@@ -119,7 +123,8 @@ namespace ContinueVS.Services
                 // to support the ask_user human-in-the-loop tool. Factory lambdas are lazy, so the
                 // later registration order is fine.
                 var interactivePromptService = sp.GetService<IInteractivePromptService>();
-                return new ToolService(ideService, configService, sessionService, mcpService, planOutputService: planOutputService, interactivePromptService: interactivePromptService);
+                var contextRetirementService = sp.GetRequiredService<IContextRetirementService>();
+                return new ToolService(ideService, configService, sessionService, mcpService, planOutputService: planOutputService, interactivePromptService: interactivePromptService, contextRetirementService: contextRetirementService);
             });
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();

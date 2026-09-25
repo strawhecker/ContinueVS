@@ -85,6 +85,8 @@ namespace ContinueVS.Core.Types
         public const string Tool_RunPytestEnabled = "tool.runPytestEnabled";
         public const string Tool_WritePlanEnabled = "tool.writePlanEnabled";
         public const string Tool_AskUserEnabled = "tool.askUserEnabled";
+        // Context pruning & error supersession tool (retire_from_context). Enabled by default.
+        public const string Tool_RetireFromContextEnabled = "tool.retireFromContextEnabled";
         // Active-plan binding + read_plan/update_plan tools. Enabled by default (the beneficiary
         // wants it on); any new user may change it themselves.
         public const string Tool_PlanToolsEnabled = "tool.planToolsEnabled";
@@ -160,7 +162,8 @@ namespace ContinueVS.Core.Types
                 { Tool_RunPytestEnabled, false },
                 { Tool_WritePlanEnabled, true },
                 { Tool_AskUserEnabled, true },
-                { Tool_PlanToolsEnabled, true }
+                { Tool_PlanToolsEnabled, true },
+                { Tool_RetireFromContextEnabled, true }
             };
         }
 

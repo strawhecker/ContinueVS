@@ -211,6 +211,52 @@ namespace ContinueVS.Services.Implementations
                 "Provide a focused 'question'. If there is a limited set of reasonable choices, supply an 'answers' list (the user can pick one or type prose). " +
                 "Omit 'answers' for an open-ended question.";
 
+            const string RETIRE_FROM_CONTEXT_INSTRUCTIONS =
+                "## Context Pruning & Error Supersession\n\n" +
+                "You have a tool, retire_from_context, that toggles the *status* of an earlier\n" +
+                "message (a tool request/response, or your own answer) between \"active\" and\n" +
+                "\"retired\". Retired means it will not be pulled into future context. This is a\n" +
+                "STATUS change, NOT deletion:\n\n" +
+                "- The original content is preserved verbatim in an idempotent reference file.\n" +
+                "- The UI keeps showing the full content; an icon marks it \"no longer in context.\"\n" +
+                "- The user can still read, copy, and mine it manually.\n" +
+                "- Calling the tool again on the same message toggles it back to active.\n\n" +
+                "### When to retire from context\n" +
+                "Retire a past item when ALL of the following are true:\n" +
+                "1. It is factually wrong, superseded, or redundant beyond usefulness to you.\n" +
+                "2. You have already produced (or are about to produce) a corrected,\n" +
+                "   consolidated replacement that preserves any salvageable parts.\n" +
+                "3. Leaving it active would risk you or a future step \"building on the\n" +
+                "   mistake\" — i.e. re-citing it or propagating a known-bad premise.\n\n" +
+                "You may also retire a supersession pointer once the corrected response it\n" +
+                "points to is firmly established, so context ends fully clean.\n\n" +
+                "### When NOT to retire\n" +
+                "- Never retire merely because the answer was clumsy or you'd rather not re-read it.\n" +
+                "- Never retire to hide that an error happened; the reference file must stay intact\n" +
+                "  so the trail is auditable.\n" +
+                "- Never retire without a reason. If unsure, leave it active.\n\n" +
+                "### Method — correct-then-retire, not retire-then-correct\n" +
+                "1. Construct the new, corrected response (or update the relevant one) FIRST so the\n" +
+                "   better content exists.\n" +
+                "2. In that new response, explicitly state what supersedes what, e.g.:\n" +
+                "   \"Supersedes the earlier answer (id <ID>) which incorrectly assumed X; the\n" +
+                "   correct version is Y.\"\n" +
+                "3. Only then retire the old item(s), so context snaps to the corrected,\n" +
+                "   consolidated version instead of retaining the bad one alongside it.\n\n" +
+                "### When to consolidate multiple stale items\n" +
+                "If several past items are individually weak and their replacements overlap, prefer\n" +
+                "producing ONE consolidated response that absorbs their useful parts, then retire\n" +
+                "the originals. Each retired item should reference the consolidated replacement by ID.\n\n" +
+                "### Verification before retiring\n" +
+                "Before retiring an item that was a tool result, re-read or re-run only if the cost\n" +
+                "is trivial AND the item caused a wrong conclusion. Do not re-run tools purely to\n" +
+                "\"prove\" an item you've already confirmed is bad.\n\n" +
+                "### Terminus behavior\n" +
+                "retire_from_context returns nothing and expects no follow-up response. If it is\n" +
+                "the only tool call in your turn, your turn ends after it — do not generate\n" +
+                "additional text. Prefer issuing retire calls as the FINAL action of a turn,\n" +
+                "after your corrected response is complete.";
+
             switch (mode.ToLowerInvariant())
             {
                 case "agent":
@@ -223,6 +269,7 @@ namespace ContinueVS.Services.Implementations
                            PLAN_FILE_INSTRUCTIONS + "\n\n" +
                            ACTIVE_PLAN_INSTRUCTIONS + "\n\n" +
                            ASK_USER_INSTRUCTIONS + "\n\n" +
+                           RETIRE_FROM_CONTEXT_INSTRUCTIONS + "\n\n" +
                            "However, only output codeblocks for suggestion and demonstration purposes, for example, when enumerating multiple hypothetical options. For implementing changes, use the edit tools.\n" +
                            "</important_rules>" +
                            GetContextSuffix("agent");
@@ -247,6 +294,7 @@ namespace ContinueVS.Services.Implementations
                            PLAN_FILE_INSTRUCTIONS + "\n\n" +
                            ACTIVE_PLAN_INSTRUCTIONS + "\n\n" +
                            ASK_USER_INSTRUCTIONS + "\n\n" +
+                           RETIRE_FROM_CONTEXT_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("debug");
 

@@ -825,6 +825,59 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// retire_from_context: Toggle the status of an earlier message between "active" and
+        /// "retired". Available in: Agent, Debug (loop modes — pure side effect + terminus).
+        /// Returns nothing and expects no follow-up response; if it is the only tool call in the
+        /// turn, the turn ends after it.
+        /// </summary>
+        public static ToolDefinition GetRetireFromContextTool()
+        {
+            return CreateToolDefinition(
+                name: "retire_from_context",
+                description: "Toggle the status of an earlier message (your own answer, or a tool\n" +
+                             "request/response) between \"active\" and \"retired\". Retired means it will no\n" +
+                             "longer be pulled into future context. This is a STATUS change, NOT deletion:\n" +
+                             "the original content is preserved verbatim in an idempotent reference file,\n" +
+                             "the UI continues to show the full content, and an icon marks it \"no longer in\n" +
+                             "context.\" The user can still read and copy from it manually. Calling it again\n" +
+                             "on the same message toggles it back to active.\n\n" +
+                             "Use when: an item is factually wrong, superseded, or redundant such that\n" +
+                             "leaving it active would risk propagating a known-bad premise. Also use to\n" +
+                             "clear a once-useful supersession pointer once it has served its purpose.\n\n" +
+                             "Do NOT use to hide that an error occurred — the reference trail stays intact.\n" +
+                             "Always retire AFTER producing the corrected/consolidated replacement, and set\n" +
+                             "replaced_by_id when a successor exists.\n\n" +
+                             "This tool returns nothing and expects no follow-up response. If this is the\n" +
+                             "only tool call in your turn, it is a terminus: your turn ends after it.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition
+                    {
+                        Name = "message_id",
+                        Type = "string",
+                        Description = "The ID of the message/tool call to toggle retired",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "reason",
+                        Type = "string",
+                        Description = "short justification (e.g. 'superseded by <id>', 'redundant', 'factually wrong', 'pointer served its purpose')",
+                        IsRequired = true
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "replaced_by_id",
+                        Type = "string",
+                        Description = "ID of the new response that supersedes it, when applicable",
+                        IsRequired = false
+                    }
+                },
+                returnsDescription: "Returns nothing (terminus)",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
         /// Gets all built-in tool definitions.
         /// Returns a collection of 25 core tools for code editing, navigation, diagnostics, and
         /// human-in-the-loop questioning.
@@ -860,7 +913,8 @@ namespace ContinueVS.Core.Types
                 GetWritePlanTool(),
                 GetReadPlanTool(),
                 GetUpdatePlanTool(),
-                GetAskUserTool()
+                GetAskUserTool(),
+                GetRetireFromContextTool()
             };
             LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;

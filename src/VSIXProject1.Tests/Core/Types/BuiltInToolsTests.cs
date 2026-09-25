@@ -232,7 +232,7 @@ namespace ContinueVS.Tests.Core.Types
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools();
 
             Assert.NotNull(tools);
-            Assert.Equal(27, tools.Count());
+            Assert.Equal(28, tools.Count());
         }
 
         [Fact]
