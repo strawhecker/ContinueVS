@@ -849,7 +849,12 @@ namespace ContinueVS.UI.Renderers
             double available = double.IsNaN(_document.PageWidth)
                 ? 700
                 : Math.Max(_document.PageWidth - 16, 160);
-            double paddingAndBorder = colCount * (6 + 6 + 2); // Padding + border.
+            // Each cell has horizontal padding (6+6) plus its 1px border on each
+            // side (2). This frame is over-and-above the text area, so it must be
+            // reserved separately — otherwise every column is ~14px too narrow and
+            // narrow content (e.g. one/two digit numbers) wraps onto two lines.
+            double perColFrame = 6 + 6 + 2; // Padding + border.
+            double paddingAndBorder = colCount * perColFrame;
             double total = paddingAndBorder;
             foreach (var w in naturalWidths) total += w;
 
@@ -858,8 +863,16 @@ namespace ContinueVS.UI.Renderers
             var columnWidths = new double[Math.Max(colCount, 1)];
             for (int c = 0; c < columnWidths.Length; c++)
             {
-                double w = Math.Max(Math.Min(naturalWidths[c] * scale,
-                    available / Math.Max(colCount, 1)), 24);
+                // Content (text) width: natural width scaled down on overflow,
+                // capped to a fair share of the card, but never below a readable
+                // floor. The frame is subtracted from the per-column cap so the
+                // text area is what you'd expect from the natural width.
+                double content = Math.Max(
+                    Math.Min(naturalWidths[c] * scale,
+                        (available / Math.Max(colCount, 1)) - perColFrame),
+                    24);
+                // Total grid column = text area + the per-column frame.
+                double w = content + perColFrame;
                 columnWidths[c] = w;
                 grid.ColumnDefinitions.Add(new ColumnDefinition
                 {
@@ -872,7 +885,9 @@ namespace ContinueVS.UI.Renderers
             {
                 text.TextWrapping = TextWrapping.Wrap;
                 if (c < columnWidths.Length)
-                    text.MaxWidth = columnWidths[c];
+                    // Reserve the cell's padding + border; cap only the text area
+                    // so the content gets its full computed width before wrapping.
+                    text.MaxWidth = Math.Max(columnWidths[c] - perColFrame, 1);
 
                 // Column alignment (left/center/right) from the parsed table.
                 if (c < colCount)
