@@ -10026,6 +10026,258 @@ Want me to write these three gap entries into `docs/session-context.md` (I can i
 
 ---
 
+Locked decisions: **gap95 = new gap** for non-debug DTE tools; **gap93 = Option A routing** (debug → `IDebuggerService` directly, `IIdeService` = non-debug DTE only); **gap92 = numbered sub-gaps `_1`, `_2`, `_3`** (no letters). Here are the four revised gaps, in the session-context format.
+
+---
+
+## gap92: Real `IDebuggerService` Against `EnvDTE.Debugger` (split into numbered sub-gaps)
+
+**Status:** ⬜ Planned (currently stubbed; `DebuggerService` is 100% fake) | Type: Debugger Automation (core) | Related: gap93, gap94, gap95; assets `IDebuggerService`, `DteProvider`, `IDteProvider`
+
+**Problem:** `DebuggerService` is fake end-to-end: `GetCurrentStateAsync` returns a hardcoded `RuntimeState`, `SetBreakpointAsync` fabricates a GUID, `ExecuteStepAsync`/`ResumeExecutionAsync` fake timers, `IsDebuggerActiveAsync` always `false`. `IDteProvider` doesn't expose `DTE.Debugger`. Nothing reads the real automation object. The launch capability doesn't exist at all (gap94), and the real state-precondition machine was never designed. This gap is now split into three numbered sub-gaps because the inspect and evaluate surfaces are separate contracts with separate risk profiles—**not** because each is a different phase. All share one `IDteProvider.GetDebugger()` UI-thread accessor and one `DebugStateGuard` (implemented in `_1`, consumed by `_2`/`_3`).
+
+**Why it matters (the decisions that must hold):**
+1. **`_1` owns the accessor, the state guard, and the state echo** — everything else depends on it.
+2. **Every `debug_*` handler declares `State: Running | Stopped | Any`** and the `DebugStateGuard` rejects out-of-state calls *before* touching `DTE.Debugger`, returning a benign `{ ok:false, reason, state }` instead of an `InvalidOperationException`.
+3. **Every method result echoes current state** (`{ mode, thread, frame, breakReason }`) so the LLM's next decision is grounded — this is the whole point of debugging through a tool loop.
+4. **Tiers are enforced at `ToolService`/registry**, not in the service: `_3` exposes primitives but does **not** auto-allow them (`ask` gate / default-disabled).
+5. **`RuntimeState` core shape stays stable** for existing consumers (`WorkspaceStatsService`); new DTOs are added, not core-shape mutations.
+6. Sequencing within the family: `_1` first; `_2`/`_3` depend on it.
+
+---
+
+### gap92_1: Core Session State + Breakpoints + Control
+
+**Status:** ⬜ Planned | Type: Debugger Automation (core cutover) | Related: gap94 (lifecycle prerequisite), gap92_2/92_3 (consume); assets `IDebuggerService`
+
+**Problem:** No real access to `DTE.Debugger`, no state machine, and no state echo. These are the primitive that `_2`/`_3`/gap93/gap94 all build on.
+
+**Objective:** Make the core contract real and add the state-precondition machine.
+
+**Why it matters (the decisions that must hold):**
+1. **`IDteProvider.GetDebugger()`** returns `EnvDTE.Debugger`, marshaled to the UI thread via the existing `ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync()` + `GetServiceAsync(typeof(DTE))` pattern; every `Debugger` call runs on the UI thread.
+2. **`IsDebuggerActiveAsync`** reads `Debugger.CurrentMode` (`dbgRunMode`/`dbgBreakMode`) and/or `CurrentProgram != null` — real truth.
+3. **`GetCurrentStateAsync`** walks the current session (`CurrentStackFrame` → locals/expressions, `StackFrames` → callstack, frame line/file) and still returns the benign `not-debugging` shape when not debugging. **This is the state echo** and must also return `{ mode, selectedThread, selectedFrame, breakReason }`.
+4. **`SetBreakpointAsync`/`ClearBreakpointAsync`** add/delete from `Debugger.Breakpoints` by file+line with optional condition (incl. hit-count), matching by file/line on clear — not a fabricated GUID.
+5. **`ExecuteStepAsync`** maps `DebugStepAction` → `StepOver()/StepInto()/StepOut()` then re-reads state; **`ResumeExecutionAsync`** calls `Debugger.Go(false)` with the existing 30s `ITimeoutHelper` guard.
+6. **`DebugStateGuard`** is introduced here: every method validates state before invoking DTE and returns a benign rejection (not an exception). This is the enlarged-gap behavior that did not exist before.
+7. Fail-soft: `COMException` from `Expression.Value`/`Type`/frames → benign state, so `WorkspaceStatsService.CollectDebugState` degrades to `DebugMode="none"`.
+
+**Decided behavior:** `RuntimeState` shape preserved; add a `DebugSessionState` echo (mode/thread/frame/breakReason); `DebugStateGuard.Require(State)` gates every call.
+
+**Service work required:**
+- `IDteProvider`/`DteProvider` — expose `Debugger` (UI thread).
+- `DebuggerService` — implement the five core methods + `DebugStateGuard` + state echo + `COMException` wrapping.
+
+**Files (candidates):**
+- `Services/Interfaces/IDteProvider.cs`, `Services/Implementations/DteProvider.cs`
+- `Services/Interfaces/IDebuggerService.cs`, `Services/Implementations/DebuggerService.cs`
+- `Core/Types/DebugSessionState.cs` (new), `Core/Types/DebugStateGuard.cs` (new)
+
+**Testing strategy:** Fake-`Debugger` seam (no live VS): state reflects fake `CurrentMode`/frames/expressions; breakpoint add/clear round-trips against a fake `Breakpoints`; step maps enum → `StepInto/Over/Out`; resume calls `Go`; **out-of-state calls return the benign `{ok:false,reason}` shape, not an exception**; `COMException` → benign state. Replace `StubDebuggerService` in existing tests with this fake.
+
+**Risks & decisions:** UI-thread affinity for all `EnvDTE`; cap locals/callstack depth so `CollectDebugState` stays responsive; keep `RuntimeState` stable. The `DebugStateGuard` is the code that makes the whole tool surface usable, so it lives here, not in `ToolService`.
+
+**Sequencing:** First in the family. Depends on nothing in 92; prerequisite for 92_2/92_3/gap94.
+
+---
+
+### gap92_2: Inspection Surface — Stack, Frames, Variables, Threads, Modules, Process, Exceptions, Output
+
+**Status:** ⬜ Planned | Type: Debugger Automation (inspection) | Related: gap92_1 (uses accessor + state + guard); assets `IDebuggerService`
+
+**Problem:** The core gap92_1 gives state, breakpoints, and step — but the LLM can't *see* the call stack, locals, arguments, `this`, threads, modules, exception payloads, or output. Debugging blind is useless.
+
+**Objective:** Add the read-only inspection contract on `IDebuggerService`, all gated by `DebugStateGuard` (mostly `Stopped`), all surfaced to the model as new DTOs.
+
+**Why it matters (the decisions that must hold):**
+1. **All reads are Tier 0** (safe) and routed through the `_1` accessor + state guard; they are valid primarily in `Stopped` state (stack/frames/locals), some in `Any` (threads/modules/process/output).
+2. **New DTOs** (added, not mutating `RuntimeState`): `CallStackFrame`, `ThreadInfo`, `ModuleInfo`, `ProcessInfo`, `ExceptionInfo`, `BreakpointInfo` (now carries `Condition`/hit-count), `VariableInfo` (locals/args/`this`).
+3. Contract methods:
+   - `GetCallStackAsync(perThread)` — full stack per thread.
+   - `SelectFrameAsync` — set the active frame for later `_2`/`_3` calls (session/frame state).
+   - `GetStatementAsync` — source line + surrounding lines at the instruction pointer.
+   - `GetLocalsAsync` / `GetArgumentsAsync` / `GetThisAsync` — active frame's variables (`this` is new vs original gap92).
+   - `GetThreadsAsync` / `GetModulesAsync` / `GetProcessInfoAsync`.
+   - `ListExceptionSettingsAsync` / `GetCurrentExceptionAsync` (`$exception`).
+   - `GetOutputAsync` — recent debugger/Output-window text.
+   - `Enable/Disable/ConditionBreakpointAsync` — full breakpoint lifecycle (extend `_1`'s minimal set).
+4. Every result echoes the `_1` state so the model stays grounded.
+5. Each method declares its `State`; the `_1` guard enforces it.
+
+**Decided behavior:** Inspection is read-only, Tier 0, mostly `Stopped`, with `SelectFrameAsync` as the frame-state cursor. No mutation lives here (that's `_3`).
+
+**Service work required:** Extend `IDebuggerService`/`DebuggerService` with the inspection methods + DTOs; vector locals/args/`this` from `StackFrame`; threads from `Debugger.Threads`; modules from `DebuggedProcesses[].Modules`; exception from current frame's `$exception`.
+
+**Files (candidates):** as `_1`, plus `Core/Types/DebugInspection*.cs` (new DTOs).
+
+**Testing strategy:** Fake `Debugger` gains fake `Threads`, per-thread `StackFrames`, `Expressions`, `Breakpoints` (with condition), `ExceptionGroups`, `Processes.Modules`. Assert each reader returns correct DTOs; reads in wrong state return benign rejection; `SelectFrameAsync` sets the cursor used by subsequent calls.
+
+**Risks & decisions:** Expression walking can be deep — cap depth/count; freeze/thaw consistency is out of scope here (thread state mutation is a `_3`/Tier-2 concern); keep DTOs immutable and pre-stringified for large locals.
+
+**Sequencing:** Depends on gap92_1. Independent of gap94.
+
+---
+
+### gap92_3: Evaluate / Mutate Surface — Tier 2, Gated
+
+**Status:** ⬜ Planned | Type: Debugger Automation (execute/verify) | Related: gap92_1 (accessor/guard), gap92_2 (frame cursor); assets `IDebuggerService`
+
+**Problem:** The highest-value debugging actions — *evaluate an arbitrary expression in the debuggee*, *assign a value*, *read/write memory*, *freeze/thaw threads*, *run-to-cursor* — are also the highest-risk. They must exist as primitives but must **not** be freely callable by the LLM.
+
+**Objective:** Expose `EvaluateAsync`, `SetValueAsync`, `MemoryRead/WriteAsync`, `Freeze/ThawThreadAsync`, `RunToCursorAsync` on `IDebuggerService`, all `Stopped`-gated, all flagged Tier 2 for gating at the `ToolService` layer.
+
+**Why it matters (the decisions that must hold):**
+1. **The service exposes the primitive; the gate lives upstream.** `IDebuggerService.EvaluateAsync` is real DTE (`Debugger.GetExpression(...)`); `ToolService`/registry marks `debug_evaluate`, `debug_set_value`, `debug_memory_*`, `debug_run_to_cursor`, `debug_thread_set_state` as Tier 2 → default-disabled or `ask` (human confirmation), never plain `Automatic`.
+2. `EvaluateAsync(expression)` runs in the debuggee context (`GetExpression` → `Value`), `Stopped` only, depth-capped, `COMException` → benign error string.
+3. `SetValueAsync` (mutating) and `MemoryWriteAsync` are **strongly discouraged**: set `ask`-only and leave disabled by default — cost asymmetry between "read a local" and "write a process's memory" is the whole point of the tier.
+4. `SelectFrameAsync` (from `_2`) determines the evaluation context.
+5. Some tier-0 *reads* also take a tier-2 shape when they cross boundaries (e.g. memory read); those are grouped here under the same gate.
+
+**Decided behavior:** Tier 2 boundary owned by the registry: these tools are present in schema but gated by `invokePerm`/per-tool setting (default off / `ask`). The service never self-gates beyond state.
+
+**Service work required:** Add the five eval/mutate methods to `IDebuggerService`/`DebuggerService`; register the corresponding tool factories as Tier 2 in `BuiltInToolsRegistry` + `ToolNameToUserSettingKey` defaults.
+
+**Files (candidates):** as `_1`, plus `Core/Types/BuiltInTools.cs` (Tier-2 registration) and `ToolService.cs` (gate wiring).
+
+**Testing strategy:** Fake `Debugger.GetExpression` returns a controlled `Expression` → assert `EvaluateAsync` returns its value; out-of-state → benign rejection; `SetValueAsync`/memory asserts they issue the DTE write; **gate test at the registry level**: Tier-2 tools resolve to `ask`/disabled default and are excluded from `Automatic`.
+
+**Risks & decisions:** This is where a single bad tool call can corrupt a live process — keep the tier strict and default-disabled; never widen without a human gate.
+
+**Sequencing:** Depends on gap92_1 (and `SelectFrameAsync` from `_2`). Has no dependency on gap94.
+
+---
+
+## gap93: Debug/Non-debug Routing to Single-Source-of-Truth Services
+
+**Status:** ⬜ Planned (currently duplicate stubs) | Type: IdeService wiring / de-stub | Related: gap92 (dependency), gap94; assets `ToolService`, `IIdeService`/`VsIdeService`, `IDebuggerService`
+
+**Problem (revised — Option A changed the shape of this gap):** The old gap93 ("delegate `IIdeService` debug methods to `IDebuggerService`") is too small and recreates the very duplication it exists to kill, at a larger scale: with dozens of `debug_*` tools, forwarding all of them through `IIdeService` makes it a bloated parallel surface. Option A is the decided path: **debug `debug_*` tools route directly to `IDebuggerService`; `IIdeService` is the non-debug DTE facade only.** The original duplicate stubs in `VsIdeService` (`InspectVariablesAsync`, `SetBreakpointAsync`, …) are removed.
+
+**Objective:** Make the routing boundary explicit and single-source-of-truth: `ToolService` resolves `IDebuggerService` for `debug_*`; `IIdeService`/`VsIdeService` drops its debug stubs and keeps only non-debug DTE (covered by gap95). No new behavior — pure composition.
+
+**Why it matters (the decisions that must hold):**
+1. **Routing lives in `ToolService.InvokeBuiltInAsync`:** a `debug_*` name dispatches to `IDebuggerService` (injected), not to `IIdeService`.
+2. **`VsIdeService` loses its debug methods** — they are deleted, not forwarded. This is the decisive change vs. the old gap93 (which forwarded via `IIdeService`).
+3. **`IIdeService` keeps only non-debug DTE** (`ide_*` surface, gap95). Its `InspectVariablesAsync` debug surrogate is removed; any residual stat-context needs compose from `IDebuggerService` directly.
+4. Keep null-service tolerance (benign no-op / `not-debugging` shape) consistent with `VsIdeService`'s optional-injection pattern.
+5. No circular dependency: `ToolService` → `IDebuggerService` and `ToolService` → `IIdeService`; neither service depends on the other.
+6. `DebugStepAction` mapping lives in exactly one place (`IDebuggerService`), per gap92_1.
+
+**Decided behavior:** One facade (`IIdeService`, non-debug) + one debug automation service (`IDebuggerService`), both resolved by `ToolService`. No parallel debug logic anywhere.
+
+**Service work required:**
+- `ToolService` — add `IDebuggerService` ctor param; route `debug_*` (including state/guard/tier checks wired to gap92) directly to it.
+- `VsIdeService` — remove the debug stub methods; keep only non-debug DTE (gap95).
+
+**Files (candidates):**
+- `Services/Implementations/ToolService.cs`
+- `Services/Implementations/VsIdeService.cs`
+- `Services/ServicesBootstrapper.cs` (registration/order check)
+
+**Testing strategy:** `ToolService` tests assert `debug_*` calls hit the fake `IDebuggerService` and `ide_*`/file/git calls hit the fake `IIdeService`; `VsIdeService` tests assert no debug methods remain and non-debug DTE still works; null-service returns benign shapes. Existing `CollectDebugState` tests now compose from `IDebuggerService`, not a double-stub.
+
+**Risks & decisions:** Avoid `IIdeService` ↔ `IDebuggerService` circular deps; keep the `debug_*` name → `IDebuggerService` routing table in one place; smallest gap.
+
+**Sequencing:** Depends on gap92 (real `IDebuggerService`). Independent of gap94/gap95. Can be built and merged after 92_1.
+
+---
+
+## gap94: Debug Session Lifecycle — Start / Attach / Restart / Stop + Session Selection
+
+**Status:** ⬜ Planned (no launch capability exists at all) | Type: Debugger Automation (lifecycle) | Related: gap92, gap93; assets `IDebuggerService`, `IIdeService`
+
+**Problem (revised — it's a lifecycle gap, not a single Start):** The original gap94 was one method, `StartDebuggingAsync`, with attach & restart explicitly out of scope. The tool surface makes clear that's wrong: debug is entered by **Start** (startup project / launch profile) **or Attach** (to a running process), exited by **Stop**, and re-entered by **Restart** — and every later `debug_*` call must bind to a *selected* live session. So the "out of scope" notes for attach are rescinded; this gap owns the full lifecycle + the session-handle model.
+
+**Objective:** Make the LLM go `not-debugging → debugging → stopped` and back, with an unambiguous "selected session" that all `debug_*` tools act on.
+
+**Why it matters (the decisions that must hold):**
+1. **Launch is distinct from resume.** `Debugger.Go`/`StepX` continue a session; starting one is `DTE.ExecuteCommand("Debug.Start")` on the startup project (or attach). Separate methods, not folded into `ResumeExecutionAsync`.
+2. **New lifecycle methods on `IDebuggerService`:** `StartDebuggingAsync(project, launchProfile)` (with null = startup project), `AttachToProcessAsync(pid)`, `RestartDebuggingAsync()`, `StopDebuggingAsync()`. No longer a single `StartDebuggingAsync(project, launchProfile)` shape.
+3. **Session-handle model lands here:** `GetSessionsAsync` / `SelectSessionAsync`; the rule *"every `debug_*` call binds to the currently selected session"* is enforced. This is the timeline/control-flow bridge.
+4. **Startup/launch-profile resolution becomes real DTE plumbing** — reading `SolutionBuild.StartupProjects` and selecting a launch profile, not a `null` default hand-wave.
+5. **Keep `ITimeoutHelper` + UI-thread marshaling** and fail-soft: no startup project / failed launch / attach failure → report reason, stay `not-debugging`, don't throw.
+6. `Debug.Start` may prompt on first launch — surface a clear reason string; don't block the UI thread during launch (timeout + `SwitchToMainThreadAsync` only for the command issue).
+
+**Decided behavior:** `IDebuggerService` exposes Start/Attach/Restart/Stop + session list/select. `ToolService` routes `debug_start`, `debug_stop`, `debug_restart`, `ide_attach_to_process` here. No UI surface in this gap — callable via tools.
+
+**Service work required:**
+- `IDebuggerService`/`DebuggerService` — lifecycle methods using `Debugger` accessor (gap92_1) + `IIdeService` startup-project resolution (gap95 `ide_launch_profile` can feed it).
+- `ToolService` — wire the four lifecycle tool names to these methods + session selection.
+
+**Files (candidates):**
+- `Services/Interfaces/IDebuggerService.cs`, `Services/Implementations/DebuggerService.cs`
+- `Services/Implementations/ToolService.cs`
+- `Core/Types/DebugSessionInfo.cs` (new — session handles)
+
+**Testing strategy:** Fake `Debugger` seam: `StartDebuggingAsync` issues `Debug.Start` and reports active when `CurrentMode` flips to run; attach issues `AttachToProcess` for a pid; restart/stop behave; no-startup-project fail-soft returns `false + reason`; `SelectSessionAsync` sets the binding used by later `debug_*` calls. End-to-end manual: LLM starts, then gap92 step/state/break work against the real launched process.
+
+**Risks & decisions:** Launch prompts/timeouts; session selection must be explicit so out-of-band `debug_*` calls don't act on the wrong process; this is what makes {92, 93} reachable for a fresh app.
+
+**Sequencing:** Depends on gap92_1 (accessor). Composes with gap93; uses gap95's launch-profile read. Required before the debug feature is user-visible end-to-end.
+
+---
+
+## gap95: Non-debug DTE Tools for the Troubleshooting Loop
+
+**Status:** ⬜ Planned (new gap) | Type: IdeService DTE surface | Related: gap93 (same service, `IIdeService`), gap94 (feeds launch config); assets `IIdeService`/`VsIdeService`
+
+**Problem:** The debug loop doesn't only need the debugger — it needs the IDE surface around it. To set and reason about breakpoints, navigate source, resolve symbols, build before/while debugging, read Output panes, and pick launch targets, the LLM needs DTE tools that are **not** `Debugger` tools. These don't belong in `IDebuggerService` (they're IDE, not debugger automation) and weren't owned by any gap.
+
+**Objective:** Add the non-debug `ide_*` DTE tool surface on `IIdeService`/`VsIdeService`, so the debugging workflow has its IDE context. All are DTE/`EnvDTE.SolutionBuild`/`OutputWindow`/`ItemOperations` operations on the UI thread, with the same fail-soft pattern as `VsIdeService`'s file ops.
+
+**Why it matters (the decisions that must hold):**
+1. **Owned by `IIdeService`, not `IDebuggerService`** — this is the gap93 Option A boundary made concrete.
+2. Tools (Tier 1 unless noted):
+   - `ide_active_document` — `DTE.ActiveDocument` (current file + selection) (Tier 0).
+   - `ide_open_file` — `ItemOperations.OpenFile` / `Document.Activate`.
+   - `ide_navigate_to` — `TextSelection.GotoLine` / `Edit.GoTo` (map breakpoints/statements visually).
+   - `ide_goto_definition` — `Edit.GoToDefinition` (resolve what a breakpoint should target).
+   - `ide_find_symbol` — resolve a symbol to file:line for breakpoints (feeds `debug_breakpoint_set`).
+   - `ide_build` — `SolutionBuild.Build()` / `BuildProject()` and `ide_build_configuration` — set/read `SolutionConfigurations` (a stale build defeats debugging; this belongs in the loop).
+   - `ide_launch_profile` — read/select `StartupProjects` + launch profile (feeds gap94 Start).
+   - `ide_output_pane` — read any `OutputWindowPanes[...]` (Build/Debug) (Tier 0) — companion to `debug_output`.
+   - `ide_command` — generic `DTE.ExecuteCommand(...)` passthrough for anything unwrapped (**Tier 2 → `ask`/disabled by default**, same gate story as gap92_3).
+3. `ide_attach_to_process` — list local processes + `AttachToProcess` — is the attach entry; implemented here (it reads IDE process lists) but the actual attach lifecycle lands in gap94 (it's a debug-session action). Keep the boundary note in both gaps.
+4. All run on the UI thread via the existing `SwitchToMainThreadAsync` pattern; `COMException` → benign error, never crash the session.
+5. Register factories in `BuiltInToolsRegistry` + `ToolNameToUserSettingKey` with the same tier/user-settings gating as the rest.
+
+**Decided behavior:** `IIdeService` grows the non-debug DTE surface; `debug_*` still routes to `IDebuggerService` (gap93). No debugger-automation code lives here.
+
+**Service work required:**
+- `VsIdeService` — implement the `ide_*` methods against `EnvDTE` (`SolutionBuild`, `OutputWindow`, `ItemOperations`, `TextSelection`, `ActiveDocument`), UI-thread + fail-soft.
+- `ToolService` — register + route the `ide_*` names (Tier 1; `ide_command` Tier 2).
+- `BuiltInToolsRegistry` + `ToolNameToUserSettingKey` — new factories + settings defaults.
+
+**Files (candidates):**
+- `Services/Implementations/VsIdeService.cs`
+- `Services/Implementations/ToolService.cs`
+- `Core/Types/BuiltInTools.cs`
+- `Services/UserSettings.cs` (Tool_Ide*Enabled constants)
+
+**Testing strategy:** Mock `DTE` seams (`SolutionBuild`, `OutputWindow`, `ItemOperations`, `TextSelection`): assert build issues `Build()`, launch-profile reads `StartupProjects`, output reads the right pane, command passthrough issues `ExecuteCommand`, navigate moves the selection; `COMException` → benign error; `ide_command` default gated to `ask`/disabled in the registry.
+
+**Risks & decisions:** Keep `ide_*` strictly non-debugger to honor the Option A boundary; `ide_command` is a Tier-2 escape hatch — default-disabled and `ask`-gated; launch-profile and attach can be referenced from gap94 but are implemented here.
+
+**Sequencing:** Independent of gap92/gap94 (pure `IIdeService` additions); composes with gap93 (same service) and feeds gap94. Can be built in parallel with the gap92 family.
+
+---
+
+## The four gaps at a glance
+
+| Gap | Role | Depends on | Gating |
+|---|---|---|---|
+| **gap92_1** | Real `Debugger` access + state guard + state echo + core break/step/resume | — | Tier 0/1 |
+| **gap92_2** | Inspection: stack/frames/vars/threads/modules/exceptions/output | 92_1 | Tier 0 read |
+| **gap92_3** | Evaluate/mutate: eval, set, memory, run-to-cursor, thread-state | 92_1, 92_2 | **Tier 2, gated** |
+| **gap93** | Routing: `debug_*` → `IDebuggerService`, `IIdeService` = non-debug only | 92 family | — |
+| **gap94** | Lifecycle: Start/Attach/Restart/Stop + session select | 92_1, 95 (profiles) | Tier 1 |
+| **gap95** | Non-debug `ide_*` DTE tools (build/navigate/output/open/goto-def/attach/command) | — (parallel) | Tier 1 (`ide_command` Tier 2) |
+
+That's gap92 (as a 3-part family) + gap93 + gap94 + gap95 = your four top-level gaps, with gap92 split into numbered sub-gaps as requested (no letters).
+
+---
+
 ## Phase 1: Core Types & Contracts (Steps 1-15)
 
 *Establish shared data models and service interfaces.*
