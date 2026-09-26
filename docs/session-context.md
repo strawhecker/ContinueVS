@@ -10149,6 +10149,53 @@ Got it — you want the three gaps **scoped the way the format demands** (one co
 
 ---
 
+### gap96: Decouple "Requires Human Decision" from Option Ordering in `ask_user`
+
+**Status:** ✅ Complete | Type: Tool Contract + Agent Enforcement | Related: gap86 (`ask_user` tool), gap29 (`LLMQuestionService`), gap54 (inline question prompts); assets `BuiltInTools.GetAskUserTool`, `ToolService.InvokeAskUserAsync`, `LLMQuestionPrompt`, `LlmQuestionService.HandleLLMQuestionAsync`, `ChatPageViewModel`, `SystemPromptService.ASK_USER_INSTRUCTIONS`
+
+**Objective:**
+The `ask_user` tool (gap86) was a first-class tool-call path, but the decision of *which* option the agent may auto-select was overloaded onto answer **ordering** (`answers[0]` = recommended). When a decision genuinely requires human judgment — taste, values, irreversibility, or a choice automation should not make — the LLM had no way to signal "do NOT auto-answer" without abusing position (e.g. planting a dummy/sentinel option) or skipping the tool entirely (halting progress). gap96 decouples **"recommended"** (ordering) from **"auto-delegable"** into two independent signals, per Tier 1.
+
+**Why it matters (the decisions that must hold):**
+1. **Two independent signals, never one overloaded slot.** `answers[0]` = recommendation; `requireHumanDecision` = must-not-auto-answer. A human reading the list is never confused, and no decoy-option trick is needed.
+2. **The LLM declares a flag, the agent enforces it.** The LLM is stateless and cannot observe its own runtime mode (auto vs. interactive). It never needs to know the mode — it just declares *human-required*; the agent layer maps that to behavior per mode.
+3. **`requireHumanDecision` overrides `isAutonomous`.** In autonomous mode, a flagged question is routed to the human, never silently auto-picked. This is the whole point of the flag.
+4. **No halting.** A flagged question still surfaces; it is just routed to the user rather than auto-answered. Option-2 ("skip the tool") is never used to force a halt.
+5. **Keep the rigor + ask-quality contract (Chat→Ask).** The `ASK_USER_INSTRUCTIONS` system prompt keeps its high threshold, sources answers, prefers architecture/design, and now instructs the LLM *when* to set the new flag.
+
+**Implementation (this gap):**
+
+- ✅ **Tool contract** (`Core/Types/BuiltInTools.cs` `GetAskUserTool`): added `requireHumanDecision` parameter (`boolean`, optional). Description: *"If true, this question MUST be answered by a human — the agent must NOT auto-select/auto-answer any option regardless of autonomous/interactive mode. Set true whenever the decision requires genuine human judgment, taste, or an irreversible choice; omit/false for routine decisions automation may answer."* Existing `question` + `answers` unchanged.
+- ✅ **Description builder** (`ToolCallDescriptionBuilder.cs`): `ask_user` case mirrors the new parameter into the emitted schema so the LLM sees it.
+- ✅ **Invocation** (`ToolService.InvokeAskUserAsync`): reads `requireHumanDecision` (`GetArgBool`) and sets it on the constructed `LLMQuestionPrompt`.
+- ✅ **Question type** (`Core/Types/LLMQuestionPrompt.cs`): added `[JsonProperty("requireHumanDecision")] public bool RequireHumanDecision { get; set; }`.
+- ✅ **Agent enforcement — the core gate** (`LlmQuestionService.HandleLLMQuestionAsync`): the autonomous path is now guarded by `if (isAutonomous && !question.RequireHumanDecision)`. When flagged, the question routes to `IInteractivePromptService.PromptOnLLMQuestionAsync` even in autonomous mode (interactive path, `isInteractiveMode:true`).
+- ✅ **Orchestration** (`ChatPageViewModel`): the `AddInlineQuestionAsync` cancel/auto-answer path honors `question.RequireHumanDecision` — on-cancel only auto-answers when the flag is false; otherwise returns a sentinel/empty marking the human-decision as deferred. `LLMQuestionMessage` carries `RequireHumanDecision` from the prompt. (The embedded-question detector + the `ask_user` tool both funnel through the same `HandleLLMQuestionAsync` gate, so both paths are covered.)
+- ✅ **System prompt** (`SystemPromptService.cs` `ASK_USER_INSTRUCTIONS`): appended a clause telling the LLM when to set the flag — *"WHEN A DECISION REQUIRES GENUINE HUMAN JUDGMENT — taste, values, irreversibility, or a choice that should not be made automatically — set 'requireHumanDecision' to true in the ask_user call (decoupled from option ordering; recommended option still comes first). Do NOT rely on ordering or skipping the tool to signal this."* Plus the earlier rigor + recommended-first + answer-quality clauses retained (threshold unchanged).
+
+**Files Modified/Created:**
+- `src/VSIXProject1/Core/Types/BuiltInTools.cs` — `requireHumanDecision` param on `GetAskUserTool`.
+- `src/VSIXProject1/Services/Implementations/ToolCallDescriptionBuilder.cs` — schema mirror for `ask_user`.
+- `src/VSIXProject1/Services/Implementations/ToolService.cs` — parse + thread the flag in `InvokeAskUserAsync`.
+- `src/VSIXProject1/Core/Types/LLMQuestionPrompt.cs` — `RequireHumanDecision` property.
+- `src/VSIXProject1/Services/Implementations/LlmQuestionService.cs` — autonomous gate honors the flag.
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — inline-question cancel/auto-answer honors the flag.
+- `src/VSIXProject1/Services/Implementations/SystemPromptService.cs` — `ASK_USER_INSTRUCTIONS` human-decision clause.
+- `src/VSIXProject1.Tests/Services/LlmQuestionServiceTests.cs`, `ToolServiceAskUserTests.cs`, `ChatPageViewModel*Tests.cs` — flag propagation + enforcement coverage.
+
+**Acceptance criteria:**
+- [x] Ordering (`answers[0]` = recommended) is preserved and no longer overloaded with delegability.
+- [x] `requireHumanDecision` is a separate, explicit boolean on the `ask_user` contract.
+- [x] In autonomous mode, a flagged question is routed to the human (never auto-picked); routine questions still auto-answer.
+- [x] No dummy/sentinel option and no "skip the tool" halt is ever needed to signal human-required.
+- [x] The LLM need not know its own runtime mode; the agent enforces the flag per mode.
+
+**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test` (full suite green, incl. new flag-propagation + enforcement tests).
+
+**Sequencing:** lands after gap86 (ask_user tool). Independent of gap89/90 families. Directly complements gap54's inline prompt path (same `HandleLLMQuestionAsync` gate).
+
+---
+
 ## The four gaps at a glance
 
 | Gap | Role | Depends on | Gating |
