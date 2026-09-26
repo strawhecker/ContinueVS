@@ -213,7 +213,8 @@ namespace ContinueVS.Services
                 sp.GetRequiredService<IIdeService>(),
                 sp.GetRequiredService<IDebuggerService>(),
                 sp.GetRequiredService<IConfigService>(),
-                sp.GetRequiredService<IBridgeLogger>()));
+                sp.GetRequiredService<IBridgeLogger>(),
+                isVsHost: true));
             LoggerService.Current.WriteDebug("[sv-di] ✓ IWorkspaceStatsService registered");
 
             services.AddSingleton<INotificationService>(sp =>
