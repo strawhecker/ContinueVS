@@ -228,5 +228,114 @@ namespace ContinueVS.Tests.Services
             // ask_user is a loop-mode (interactive) tool; not in read-only Plan mode
             Assert.DoesNotContain(planTools, t => t.Name == "ask_user");
         }
+
+        // ====================================================================
+        // gap97: automation connected to offered answers, and ask-mode no-automation
+        // ====================================================================
+
+        [Fact]
+        public async Task InvokeAskUser_AgentModeAutoAnswersMultipleChoice_WithFirstAnswer()
+        {
+            var service = CreateService();
+            service.SetActiveChatMode(ChatMode.Agent);
+
+            var args = new Dictionary<string, object>
+            {
+                { "question", "Which strategy should I use?" },
+                { "answers", new List<string> { "Option A", "Option B", "Option C" } }
+            };
+
+            var result = await service.InvokeAsync("ask_user", args);
+
+            Assert.True(result.IsSuccess);
+            // In Agent mode with a routine multiple-choice question, the first offered answer is
+            // auto-selected WITHOUT prompting the human.
+            Assert.Equal("Option A", result.Output);
+            _promptServiceMock.Verify(
+                s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public async Task InvokeAskUser_AskModeWithOfferedAnswers_PromptsUser()
+        {
+            var service = CreateService();
+            service.SetActiveChatMode(ChatMode.Ask);
+
+            _promptServiceMock
+                .Setup(s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()))
+                .ReturnsAsync("Option B");
+
+            var args = new Dictionary<string, object>
+            {
+                { "question", "Which color?" },
+                { "answers", new List<string> { "Option A", "Option B" } }
+            };
+
+            var result = await service.InvokeAsync("ask_user", args);
+
+            // Ask mode has no automation: the user is always prompted even when answers are offered.
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Option B", result.Output);
+            _promptServiceMock.Verify(
+                s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task InvokeAskUser_AgentModeFlaggedQuestion_PromptsUser()
+        {
+            var service = CreateService();
+            service.SetActiveChatMode(ChatMode.Agent);
+
+            _promptServiceMock
+                .Setup(s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()))
+                .ReturnsAsync("Option B");
+
+            var args = new Dictionary<string, object>
+            {
+                { "question", "Which irreversible approach?" },
+                { "answers", new List<string> { "Option A", "Option B" } },
+                { "requireHumanDecision", true }
+            };
+
+            var result = await service.InvokeAsync("ask_user", args);
+
+            // Even in Agent mode, a question flagged as requiring human judgment must be answered
+            // by the human and never auto-selected.
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Option B", result.Output);
+            _promptServiceMock.Verify(
+                s => s.PromptOnLLMQuestionAsync(
+                    It.Is<LLMQuestionPrompt>(p => p.RequireHumanDecision),
+                    It.IsAny<bool>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task InvokeAskUser_AgentModeOpenEndedQuestion_PromptsUser()
+        {
+            var service = CreateService();
+            service.SetActiveChatMode(ChatMode.Agent);
+
+            _promptServiceMock
+                .Setup(s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()))
+                .ReturnsAsync("User's prose");
+
+            var args = new Dictionary<string, object>
+            {
+                { "question", "Describe the expected behavior?" }
+            };
+
+            var result = await service.InvokeAsync("ask_user", args);
+
+            // Open-ended questions have no selectable options, so automation cannot pick one —
+            // they always go to the human.
+            Assert.True(result.IsSuccess);
+            Assert.Equal("User's prose", result.Output);
+            _promptServiceMock.Verify(
+                s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()),
+                Times.Once);
+        }
     }
 }

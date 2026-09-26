@@ -111,6 +111,20 @@ namespace ContinueVS.Services.Interfaces
         (bool isBound, string? path) GetActivePlanBinding();
 
         /// <summary>
+        /// Sets the active chat mode for the current session scope (non-saved, in-memory).
+        /// Captured at message-send time and consumed by autonomy-aware tools (notably ask_user)
+        /// so they can decide between prompting the human and auto-answering.
+        /// </summary>
+        /// <param name="mode">The ChatMode active for the current send, or null to clear.</param>
+        void SetActiveChatMode(ChatMode? mode);
+
+        /// <summary>
+        /// Gets the currently active chat mode captured at send time (may be null when not set).
+        /// </summary>
+        /// <returns>The active ChatMode, or null when unavailable.</returns>
+        ChatMode? GetActiveChatMode();
+
+        /// <summary>
         /// Event raised when a tool execution error occurs.
         /// </summary>
         event EventHandler<ToolErrorEventArgs>? Error;

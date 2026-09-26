@@ -40,6 +40,12 @@ namespace ContinueVS.Services.Implementations
         private readonly object _planBindingLock = new object();
         private string? _activePlanPath;
 
+        // Active-chat-mode binding (session-scoped, non-saved). Captured at message-send time and
+        // consumed by autonomy-aware tools (notably ask_user) so they can decide whether to prompt
+        // the human or auto-answer. Guarded to remain thread-safe across the tool-loop.
+        private readonly object _modeBindingLock = new object();
+        private ChatMode? _activeChatMode;
+
         /// <summary>
         /// Static mapping of tool names to UserSettings constants for filtering.
         /// Used to check if a tool should be available based on user settings.
@@ -663,6 +669,30 @@ namespace ContinueVS.Services.Implementations
             lock (_planBindingLock)
             {
                 return (string.IsNullOrWhiteSpace(_activePlanPath) == false, _activePlanPath);
+            }
+        }
+
+        /// <summary>
+        /// Sets the active chat mode for the current session scope. Non-saved, in-memory.
+        /// Captured at message-send time and passed to this method so autonomy-aware tools
+        /// (notably ask_user) can decide between prompting and auto-answering.
+        /// </summary>
+        public void SetActiveChatMode(ChatMode? mode)
+        {
+            lock (_modeBindingLock)
+            {
+                _activeChatMode = mode;
+            }
+        }
+
+        /// <summary>
+        /// Gets the active chat mode captured at send time (null when not set).
+        /// </summary>
+        public ChatMode? GetActiveChatMode()
+        {
+            lock (_modeBindingLock)
+            {
+                return _activeChatMode;
             }
         }
 
@@ -1902,7 +1932,30 @@ namespace ContinueVS.Services.Implementations
                     RequireHumanDecision = requireHumanDecision
                 };
 
-                var answer = await _interactivePromptService.PromptOnLLMQuestionAsync(prompt, isInteractiveMode: true);
+                // gap97: Connect automation to the offered answers. In Agent mode, a routine (non-flagged)
+                // multiple-choice question is auto-answered by selecting the first offered answer instead
+                // of prompting the human. Flagged questions, open-ended questions, and non-Agent (ask /
+                // plan / reason) modes always go to the human. This decouples the auto-answer from the
+                // policy registry, which only knows QuestionType and would otherwise ignore the options.
+                var activeMode = GetActiveChatMode();
+                var isAutonomousAgent = activeMode == ChatMode.Agent;
+                bool shouldAutoAnswer = isAutonomousAgent
+                    && !requireHumanDecision
+                    && answers != null
+                    && answers.Count > 0;
+
+                string answer;
+                if (shouldAutoAnswer)
+                {
+                    answer = answers![0];
+                    _logger?.WriteDebug(
+                        $"[gap97-ask-auto] Agent mode: auto-answered ask_user '{question}' with first option '{answer}'");
+                }
+                else
+                {
+                    answer = await _interactivePromptService.PromptOnLLMQuestionAsync(prompt, isInteractiveMode: true);
+                }
+
                 var sanitized = SanitizeUserAnswer(answer);
 
                 return new ToolResult

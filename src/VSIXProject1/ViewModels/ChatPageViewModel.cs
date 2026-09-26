@@ -1106,11 +1106,11 @@ namespace ContinueVS.ViewModels
             question.OnCancelAsync = async () =>
             {
                 await RemoveInlineQuestionAsync(questionId);
-                // gap96: Never auto-answer a question the LLM flagged as requiring human judgment,
-                // even on cancel. Only apply a policy default for routine questions.
-                var answer = question.RequireHumanDecision
-                    ? "[human decision required — not answered]"
-                    : AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, AutoAnswerResponse.Default);
+                // gap96/97: Cancelling a question is an explicit human decision to NOT answer it.
+                // Never fabricate a policy default here — that would be auto-answering a question
+                // the user chose to dismiss (e.g. an ask-mode / no-automation context). Return a
+                // literal "no answer" sentinel so the caller can decide how to proceed.
+                var answer = "[no answer]";
                 tcs.TrySetResult(answer);
             };
 
@@ -1692,6 +1692,14 @@ namespace ContinueVS.ViewModels
                 // the active document under ~/.continueVS/plans/ and binds it for the read_plan /
                 // update_plan tools for this send. Non-saved, session-scoped (held via IToolService).
                 await RefreshActivePlanBindingAsync();
+
+                // gap97: Snapshot the active chat mode (send-only) so autonomy-aware tools (ask_user)
+                // can decide between prompting the human and auto-answering based on the mode this
+                // send is running under. Non-saved, session-scoped (held via IToolService).
+                if (_toolService != null)
+                {
+                    _toolService.SetActiveChatMode(CurrentMode);
+                }
 
                 var userMessage = new ChatMessage
                 {
