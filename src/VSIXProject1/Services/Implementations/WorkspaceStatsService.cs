@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -6,10 +6,12 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Threading;
 using System.Xml.Linq;
 using ContinueVS.Core.Types;
 using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
+using Microsoft.VisualStudio.Shell;
 
 namespace ContinueVS.Services.Implementations
 {
@@ -35,13 +37,21 @@ namespace ContinueVS.Services.Implementations
         // Resolved once at construction time from user config + environment probes.
         private readonly string _gitExe;
 
+        // True when running inside the Visual Studio host (set by the DI registration). When true,
+        // Refresh() pumps the UI thread via JoinableTaskFactory to avoid the sync-over-async deadlock
+        // between RefreshCore and DebuggerService. Headless unit tests keep this false so they take the
+        // plain thread-pool path (their stubs do not marshal, so no deadlock is possible there) and never
+        // load Microsoft.VisualStudio.Threading (which is absent from the test host).
+        private readonly bool _isVsHost;
+
         public WorkspaceStatsService(
             IIdeService ideService,
             IDebuggerService debuggerService,
             IConfigService? configService = null,
             IBridgeLogger? logger = null,
             string? testGitRoot = null,
-            string? testGitBranch = null)
+            string? testGitBranch = null,
+            bool isVsHost = false)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _debuggerService = debuggerService ?? throw new ArgumentNullException(nameof(debuggerService));
@@ -49,6 +59,7 @@ namespace ContinueVS.Services.Implementations
             _logger = logger;
             _testGitRoot = testGitRoot;
             _testGitBranch = testGitBranch;
+            _isVsHost = isVsHost;
             _gitExe = ResolveGitExe(GetUserConfiguredGitPath());
             _logger?.WriteDebug($"[WorkspaceStatsService] git resolved to: {_gitExe}");
         }
@@ -211,8 +222,67 @@ namespace ContinueVS.Services.Implementations
             string activeFile = CollectActiveFile();
             string? solutionDir = CollectSolutionDir();
 
-            // Dispatch remaining (git/filesystem/blocking) work to a thread-pool thread so the
-            // inner .GetAwaiter().GetResult() calls never block the VS UI thread.
+            RefreshCorePumped(activeFile, solutionDir);
+        }
+
+        /// <summary>
+        /// Runs <see cref="RefreshCore"/> while pumping the VS UI thread.
+        /// <para>
+        /// This replaces the former <c>Task.Run(...).GetAwaiter().GetResult()</c>, which deadlocked:
+        /// the calling (UI) thread blocked waiting on the background task, while the background
+        /// thread's <see cref="CollectDebugState"/> waited on <see cref="IDebuggerService.GetCurrentStateAsync"/>
+        /// which marshals back to the UI thread via <c>SwitchToMainThreadAsync</c>. Each thread waited
+        /// on the other → permanent hang / white screen.
+        /// </para>
+        /// <para>
+        /// Running the work under <see cref="ThreadHelper.JoinableTaskFactory"/> and hopping back to the
+        /// thread pool lets the JTF pump the UI thread, so the debugger's marshal completes normally.
+        /// Falls back to the plain thread-pool dispatch only in headless hosts (unit tests) where no
+        /// JoinableTaskFactory is available.
+        /// </para>
+        /// </summary>
+        private void RefreshCorePumped(string activeFile, string? solutionDir)
+        {
+            // In the Visual Studio host we pump the UI thread via JoinableTaskFactory. In headless
+            // test hosts (_isVsHost == false) we fall back to the plain thread-pool dispatch — safe
+            // there because test stubs return immediately without marshaling back to a UI thread.
+            if (_isVsHost)
+            {
+                RefreshCorePumpedVshost(activeFile, solutionDir);
+                return;
+            }
+
+#pragma warning disable VSTHRD002
+            Task.Run(() => RefreshCore(activeFile, solutionDir)).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+        }
+
+        /// <summary>
+        /// VS-host-only pump that runs <see cref="RefreshCore"/> on a thread-pool thread while
+        /// pumping the UI thread via <see cref="JoinableTaskFactory"/>.
+        /// <para>
+        /// Kept in its own method and only invoked when <see cref="_isVsHost"/> is true, so that the
+        /// headless unit-test path never forces the JIT to load <see cref="Microsoft.VisualStudio.Threading"/>
+        /// (which is not deployed to the test output).
+        /// </para>
+        /// </summary>
+        private void RefreshCorePumpedVshost(string activeFile, string? solutionDir)
+        {
+            var jtf = ThreadHelper.JoinableTaskFactory;
+            if (jtf != null)
+            {
+                jtf.Run(async () =>
+                {
+                    // Hop to a thread-pool thread so the blocking collection work (git, filesystem,
+                    // and the sync-over-async debugger marshal) never runs on the UI thread. Because
+                    // this all sits inside JoinableTaskFactory.Run, the UI thread is pumped while the
+                    // outer call blocks — so DebuggerService.GetCurrentStateAsync's SwitchToMainThreadAsync
+                    // can re-enter the UI thread instead of deadlocking.
+                    await Task.Run(() => RefreshCore(activeFile, solutionDir));
+                });
+                return;
+            }
+
 #pragma warning disable VSTHRD002
             Task.Run(() => RefreshCore(activeFile, solutionDir)).GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
