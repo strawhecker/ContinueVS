@@ -91,6 +91,15 @@ namespace ContinueVS.Core.Types
         // wants it on); any new user may change it themselves.
         public const string Tool_PlanToolsEnabled = "tool.planToolsEnabled";
 
+        // gap92_3: Tier-2 debug evaluate/mutate tools. ALL default-disabled — the LLM can never
+        // freely evaluate or mutate a live process without explicit human opt-in. Never plain Automatic.
+        public const string Tool_DebugEvaluateEnabled = "tool.debugEvaluateEnabled";
+        public const string Tool_DebugSetValueEnabled = "tool.debugSetValueEnabled";
+        public const string Tool_DebugMemoryReadEnabled = "tool.debugMemoryReadEnabled";
+        public const string Tool_DebugMemoryWriteEnabled = "tool.debugMemoryWriteEnabled";
+        public const string Tool_DebugRunToCursorEnabled = "tool.debugRunToCursorEnabled";
+        public const string Tool_DebugThreadStateEnabled = "tool.debugThreadStateEnabled";
+
         /// <summary>
         /// Returns a dictionary of all default settings values.
         /// </summary>
@@ -163,7 +172,15 @@ namespace ContinueVS.Core.Types
                 { Tool_WritePlanEnabled, true },
                 { Tool_AskUserEnabled, true },
                 { Tool_PlanToolsEnabled, true },
-                { Tool_RetireFromContextEnabled, true }
+                { Tool_RetireFromContextEnabled, true },
+
+                // gap92_3 Tier-2 debug evaluate/mutate tools — disabled by default
+                { Tool_DebugEvaluateEnabled, false },
+                { Tool_DebugSetValueEnabled, false },
+                { Tool_DebugMemoryReadEnabled, false },
+                { Tool_DebugMemoryWriteEnabled, false },
+                { Tool_DebugRunToCursorEnabled, false },
+                { Tool_DebugThreadStateEnabled, false }
             };
         }
 

@@ -98,17 +98,18 @@ namespace ContinueVS.Tests.Core.Types
         public void GetAllBuiltInTools_ReturnsCorrectCount()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
-            Assert.Equal(28, tools.Count);
+            Assert.Equal(34, tools.Count);
         }
 
         [Fact]
-        public void GetAllBuiltInTools_AllToolsEnabledExceptRuleBlockAndGit()
+        public void GetAllBuiltInTools_AllToolsEnabledExceptRuleBlockGitAndDebugTier2()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
             var disabledTools = tools.Where(t => !t.IsEnabled).ToList();
 
-            // create_rule_block, create_snippet, run_pytest, and the four git_* tools should be disabled
-            Assert.Equal(7, disabledTools.Count);
+            // create_rule_block, create_snippet, run_pytest, the four git_* tools, and the six
+            // gap92_3 Tier-2 debug tools are disabled by default.
+            Assert.Equal(13, disabledTools.Count);
             var disabledNames = disabledTools.Select(t => t.Name).ToList();
             Assert.Contains("create_rule_block", disabledNames);
             Assert.Contains("create_snippet", disabledNames);
@@ -117,6 +118,12 @@ namespace ContinueVS.Tests.Core.Types
             Assert.Contains("git_diff", disabledNames);
             Assert.Contains("git_log", disabledNames);
             Assert.Contains("git_commit", disabledNames);
+            Assert.Contains("debug_evaluate", disabledNames);
+            Assert.Contains("debug_set_value", disabledNames);
+            Assert.Contains("debug_memory_read", disabledNames);
+            Assert.Contains("debug_memory_write", disabledNames);
+            Assert.Contains("debug_run_to_cursor", disabledNames);
+            Assert.Contains("debug_thread_set_state", disabledNames);
         }
     }
 }

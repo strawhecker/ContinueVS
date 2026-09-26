@@ -146,5 +146,51 @@ namespace ContinueVS.Services.Interfaces
         /// Clears a breakpoint by id.
         /// </summary>
         Task<DebugInspectionResult<bool>> ClearBreakpointByIdAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default);
+
+        // -----------------------------------------------------------------------
+        // gap92_3 — Evaluate / Mutate surface (Tier-2, gated)
+        // Every method is break-mode gated, state-echoed via DebugInspectionResult<T>,
+        // and never throws. These mutate runtime state, so the host must surface them
+        // only through default-disabled tools (Tier-2 gate upstream in the registry).
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Evaluates <paramref name="expression"/> in the context of the selected frame.
+        /// Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<VariableInfo>> EvaluateAsync(DebugSessionState state, int threadId, int frameIndex, string expression, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Writes <paramref name="value"/> to the variable named <paramref name="name"/>
+        /// in the selected frame. Requires break mode. This mutates live runtime state.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> SetValueAsync(DebugSessionState state, int threadId, int frameIndex, string name, string value, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reads process memory at <paramref name="address"/>. Requires break mode. Not exposed
+        /// by EnvDTE; reported as a benign "not-exposed-by-dte" rejection.
+        /// </summary>
+        Task<DebugInspectionResult<string>> MemoryReadAsync(DebugSessionState state, string address, int length, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Writes <paramref name="bytes"/> to process memory at <paramref name="address"/>.
+        /// Requires break mode. Not exposed by EnvDTE; reported as a benign rejection.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> MemoryWriteAsync(DebugSessionState state, string address, string bytes, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Freezes the thread identified by <paramref name="threadId"/>. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> FreezeThreadAsync(DebugSessionState state, int threadId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Thaws the thread identified by <paramref name="threadId"/>. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> ThawThreadAsync(DebugSessionState state, int threadId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Runs the program to the current cursor location. Requires break mode.
+        /// </summary>
+        Task<DebugInspectionResult<bool>> RunToCursorAsync(DebugSessionState state, CancellationToken cancellationToken = default);
     }
 }

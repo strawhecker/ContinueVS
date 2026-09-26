@@ -112,6 +112,22 @@ namespace ContinueVS.Services.Tests
                 => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
             public Task<DebugInspectionResult<bool>> ClearBreakpointByIdAsync(DebugSessionState state, string breakpointId, CancellationToken cancellationToken = default)
                 => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+
+            // gap92_3 evaluate/mutate surface — benign stubs (not exercised by WorkspaceStatsService)
+            public Task<DebugInspectionResult<VariableInfo>> EvaluateAsync(DebugSessionState state, int threadId, int frameIndex, string expression, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<VariableInfo>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> SetValueAsync(DebugSessionState state, int threadId, int frameIndex, string name, string value, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<string>> MemoryReadAsync(DebugSessionState state, string address, int length, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<string>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> MemoryWriteAsync(DebugSessionState state, string address, string bytes, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> FreezeThreadAsync(DebugSessionState state, int threadId, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> ThawThreadAsync(DebugSessionState state, int threadId, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+            public Task<DebugInspectionResult<bool>> RunToCursorAsync(DebugSessionState state, CancellationToken cancellationToken = default)
+                => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
         }
 
         private static string CreateTempDir()

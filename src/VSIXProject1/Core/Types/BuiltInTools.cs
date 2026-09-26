@@ -878,9 +878,124 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// debug_evaluate: Evaluate an expression in the selected debug frame.
+        /// Tier-2 (default-disabled): mutates nothing but reads live runtime state; gated because
+        /// evaluation can execute user/process code. Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugEvaluateTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_evaluate",
+                description: "Evaluate an expression in the context of the currently selected debug frame. Requires the debugger to be paused at a breakpoint.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "threadId", Type = "number", Description = "Id of the thread whose frame to evaluate in.", IsRequired = true },
+                    new ParameterDefinition { Name = "frameIndex", Type = "number", Description = "0-based index of the stack frame to evaluate in.", IsRequired = true },
+                    new ParameterDefinition { Name = "expression", Type = "string", Description = "The expression to evaluate.", IsRequired = true }
+                },
+                returnsDescription: "The evaluated value and type, gated to break mode",
+                isEnabled: false,
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_set_value: Write a value to a variable in the selected debug frame.
+        /// Tier-2 (default-disabled): MUTATES live runtime state. The most dangerous debug tool;
+        /// must never be plain Automatic. Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugSetValueTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_set_value",
+                description: "Write a new value to a local variable or argument in the currently selected debug frame. MUTATES live runtime state. Requires the debugger to be paused.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "threadId", Type = "number", Description = "Id of the thread whose frame to modify.", IsRequired = true },
+                    new ParameterDefinition { Name = "frameIndex", Type = "number", Description = "0-based index of the stack frame to modify.", IsRequired = true },
+                    new ParameterDefinition { Name = "name", Type = "string", Description = "Name of the variable to write.", IsRequired = true },
+                    new ParameterDefinition { Name = "value", Type = "string", Description = "The new value to assign.", IsRequired = true }
+                },
+                returnsDescription: "Confirmation the variable was written, gated to break mode",
+                isEnabled: false,
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_memory_read: Read process memory at an address. Not exposed by EnvDTE; benign rejection.
+        /// Tier-2 (default-disabled). Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugMemoryReadTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_memory_read",
+                description: "Read process memory at a given address. Requires break mode. Note: EnvDTE exposes no memory API, so this reports a benign not-exposed-by-dte result.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "address", Type = "string", Description = "Memory address to read.", IsRequired = true },
+                    new ParameterDefinition { Name = "length", Type = "number", Description = "Number of bytes to read.", IsRequired = true }
+                },
+                returnsDescription: "Hex bytes read, or a benign not-exposed-by-dte rejection",
+                isEnabled: false,
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_memory_write: Write process memory at an address. Not exposed by EnvDTE; benign rejection.
+        /// Tier-2 (default-disabled): would MUTATE process memory. Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugMemoryWriteTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_memory_write",
+                description: "Write bytes to process memory at a given address. MUTATES live runtime state. Requires break mode. Note: EnvDTE exposes no memory API, so this reports a benign not-exposed-by-dte result.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "address", Type = "string", Description = "Memory address to write.", IsRequired = true },
+                    new ParameterDefinition { Name = "bytes", Type = "string", Description = "Hex-encoded bytes to write.", IsRequired = true }
+                },
+                returnsDescription: "Confirmation, or a benign not-exposed-by-dte rejection",
+                isEnabled: false,
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_run_to_cursor: Run the program to the current cursor location.
+        /// Tier-2 (default-disabled): changes execution flow. Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugRunToCursorTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_run_to_cursor",
+                description: "Run the debugged program to the current cursor location. Requires the debugger to be paused.",
+                parameters: new List<ParameterDefinition>(),
+                returnsDescription: "Confirmation the run-to-cursor command was issued, gated to break mode",
+                isEnabled: false,
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_thread_set_state: Freeze or thaw a debugger thread.
+        /// Tier-2 (default-disabled): changes live execution state. Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugThreadSetStateTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_thread_set_state",
+                description: "Freeze or thaw a debugger thread (suspends/resumes it). Requires the debugger to be paused.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "threadId", Type = "number", Description = "Id of the thread to change.", IsRequired = true },
+                    new ParameterDefinition { Name = "action", Type = "string", Description = "'freeze' or 'thaw'.", IsRequired = true }
+                },
+                returnsDescription: "Confirmation the thread state was changed, gated to break mode",
+                isEnabled: false,
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
         /// Gets all built-in tool definitions.
-        /// Returns a collection of 25 core tools for code editing, navigation, diagnostics, and
-        /// human-in-the-loop questioning.
+        /// Returns a collection of 34 core tools for code editing, navigation, diagnostics,
+        /// plan-driven build loops, and human-in-the-loop questioning (gap92_1..92_3 debug surface).
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
@@ -914,7 +1029,13 @@ namespace ContinueVS.Core.Types
                 GetReadPlanTool(),
                 GetUpdatePlanTool(),
                 GetAskUserTool(),
-                GetRetireFromContextTool()
+                GetRetireFromContextTool(),
+                GetDebugEvaluateTool(),
+                GetDebugSetValueTool(),
+                GetDebugMemoryReadTool(),
+                GetDebugMemoryWriteTool(),
+                GetDebugRunToCursorTool(),
+                GetDebugThreadSetStateTool()
             };
             LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;

@@ -28,6 +28,7 @@ namespace ContinueVS.Services.Implementations
         private readonly IPlanOutputService? _planOutputService;
         private readonly IInteractivePromptService? _interactivePromptService;
         private readonly IContextRetirementService? _contextRetirementService;
+        private readonly IDebuggerService? _debuggerService;
         private readonly Dictionary<string, ToolDefinition> _builtInToolRegistry = new();
         private readonly Dictionary<string, ToolDefinition> _mcpToolRegistry = new();
         private readonly object _registryLock = new object();
@@ -75,7 +76,15 @@ namespace ContinueVS.Services.Implementations
             { "read_plan", UserSettings.Tool_PlanToolsEnabled },
             { "update_plan", UserSettings.Tool_PlanToolsEnabled },
             { "ask_user", UserSettings.Tool_AskUserEnabled },
-            { "retire_from_context", UserSettings.Tool_RetireFromContextEnabled }
+            { "retire_from_context", UserSettings.Tool_RetireFromContextEnabled },
+
+            // gap92_3 Tier-2 debug evaluate/mutate tools (default-disabled)
+            { "debug_evaluate", UserSettings.Tool_DebugEvaluateEnabled },
+            { "debug_set_value", UserSettings.Tool_DebugSetValueEnabled },
+            { "debug_memory_read", UserSettings.Tool_DebugMemoryReadEnabled },
+            { "debug_memory_write", UserSettings.Tool_DebugMemoryWriteEnabled },
+            { "debug_run_to_cursor", UserSettings.Tool_DebugRunToCursorEnabled },
+            { "debug_thread_set_state", UserSettings.Tool_DebugThreadStateEnabled }
         };
 
         public event EventHandler<ToolErrorEventArgs>? Error;
@@ -99,7 +108,8 @@ namespace ContinueVS.Services.Implementations
             IBridgeLogger? logger = null,
             IPlanOutputService? planOutputService = null,
             IInteractivePromptService? interactivePromptService = null,
-            IContextRetirementService? contextRetirementService = null)
+            IContextRetirementService? contextRetirementService = null,
+            IDebuggerService? debuggerService = null)
         {
             _ideService = ideService ?? throw new ArgumentNullException(nameof(ideService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -109,6 +119,7 @@ namespace ContinueVS.Services.Implementations
             _planOutputService = planOutputService;
             _interactivePromptService = interactivePromptService;
             _contextRetirementService = contextRetirementService;
+            _debuggerService = debuggerService;
 
             InitializeToolRegistry();
         }
@@ -433,6 +444,13 @@ namespace ContinueVS.Services.Implementations
                 "update_plan" => await UpdatePlanInternalAsync(args, ct),
                 "ask_user" => await InvokeAskUserAsync(args, ct),
                 "retire_from_context" => await InvokeRetireFromContextAsync(args, ct),
+                // gap92_3 Tier-2 debug evaluate/mutate tools
+                "debug_evaluate" => await EvaluateInternalAsync(args),
+                "debug_set_value" => await SetValueInternalAsync(args),
+                "debug_memory_read" => await MemoryReadInternalAsync(args),
+                "debug_memory_write" => await MemoryWriteInternalAsync(args),
+                "debug_run_to_cursor" => await RunToCursorInternalAsync(args),
+                "debug_thread_set_state" => await SetThreadStateInternalAsync(args),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -1977,6 +1995,165 @@ namespace ContinueVS.Services.Implementations
             {
                 return CreateErrorResult("retire_from_context", ex.Message);
             }
+        }
+
+        // -----------------------------------------------------------------------
+        // gap92_3 — Tier-2 debug evaluate/mutate tool handlers.
+        // These return ToolResults that surface the DebugInspectionResult state-echo plus
+        // the benign reason, so the LLM stays grounded in the debugger's live truth.
+        // When the debugger service is absent (unit-test construction without it) they
+        // return an explicit unavailable error.
+        // -----------------------------------------------------------------------
+
+        private async Task<ToolResult> EvaluateInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_evaluate");
+                var state = EmptyDebugState();
+                var result = await _debuggerService.EvaluateAsync(
+                    state,
+                    GetArgInt(args, "threadId"),
+                    GetArgInt(args, "frameIndex"),
+                    GetArgString(args, "expression"));
+                if (!result.Ok) return CreateDebugRejectedResult("debug_evaluate", result.State, result.Reason);
+                return new ToolResult
+                {
+                    ToolName = "debug_evaluate",
+                    Output = $"{result.Data?.Type} {result.Data?.Name} = {result.Data?.Value}",
+                    Metadata = new Dictionary<string, string> { { "ok", "true" }, { "mode", result.State.Mode } },
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_evaluate", ex.Message); }
+        }
+
+        private async Task<ToolResult> SetValueInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_set_value");
+                var state = EmptyDebugState();
+                var result = await _debuggerService.SetValueAsync(
+                    state,
+                    GetArgInt(args, "threadId"),
+                    GetArgInt(args, "frameIndex"),
+                    GetArgString(args, "name"),
+                    GetArgString(args, "value"));
+                if (!result.Ok) return CreateDebugRejectedResult("debug_set_value", result.State, result.Reason);
+                return new ToolResult
+                {
+                    ToolName = "debug_set_value",
+                    Output = $"Variable written ({GetArgString(args, "name")})",
+                    Metadata = new Dictionary<string, string> { { "ok", "true" }, { "mode", result.State.Mode } },
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_set_value", ex.Message); }
+        }
+
+        private async Task<ToolResult> MemoryReadInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_memory_read");
+                var state = EmptyDebugState();
+                var result = await _debuggerService.MemoryReadAsync(state, GetArgString(args, "address"), GetArgInt(args, "length"));
+                if (!result.Ok) return CreateDebugRejectedResult("debug_memory_read", result.State, result.Reason);
+                return new ToolResult
+                {
+                    ToolName = "debug_memory_read",
+                    Output = result.Data ?? string.Empty,
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_memory_read", ex.Message); }
+        }
+
+        private async Task<ToolResult> MemoryWriteInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_memory_write");
+                var state = EmptyDebugState();
+                var result = await _debuggerService.MemoryWriteAsync(state, GetArgString(args, "address"), GetArgString(args, "bytes"));
+                if (!result.Ok) return CreateDebugRejectedResult("debug_memory_write", result.State, result.Reason);
+                return new ToolResult
+                {
+                    ToolName = "debug_memory_write",
+                    Output = "Memory written",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_memory_write", ex.Message); }
+        }
+
+        private async Task<ToolResult> RunToCursorInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_run_to_cursor");
+                var state = EmptyDebugState();
+                var result = await _debuggerService.RunToCursorAsync(state);
+                if (!result.Ok) return CreateDebugRejectedResult("debug_run_to_cursor", result.State, result.Reason);
+                return new ToolResult
+                {
+                    ToolName = "debug_run_to_cursor",
+                    Output = $"Run-to-cursor issued (mode now '{result.State.Mode}')",
+                    Metadata = new Dictionary<string, string> { { "mode", result.State.Mode } },
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_run_to_cursor", ex.Message); }
+        }
+
+        private async Task<ToolResult> SetThreadStateInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_thread_set_state");
+                var state = EmptyDebugState();
+                var action = GetArgString(args, "action");
+                var threadId = GetArgInt(args, "threadId");
+
+                DebugInspectionResult<bool> result;
+                if (string.Equals(action, "thaw", StringComparison.OrdinalIgnoreCase))
+                    result = await _debuggerService.ThawThreadAsync(state, threadId);
+                else
+                    result = await _debuggerService.FreezeThreadAsync(state, threadId);
+
+                if (!result.Ok) return CreateDebugRejectedResult("debug_thread_set_state", result.State, result.Reason);
+                return new ToolResult
+                {
+                    ToolName = "debug_thread_set_state",
+                    Output = $"Thread {threadId} {action}",
+                    Metadata = new Dictionary<string, string> { { "ok", "true" }, { "mode", result.State.Mode } },
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_thread_set_state", ex.Message); }
+        }
+
+        private static DebugSessionState EmptyDebugState()
+            => new DebugSessionState { Mode = "none" };
+
+        private ToolResult CreateDebuggerUnavailableResult(string toolName)
+            => CreateErrorResult(toolName, "Debugger service not available");
+
+        private static ToolResult CreateDebugRejectedResult(string toolName, DebugSessionState state, string? reason)
+        {
+            return new ToolResult
+            {
+                ToolName = toolName,
+                Output = $"Rejected ({reason ?? "rejected"}); mode='{state.Mode}'",
+                Metadata = new Dictionary<string, string>
+                {
+                    { "ok", "false" },
+                    { "mode", state.Mode },
+                    { "reason", reason ?? string.Empty }
+                },
+                IsSuccess = false
+            };
         }
 
         /// <summary>

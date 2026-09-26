@@ -124,7 +124,10 @@ namespace ContinueVS.Services
                 // later registration order is fine.
                 var interactivePromptService = sp.GetService<IInteractivePromptService>();
                 var contextRetirementService = sp.GetRequiredService<IContextRetirementService>();
-                return new ToolService(ideService, configService, sessionService, mcpService, planOutputService: planOutputService, interactivePromptService: interactivePromptService, contextRetirementService: contextRetirementService);
+                // IDebuggerService (registered below) is resolved lazily for the Tier-2 debug
+                // evaluate/mutate tools (gap92_3); factory lambdas are lazy, so ordering is fine.
+                var debuggerService = sp.GetService<IDebuggerService>();
+                return new ToolService(ideService, configService, sessionService, mcpService, planOutputService: planOutputService, interactivePromptService: interactivePromptService, contextRetirementService: contextRetirementService, debuggerService: debuggerService);
             });
             services.AddSingleton<IIndexingService, IndexingService>();
             services.AddSingleton<IContextService, ContextService>();

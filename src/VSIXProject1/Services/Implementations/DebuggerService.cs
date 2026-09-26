@@ -352,6 +352,96 @@ namespace ContinueVS.Services.Implementations
             }
             catch { return DebugInspectionResult<bool>.Rejected(state, "inspection-unavailable"); }
         }
+
+        // -----------------------------------------------------------------------
+        // gap92_3 — Evaluate / Mutate surface (Tier-2, gated)
+        // Every method marshals to the UI thread, gates via DebugStateGuard (Paused),
+        // delegates to DebuggerInterop, and echoes state. Never throws.
+        // -----------------------------------------------------------------------
+
+        public async Task<DebugInspectionResult<VariableInfo>> EvaluateAsync(DebugSessionState state, int threadId, int frameIndex, string expression, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var (ok, live, reason) = DebugStateGuard.RequireInspection(_dteProvider.GetDebugger(), InspectionGate.Paused);
+                if (!ok) return DebugInspectionResult<VariableInfo>.Rejected(live, reason!);
+                return DebuggerInterop.EvaluateExpression(_dteProvider.GetDebugger(), live, threadId, frameIndex, expression);
+            }
+            catch { return DebugInspectionResult<VariableInfo>.Rejected(state, "inspection-unavailable"); }
+        }
+
+        public async Task<DebugInspectionResult<bool>> SetValueAsync(DebugSessionState state, int threadId, int frameIndex, string name, string value, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var (ok, live, reason) = DebugStateGuard.RequireInspection(_dteProvider.GetDebugger(), InspectionGate.Paused);
+                if (!ok) return DebugInspectionResult<bool>.Rejected(live, reason!);
+                return DebuggerInterop.SetValue(_dteProvider.GetDebugger(), live, threadId, frameIndex, name, value);
+            }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "inspection-unavailable"); }
+        }
+
+        public async Task<DebugInspectionResult<string>> MemoryReadAsync(DebugSessionState state, string address, int length, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var (ok, live, reason) = DebugStateGuard.RequireInspection(_dteProvider.GetDebugger(), InspectionGate.Paused);
+                if (!ok) return DebugInspectionResult<string>.Rejected(live, reason!);
+                return DebuggerInterop.MemoryRead(_dteProvider.GetDebugger(), live, address, length);
+            }
+            catch { return DebugInspectionResult<string>.Rejected(state, "inspection-unavailable"); }
+        }
+
+        public async Task<DebugInspectionResult<bool>> MemoryWriteAsync(DebugSessionState state, string address, string bytes, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var (ok, live, reason) = DebugStateGuard.RequireInspection(_dteProvider.GetDebugger(), InspectionGate.Paused);
+                if (!ok) return DebugInspectionResult<bool>.Rejected(live, reason!);
+                return DebuggerInterop.MemoryWrite(_dteProvider.GetDebugger(), live, address, bytes);
+            }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "inspection-unavailable"); }
+        }
+
+        public async Task<DebugInspectionResult<bool>> FreezeThreadAsync(DebugSessionState state, int threadId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var (ok, live, reason) = DebugStateGuard.RequireInspection(_dteProvider.GetDebugger(), InspectionGate.Paused);
+                if (!ok) return DebugInspectionResult<bool>.Rejected(live, reason!);
+                return DebuggerInterop.FreezeThread(_dteProvider.GetDebugger(), live, threadId);
+            }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "inspection-unavailable"); }
+        }
+
+        public async Task<DebugInspectionResult<bool>> ThawThreadAsync(DebugSessionState state, int threadId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var (ok, live, reason) = DebugStateGuard.RequireInspection(_dteProvider.GetDebugger(), InspectionGate.Paused);
+                if (!ok) return DebugInspectionResult<bool>.Rejected(live, reason!);
+                return DebuggerInterop.ThawThread(_dteProvider.GetDebugger(), live, threadId);
+            }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "inspection-unavailable"); }
+        }
+
+        public async Task<DebugInspectionResult<bool>> RunToCursorAsync(DebugSessionState state, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var (ok, live, reason) = DebugStateGuard.RequireInspection(_dteProvider.GetDebugger(), InspectionGate.Paused);
+                if (!ok) return DebugInspectionResult<bool>.Rejected(live, reason!);
+                return DebuggerInterop.RunToCursor(_dteProvider.GetDebugger(), live);
+            }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "inspection-unavailable"); }
+        }
     }
 
     /// <summary>

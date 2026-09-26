@@ -696,6 +696,132 @@ namespace ContinueVS.Services.Implementations
         }
 #pragma warning restore VSTHRD010
 
+        // ---------------------------------------------------------------------------
+        // gap92_3 — Evaluate / Mutate surface (Tier-2, gated)
+        // Each method is break-mode gated and echoes state benignly. SetValue and memory
+        // writes mutate live runtime state; they never throw and always report honestly.
+        // ---------------------------------------------------------------------------
+
+        /// <summary>
+        /// Evaluates <paramref name="expression"/> in the selected frame. Requires break mode.
+        /// Returns a <see cref="VariableInfo"/> snapshot or a benign rejection. Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugInspectionResult<VariableInfo> EvaluateExpression(EnvDTE.Debugger? debugger, DebugSessionState state, int threadId, int frameIndex, string expression)
+        {
+            if (string.IsNullOrWhiteSpace(expression))
+                return DebugInspectionResult<VariableInfo>.Rejected(state, "invalid-expression");
+
+            if (ResolveFrame(debugger, threadId, frameIndex) == null)
+                return DebugInspectionResult<VariableInfo>.Rejected(state, "frame-unavailable");
+
+            try
+            {
+                var expr = debugger?.GetExpression(expression, false, 300);
+                if (expr == null || !expr.IsValidValue)
+                    return DebugInspectionResult<VariableInfo>.Rejected(state, "expression-invalid");
+
+                return DebugInspectionResult<VariableInfo>.Success(state, new VariableInfo
+                {
+                    Name = expression,
+                    Type = TryReadType(expr),
+                    Value = TryReadValue(expr),
+                    IsReadOnly = true
+                });
+            }
+            catch { return DebugInspectionResult<VariableInfo>.Rejected(state, "expression-unavailable"); }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Writes <paramref name="value"/> to a local/argument named <paramref name="name"/> in the
+        /// selected frame. EnvDTE's <c>Expression.Value</c> is writable for frame variables. Missing
+        /// or read-only variables yield a benign rejection. Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugInspectionResult<bool> SetValue(EnvDTE.Debugger? debugger, DebugSessionState state, int threadId, int frameIndex, string name, string value)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return DebugInspectionResult<bool>.Rejected(state, "invalid-name");
+
+            var frame = ResolveFrame(debugger, threadId, frameIndex);
+            if (frame == null)
+                return DebugInspectionResult<bool>.Rejected(state, "frame-unavailable");
+
+            EnvDTE.Expression? target = FindFrameVariable(frame, name);
+            if (target == null)
+                return DebugInspectionResult<bool>.Rejected(state, "variable-not-found");
+
+            try
+            {
+                target.Value = value ?? string.Empty;
+                return DebugInspectionResult<bool>.Success(state, true);
+            }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "variable-write-failed"); }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Process memory reads are not part of the EnvDTE debugger object model; reported benignly.
+        /// </summary>
+        public static DebugInspectionResult<string> MemoryRead(EnvDTE.Debugger? debugger, DebugSessionState state, string address, int length)
+            => DebugInspectionResult<string>.Rejected(state, "not-exposed-by-dte");
+
+        /// <summary>
+        /// Process memory writes are not part of the EnvDTE debugger object model; reported benignly.
+        /// </summary>
+        public static DebugInspectionResult<bool> MemoryWrite(EnvDTE.Debugger? debugger, DebugSessionState state, string address, string bytes)
+            => DebugInspectionResult<bool>.Rejected(state, "not-exposed-by-dte");
+
+        /// <summary>
+        /// Freezes the thread identified by <paramref name="threadId"/>. Requires break mode. Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugInspectionResult<bool> FreezeThread(EnvDTE.Debugger? debugger, DebugSessionState state, int threadId)
+        {
+            if (threadId <= 0)
+                return DebugInspectionResult<bool>.Rejected(state, "invalid-thread-id");
+            var thread = FindThread(debugger, threadId);
+            if (thread == null)
+                return DebugInspectionResult<bool>.Rejected(state, "thread-not-found");
+            try { thread.Freeze(); return DebugInspectionResult<bool>.Success(state, true); }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "thread-freeze-failed"); }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Thaws the thread identified by <paramref name="threadId"/>. Requires break mode. Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugInspectionResult<bool> ThawThread(EnvDTE.Debugger? debugger, DebugSessionState state, int threadId)
+        {
+            if (threadId <= 0)
+                return DebugInspectionResult<bool>.Rejected(state, "invalid-thread-id");
+            var thread = FindThread(debugger, threadId);
+            if (thread == null)
+                return DebugInspectionResult<bool>.Rejected(state, "thread-not-found");
+            try { thread.Thaw(); return DebugInspectionResult<bool>.Success(state, true); }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "thread-thaw-failed"); }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Issues <c>Debugger.RunToCursor(true)</c>. Requires break mode. The post-call debugger
+        /// mode is read back best-effort and echoed in the returned state. Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugInspectionResult<bool> RunToCursor(EnvDTE.Debugger? debugger, DebugSessionState state)
+        {
+            try
+            {
+                debugger?.RunToCursor(true);
+                var updated = DebugStateGuard.CaptureState(debugger);
+                return DebugInspectionResult<bool>.Success(updated, true);
+            }
+            catch { return DebugInspectionResult<bool>.Rejected(state, "run-to-cursor-failed"); }
+        }
+#pragma warning restore VSTHRD010
+
         // ----- Interop helpers (UI-thread only, called within the above) -----
 
 #pragma warning disable VSTHRD010 // DTE access; only called within UI-thread-guaranteed inspection methods
@@ -740,6 +866,32 @@ namespace ContinueVS.Services.Implementations
             var frames = thread?.StackFrames;
             if (frames == null || frameIndex >= frames.Count) return null;
             try { return frames.Item(frameIndex + 1); } catch { return null; }
+        }
+
+        private static EnvDTE.Expression? FindFrameVariable(EnvDTE.StackFrame frame, string name)
+        {
+            try
+            {
+                if (frame.Locals != null)
+                {
+                    foreach (EnvDTE.Expression local in frame.Locals)
+                    {
+                        try { if (string.Equals(local.Name, name, StringComparison.Ordinal)) return local; }
+                        catch (COMException) { }
+                    }
+                }
+                if (frame.Arguments != null)
+                {
+                    foreach (EnvDTE.Expression arg in frame.Arguments)
+                    {
+                        try { if (string.Equals(arg.Name, name, StringComparison.Ordinal)) return arg; }
+                        catch (COMException) { }
+                    }
+                }
+            }
+            catch (COMException) { }
+            catch { }
+            return null;
         }
 
         private static EnvDTE.Breakpoint? FindBreakpoint(EnvDTE.Debugger? debugger, string breakpointId)

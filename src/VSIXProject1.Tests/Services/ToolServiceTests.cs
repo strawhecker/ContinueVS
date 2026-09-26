@@ -164,9 +164,8 @@ namespace ContinueVS.Tests.Services
             var tools = service.GetAvailableTools().ToList();
 
             Assert.NotEmpty(tools);
-            // 28 total - 4 git (git_status/diff/log/commit, UserSettings default off)
-            // - create_rule_block - create_snippet - run_pytest (IsEnabled=false) = 21
-            // (ask_user, read_plan, update_plan, retire_from_context enabled by default)
+            // 34 total - 4 git - create_rule_block - create_snippet - run_pytest
+            // - 6 gap92_3 Tier-2 debug tools (all default-disabled) = 21 available
             Assert.Equal(21, tools.Count);
         }
 
@@ -402,8 +401,8 @@ namespace ContinueVS.Tests.Services
             var agentTools = service.GetAvailableTools(ChatMode.Agent).ToList();
 
             // Without mode parameter, should return all tools (backward compatibility)
-            // 28 total - 4 git (UserSettings off) - create_rule_block - create_snippet - run_pytest = 21
-            // (ask_user, read_plan, update_plan, retire_from_context enabled by default and available in Agent mode)
+            // 34 total - 4 git - create_rule_block - create_snippet - run_pytest
+            // - 6 gap92_3 Tier-2 debug tools (all default-disabled) = 21 available
             Assert.Equal(21, tools.Count);
             Assert.Equal(tools.Count, agentTools.Count);
         }
