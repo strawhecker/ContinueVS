@@ -192,5 +192,64 @@ namespace ContinueVS.Services.Interfaces
         /// Runs the program to the current cursor location. Requires break mode.
         /// </summary>
         Task<DebugInspectionResult<bool>> RunToCursorAsync(DebugSessionState state, CancellationToken cancellationToken = default);
+
+        // -----------------------------------------------------------------------
+        // gap94 — Debug session lifecycle (Start / Attach / Restart / Stop) + selection
+        // Every method marshals to the UI thread, delegates to DebuggerInterop, and is fail-soft:
+        // returns a benign null/empty + reason (never throws) when no startup project, launch
+        // fails, or a COM call fails. The "selected session" binding set by SelectSessionAsync is
+        // the handle later debug_* tools act on; StopDebuggingAsync clears it.
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Starts (launches) a new debugging session. <paramref name="project"/> null/empty uses the
+        /// solution's startup project; <paramref name="launchProfile"/> (null/empty = default)
+        /// selects a launch profile. Returns the started session handle, or null (benign) when no
+        /// startup project / launch fails. Fail-soft, never throws.
+        /// </summary>
+        Task<DebugSessionInfo?> StartDebuggingAsync(string? project, string? launchProfile, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Attaches the debugger to a local process by OS process id. Returns the attached session
+        /// handle, or null (benign) on failure. Fail-soft, never throws.
+        /// </summary>
+        Task<DebugSessionInfo?> AttachToProcessAsync(int processId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Restarts the currently selected (or only) live session: stops then starts it again.
+        /// Returns the restarted session handle, or null (benign) when nothing was running.
+        /// Fail-soft, never throws.
+        /// </summary>
+        Task<DebugSessionInfo?> RestartDebuggingAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Stops the currently active debugging session. Returns the ended session handle (if one
+        /// was running), or null (benign). Clears the selected-session binding. Fail-soft.
+        /// </summary>
+        Task<DebugSessionInfo?> StopDebuggingAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Enumerates the currently being-debugged processes as session handles. Never throws;
+        /// returns an empty list when no debugger/processes are present.
+        /// </summary>
+        Task<List<DebugSessionInfo>> GetSessionsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Selects (binds) the session identified by <paramref name="sessionId"/> as the session
+        /// later <c>debug_*</c> tools act on, validating the id against live sessions. Returns the
+        /// bound handle, or null (benign) when the id is unknown. Never throws.
+        /// </summary>
+        Task<DebugSessionInfo?> SelectSessionAsync(string sessionId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Synchronously returns the currently bound/selected session handle, or null when none.
+        /// Never touches DTE; reads the in-memory binding only.
+        /// </summary>
+        DebugSessionInfo? GetSelectedSession();
+
+        /// <summary>
+        /// Clears the selected-session binding (e.g. after StopDebuggingAsync).
+        /// </summary>
+        void ClearSelectedSession();
     }
 }

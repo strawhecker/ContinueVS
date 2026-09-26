@@ -993,9 +993,91 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// debug_start: Start (launch) a new debugging session.
+        /// Tier-1 (default-enabled): begins a debug session. Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugStartTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_start",
+                description: "Start (launch) a new debugging session. If project is empty the solution's startup project is used; launchProfile selects a launch profile (empty = default).",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "project", Type = "string", Description = "Project to start. Empty uses the solution startup project.", IsRequired = false },
+                    new ParameterDefinition { Name = "launchProfile", Type = "string", Description = "Launch profile to use. Empty uses the default.", IsRequired = false }
+                },
+                returnsDescription: "The started debug session handle and its mode",
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_stop: Stop the currently active debugging session.
+        /// Tier-1 (default-enabled): ends a debug session. Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugStopTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_stop",
+                description: "Stop the currently active debugging session and clear the selected session binding.",
+                parameters: new List<ParameterDefinition>(),
+                returnsDescription: "The ended debug session handle, or an indication that none was running",
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_restart: Restart the current debugging session (stop then start).
+        /// Tier-1 (default-enabled). Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugRestartTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_restart",
+                description: "Restart the current debugging session: stop any active session then start it again.",
+                parameters: new List<ParameterDefinition>(),
+                returnsDescription: "The restarted debug session handle",
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// ide_attach_to_process: Attach the debugger to a running local process.
+        /// Tier-1 (default-enabled): begins a debug session by attaching. Debug mode only.
+        /// (Lists local processes + attaches; the session lifecycle lands in gap94.)
+        /// </summary>
+        public static ToolDefinition GetIdeAttachToProcessTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_attach_to_process",
+                description: "Attach the debugger to a running local process by its OS process id (pid), then select that attached session for subsequent debug_* tools.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "processId", Type = "number", Description = "The OS process id to attach to.", IsRequired = true }
+                },
+                returnsDescription: "The attached debug session handle and its mode",
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// debug_select_session: Bind the currently selected debug session for later debug_* tools.
+        /// Tier-1 (default-enabled). Debug mode only.
+        /// </summary>
+        public static ToolDefinition GetDebugSelectSessionTool()
+        {
+            return CreateToolDefinition(
+                name: "debug_select_session",
+                description: "Select (bind) a debug session by its session id so subsequent debug_* tools act on it. List the session ids with debug_list_sessions.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "sessionId", Type = "string", Description = "The session id (e.g. 'proc:1234') to select.", IsRequired = true }
+                },
+                returnsDescription: "The bound debug session handle",
+                supportedModes: new List<ChatMode> { ChatMode.Debug });
+        }
+
+        /// <summary>
         /// Gets all built-in tool definitions.
-        /// Returns a collection of 34 core tools for code editing, navigation, diagnostics,
-        /// plan-driven build loops, and human-in-the-loop questioning (gap92_1..92_3 debug surface).
+        /// Returns a collection of 39 core tools for code editing, navigation, diagnostics,
+        /// plan-driven build loops, human-in-the-loop questioning, and debug session lifecycle
+        /// (gap92, gap94).
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
@@ -1035,7 +1117,12 @@ namespace ContinueVS.Core.Types
                 GetDebugMemoryReadTool(),
                 GetDebugMemoryWriteTool(),
                 GetDebugRunToCursorTool(),
-                GetDebugThreadSetStateTool()
+                GetDebugThreadSetStateTool(),
+                GetDebugStartTool(),
+                GetDebugStopTool(),
+                GetDebugRestartTool(),
+                GetIdeAttachToProcessTool(),
+                GetDebugSelectSessionTool()
             };
             LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;

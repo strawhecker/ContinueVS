@@ -11682,3 +11682,34 @@ plain; Raw → plain only, byte-faithful); only the automatic post-copy revert w
 
 
 
+
+
+---
+
+### gap94: Debug Session Lifecycle (Start / Attach / Restart / Stop) + Session Selection
+**Status:** ✅ Complete | Type: Debug Session Lifecycle Feature
+
+**Summary:** Added the four debug-session lifecycle actions (Start / Attach / Restart / Stop) plus a
+session-list/selection binding surface, exposed as 5 default-enabled Tier-1 Debug-only tools routed through
+the existing IDebuggerService / DebuggerInterop / DebugStateGuard / UI-thread-marshal pattern. EnvDTE's
+single `Debugger` object is wrapped by a lightweight session-handle binding (`DebugSessionInfo`) that the
+LLM can list and select; later debug_* tools act against the live debugger (unchanged from gap92) while the
+selected binding is reported/cleared by Start/Stop/Attach/Select.
+
+**New tools (registry 34 -> 39):** debug_start, debug_stop, debug_restart, ide_attach_to_process,
+debug_select_session. All `SupportedModes={Debug}`, default-enabled (Tier 1). No gap95 dependency: Start
+resolves the startup project via a new DteProvider.GetStartupProjectName() helper and accepts the launch
+profile as a plain string tool argument.
+
+**Key files:** New Core/Types/DebugSessionInfo.cs; extended IDebuggerService/DebuggerService/DebuggerInterop
+(lifecycle + selection, fail-soft), IDteProvider/DteProvider (GetStartupProjectName), BuiltInTools (+5 defs),
+ToolService (routes + handlers + setting keys), UserSettings (5 new defaults=on), config/tools-defaults.json
+(+5 entries with supportedModes).
+
+**Latent bug fixed:** ToolOverrideProcessor.CloneToolDefinition did not copy SupportedModes, so any
+ApplyOverrides pass stripped mode gating and Debug-only tools leaked into Agent mode. Now clones preserve
+SupportedModes. Verified by the new mode-gating tests (Agent excludes the 5, Debug includes all).
+
+**Tests:** New DebuggerInteropLifecycleTests (10), ToolServiceDebugLifecycleTests (13 lifecycle routing +
+mode gating); updated BuiltInToolsTests (34->39 + 5 definition tests + disabled-count-13),
+ToolServiceTests (26 available all-modes / 21 Agent), FakeDebugger.Stop made a real no-op + StopCalls counter.

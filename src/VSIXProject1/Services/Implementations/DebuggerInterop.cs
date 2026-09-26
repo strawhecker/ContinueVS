@@ -967,6 +967,159 @@ namespace ContinueVS.Services.Implementations
         }
 #pragma warning restore VSTHRD010
 
+        // ---------------------------------------------------------------------------
+        // gap94 — Debug session lifecycle (Start / Attach / Restart / Stop) + selection
+        // Each method is fail-soft: benign null/empty + reason, never throws. All EnvDTE access
+        // runs on the UI thread (guaranteed by DebuggerService). Session handles are built from
+        // the live DebuggedProcesses collection (the EnvDTE model for "sessions").
+        // ---------------------------------------------------------------------------
+
+        /// <summary>
+        /// Starts a launch via the <c>Debug.Start</c> command through a supplied command delegate
+        /// (kept out of this helper so the fake seam stays COM-free), then re-reads the live state.
+        /// Returns a session handle when the debugger became live, else null (benign). Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugSessionInfo? Start(EnvDTE.Debugger? debugger, Action<string>? executeCommand, string? launchProfile)
+        {
+            try
+            {
+                if (executeCommand != null)
+                    executeCommand("Debug.Start");
+                return CaptureFirstSession(debugger);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Restarts by interop on the current session: stop then start again. Since EnvDTE has no
+        /// single "restart", this stops (if live) and issues Debug.Start. Returns the session handle
+        /// after restart, or null (benign). Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugSessionInfo? Restart(EnvDTE.Debugger? debugger, Action<string>? executeCommand)
+        {
+            try
+            {
+                if (DebugStateGuard.IsDebuggerLive(debugger))
+                    debugger?.Stop(true);
+                if (executeCommand != null)
+                    executeCommand("Debug.Start");
+                return CaptureFirstSession(debugger);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Stops the active debugging session (<c>Debugger.Stop(true)</c>). Returns the last session
+        /// handle captured before stopping, or null if nothing was live. Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugSessionInfo? Stop(EnvDTE.Debugger? debugger)
+        {
+            try
+            {
+                var ended = CaptureFirstSession(debugger);
+                if (DebugStateGuard.IsDebuggerLive(debugger))
+                    debugger?.Stop(true);
+                return ended;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Attaches the debugger to a local process by pid via <c>Debugger.LocalProcesses</c>
+        /// <c>Attach()</c>. Returns a session handle on success, else null (benign). Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static DebugSessionInfo? AttachToProcess(EnvDTE.Debugger? debugger, int processId)
+        {
+            try
+            {
+                if (debugger?.LocalProcesses == null)
+                    return null;
+                for (int i = 1; i <= debugger.LocalProcesses.Count; i++)
+                {
+                    var proc = SafeRead(() => debugger.LocalProcesses.Item(i));
+                    if (proc != null && proc.ProcessID == processId)
+                    {
+                        proc.Attach();
+                        return new DebugSessionInfo
+                        {
+                            SessionId = $"proc:{processId}",
+                            ProcessId = processId,
+                            ProcessName = SafeRead(() => proc.Name),
+                            Mode = DebugStateGuard.IsDebuggerLive(debugger) ? (DebugStateGuard.IsDebuggerPaused(debugger) ? "break" : "run") : "run",
+                            IsPaused = DebugStateGuard.IsDebuggerPaused(debugger),
+                            IsRunning = DebugStateGuard.IsDebuggerLive(debugger) && !DebugStateGuard.IsDebuggerPaused(debugger)
+                        };
+                    }
+                }
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Enumerates the currently being-debugged processes as session handles. Never throws.
+        /// </summary>
+#pragma warning disable VSTHRD010 // UI-thread contract guaranteed by DebuggerService
+        public static List<DebugSessionInfo> GetSessions(EnvDTE.Debugger? debugger)
+        {
+            var result = new List<DebugSessionInfo>();
+            try
+            {
+                var processes = debugger?.DebuggedProcesses;
+                if (processes == null)
+                    return result;
+                for (int i = 1; i <= processes.Count; i++)
+                {
+                    var proc = SafeRead(() => processes.Item(i));
+                    if (proc == null)
+                        continue;
+                    result.Add(new DebugSessionInfo
+                    {
+                        SessionId = $"proc:{proc.ProcessID}",
+                        ProcessId = proc.ProcessID,
+                        ProcessName = SafeRead(() => proc.Name),
+                        Mode = DebugStateGuard.IsDebuggerPaused(debugger) ? "break" : (DebugStateGuard.IsDebuggerLive(debugger) ? "run" : "none"),
+                        IsPaused = DebugStateGuard.IsDebuggerPaused(debugger),
+                        IsRunning = DebugStateGuard.IsDebuggerLive(debugger) && !DebugStateGuard.IsDebuggerPaused(debugger)
+                    });
+                }
+            }
+            catch (COMException) { }
+            catch { }
+            return result;
+        }
+#pragma warning restore VSTHRD010
+
+        /// <summary>
+        /// Captures the first being-debugged process as a session handle, or null when none is live.
+        /// Used by Start/Restart/Stop to report the resulting session.
+        /// </summary>
+        private static DebugSessionInfo? CaptureFirstSession(EnvDTE.Debugger? debugger)
+        {
+            var sessions = GetSessions(debugger);
+            return sessions.Count > 0 ? sessions[0] : null;
+        }
+
         public static RuntimeState EmptyState()
         {
             return new RuntimeState

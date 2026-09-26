@@ -100,6 +100,14 @@ namespace ContinueVS.Core.Types
         public const string Tool_DebugRunToCursorEnabled = "tool.debugRunToCursorEnabled";
         public const string Tool_DebugThreadStateEnabled = "tool.debugThreadStateEnabled";
 
+        // gap94: Tier-1 debug session lifecycle tools. Default-enabled (the beneficiary wants them
+        // on); the user may disable any individually.
+        public const string Tool_DebugStartEnabled = "tool.debugStartEnabled";
+        public const string Tool_DebugStopEnabled = "tool.debugStopEnabled";
+        public const string Tool_DebugRestartEnabled = "tool.debugRestartEnabled";
+        public const string Tool_IdeAttachToProcessEnabled = "tool.ideAttachToProcessEnabled";
+        public const string Tool_DebugSelectSessionEnabled = "tool.debugSelectSessionEnabled";
+
         /// <summary>
         /// Returns a dictionary of all default settings values.
         /// </summary>
@@ -180,7 +188,14 @@ namespace ContinueVS.Core.Types
                 { Tool_DebugMemoryReadEnabled, false },
                 { Tool_DebugMemoryWriteEnabled, false },
                 { Tool_DebugRunToCursorEnabled, false },
-                { Tool_DebugThreadStateEnabled, false }
+                { Tool_DebugThreadStateEnabled, false },
+
+                // gap94 Tier-1 debug session lifecycle tools — enabled by default
+                { Tool_DebugStartEnabled, true },
+                { Tool_DebugStopEnabled, true },
+                { Tool_DebugRestartEnabled, true },
+                { Tool_IdeAttachToProcessEnabled, true },
+                { Tool_DebugSelectSessionEnabled, true }
             };
         }
 

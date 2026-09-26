@@ -175,6 +175,41 @@ namespace ContinueVS.Services.Implementations
             }
         }
 
+        public string? GetStartupProjectName()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var startupProjects = _dte?.Solution?.SolutionBuild?.StartupProjects;
+                if (startupProjects == null)
+                    return null;
+
+                // StartupProjects is an object that is typically a string (single startup project)
+                // or an object[] (multiple). Normalize to the first project name.
+                switch (startupProjects)
+                {
+                    case string single:
+                        return string.IsNullOrWhiteSpace(single) ? null : single;
+                    case object[] many when many.Length > 0:
+                        return many[0]?.ToString();
+                    case System.Collections.IEnumerable seq:
+                        foreach (var item in seq)
+                        {
+                            var s = item?.ToString();
+                            if (!string.IsNullOrWhiteSpace(s))
+                                return s;
+                        }
+                        return null;
+                    default:
+                        return null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public Selection? GetCursorSelection()
         {
             try

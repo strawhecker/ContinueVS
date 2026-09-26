@@ -257,12 +257,14 @@ namespace ContinueVS.Tests.Services.Fakes
         public bool CurrentProgramValue { get; set; } = false;
         public FakeProcesses ProcessesValue { get; set; } = new FakeProcesses();
         public FakeProcess CurrentProcessValue { get; set; }
+        public FakeProcesses LocalProcessValue { get; set; } = new FakeProcesses();
         public FakeExpression ThisValue { get; set; }
         public int GoCalls { get; private set; }
         public int StepOverCalls { get; private set; }
         public int StepIntoCalls { get; private set; }
         public int StepOutCalls { get; private set; }
         public int RunToCursorCalls { get; private set; }
+        public int StopCalls { get; private set; }
         public bool ThrowOnGo { get; set; }
 
         dbgDebugMode Debugger.CurrentMode => CurrentModeValue;
@@ -299,13 +301,13 @@ namespace ContinueVS.Tests.Services.Fakes
         bool Debugger.HexInputMode { get => throw new NotImplementedException(); set { } }
         Languages Debugger.Languages => throw new NotImplementedException();
         dbgEventReason Debugger.LastBreakReason => throw new NotImplementedException();
-        Processes Debugger.LocalProcesses => throw new NotImplementedException();
+        Processes Debugger.LocalProcesses => LocalProcessValue;
         DTE Debugger.Parent => throw new NotImplementedException();
         void Debugger.DetachAll() => throw new NotImplementedException();
         void Debugger.ExecuteStatement(string Statement, int Timeout, bool IsATestCall) => throw new NotImplementedException();
         void Debugger.RunToCursor(bool WaitForBreakOrEnd) { RunToCursorCalls++; CurrentModeValue = dbgDebugMode.dbgRunMode; }
         void Debugger.SetNextStatement() => throw new NotImplementedException();
-        void Debugger.Stop(bool WaitForBreakOrEnd) => throw new NotImplementedException();
+        void Debugger.Stop(bool WaitForBreakOrEnd) { StopCalls++; CurrentProgramValue = false; CurrentModeValue = dbgDebugMode.dbgDesignMode; }
         void Debugger.TerminateAll() => throw new NotImplementedException();
     }
 }

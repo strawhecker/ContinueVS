@@ -123,6 +123,16 @@ namespace ContinueVS.Services.Tests
                 => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
             public Task<DebugInspectionResult<bool>> RunToCursorAsync(DebugSessionState state, CancellationToken cancellationToken = default)
                 => Task.FromResult(DebugInspectionResult<bool>.Rejected(state, "stub"));
+
+            // gap94 lifecycle surface — benign stubs (not exercised by WorkspaceStatsService)
+            public Task<DebugSessionInfo?> StartDebuggingAsync(string? project, string? launchProfile, CancellationToken cancellationToken = default) => Task.FromResult<DebugSessionInfo?>(null);
+            public Task<DebugSessionInfo?> AttachToProcessAsync(int processId, CancellationToken cancellationToken = default) => Task.FromResult<DebugSessionInfo?>(null);
+            public Task<DebugSessionInfo?> RestartDebuggingAsync(CancellationToken cancellationToken = default) => Task.FromResult<DebugSessionInfo?>(null);
+            public Task<DebugSessionInfo?> StopDebuggingAsync(CancellationToken cancellationToken = default) => Task.FromResult<DebugSessionInfo?>(null);
+            public Task<List<DebugSessionInfo>> GetSessionsAsync(CancellationToken cancellationToken = default) => Task.FromResult(new List<DebugSessionInfo>());
+            public Task<DebugSessionInfo?> SelectSessionAsync(string sessionId, CancellationToken cancellationToken = default) => Task.FromResult<DebugSessionInfo?>(null);
+            public DebugSessionInfo? GetSelectedSession() => null;
+            public void ClearSelectedSession() { }
         }
 
         private static string CreateTempDir()

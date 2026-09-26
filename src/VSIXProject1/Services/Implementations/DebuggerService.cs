@@ -21,11 +21,31 @@ namespace ContinueVS.Services.Implementations
         private readonly ITimeoutHelper _timeoutHelper;
         private const int ResumeTimeoutSeconds = 30;
 
+        // gap94: selected-session binding — the handle that later debug_* tools act on. Guarded to
+        // stay thread-safe; set by SelectSessionAsync / cleared by StopDebuggingAsync / ClearSelectedSession.
+        private readonly object _sessionLock = new object();
+        private DebugSessionInfo? _selectedSession;
+
         public DebuggerService(IDteProvider dteProvider, ITimeoutHelper timeoutHelper)
         {
             _dteProvider = dteProvider ?? throw new ArgumentNullException(nameof(dteProvider));
             _timeoutHelper = timeoutHelper ?? throw new ArgumentNullException(nameof(timeoutHelper));
         }
+
+        // Resolves the DTE command delegate that DebuggerInterop uses to issue "Debug.Start".
+        // Kept as a separate member so tests can drive DebuggerService without a live DTE command
+        // surface; on the UI thread it binds to DTE.ExecuteCommand.
+        private Action<string>? _dteCommand =
+            command => Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.Run(async () =>
+            {
+                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                try
+                {
+                    var shell = Microsoft.VisualStudio.Shell.Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE.DTE;
+                    shell?.ExecuteCommand(command, string.Empty);
+                }
+                catch { }
+            });
 
         public async Task<RuntimeState?> GetCurrentStateAsync(CancellationToken cancellationToken = default)
         {
@@ -441,6 +461,144 @@ namespace ContinueVS.Services.Implementations
                 return DebuggerInterop.RunToCursor(_dteProvider.GetDebugger(), live);
             }
             catch { return DebugInspectionResult<bool>.Rejected(state, "inspection-unavailable"); }
+        }
+
+        // -----------------------------------------------------------------------
+        // gap94 — Debug session lifecycle (Start / Attach / Restart / Stop) + selection
+        // Each method marshals to the UI thread, delegates to DebuggerInterop, and is fail-soft
+        // (benign null/empty, never throws). Start resolves the startup project via IDteProvider
+        // and issues Debug.Start through the DTE command delegate.
+        // -----------------------------------------------------------------------
+
+        public async Task<DebugSessionInfo?> StartDebuggingAsync(string? project, string? launchProfile, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                var resolvedProject = string.IsNullOrWhiteSpace(project)
+                    ? _dteProvider.GetStartupProjectName()
+                    : project;
+                if (string.IsNullOrWhiteSpace(resolvedProject))
+                    return null; // no startup project -> benign, stay not-debugging
+
+                var debugger = _dteProvider.GetDebugger();
+                var started = DebuggerInterop.Start(debugger, _dteCommand, launchProfile);
+
+                if (started != null)
+                {
+                    lock (_sessionLock)
+                    {
+                        _selectedSession = started;
+                    }
+                }
+
+                return started;
+            }
+            catch { return null; }
+        }
+
+        public async Task<DebugSessionInfo?> AttachToProcessAsync(int processId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                var attached = DebuggerInterop.AttachToProcess(debugger, processId);
+
+                if (attached != null)
+                {
+                    lock (_sessionLock)
+                    {
+                        _selectedSession = attached;
+                    }
+                }
+
+                return attached;
+            }
+            catch { return null; }
+        }
+
+        public async Task<DebugSessionInfo?> RestartDebuggingAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                var restarted = DebuggerInterop.Restart(debugger, _dteCommand);
+
+                if (restarted != null)
+                {
+                    lock (_sessionLock)
+                    {
+                        _selectedSession = restarted;
+                    }
+                }
+
+                return restarted;
+            }
+            catch { return null; }
+        }
+
+        public async Task<DebugSessionInfo?> StopDebuggingAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var debugger = _dteProvider.GetDebugger();
+                var ended = DebuggerInterop.Stop(debugger);
+
+                ClearSelectedSession();
+                return ended;
+            }
+            catch { return null; }
+        }
+
+        public async Task<List<DebugSessionInfo>> GetSessionsAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                return DebuggerInterop.GetSessions(_dteProvider.GetDebugger());
+            }
+            catch { return new List<DebugSessionInfo>(); }
+        }
+
+        public async Task<DebugSessionInfo?> SelectSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sessionId))
+                    return null;
+
+                var sessions = await GetSessionsAsync(cancellationToken);
+                var match = sessions.Find(s => string.Equals(s.SessionId, sessionId, StringComparison.Ordinal));
+                if (match == null)
+                    return null; // unknown session id -> benign
+
+                lock (_sessionLock)
+                {
+                    _selectedSession = match;
+                }
+                return match;
+            }
+            catch { return null; }
+        }
+
+        public DebugSessionInfo? GetSelectedSession()
+        {
+            lock (_sessionLock)
+            {
+                return _selectedSession;
+            }
+        }
+
+        public void ClearSelectedSession()
+        {
+            lock (_sessionLock)
+            {
+                _selectedSession = null;
+            }
         }
     }
 

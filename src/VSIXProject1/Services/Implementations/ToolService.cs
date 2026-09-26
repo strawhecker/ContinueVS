@@ -84,7 +84,14 @@ namespace ContinueVS.Services.Implementations
             { "debug_memory_read", UserSettings.Tool_DebugMemoryReadEnabled },
             { "debug_memory_write", UserSettings.Tool_DebugMemoryWriteEnabled },
             { "debug_run_to_cursor", UserSettings.Tool_DebugRunToCursorEnabled },
-            { "debug_thread_set_state", UserSettings.Tool_DebugThreadStateEnabled }
+            { "debug_thread_set_state", UserSettings.Tool_DebugThreadStateEnabled },
+
+            // gap94 Tier-1 debug session lifecycle tools (default-enabled)
+            { "debug_start", UserSettings.Tool_DebugStartEnabled },
+            { "debug_stop", UserSettings.Tool_DebugStopEnabled },
+            { "debug_restart", UserSettings.Tool_DebugRestartEnabled },
+            { "ide_attach_to_process", UserSettings.Tool_IdeAttachToProcessEnabled },
+            { "debug_select_session", UserSettings.Tool_DebugSelectSessionEnabled }
         };
 
         public event EventHandler<ToolErrorEventArgs>? Error;
@@ -451,6 +458,12 @@ namespace ContinueVS.Services.Implementations
                 "debug_memory_write" => await MemoryWriteInternalAsync(args),
                 "debug_run_to_cursor" => await RunToCursorInternalAsync(args),
                 "debug_thread_set_state" => await SetThreadStateInternalAsync(args),
+                // gap94 Tier-1 debug session lifecycle tools
+                "debug_start" => await StartDebuggingInternalAsync(args),
+                "debug_stop" => await StopDebuggingInternalAsync(args),
+                "debug_restart" => await RestartDebuggingInternalAsync(args),
+                "ide_attach_to_process" => await AttachToProcessInternalAsync(args),
+                "debug_select_session" => await SelectSessionInternalAsync(args),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -2132,6 +2145,95 @@ namespace ContinueVS.Services.Implementations
                 };
             }
             catch (Exception ex) { return CreateErrorResult("debug_thread_set_state", ex.Message); }
+        }
+
+        // -----------------------------------------------------------------------
+        // gap94 — Debug session lifecycle tool handlers (Tier-1, default-enabled).
+        // Surface the session handle + its mode; absent-service -> benign unavailable.
+        // -----------------------------------------------------------------------
+
+        private async Task<ToolResult> StartDebuggingInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_start");
+                var session = await _debuggerService.StartDebuggingAsync(
+                    GetArgString(args, "project"),
+                    GetArgString(args, "launchProfile"));
+                if (session == null)
+                    return CreateErrorResult("debug_start", "Could not start debugging (no startup project, or launch failed).");
+                return CreateDebugSessionResult("debug_start", session);
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_start", ex.Message); }
+        }
+
+        private async Task<ToolResult> StopDebuggingInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_stop");
+                var session = await _debuggerService.StopDebuggingAsync();
+                if (session == null)
+                    return CreateErrorResult("debug_stop", "No active debugging session to stop.");
+                return CreateDebugSessionResult("debug_stop", session);
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_stop", ex.Message); }
+        }
+
+        private async Task<ToolResult> RestartDebuggingInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_restart");
+                var session = await _debuggerService.RestartDebuggingAsync();
+                if (session == null)
+                    return CreateErrorResult("debug_restart", "Could not restart (no session was running, or restart failed).");
+                return CreateDebugSessionResult("debug_restart", session);
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_restart", ex.Message); }
+        }
+
+        private async Task<ToolResult> AttachToProcessInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("ide_attach_to_process");
+                var session = await _debuggerService.AttachToProcessAsync(GetArgInt(args, "processId"));
+                if (session == null)
+                    return CreateErrorResult("ide_attach_to_process", "Could not attach to the given process id.");
+                return CreateDebugSessionResult("ide_attach_to_process", session);
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_attach_to_process", ex.Message); }
+        }
+
+        private async Task<ToolResult> SelectSessionInternalAsync(IDictionary<string, object> args)
+        {
+            try
+            {
+                if (_debuggerService == null) return CreateDebuggerUnavailableResult("debug_select_session");
+                var session = await _debuggerService.SelectSessionAsync(GetArgString(args, "sessionId"));
+                if (session == null)
+                    return CreateErrorResult("debug_select_session", "Unknown session id; list live sessions first.");
+                return CreateDebugSessionResult("debug_select_session", session);
+            }
+            catch (Exception ex) { return CreateErrorResult("debug_select_session", ex.Message); }
+        }
+
+        private static ToolResult CreateDebugSessionResult(string toolName, ContinueVS.Core.Types.DebugSessionInfo session)
+        {
+            return new ToolResult
+            {
+                ToolName = toolName,
+                Output = $"session {session.SessionId} ({session.ProcessName ?? "process"}); mode='{session.Mode}'",
+                Metadata = new Dictionary<string, string>
+                {
+                    { "ok", "true" },
+                    { "sessionId", session.SessionId },
+                    { "processId", session.ProcessId.ToString() },
+                    { "mode", session.Mode }
+                },
+                IsSuccess = true
+            };
         }
 
         private static DebugSessionState EmptyDebugState()

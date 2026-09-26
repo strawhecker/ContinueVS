@@ -28,6 +28,7 @@ namespace ContinueVS.Tests.Services
             public List<string> GetRecentFiles(int maxCount) => new List<string>();
             public List<string> GetOpenDocumentPaths() => new List<string>();
             public EnvDTE.Debugger? GetDebugger() => null;
+            public string? GetStartupProjectName() => null;
             public Selection? GetCursorSelection() => null;
         }
 

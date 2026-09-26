@@ -52,6 +52,14 @@ namespace ContinueVS.Services.Interfaces
         /// so no EnvDTE debug access bypasses it.
         /// </summary>
         EnvDTE.Debugger? GetDebugger();
+
+        /// <summary>
+        /// Get the name of the solution's current startup project, or <c>null</c> when none is set.
+        /// Reads <c>DTE.SolutionBuild.StartupProjects</c> (UI thread). Used by the debug lifecycle
+        /// (gap94) to decide what <c>Debug.Start</c> launches when no explicit project is given.
+        /// Pure read — keeps <c>IDebuggerService</c> decoupled from <c>SolutionBuild</c>. Fail-soft.
+        /// </summary>
+        string? GetStartupProjectName();
     }
 }
 

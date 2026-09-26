@@ -164,9 +164,10 @@ namespace ContinueVS.Tests.Services
             var tools = service.GetAvailableTools().ToList();
 
             Assert.NotEmpty(tools);
-            // 34 total - 4 git - create_rule_block - create_snippet - run_pytest
-            // - 6 gap92_3 Tier-2 debug tools (all default-disabled) = 21 available
-            Assert.Equal(21, tools.Count);
+            // 39 total - 4 git - create_rule_block - create_snippet - run_pytest
+            // - 6 gap92_3 Tier-2 debug tools (all default-disabled)
+            // - 5 gap94 lifecycle tools default-ENABLED => 21 + 5 = 26 available
+            Assert.Equal(26, tools.Count);
         }
 
         [Fact]
@@ -400,11 +401,15 @@ namespace ContinueVS.Tests.Services
             var tools = service.GetAvailableTools().ToList();
             var agentTools = service.GetAvailableTools(ChatMode.Agent).ToList();
 
-            // Without mode parameter, should return all tools (backward compatibility)
-            // 34 total - 4 git - create_rule_block - create_snippet - run_pytest
-            // - 6 gap92_3 Tier-2 debug tools (all default-disabled) = 21 available
-            Assert.Equal(21, tools.Count);
-            Assert.Equal(tools.Count, agentTools.Count);
+            // Without mode parameter, should return all enabled tools (backward compatibility).
+            // 39 total - 4 git - create_rule_block - create_snippet - run_pytest
+            // - 6 gap92_3 Tier-2 debug tools (all default-disabled)
+            // + 5 gap94 lifecycle tools (default-enabled) = 26 available
+            Assert.Equal(26, tools.Count);
+
+            // Agent mode excludes the 5 Debug-only lifecycle tools (gap94 mode gating),
+            // so the agent tool set is the 21 non-Debug-only enabled tools.
+            Assert.Equal(21, agentTools.Count);
         }
 
         [Fact]

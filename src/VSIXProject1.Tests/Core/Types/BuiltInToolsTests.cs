@@ -227,12 +227,12 @@ namespace ContinueVS.Tests.Core.Types
         }
 
         [Fact]
-        public void GetAllBuiltInTools_Returns25Tools()
+        public void GetAllBuiltInTools_Returns39Tools()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools();
 
             Assert.NotNull(tools);
-            Assert.Equal(34, tools.Count());
+            Assert.Equal(39, tools.Count());
         }
 
         [Fact]
@@ -562,6 +562,89 @@ namespace ContinueVS.Tests.Core.Types
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
 
             Assert.Contains(tools, t => t.Name == "ask_user");
+        }
+
+        // gap94 — debug session lifecycle tool definitions ----------------------------------
+
+        [Fact]
+        public void GetAllBuiltInTools_ContainsDebugLifecycleTools()
+        {
+            var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+            var names = tools.Select(t => t.Name).ToList();
+            Assert.Contains("debug_start", names);
+            Assert.Contains("debug_stop", names);
+            Assert.Contains("debug_restart", names);
+            Assert.Contains("ide_attach_to_process", names);
+            Assert.Contains("debug_select_session", names);
+        }
+
+        [Fact]
+        public void GetDebugStartTool_Definition_Enabled_DebugOnly()
+        {
+            var tool = BuiltInToolsRegistry.GetDebugStartTool();
+            Assert.Equal("debug_start", tool.Name);
+            Assert.True(tool.IsEnabled);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Single(tool.SupportedModes);
+            Assert.Contains(tool.Parameters, p => p.Name == "project");
+            Assert.Contains(tool.Parameters, p => p.Name == "launchProfile");
+        }
+
+        [Fact]
+        public void GetDebugStopTool_Definition_Enabled_DebugOnly()
+        {
+            var tool = BuiltInToolsRegistry.GetDebugStopTool();
+            Assert.Equal("debug_stop", tool.Name);
+            Assert.True(tool.IsEnabled);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Single(tool.SupportedModes);
+        }
+
+        [Fact]
+        public void GetDebugRestartTool_Definition_Enabled_DebugOnly()
+        {
+            var tool = BuiltInToolsRegistry.GetDebugRestartTool();
+            Assert.Equal("debug_restart", tool.Name);
+            Assert.True(tool.IsEnabled);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Single(tool.SupportedModes);
+        }
+
+        [Fact]
+        public void GetIdeAttachToProcessTool_Definition_Enabled_DebugOnly()
+        {
+            var tool = BuiltInToolsRegistry.GetIdeAttachToProcessTool();
+            Assert.Equal("ide_attach_to_process", tool.Name);
+            Assert.True(tool.IsEnabled);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Single(tool.SupportedModes);
+            Assert.Contains(tool.Parameters, p => p.Name == "processId");
+        }
+
+        [Fact]
+        public void GetDebugSelectSessionTool_Definition_Enabled_DebugOnly()
+        {
+            var tool = BuiltInToolsRegistry.GetDebugSelectSessionTool();
+            Assert.Equal("debug_select_session", tool.Name);
+            Assert.True(tool.IsEnabled);
+            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
+            Assert.Single(tool.SupportedModes);
+            Assert.Contains(tool.Parameters, p => p.Name == "sessionId");
+        }
+
+        [Fact]
+        public void GetAllBuiltInTools_DisabledCount_StillThirteen()
+        {
+            var tools = BuiltInToolsRegistry.GetAllBuiltInTools().ToList();
+            var disabled = tools.Where(t => !t.IsEnabled).ToList();
+            // The five gap94 lifecycle tools are default-enabled, so the disabled set is unchanged.
+            Assert.Equal(13, disabled.Count);
+
+            // None of the lifecycle tools may be disabled by default.
+            foreach (var t in disabled)
+            {
+                Assert.DoesNotContain(new[] { "debug_start", "debug_stop", "debug_restart", "ide_attach_to_process", "debug_select_session" }, n => n == t.Name);
+            }
         }
     }
 }

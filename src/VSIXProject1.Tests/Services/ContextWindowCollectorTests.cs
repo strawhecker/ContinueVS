@@ -49,6 +49,8 @@ namespace ContinueVS.Tests.Services
 
             public EnvDTE.Debugger? GetDebugger() => null;
 
+            public string? GetStartupProjectName() => null;
+
             public Selection? GetCursorSelection() => null;
         }
 

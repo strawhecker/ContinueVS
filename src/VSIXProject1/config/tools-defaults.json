@@ -437,6 +437,98 @@
         }
       ],
       "returnsDescription": "The user's answer to the question as a string"
+    },
+    {
+      "name": "debug_start",
+      "description": "Start (launch) a new debugging session. If project is empty the solution's startup project is used; launchProfile selects a launch profile (empty = default).",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Debug"
+      ],
+      "parameters": [
+        {
+          "name": "project",
+          "type": "string",
+          "description": "Project to start. Empty uses the solution startup project.",
+          "isRequired": false
+        },
+        {
+          "name": "launchProfile",
+          "type": "string",
+          "description": "Launch profile to use. Empty uses the default.",
+          "isRequired": false
+        }
+      ],
+      "returnsDescription": "The started debug session handle and its mode"
+    },
+    {
+      "name": "debug_stop",
+      "description": "Stop the currently active debugging session and clear the selected session binding.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Debug"
+      ],
+      "parameters": [],
+      "returnsDescription": "The ended debug session handle, or an indication that none was running"
+    },
+    {
+      "name": "debug_restart",
+      "description": "Restart the current debugging session: stop any active session then start it again.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Debug"
+      ],
+      "parameters": [],
+      "returnsDescription": "The restarted debug session handle"
+    },
+    {
+      "name": "ide_attach_to_process",
+      "description": "Attach the debugger to a running local process by its OS process id (pid), then select that attached session for subsequent debug_* tools.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Debug"
+      ],
+      "parameters": [
+        {
+          "name": "processId",
+          "type": "number",
+          "description": "The OS process id to attach to.",
+          "isRequired": true
+        }
+      ],
+      "returnsDescription": "The attached debug session handle and its mode"
+    },
+    {
+      "name": "debug_select_session",
+      "description": "Select (bind) a debug session by its session id so subsequent debug_* tools act on it.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Debug"
+      ],
+      "parameters": [
+        {
+          "name": "sessionId",
+          "type": "string",
+          "description": "The session id (e.g. 'proc:1234') to select.",
+          "isRequired": true
+        }
+      ],
+      "returnsDescription": "The bound debug session handle"
     }
   ]
 }
