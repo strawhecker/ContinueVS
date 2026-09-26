@@ -10165,23 +10165,26 @@ The `ask_user` tool (gap86) was a first-class tool-call path, but the decision o
 
 **Implementation (this gap):**
 
-- ✅ **Tool contract** (`Core/Types/BuiltInTools.cs` `GetAskUserTool`): added `requireHumanDecision` parameter (`boolean`, optional). Description: *"If true, this question MUST be answered by a human — the agent must NOT auto-select/auto-answer any option regardless of autonomous/interactive mode. Set true whenever the decision requires genuine human judgment, taste, or an irreversible choice; omit/false for routine decisions automation may answer."* Existing `question` + `answers` unchanged.
-- ✅ **Description builder** (`ToolCallDescriptionBuilder.cs`): `ask_user` case mirrors the new parameter into the emitted schema so the LLM sees it.
-- ✅ **Invocation** (`ToolService.InvokeAskUserAsync`): reads `requireHumanDecision` (`GetArgBool`) and sets it on the constructed `LLMQuestionPrompt`.
+- ✅ **Tool contract** (`Core/Types/BuiltInTools.cs` `GetAskUserTool`): added `requireHumanDecision` parameter (`boolean`, optional). Description: *"If true, this question MUST be answered by a human — the agent must NOT auto-select/auto-answer any option regardless of autonomous/interactive mode. Set true whenever the decision requires genuine human judgment, taste, or an irreversible choice; omit/false for routine decisions automation may answer."* Existing `question` + `answers` unchanged; `answers` description now notes the recommended option should be listed first.
+- ✅ **Description builder** (`ToolCallDescriptionBuilder.cs`): verified `ask_user` case is display-only (compact bubble) — the LLM-facing parameter schema flows from `ToolDefinition.Parameters`, so no change was required there.
+- ✅ **Invocation** (`ToolService.InvokeAskUserAsync`): reads `requireHumanDecision` via new `GetArgBool` helper and sets it on the constructed `LLMQuestionPrompt`.
 - ✅ **Question type** (`Core/Types/LLMQuestionPrompt.cs`): added `[JsonProperty("requireHumanDecision")] public bool RequireHumanDecision { get; set; }`.
 - ✅ **Agent enforcement — the core gate** (`LlmQuestionService.HandleLLMQuestionAsync`): the autonomous path is now guarded by `if (isAutonomous && !question.RequireHumanDecision)`. When flagged, the question routes to `IInteractivePromptService.PromptOnLLMQuestionAsync` even in autonomous mode (interactive path, `isInteractiveMode:true`).
-- ✅ **Orchestration** (`ChatPageViewModel`): the `AddInlineQuestionAsync` cancel/auto-answer path honors `question.RequireHumanDecision` — on-cancel only auto-answers when the flag is false; otherwise returns a sentinel/empty marking the human-decision as deferred. `LLMQuestionMessage` carries `RequireHumanDecision` from the prompt. (The embedded-question detector + the `ask_user` tool both funnel through the same `HandleLLMQuestionAsync` gate, so both paths are covered.)
-- ✅ **System prompt** (`SystemPromptService.cs` `ASK_USER_INSTRUCTIONS`): appended a clause telling the LLM when to set the flag — *"WHEN A DECISION REQUIRES GENUINE HUMAN JUDGMENT — taste, values, irreversibility, or a choice that should not be made automatically — set 'requireHumanDecision' to true in the ask_user call (decoupled from option ordering; recommended option still comes first). Do NOT rely on ordering or skipping the tool to signal this."* Plus the earlier rigor + recommended-first + answer-quality clauses retained (threshold unchanged).
+- ✅ **Orchestration** (`InteractivePromptService.HandleInlineQuestionAsync` + `ChatPageViewModel.AddInlineQuestionAsync`): `LLMQuestionMessage` carries `RequireHumanDecision` (new constructor param); the cancel/auto-answer path on-cancel only auto-answers when `!RequireHumanDecision`, otherwise returns a sentinel marking the human-decision as deferred. (The embedded-question detector + the `ask_user` tool both funnel through the same `HandleLLMQuestionAsync` gate, so both paths are covered.)
+- ✅ **System prompt** (`SystemPromptService.cs` `ASK_USER_INSTRUCTIONS`): extended to instruct recommended-option-first ordering AND the `requireHumanDecision` flag — *"When a decision requires GENUINE HUMAN JUDGMENT — taste, values, irreversibility, or a choice that should not be made automatically — set 'requireHumanDecision' to true in the ask_user call (decoupled from option ordering; recommended option still comes first). The agent will then NEVER auto-select or auto-answer this question in any mode. Do NOT signal this via ordering, dummy options, or skipping the tool."* Threshold for asking unchanged.
 
-**Files Modified/Created:**
+**Files Modified:**
 - `src/VSIXProject1/Core/Types/BuiltInTools.cs` — `requireHumanDecision` param on `GetAskUserTool`.
-- `src/VSIXProject1/Services/Implementations/ToolCallDescriptionBuilder.cs` — schema mirror for `ask_user`.
-- `src/VSIXProject1/Services/Implementations/ToolService.cs` — parse + thread the flag in `InvokeAskUserAsync`.
 - `src/VSIXProject1/Core/Types/LLMQuestionPrompt.cs` — `RequireHumanDecision` property.
+- `src/VSIXProject1/Core/Types/LLMQuestionMessage.cs` — `RequireHumanDecision` property + constructor param.
+- `src/VSIXProject1/Services/Implementations/ToolService.cs` — `GetArgBool` helper; parse + thread flag in `InvokeAskUserAsync`.
 - `src/VSIXProject1/Services/Implementations/LlmQuestionService.cs` — autonomous gate honors the flag.
+- `src/VSIXProject1/Services/Implementations/InteractivePromptService.cs` — threads flag into `LLMQuestionMessage`.
 - `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — inline-question cancel/auto-answer honors the flag.
-- `src/VSIXProject1/Services/Implementations/SystemPromptService.cs` — `ASK_USER_INSTRUCTIONS` human-decision clause.
-- `src/VSIXProject1.Tests/Services/LlmQuestionServiceTests.cs`, `ToolServiceAskUserTests.cs`, `ChatPageViewModel*Tests.cs` — flag propagation + enforcement coverage.
+- `src/VSIXProject1/Services/Implementations/SystemPromptService.cs` — `ASK_USER_INSTRUCTIONS` recommended-first + human-decision clauses.
+- `src/VSIXProject1.Tests/Services/LlmQuestionServiceTests.cs` — 2 enforcement tests (flagged→human in autonomous; routine→auto-answer).
+- `src/VSIXProject1.Tests/Services/ToolServiceAskUserTests.cs` — 2 flag-parsing tests (true threads flag; absent defaults false).
+- `src/VSIXProject1.Tests/Core/Types/BuiltInToolsTests.cs` — updated param count 2→3 + `requireHumanDecision` assertions.
 
 **Acceptance criteria:**
 - [x] Ordering (`answers[0]` = recommended) is preserved and no longer overloaded with delegability.
@@ -10190,7 +10193,7 @@ The `ask_user` tool (gap86) was a first-class tool-call path, but the decision o
 - [x] No dummy/sentinel option and no "skip the tool" halt is ever needed to signal human-required.
 - [x] The LLM need not know its own runtime mode; the agent enforces the flag per mode.
 
-**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test` (full suite green, incl. new flag-propagation + enforcement tests).
+**Validation:** `dotnet build ContinueVS.slnx --force` succeeded — 0 warnings, 0 errors. `dotnet test ContinueVS.slnx` — **1664 passed, 0 failed, 0 skipped** (incl. new flag-propagation + enforcement tests).
 
 **Sequencing:** lands after gap86 (ask_user tool). Independent of gap89/90 families. Directly complements gap54's inline prompt path (same `HandleLLMQuestionAsync` gate).
 

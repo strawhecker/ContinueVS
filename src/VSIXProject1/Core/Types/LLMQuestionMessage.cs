@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 
@@ -40,14 +40,22 @@ namespace ContinueVS.Core.Types
         /// </summary>
         public string? Context { get; }
 
+        /// <summary>
+        /// If true, this question must be answered by a human. The agent must NOT auto-answer
+        /// (e.g. on cancel) with a policy default when this is set.
+        /// </summary>
+        public bool RequireHumanDecision { get; }
+
         public LLMQuestionMessage(
             string questionText,
             LLMQuestionType questionType,
-            string? context = null)
+            string? context = null,
+            bool requireHumanDecision = false)
         {
             QuestionText = questionText ?? throw new ArgumentNullException(nameof(questionText));
             QuestionType = questionType;
             Context = context;
+            RequireHumanDecision = requireHumanDecision;
 
             // Initialize base ChatMessage properties
             Id = Guid.NewGuid().ToString();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
@@ -156,7 +156,8 @@ namespace ContinueVS.Services.Implementations
             var llmQuestion = new Core.Types.LLMQuestionMessage(
                 question.QuestionText,
                 question.QuestionType,
-                question.Context);
+                question.Context,
+                question.RequireHumanDecision);
 
             if (_logger != null)
                 _logger?.WriteDebug($"[gap29_8_9] Interactive prompt (inline): {question.QuestionText}");

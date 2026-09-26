@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Xunit;
 using ContinueVS.Core.Types;
@@ -134,6 +134,56 @@ namespace ContinueVS.Tests.Services
             var detected = await service.DetectLLMQuestionAsync(llmResponse);
 
             Assert.Null(detected);
+        }
+
+        [Fact]
+        public async Task HandleLLMQuestionAsync_AutonomousButRequiresHumanDecision_RoutesToHuman()
+        {
+            var mockPromptService = new Mock<IInteractivePromptService>();
+            mockPromptService
+                .Setup(m => m.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), true))
+                .ReturnsAsync("User's answer");
+
+            var service = new LlmQuestionService(mockPromptService.Object);
+
+            var question = new LLMQuestionPrompt
+            {
+                QuestionText = "Which irreversible deployment path should we take?",
+                QuestionType = LLMQuestionType.Selection,
+                RequireHumanDecision = true
+            };
+
+            var answer = await service.HandleLLMQuestionAsync(question, isAutonomous: true, AutoAnswerResponse.Default);
+
+            // Even in autonomous mode, a flagged question must be routed to the human, never auto-answered.
+            Assert.Equal("User's answer", answer);
+            mockPromptService.Verify(
+                m => m.PromptOnLLMQuestionAsync(
+                    It.Is<LLMQuestionPrompt>(q => q.RequireHumanDecision),
+                    true),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task HandleLLMQuestionAsync_AutonomousWithoutRequireHumanDecision_AutoAnswers()
+        {
+            var mockPromptService = new Mock<IInteractivePromptService>();
+            var service = new LlmQuestionService(mockPromptService.Object);
+
+            var question = new LLMQuestionPrompt
+            {
+                QuestionText = "Should I proceed with the routine step?",
+                QuestionType = LLMQuestionType.Confirmation,
+                RequireHumanDecision = false
+            };
+
+            var answer = await service.HandleLLMQuestionAsync(question, isAutonomous: true);
+
+            // Routine (non-flagged) question in autonomous mode is auto-answered by policy.
+            Assert.NotEmpty(answer);
+            mockPromptService.Verify(
+                m => m.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()),
+                Times.Never);
         }
     }
 }

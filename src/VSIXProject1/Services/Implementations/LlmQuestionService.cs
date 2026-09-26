@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -61,7 +61,11 @@ namespace ContinueVS.Services.Implementations
             if (string.IsNullOrWhiteSpace(question.QuestionText))
                 throw new ArgumentException("Question text cannot be empty.", nameof(question));
 
-            if (isAutonomous)
+            // gap96: Decouple "requires human decision" from autonomous mode. When the LLM flags a
+            // question as RequireHumanDecision, the agent must NEVER auto-answer it — it is routed to
+            // the human even in autonomous mode. This is the single enforcement gate for both the
+            // ask_user tool path and the embedded-question path.
+            if (isAutonomous && !question.RequireHumanDecision)
             {
                 // Apply auto-answer policy
                 var answer = AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, policy);
@@ -73,7 +77,8 @@ namespace ContinueVS.Services.Implementations
             }
             else
             {
-                // Delegate to interactive prompt service
+                // Delegate to interactive prompt service (also used when RequireHumanDecision is set,
+                // even under autonomous mode, because the question must be answered by a human).
                 var answer = await _promptService.PromptOnLLMQuestionAsync(question, isInteractiveMode: true);
 
                 if (_logger != null)

@@ -1106,8 +1106,12 @@ namespace ContinueVS.ViewModels
             question.OnCancelAsync = async () =>
             {
                 await RemoveInlineQuestionAsync(questionId);
-                var defaultAnswer = AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, AutoAnswerResponse.Default);
-                tcs.TrySetResult(defaultAnswer);
+                // gap96: Never auto-answer a question the LLM flagged as requiring human judgment,
+                // even on cancel. Only apply a policy default for routine questions.
+                var answer = question.RequireHumanDecision
+                    ? "[human decision required — not answered]"
+                    : AutoAnswerPolicyRegistry.GetDefaultAnswer(question.QuestionType, AutoAnswerResponse.Default);
+                tcs.TrySetResult(answer);
             };
 
             await SwitchToMainThreadAsync();

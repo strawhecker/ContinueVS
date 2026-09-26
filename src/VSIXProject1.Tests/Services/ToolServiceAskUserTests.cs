@@ -166,6 +166,55 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
+        public async Task InvokeAskUser_WithRequireHumanDecision_ThreadsFlagIntoPrompt()
+        {
+            _promptServiceMock
+                .Setup(s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()))
+                .ReturnsAsync("Option A");
+
+            var service = CreateService();
+            var args = new Dictionary<string, object>
+            {
+                { "question", "Which irreversible approach should we take?" },
+                { "answers", new List<string> { "Option A", "Option B" } },
+                { "requireHumanDecision", true }
+            };
+
+            var result = await service.InvokeAsync("ask_user", args);
+
+            Assert.True(result.IsSuccess);
+            _promptServiceMock.Verify(
+                s => s.PromptOnLLMQuestionAsync(
+                    It.Is<LLMQuestionPrompt>(p => p.RequireHumanDecision),
+                    It.IsAny<bool>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task InvokeAskUser_WithoutRequireHumanDecision_DefaultsFalse()
+        {
+            _promptServiceMock
+                .Setup(s => s.PromptOnLLMQuestionAsync(It.IsAny<LLMQuestionPrompt>(), It.IsAny<bool>()))
+                .ReturnsAsync("Option A");
+
+            var service = CreateService();
+            var args = new Dictionary<string, object>
+            {
+                { "question", "Which routine strategy should I use?" },
+                { "answers", new List<string> { "Option A", "Option B" } }
+            };
+
+            var result = await service.InvokeAsync("ask_user", args);
+
+            Assert.True(result.IsSuccess);
+            _promptServiceMock.Verify(
+                s => s.PromptOnLLMQuestionAsync(
+                    It.Is<LLMQuestionPrompt>(p => !p.RequireHumanDecision),
+                    It.IsAny<bool>()),
+                Times.Once);
+        }
+
+        [Fact]
         public void GetAvailableTools_IncludesAskUserInAgentAndDebugModes()
         {
             var service = CreateService();

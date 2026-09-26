@@ -209,7 +209,15 @@ namespace ContinueVS.Services.Implementations
                 "Use the ask_user tool when you genuinely need information, clarification, or confirmation from the user to continue.\n" +
                 "Prefer acting autonomously when you have enough context — do not ask for permission on every step.\n" +
                 "Provide a focused 'question'. If there is a limited set of reasonable choices, supply an 'answers' list (the user can pick one or type prose). " +
-                "Omit 'answers' for an open-ended question.";
+                "Omit 'answers' for an open-ended question.\n" +
+                "When you supply an 'answers' list, put the RECOMMENDED option FIRST — the option that best serves " +
+                "good architecture and sound design, avoiding throwaway or short-sighted solutions; order the rest " +
+                "from most-aligned to least-aligned with good design, and place expedient/quick/cheap options last\n" +
+                "When a decision requires GENUINE HUMAN JUDGMENT — taste, values, irreversibility, or a choice that " +
+                "should not be made automatically — set 'requireHumanDecision' to true in the ask_user call. This is " +
+                "decoupled from option ordering (the recommended option still comes first). The agent will then NEVER " +
+                "auto-select or auto-answer this question in any mode. Do NOT signal this via answer ordering, dummy " +
+                "options, or by skipping the tool.";
 
             const string RETIRE_FROM_CONTEXT_INSTRUCTIONS =
                 "## Context Pruning & Error Supersession\n\n" +

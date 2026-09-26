@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Newtonsoft.Json;
 
 namespace ContinueVS.Core.Types
@@ -46,5 +46,15 @@ namespace ContinueVS.Core.Types
         /// </summary>
         [JsonProperty("autoAnswerHint")]
         public string? AutoAnswerHint { get; set; }
+
+        /// <summary>
+        /// If true, this question MUST be answered by a human. The agent must NOT auto-select or
+        /// auto-answer any option for this question, regardless of autonomous or interactive mode.
+        /// Decoupled from option ordering: a 'recommended' first answer may still be present, but it
+        /// is never automatically chosen when this flag is set. When false/omitted, automation may
+        /// auto-answer routine questions per policy.
+        /// </summary>
+        [JsonProperty("requireHumanDecision")]
+        public bool RequireHumanDecision { get; set; }
     }
 }

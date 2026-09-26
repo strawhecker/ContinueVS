@@ -798,7 +798,10 @@ namespace ContinueVS.Core.Types
                              "when you have enough context. Provide 'question' (the text to ask) and, if there is a limited set of " +
                              "reasonable choices, provide 'answers' (a list of suggested answer options). The user may pick one of " +
                              "the provided options or type their own free-text response. If no answers are supplied, the question is " +
-                             "open-ended and the user will respond in prose.",
+                             "open-ended and the user will respond in prose. " +
+                             "Set 'requireHumanDecision' to true whenever the decision requires genuine human judgment — taste, values, " +
+                             "an irreversible choice, or a decision that should not be made automatically. The agent must then NEVER " +
+                             "auto-select or auto-answer this question, regardless of autonomous/interactive mode.",
                 parameters: new List<ParameterDefinition>
                 {
                     new ParameterDefinition
@@ -812,12 +815,19 @@ namespace ContinueVS.Core.Types
                     {
                         Name = "answers",
                         Type = "array",
-                        Description = "Optional list of suggested answer options (multiple choice). The user may pick one or type their own. Omit for an open-ended question.",
+                        Description = "Optional list of suggested answer options (multiple choice). The user may pick one or type their own. Omit for an open-ended question. Recommended option should be listed first.",
                         IsRequired = false,
                         Schema = new Dictionary<string, object>
                         {
                             { "items", new Dictionary<string, object> { { "type", "string" } } }
                         }
+                    },
+                    new ParameterDefinition
+                    {
+                        Name = "requireHumanDecision",
+                        Type = "boolean",
+                        Description = "Optional. If true, this question MUST be answered by a human — the agent must NOT auto-select or auto-answer any option regardless of autonomous/interactive mode. Set true whenever the decision requires genuine human judgment, taste, or an irreversible choice; omit or set false for routine decisions automation may answer.",
+                        IsRequired = false
                     }
                 },
                 returnsDescription: "The user's answer to the question as a string",

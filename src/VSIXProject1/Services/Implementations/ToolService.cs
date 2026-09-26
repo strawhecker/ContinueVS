@@ -1875,6 +1875,10 @@ namespace ContinueVS.Services.Implementations
 
                 var answers = GetArgArray<string>(args, "answers");
 
+                // gap96: Read the 'requireHumanDecision' flag (independent of option ordering).
+                // When true, the question must be answered by a human — never auto-selected.
+                var requireHumanDecision = GetArgBool(args, "requireHumanDecision");
+
                 if (_interactivePromptService == null)
                 {
                     return CreateErrorResult("ask_user", "Interactive prompt service not available");
@@ -1894,7 +1898,8 @@ namespace ContinueVS.Services.Implementations
                         : LLMQuestionType.Clarification,
                     AutoAnswerHint = answers != null && answers.Count > 0
                         ? string.Join(", ", answers)
-                        : null
+                        : null,
+                    RequireHumanDecision = requireHumanDecision
                 };
 
                 var answer = await _interactivePromptService.PromptOnLLMQuestionAsync(prompt, isInteractiveMode: true);
@@ -2510,6 +2515,23 @@ namespace ContinueVS.Services.Implementations
                 return intVal;
 
             if (int.TryParse(value?.ToString(), out var parsed))
+                return parsed;
+
+            return defaultValue;
+        }
+
+        /// <summary>
+        /// Gets a boolean argument from the arguments dictionary.
+        /// </summary>
+        private bool GetArgBool(IDictionary<string, object> args, string key, bool defaultValue = false)
+        {
+            if (args == null || !args.TryGetValue(key, out var value))
+                return defaultValue;
+
+            if (value is bool boolVal)
+                return boolVal;
+
+            if (bool.TryParse(value?.ToString(), out var parsed))
                 return parsed;
 
             return defaultValue;

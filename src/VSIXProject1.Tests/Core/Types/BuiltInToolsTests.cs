@@ -529,16 +529,21 @@ namespace ContinueVS.Tests.Core.Types
             Assert.Equal("builtin", tool.ToolType);
             Assert.Equal("Built-In", tool.Category);
             Assert.True(tool.IsEnabled);
-            Assert.Equal(2, tool.Parameters.Count);
+            Assert.Equal(3, tool.Parameters.Count);
 
             var questionParam = tool.Parameters.First(p => p.Name == "question");
             var answersParam = tool.Parameters.First(p => p.Name == "answers");
+            var requireHumanParam = tool.Parameters.First(p => p.Name == "requireHumanDecision");
             Assert.True(questionParam.IsRequired, "question should be required");
             Assert.False(answersParam.IsRequired, "answers should be optional");
+            Assert.False(requireHumanParam.IsRequired, "requireHumanDecision should be optional");
             Assert.Equal("string", questionParam.Type);
             Assert.Equal("array", answersParam.Type);
+            Assert.Equal("boolean", requireHumanParam.Type);
             Assert.NotNull(questionParam.Description);
             Assert.NotNull(answersParam.Description);
+            Assert.NotNull(requireHumanParam.Description);
+            Assert.Contains("human", requireHumanParam.Description, StringComparison.OrdinalIgnoreCase);
 
             // Available in loop modes only (Agent, Debug)
             Assert.Contains(ChatMode.Agent, tool.SupportedModes);
