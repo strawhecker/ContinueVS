@@ -529,6 +529,188 @@
         }
       ],
       "returnsDescription": "The bound debug session handle"
+    },
+    {
+      "name": "ide_active_document",
+      "description": "Read the IDE's active document file path and the current selection/cursor. Use to learn which file is open and where the cursor is before navigation or debugging.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Plan",
+        "Ask",
+        "Agent",
+        "Debug",
+        "Reason"
+      ],
+      "parameters": [],
+      "returnsDescription": "The active document path and selection/cursor"
+    },
+    {
+      "name": "ide_open_file",
+      "description": "Open a file in the IDE editor and activate its tab, returning the opened path. Distinct from open_file in that it reports the active document result.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Plan",
+        "Ask",
+        "Agent",
+        "Debug",
+        "Reason"
+      ],
+      "parameters": [
+        {
+          "name": "filepath",
+          "type": "string",
+          "description": "The path of the file to open.",
+          "isRequired": true
+        }
+      ],
+      "returnsDescription": "The path of the opened file"
+    },
+    {
+      "name": "ide_navigate_to",
+      "description": "Open the given file and move the editor cursor to a specific line so subsequent IDE/debug tools operate at that location.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Agent",
+        "Debug"
+      ],
+      "parameters": [
+        {
+          "name": "filepath",
+          "type": "string",
+          "description": "The path of the file to navigate in.",
+          "isRequired": true
+        },
+        {
+          "name": "line",
+          "type": "number",
+          "description": "1-based line number to move to.",
+          "isRequired": true
+        }
+      ],
+      "returnsDescription": "Whether the navigation was issued"
+    },
+    {
+      "name": "ide_goto_definition",
+      "description": "Invoke Go-To-Definition on the current selection and report the resulting active document and cursor location. Use to resolve a symbol to its definition file:line.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Agent",
+        "Debug"
+      ],
+      "parameters": [],
+      "returnsDescription": "The resulting definition location"
+    },
+    {
+      "name": "ide_find_symbol",
+      "description": "Resolve a symbol name to its definition file:line (useful before setting a debug breakpoint). Opens the file, selects the symbol, then runs Go-To-Definition.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Agent",
+        "Debug"
+      ],
+      "parameters": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "description": "The symbol name to resolve.",
+          "isRequired": true
+        },
+        {
+          "name": "filepath",
+          "type": "string",
+          "description": "The file to search for the symbol in. Empty uses the active document.",
+          "isRequired": false
+        }
+      ],
+      "returnsDescription": "The resolved file:line of the symbol"
+    },
+    {
+      "name": "ide_build",
+      "description": "Build the solution, or a single named project. Use to surface compile errors into the loop.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Agent",
+        "Debug"
+      ],
+      "parameters": [
+        {
+          "name": "project",
+          "type": "string",
+          "description": "Project name to build. Empty builds the whole solution.",
+          "isRequired": false
+        }
+      ],
+      "returnsDescription": "Whether the build was invoked"
+    },
+    {
+      "name": "ide_build_configuration",
+      "description": "Read the currently active solution build configuration (name/platform).",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Agent",
+        "Debug"
+      ],
+      "parameters": [],
+      "returnsDescription": "The active build configuration"
+    },
+    {
+      "name": "ide_launch_profile",
+      "description": "Read the solution's startup project and active launch profile, so you know what debug_start would launch.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Agent",
+        "Debug"
+      ],
+      "parameters": [],
+      "returnsDescription": "The startup project and launch profile"
+    },
+    {
+      "name": "ide_output_pane",
+      "description": "Read the text content of a named Visual Studio Output window pane (e.g. 'Build' or 'Debug'). Use to inspect build/debug output.",
+      "category": "Built-In",
+      "isEnabled": true,
+      "isAsync": true,
+      "toolType": "builtin",
+      "supportedModes": [
+        "Plan",
+        "Ask",
+        "Agent",
+        "Debug",
+        "Reason"
+      ],
+      "parameters": [
+        {
+          "name": "paneName",
+          "type": "string",
+          "description": "The output pane name (e.g. 'Build', 'Debug').",
+          "isRequired": true
+        }
+      ],
+      "returnsDescription": "The pane text content"
     }
   ]
 }

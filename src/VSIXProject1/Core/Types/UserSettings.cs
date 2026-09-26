@@ -108,6 +108,17 @@ namespace ContinueVS.Core.Types
         public const string Tool_IdeAttachToProcessEnabled = "tool.ideAttachToProcessEnabled";
         public const string Tool_DebugSelectSessionEnabled = "tool.debugSelectSessionEnabled";
 
+        // gap95: Non-debug DTE IDE tools for the troubleshooting loop. Default-enabled (Tier 0/1).
+        public const string Tool_IdeActiveDocumentEnabled = "tool.ideActiveDocumentEnabled";
+        public const string Tool_IdeOpenFileEnabled = "tool.ideOpenFileEnabled";
+        public const string Tool_IdeNavigateToEnabled = "tool.ideNavigateToEnabled";
+        public const string Tool_IdeGotoDefinitionEnabled = "tool.ideGotoDefinitionEnabled";
+        public const string Tool_IdeFindSymbolEnabled = "tool.ideFindSymbolEnabled";
+        public const string Tool_IdeBuildEnabled = "tool.ideBuildEnabled";
+        public const string Tool_IdeBuildConfigurationEnabled = "tool.ideBuildConfigurationEnabled";
+        public const string Tool_IdeLaunchProfileEnabled = "tool.ideLaunchProfileEnabled";
+        public const string Tool_IdeOutputPaneEnabled = "tool.ideOutputPaneEnabled";
+
         /// <summary>
         /// Returns a dictionary of all default settings values.
         /// </summary>
@@ -195,7 +206,18 @@ namespace ContinueVS.Core.Types
                 { Tool_DebugStopEnabled, true },
                 { Tool_DebugRestartEnabled, true },
                 { Tool_IdeAttachToProcessEnabled, true },
-                { Tool_DebugSelectSessionEnabled, true }
+                { Tool_DebugSelectSessionEnabled, true },
+
+                // gap95 non-debug DTE IDE tools — enabled by default (Tier 0/1)
+                { Tool_IdeActiveDocumentEnabled, true },
+                { Tool_IdeOpenFileEnabled, true },
+                { Tool_IdeNavigateToEnabled, true },
+                { Tool_IdeGotoDefinitionEnabled, true },
+                { Tool_IdeFindSymbolEnabled, true },
+                { Tool_IdeBuildEnabled, true },
+                { Tool_IdeBuildConfigurationEnabled, true },
+                { Tool_IdeLaunchProfileEnabled, true },
+                { Tool_IdeOutputPaneEnabled, true }
             };
         }
 

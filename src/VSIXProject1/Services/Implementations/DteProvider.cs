@@ -249,6 +249,187 @@ namespace ContinueVS.Services.Implementations
                 return null;
             }
         }
+
+        public ContinueVS.Core.Types.ActiveDocumentInfo? GetActiveDocumentInfo()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var activeDoc = _dte.ActiveDocument;
+                if (activeDoc == null)
+                    return null;
+
+                var filePath = activeDoc.FullName ?? string.Empty;
+                var selection = GetCursorSelection();
+                return new ContinueVS.Core.Types.ActiveDocumentInfo
+                {
+                    FilePath = filePath,
+                    Selection = selection
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public string? OpenFileInIde(string filePath)
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                if (string.IsNullOrWhiteSpace(filePath))
+                    return null;
+
+                _dte.ItemOperations.OpenFile(filePath, Constants.vsViewKindTextView);
+                // OpenFile returns a Window (no FullName); the active document now carries the path.
+                return _dte.ActiveDocument?.FullName ?? filePath;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public bool NavigateTo(string filePath, int line)
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                if (string.IsNullOrWhiteSpace(filePath) || line < 1)
+                    return false;
+
+                // Open the target file so Edit.GoTo applies to the right document.
+                _dte.ItemOperations.OpenFile(filePath, Constants.vsViewKindTextView);
+                _dte.ExecuteCommand("Edit.GoTo", line.ToString());
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public ContinueVS.Core.Types.ActiveDocumentInfo? GotoDefinition()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                _dte.ExecuteCommand("Edit.GoToDefinition");
+                return GetActiveDocumentInfo();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public bool BuildSolution(string? projectName)
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var solutionBuild = _dte.Solution?.SolutionBuild;
+                if (solutionBuild == null)
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(projectName))
+                {
+                    solutionBuild.Build(true);
+                }
+                else
+                {
+                    var configName = solutionBuild.ActiveConfiguration?.Name ?? "Debug";
+                    solutionBuild.BuildProject(configName, projectName, true);
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public ContinueVS.Core.Types.BuildConfigInfo? GetActiveBuildConfiguration()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var configs = _dte.Solution?.SolutionBuild?.ActiveConfiguration;
+                if (configs == null)
+                    return null;
+
+                return new ContinueVS.Core.Types.BuildConfigInfo
+                {
+                    Name = configs.Name,
+                    Platform = null,
+                    IsActive = true
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public ContinueVS.Core.Types.LaunchProfileInfo? GetLaunchProfile()
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                var startupProject = GetStartupProjectName();
+                var config = GetActiveBuildConfiguration();
+                return new ContinueVS.Core.Types.LaunchProfileInfo
+                {
+                    StartupProject = startupProject,
+                    LaunchProfile = config?.Name
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public ContinueVS.Core.Types.OutputPaneInfo? GetOutputPane(string paneName)
+        {
+            try
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                if (string.IsNullOrWhiteSpace(paneName))
+                    return null;
+
+                // The Output window is reached via the Windows collection, then cast to
+                // OutputWindow; DTE has no ToolWindows property in this interop surface.
+                var outputWindow = _dte.Windows?.Item(Constants.vsWindowKindOutput)?.Object as OutputWindow;
+                if (outputWindow == null)
+                    return null;
+
+                var panes = outputWindow.OutputWindowPanes;
+                if (panes == null || panes.Count == 0)
+                    return null;
+
+                // Find the pane by name; OutputWindowPanes is not indexable by name directly,
+                // so scan the collection.
+                foreach (OutputWindowPane pane in panes)
+                {
+                    if (string.Equals(pane.Name, paneName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var doc = pane.TextDocument;
+                        if (doc == null)
+                            return new ContinueVS.Core.Types.OutputPaneInfo { Name = paneName, Content = string.Empty };
+                        var text = doc.StartPoint.CreateEditPoint().GetText(doc.EndPoint) ?? string.Empty;
+                        return new ContinueVS.Core.Types.OutputPaneInfo { Name = paneName, Content = text };
+                    }
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }
 

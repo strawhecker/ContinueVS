@@ -227,12 +227,12 @@ namespace ContinueVS.Tests.Core.Types
         }
 
         [Fact]
-        public void GetAllBuiltInTools_Returns39Tools()
+        public void GetAllBuiltInTools_Returns48Tools()
         {
             var tools = BuiltInToolsRegistry.GetAllBuiltInTools();
 
             Assert.NotNull(tools);
-            Assert.Equal(39, tools.Count());
+            Assert.Equal(48, tools.Count());
         }
 
         [Fact]

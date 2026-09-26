@@ -30,6 +30,14 @@ namespace ContinueVS.Tests.Services
             public EnvDTE.Debugger? GetDebugger() => null;
             public string? GetStartupProjectName() => null;
             public Selection? GetCursorSelection() => null;
+            public string? OpenFileInIde(string filePath) => filePath;
+            public bool NavigateTo(string filePath, int line) => true;
+            public bool BuildSolution(string? projectName) => true;
+            public ContinueVS.Core.Types.ActiveDocumentInfo? GetActiveDocumentInfo() => null;
+            public ContinueVS.Core.Types.ActiveDocumentInfo? GotoDefinition() => null;
+            public ContinueVS.Core.Types.BuildConfigInfo? GetActiveBuildConfiguration() => null;
+            public ContinueVS.Core.Types.LaunchProfileInfo? GetLaunchProfile() => null;
+            public ContinueVS.Core.Types.OutputPaneInfo? GetOutputPane(string paneName) => null;
         }
 
         [Fact]

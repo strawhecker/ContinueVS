@@ -323,6 +323,60 @@ namespace ContinueVS.Services.Interfaces
         /// <returns>A task representing the asynchronous operation.</returns>
         Task OpenFileInEditorAsync(string filePath);
 
+        // Gap95 IDE diagnostic/loop tools (non-debug DTE reads/actions)
+        /// <summary>
+        /// Gets the active document's path and current selection/cursor, or null when none is active.
+        /// </summary>
+        /// <returns>Active document info, or null.</returns>
+        Task<ActiveDocumentInfo?> GetActiveDocumentInfoAsync();
+
+        /// <summary>
+        /// Opens a file in the IDE editor and activates its tab.
+        /// </summary>
+        /// <param name="filePath">The path of the file to open.</param>
+        /// <returns>The opened path, or null/empty on failure.</returns>
+        Task<string?> OpenFileInIdeAsync(string filePath);
+
+        /// <summary>
+        /// Moves the editor cursor to the given file:line.
+        /// </summary>
+        /// <param name="filePath">The path of the file to navigate in.</param>
+        /// <param name="line">1-based line number to move to.</param>
+        /// <returns>True if the navigation was issued.</returns>
+        Task<bool> NavigateToAsync(string filePath, int line);
+
+        /// <summary>
+        /// Invokes Go-To-Definition on the current selection and reports the result location.
+        /// </summary>
+        /// <returns>The resulting active document location, or null.</returns>
+        Task<ActiveDocumentInfo?> GotoDefinitionAsync();
+
+        /// <summary>
+        /// Builds the solution, or a named project when provided.
+        /// </summary>
+        /// <param name="projectName">Optional project name; empty builds the whole solution.</param>
+        /// <returns>True if the build was invoked.</returns>
+        Task<bool> BuildSolutionAsync(string? projectName);
+
+        /// <summary>
+        /// Reads the active solution build configuration.
+        /// </summary>
+        /// <returns>The active build configuration, or null.</returns>
+        Task<BuildConfigInfo?> GetActiveBuildConfigurationAsync();
+
+        /// <summary>
+        /// Reads the solution startup project and active launch profile.
+        /// </summary>
+        /// <returns>Launch profile info, or null.</returns>
+        Task<LaunchProfileInfo?> GetLaunchProfileAsync();
+
+        /// <summary>
+        /// Reads the text content of a named Output window pane.
+        /// </summary>
+        /// <param name="paneName">The output pane name (e.g. "Build").</param>
+        /// <returns>The pane content, or null/empty when unavailable.</returns>
+        Task<OutputPaneInfo?> GetOutputPaneAsync(string paneName);
+
         // Test Runner Operations
         /// <summary>
         /// Runs a test and captures diagnostic output (stdout, stderr, stack frames).

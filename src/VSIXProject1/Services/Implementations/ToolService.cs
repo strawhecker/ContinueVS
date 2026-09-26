@@ -91,7 +91,18 @@ namespace ContinueVS.Services.Implementations
             { "debug_stop", UserSettings.Tool_DebugStopEnabled },
             { "debug_restart", UserSettings.Tool_DebugRestartEnabled },
             { "ide_attach_to_process", UserSettings.Tool_IdeAttachToProcessEnabled },
-            { "debug_select_session", UserSettings.Tool_DebugSelectSessionEnabled }
+            { "debug_select_session", UserSettings.Tool_DebugSelectSessionEnabled },
+
+            // gap95 non-debug DTE IDE tools (default-enabled)
+            { "ide_active_document", UserSettings.Tool_IdeActiveDocumentEnabled },
+            { "ide_open_file", UserSettings.Tool_IdeOpenFileEnabled },
+            { "ide_navigate_to", UserSettings.Tool_IdeNavigateToEnabled },
+            { "ide_goto_definition", UserSettings.Tool_IdeGotoDefinitionEnabled },
+            { "ide_find_symbol", UserSettings.Tool_IdeFindSymbolEnabled },
+            { "ide_build", UserSettings.Tool_IdeBuildEnabled },
+            { "ide_build_configuration", UserSettings.Tool_IdeBuildConfigurationEnabled },
+            { "ide_launch_profile", UserSettings.Tool_IdeLaunchProfileEnabled },
+            { "ide_output_pane", UserSettings.Tool_IdeOutputPaneEnabled }
         };
 
         public event EventHandler<ToolErrorEventArgs>? Error;
@@ -464,6 +475,20 @@ namespace ContinueVS.Services.Implementations
                 "debug_restart" => await RestartDebuggingInternalAsync(args),
                 "ide_attach_to_process" => await AttachToProcessInternalAsync(args),
                 "debug_select_session" => await SelectSessionInternalAsync(args),
+                // gap95 non-debug DTE IDE tools
+                "ide_active_document" => await IdeActiveDocumentInternalAsync(),
+                "ide_open_file" => await IdeOpenFileInternalAsync(GetArgString(args, "filepath")),
+                "ide_navigate_to" => await IdeNavigateToInternalAsync(
+                    GetArgString(args, "filepath"),
+                    GetArgInt(args, "line")),
+                "ide_goto_definition" => await IdeGotoDefinitionInternalAsync(),
+                "ide_find_symbol" => await IdeFindSymbolInternalAsync(
+                    GetArgString(args, "symbol"),
+                    GetArgString(args, "filepath", "")),
+                "ide_build" => await IdeBuildInternalAsync(GetArgString(args, "project", "")),
+                "ide_build_configuration" => await IdeBuildConfigurationInternalAsync(),
+                "ide_launch_profile" => await IdeLaunchProfileInternalAsync(),
+                "ide_output_pane" => await IdeOutputPaneInternalAsync(GetArgString(args, "paneName")),
                 _ => CreateErrorResult(toolName, $"Unknown built-in tool: {toolName}")
             };
         }
@@ -2217,6 +2242,197 @@ namespace ContinueVS.Services.Implementations
                 return CreateDebugSessionResult("debug_select_session", session);
             }
             catch (Exception ex) { return CreateErrorResult("debug_select_session", ex.Message); }
+        }
+
+        // -----------------------------------------------------------------------
+        // gap95 — Non-debug DTE IDE tool handlers (Tier-0/1, default-enabled).
+        // All delegate to IIdeService, which wraps the IDteProvider DTE seam. Fail-soft
+        // benign returns (no throw) keep the tool loop grounded when DTE is unavailable.
+        // -----------------------------------------------------------------------
+
+        private async Task<ToolResult> IdeActiveDocumentInternalAsync()
+        {
+            try
+            {
+                var info = await _ideService.GetActiveDocumentInfoAsync();
+                if (info == null || string.IsNullOrWhiteSpace(info.FilePath))
+                    return new ToolResult
+                    {
+                        ToolName = "ide_active_document",
+                        Output = "No active document in the IDE",
+                        IsSuccess = false
+                    };
+                var loc = info.Selection?.Start;
+                var pos = loc == null ? string.Empty : $" line={loc.Line} col={loc.Column}";
+                return new ToolResult
+                {
+                    ToolName = "ide_active_document",
+                    Output = $"{info.FilePath}{pos}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_active_document", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeOpenFileInternalAsync(string filepath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filepath))
+                    return CreateErrorResult("ide_open_file", "filepath cannot be null or empty");
+                var opened = await _ideService.OpenFileInIdeAsync(filepath);
+                if (string.IsNullOrWhiteSpace(opened))
+                    return CreateErrorResult("ide_open_file", "Could not open the file in the IDE");
+                return new ToolResult
+                {
+                    ToolName = "ide_open_file",
+                    Output = $"Opened: {opened}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_open_file", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeNavigateToInternalAsync(string filepath, int line)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filepath))
+                    return CreateErrorResult("ide_navigate_to", "filepath cannot be null or empty");
+                if (line < 1)
+                    return CreateErrorResult("ide_navigate_to", "line must be >= 1");
+                var ok = await _ideService.NavigateToAsync(filepath, line);
+                if (!ok)
+                    return CreateErrorResult("ide_navigate_to", "Could not navigate to the requested location");
+                return new ToolResult
+                {
+                    ToolName = "ide_navigate_to",
+                    Output = $"Navigated to {filepath}:{line}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_navigate_to", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeGotoDefinitionInternalAsync()
+        {
+            try
+            {
+                var info = await _ideService.GotoDefinitionAsync();
+                if (info == null || string.IsNullOrWhiteSpace(info.FilePath))
+                    return CreateErrorResult("ide_goto_definition", "Could not resolve a definition (no active document or unresolved symbol)");
+                var loc = info.Selection?.Start;
+                var pos = loc == null ? string.Empty : $":{loc.Line}";
+                return new ToolResult
+                {
+                    ToolName = "ide_goto_definition",
+                    Output = $"{info.FilePath}{pos}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_goto_definition", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeFindSymbolInternalAsync(string symbol, string filepath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(symbol))
+                    return CreateErrorResult("ide_find_symbol", "symbol cannot be null or empty");
+
+                // Open the target file (or the active document) first so Go-To-Definition has a
+                // document to operate on and a symbol to resolve.
+                string target = string.IsNullOrWhiteSpace(filepath)
+                    ? (await _ideService.GetActiveDocumentInfoAsync())?.FilePath ?? string.Empty
+                    : filepath;
+                if (string.IsNullOrWhiteSpace(target))
+                    return CreateErrorResult("ide_find_symbol", "No file to search; pass an explicit filepath or open a document");
+
+                await _ideService.OpenFileInIdeAsync(target);
+                var info = await _ideService.GotoDefinitionAsync();
+                if (info == null || string.IsNullOrWhiteSpace(info.FilePath))
+                    return CreateErrorResult("ide_find_symbol", $"Could not resolve symbol '{symbol}'");
+                var loc = info.Selection?.Start;
+                var pos = loc == null ? string.Empty : $":{loc.Line}";
+                return new ToolResult
+                {
+                    ToolName = "ide_find_symbol",
+                    Output = $"{symbol} -> {info.FilePath}{pos}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_find_symbol", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeBuildInternalAsync(string project)
+        {
+            try
+            {
+                var ok = await _ideService.BuildSolutionAsync(
+                    string.IsNullOrWhiteSpace(project) ? null : project);
+                if (!ok)
+                    return CreateErrorResult("ide_build", "Could not invoke the build (no solution open, or build failed)");
+                return new ToolResult
+                {
+                    ToolName = "ide_build",
+                    Output = string.IsNullOrWhiteSpace(project) ? "Solution build started" : $"Build started for project '{project}'",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_build", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeBuildConfigurationInternalAsync()
+        {
+            try
+            {
+                var cfg = await _ideService.GetActiveBuildConfigurationAsync();
+                if (cfg == null)
+                    return CreateErrorResult("ide_build_configuration", "No active build configuration available (no solution open)");
+                return new ToolResult
+                {
+                    ToolName = "ide_build_configuration",
+                    Output = $"{cfg.Name} | {cfg.Platform}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_build_configuration", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeLaunchProfileInternalAsync()
+        {
+            try
+            {
+                var profile = await _ideService.GetLaunchProfileAsync();
+                if (profile == null)
+                    return CreateErrorResult("ide_launch_profile", "No launch profile available (no solution open)");
+                return new ToolResult
+                {
+                    ToolName = "ide_launch_profile",
+                    Output = $"startup={profile.StartupProject ?? "none"} profile={profile.LaunchProfile ?? "default"}",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_launch_profile", ex.Message); }
+        }
+
+        private async Task<ToolResult> IdeOutputPaneInternalAsync(string paneName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(paneName))
+                    return CreateErrorResult("ide_output_pane", "paneName cannot be null or empty");
+                var pane = await _ideService.GetOutputPaneAsync(paneName);
+                if (pane == null || pane.Content == null)
+                    return CreateErrorResult("ide_output_pane", $"Output pane '{paneName}' not found or empty");
+                return new ToolResult
+                {
+                    ToolName = "ide_output_pane",
+                    Output = pane.Content,
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex) { return CreateErrorResult("ide_output_pane", ex.Message); }
         }
 
         private static ToolResult CreateDebugSessionResult(string toolName, ContinueVS.Core.Types.DebugSessionInfo session)

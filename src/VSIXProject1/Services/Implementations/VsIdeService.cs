@@ -820,5 +820,59 @@ namespace ContinueVS.Services.Implementations
             // empty stub.
             return OpenFileInEditorCoreAsync(filepath);
         }
+
+        // -----------------------------------------------------------------------
+        // gap95 — Non-debug DTE tools for the troubleshooting loop.
+        // These are thin async wrappers over the IDteProvider accessors (which own
+        // all DTE marshaling), so tests stay DTE-free via a stub. Fail-soft.
+        // -----------------------------------------------------------------------
+
+        public Task<ActiveDocumentInfo?> GetActiveDocumentInfoAsync()
+        {
+            try { return Task.FromResult(_dteProvider.GetActiveDocumentInfo()); }
+            catch { return Task.FromResult<ActiveDocumentInfo?>(null); }
+        }
+
+        public Task<string?> OpenFileInIdeAsync(string filePath)
+        {
+            try { return Task.FromResult(_dteProvider.OpenFileInIde(filePath)); }
+            catch { return Task.FromResult<string?>(null); }
+        }
+
+        public Task<bool> NavigateToAsync(string filePath, int line)
+        {
+            try { return Task.FromResult(_dteProvider.NavigateTo(filePath, line)); }
+            catch { return Task.FromResult(false); }
+        }
+
+        public Task<ActiveDocumentInfo?> GotoDefinitionAsync()
+        {
+            try { return Task.FromResult(_dteProvider.GotoDefinition()); }
+            catch { return Task.FromResult<ActiveDocumentInfo?>(null); }
+        }
+
+        public Task<bool> BuildSolutionAsync(string? projectName)
+        {
+            try { return Task.FromResult(_dteProvider.BuildSolution(projectName)); }
+            catch { return Task.FromResult(false); }
+        }
+
+        public Task<BuildConfigInfo?> GetActiveBuildConfigurationAsync()
+        {
+            try { return Task.FromResult(_dteProvider.GetActiveBuildConfiguration()); }
+            catch { return Task.FromResult<BuildConfigInfo?>(null); }
+        }
+
+        public Task<LaunchProfileInfo?> GetLaunchProfileAsync()
+        {
+            try { return Task.FromResult(_dteProvider.GetLaunchProfile()); }
+            catch { return Task.FromResult<LaunchProfileInfo?>(null); }
+        }
+
+        public Task<OutputPaneInfo?> GetOutputPaneAsync(string paneName)
+        {
+            try { return Task.FromResult(_dteProvider.GetOutputPane(paneName)); }
+            catch { return Task.FromResult<OutputPaneInfo?>(null); }
+        }
     }
 }

@@ -1074,10 +1074,150 @@ namespace ContinueVS.Core.Types
         }
 
         /// <summary>
+        /// ide_active_document: Read the IDE's active document path and current selection/cursor.
+        /// Tier-0 read-only, all modes. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeActiveDocumentTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_active_document",
+                description: "Read the IDE's active document file path and the current selection/cursor. Use to learn which file is open and where the cursor is before navigation or debugging.",
+                parameters: new List<ParameterDefinition>(),
+                returnsDescription: "The active document path and selection/cursor",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+        }
+
+        /// <summary>
+        /// ide_open_file: Open a file in the IDE and activate its tab (DTE variant of open_file,
+        /// returns the opened path). Tier-1, all modes. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeOpenFileTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_open_file",
+                description: "Open a file in the IDE editor and activate its tab, returning the opened path. Distinct from open_file in that it reports the active document result.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "filepath", Type = "string", Description = "The path of the file to open.", IsRequired = true }
+                },
+                returnsDescription: "The path of the opened file",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+        }
+
+        /// <summary>
+        /// ide_navigate_to: Move the editor cursor to a file:line. Tier-1. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeNavigateToTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_navigate_to",
+                description: "Open the given file and move the editor cursor to a specific line so subsequent IDE/debug tools operate at that location.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "filepath", Type = "string", Description = "The path of the file to navigate in.", IsRequired = true },
+                    new ParameterDefinition { Name = "line", Type = "number", Description = "1-based line number to move to.", IsRequired = true }
+                },
+                returnsDescription: "Whether the navigation was issued",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// ide_goto_definition: Invoke Go-To-Definition on the current selection and report where
+        /// the cursor landed. Tier-1. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeGotoDefinitionTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_goto_definition",
+                description: "Invoke Go-To-Definition on the current selection and report the resulting active document and cursor location. Use to resolve a symbol to its definition file:line.",
+                parameters: new List<ParameterDefinition>(),
+                returnsDescription: "The resulting definition location",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// ide_find_symbol: Resolve a symbol by first placing the cursor on it, then running
+        /// Go-To-Definition, and reporting the resolved file:line. Tier-1. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeFindSymbolTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_find_symbol",
+                description: "Resolve a symbol name to its definition file:line (useful before setting a debug breakpoint). Opens the file, selects the symbol, then runs Go-To-Definition.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "symbol", Type = "string", Description = "The symbol name to resolve.", IsRequired = true },
+                    new ParameterDefinition { Name = "filepath", Type = "string", Description = "The file to search for the symbol in. Empty uses the active document.", IsRequired = false }
+                },
+                returnsDescription: "The resolved file:line of the symbol",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// ide_build: Build the solution (or a named project). Tier-1. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeBuildTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_build",
+                description: "Build the solution, or a single named project. Use to surface compile errors into the loop.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "project", Type = "string", Description = "Project name to build. Empty builds the whole solution.", IsRequired = false }
+                },
+                returnsDescription: "Whether the build was invoked",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// ide_build_configuration: Read the active solution build configuration. Tier-1 read. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeBuildConfigurationTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_build_configuration",
+                description: "Read the currently active solution build configuration (name/platform).",
+                parameters: new List<ParameterDefinition>(),
+                returnsDescription: "The active build configuration",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// ide_launch_profile: Read the solution startup project and active launch profile.
+        /// Feeds the gap94 debug_start tool. Tier-1 read. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeLaunchProfileTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_launch_profile",
+                description: "Read the solution's startup project and active launch profile, so you know what debug_start would launch.",
+                parameters: new List<ParameterDefinition>(),
+                returnsDescription: "The startup project and launch profile",
+                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+        }
+
+        /// <summary>
+        /// ide_output_pane: Read the text content of a named Output window pane (e.g. Build/Debug).
+        /// Tier-0 read-only, all modes. (gap95)
+        /// </summary>
+        public static ToolDefinition GetIdeOutputPaneTool()
+        {
+            return CreateToolDefinition(
+                name: "ide_output_pane",
+                description: "Read the text content of a named Visual Studio Output window pane (e.g. 'Build' or 'Debug'). Use to inspect build/debug output.",
+                parameters: new List<ParameterDefinition>
+                {
+                    new ParameterDefinition { Name = "paneName", Type = "string", Description = "The output pane name (e.g. 'Build', 'Debug').", IsRequired = true }
+                },
+                returnsDescription: "The pane text content",
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+        }
+
+        /// <summary>
         /// Gets all built-in tool definitions.
-        /// Returns a collection of 39 core tools for code editing, navigation, diagnostics,
-        /// plan-driven build loops, human-in-the-loop questioning, and debug session lifecycle
-        /// (gap92, gap94).
+        /// Returns a collection of 48 core tools for code editing, navigation, diagnostics,
+        /// plan-driven build loops, human-in-the-loop questioning, debug session lifecycle
+        /// (gap92, gap94), and non-debug DTE IDE tools (gap95).
         /// </summary>
         public static IEnumerable<ToolDefinition> GetAllBuiltInTools()
         {
@@ -1122,7 +1262,17 @@ namespace ContinueVS.Core.Types
                 GetDebugStopTool(),
                 GetDebugRestartTool(),
                 GetIdeAttachToProcessTool(),
-                GetDebugSelectSessionTool()
+                GetDebugSelectSessionTool(),
+                // gap95 non-debug DTE IDE tools
+                GetIdeActiveDocumentTool(),
+                GetIdeOpenFileTool(),
+                GetIdeNavigateToTool(),
+                GetIdeGotoDefinitionTool(),
+                GetIdeFindSymbolTool(),
+                GetIdeBuildTool(),
+                GetIdeBuildConfigurationTool(),
+                GetIdeLaunchProfileTool(),
+                GetIdeOutputPaneTool()
             };
             LoggerService.Current.WriteDebug($"[gap8_1-factory-all-end] GetAllBuiltInTools returning {tools.Count} tools");
             return tools;

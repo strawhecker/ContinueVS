@@ -10092,9 +10092,21 @@ Got it — you want the three gaps **scoped the way the format demands** (one co
 
 ---
 
-## gap95: Non-debug DTE Tools for the Troubleshooting Loop
+### gap95: Non-debug DTE Tools for the Troubleshooting Loop
 
-**Status:** ⬜ Planned (new gap) | Type: IdeService DTE surface | Related: gap93 (same service, `IIdeService`), gap94 (feeds launch config); assets `IIdeService`/`VsIdeService`
+**Status:** ✅ Complete | Implemented (2026-09-26) | Type: IdeService DTE surface | Related: gap93 (same service, `IIdeService`), gap94 (feeds launch config); assets `IIdeService`/`VsIdeService`
+
+**Implementation Summary (9 `ide_*` tools; registry 39 → 48):**
+- Added 8 non-debug DTE accessors to `IDteProvider`/`DteProvider` (UI-thread guarded, fail-soft benign returns): `GetActiveDocumentInfo`, `OpenFileInIde`, `NavigateTo`, `GotoDefinition`, `BuildSolution`, `GetActiveBuildConfiguration`, `GetLaunchProfile`, `GetOutputPane`. New DTOs `Core/Types/IdeToolsDtos.cs`: `ActiveDocumentInfo`, `OutputPaneInfo`, `BuildConfigInfo`, `LaunchProfileInfo` (with a shared `Selection`/`Location` from `IIdeService`).
+- Added 8 matching async methods to `IIdeService` + thin fail-soft wrappers in `VsIdeService` (delegate to the `IDteProvider` seam, tests stay DTE-free).
+- `BuiltInToolsRegistry`: 9 new factories — `ide_active_document` (Tier 0, all modes), `ide_open_file` (all modes), `ide_output_pane` (Tier 0, all modes), `ide_navigate_to`, `ide_goto_definition`, `ide_find_symbol`, `ide_build`, `ide_build_configuration`, `ide_launch_profile` (Agent+Debug). All default-enabled (no Tier-2 escape hatch: `ide_command` intentionally excluded).
+- `ToolService`: 9 switch cases + internal handlers (`Ide*InternalAsync`) returning `ToolResult`; 9 names added to `ToolNameToUserSettingKey`; default-enabled (Tier 0/1).
+- `UserSettings`: 9 new `Tool_Ide*Enabled` constants, all `true` in `GetDefaults()`.
+- `config/tools-defaults.json`: seeded the 9 entries with `supportedModes` matching the registry.
+- **Tests:** new `ToolServiceIdeToolsTests.cs` (mode gating — all 9 in Agent/Debug, read-only 3 in Ask/Plan/Reason; routing to fake `IIdeService`); extended `VsIdeServiceTests.cs` (9 seam tests via `StubDteProvider`); updated all `IDteProvider`/`IIdeService` stubs (`DteProviderTests`, `ContextWindowCollectorTests`, `GetWorkspaceFilesReproTests`, `WorkspaceStatsServiceTests`); count assertions updated (`BuiltInToolsTests` 39→48, `BuiltInToolsEnhancementTests` 39→48, `ToolServiceTests` GetAvailableTools 26→35 / Agent 21→30).
+- **Count math:** 48 total − 4 git − create_rule_block − create_snippet − run_pytest − 6 gap92_3 Tier-2 = 35 available; Agent excludes the 5 Debug-only lifecycle tools → 30.
+
+**Validation:** `dotnet clean` → `dotnet build ContinueVS.slnx --force` (0 warnings, 0 errors) → `dotnet test`: **1660 passed, 0 failed, 0 skipped**.
 
 **Problem:** The debug loop doesn't only need the debugger — it needs the IDE surface around it. To set and reason about breakpoints, navigate source, resolve symbols, build before/while debugging, read Output panes, and pick launch targets, the LLM needs DTE tools that are **not** `Debugger` tools. These don't belong in `IDebuggerService` (they're IDE, not debugger automation) and weren't owned by any gap.
 
