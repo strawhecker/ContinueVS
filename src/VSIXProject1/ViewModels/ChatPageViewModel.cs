@@ -1306,6 +1306,13 @@ namespace ContinueVS.ViewModels
             if (msg is ExecutionImpactMessage)
                 return true;
 
+            // LLMQuestionMessage (ask_user tool) is user-visible: it derives from ChatMessage
+            // with Role=System, but it renders via the dedicated QuestionMessageTemplate and
+            // blocks awaiting the user's answer, so it must appear in DisplayMessages. Mirror
+            // the ExecutionImpactMessage handling so the question is actually shown.
+            if (msg is LLMQuestionMessage)
+                return true;
+
             // Only plain System messages remain internal/LLM-only.
             return msg.Role == ChatMessageRole.User ||
                    msg.Role == ChatMessageRole.Assistant ||
