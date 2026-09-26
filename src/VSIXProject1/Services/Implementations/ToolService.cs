@@ -1929,6 +1929,7 @@ namespace ContinueVS.Services.Implementations
                     AutoAnswerHint = answers != null && answers.Count > 0
                         ? string.Join(", ", answers)
                         : null,
+                    Answers = answers,
                     RequireHumanDecision = requireHumanDecision
                 };
 

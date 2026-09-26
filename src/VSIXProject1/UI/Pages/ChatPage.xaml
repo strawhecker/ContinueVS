@@ -264,8 +264,25 @@
                             <StackPanel>
                                 <!-- Question Text -->
                                 <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#FFFFFF" FontWeight="Bold" Margin="0,0,0,8"/>
-                                <!-- Answer Input -->
-                                <TextBox x:Name="AnswerInput" 
+                                <!-- Answer Options (multiple-choice): rendered only when Answers is non-empty -->
+                                <ItemsControl ItemsSource="{Binding Answers}" Margin="0,0,0,8">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding}"
+                                                Background="#3E3E42"
+                                                Foreground="#FFFFFF"
+                                                HorizontalAlignment="Left"
+                                                HorizontalContentAlignment="Left"
+                                                BorderBrush="#6C5CE7"
+                                                BorderThickness="1"
+                                                Padding="10,6"
+                                                Margin="0,0,0,6"
+                                                Click="QuestionOptionButton_Click"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- Answer Input (free text; also usable for open-ended questions) -->
+                                <TextBox x:Name="AnswerInput"
                                      AcceptsReturn="False"
                                      Text="{Binding Path=QuestionAnswer, UpdateSourceTrigger=PropertyChanged}"
                                      Background="#1E1E1E"
@@ -277,7 +294,7 @@
                                      Height="32"/>
                                 <!-- Buttons -->
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
-                                    <Button Content="Send" 
+                                    <Button Content="Send"
                                         Background="#6C5CE7"
                                         Foreground="White"
                                         Padding="12,6"

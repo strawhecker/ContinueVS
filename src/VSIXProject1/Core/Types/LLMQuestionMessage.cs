@@ -16,6 +16,12 @@ namespace ContinueVS.Core.Types
         public string QuestionText { get; }
 
         /// <summary>
+        /// The offered multiple-choice answers (empty/null for open-ended questions).
+        /// Each entry is rendered as a clickable option button in the question card.
+        /// </summary>
+        public IReadOnlyList<string>? Answers { get; set; }
+
+        /// <summary>
         /// The type of question (Clarification, Selection, Confirmation, ThresholdWarning).
         /// </summary>
         public LLMQuestionType QuestionType { get; }

@@ -157,7 +157,10 @@ namespace ContinueVS.Services.Implementations
                 question.QuestionText,
                 question.QuestionType,
                 question.Context,
-                question.RequireHumanDecision);
+                question.RequireHumanDecision)
+            {
+                Answers = question.Answers
+            };
 
             if (_logger != null)
                 _logger?.WriteDebug($"[gap29_8_9] Interactive prompt (inline): {question.QuestionText}");

@@ -48,6 +48,13 @@ namespace ContinueVS.Core.Types
         public string? AutoAnswerHint { get; set; }
 
         /// <summary>
+        /// Structured list of offered multiple-choice answers. When non-empty, the question card
+        /// renders these as clickable option buttons; the user may pick one or type their own.
+        /// </summary>
+        [JsonProperty("answers")]
+        public System.Collections.Generic.IReadOnlyList<string>? Answers { get; set; }
+
+        /// <summary>
         /// If true, this question MUST be answered by a human. The agent must NOT auto-select or
         /// auto-answer any option for this question, regardless of autonomous or interactive mode.
         /// Decoupled from option ordering: a 'recommended' first answer may still be present, but it

@@ -502,35 +502,64 @@ namespace ContinueVS.UI.Pages
             if (btn.DataContext is not Core.Types.LLMQuestionMessage question)
                 return;
 
-            // Find the answer TextBox in the visual tree
-            var grid = btn.Parent as Panel;
-            var border = grid?.Parent as Border;
-            var stackPanel = border?.Child as StackPanel;
+            // The answer TextBox is bound directly to the question's QuestionAnswer property
+            // (UpdateSourceTrigger=PropertyChanged), so the user's typed answer is already
+            // available here. This avoids a fragile visual-tree walk that previously failed
+            // because the template nests another StackPanel between the Button and the Border.
+            var answer = question.QuestionAnswer;
 
-            TextBox? answerTextBox = null;
-            if (stackPanel != null)
-            {
-                foreach (var child in stackPanel.Children)
-                {
-                    if (child is TextBox tb && tb.Name == "AnswerInput")
-                    {
-                        answerTextBox = tb;
-                        break;
-                    }
-                }
-            }
-
-            if (answerTextBox == null || string.IsNullOrWhiteSpace(answerTextBox.Text))
+            if (string.IsNullOrWhiteSpace(answer))
             {
                 LoggerService.Current.WriteDebug("[gap54-question] No answer provided");
                 return;
             }
 
-            var answer = answerTextBox.Text;
             LoggerService.Current.WriteDebug($"[gap54-question] Answer provided: {answer}");
 
             // Fire the OnAnswerAsync callback
             _ = question.OnAnswerAsync?.Invoke(answer);
+        }
+
+        /// <summary>
+        /// Handles a click on one of the offered answer-option buttons in a question card.
+        /// The option button's DataContext is the option string (ItemsControl item), so we climb
+        /// the visual tree to find the owning LLMQuestionMessage, then answer immediately.
+        /// </summary>
+        private void QuestionOptionButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn)
+                return;
+
+            var option = btn.DataContext as string;
+            if (string.IsNullOrWhiteSpace(option))
+                return;
+
+            // Climb to the first ancestor whose DataContext is the LLMQuestionMessage.
+            var question = FindAncestorByDataContext<Core.Types.LLMQuestionMessage>(btn);
+            if (question == null)
+                return;
+
+            LoggerService.Current.WriteDebug($"[gap54-question] Option selected: {option}");
+
+            // Answer immediately with the selected option.
+            _ = question.OnAnswerAsync?.Invoke(option);
+        }
+
+        /// <summary>
+        /// Walks up the visual tree from <paramref name="element"/> to find the first
+        /// ancestor whose DataContext is assignable to <typeparamref name="T"/>.
+        /// </summary>
+        private static T? FindAncestorByDataContext<T>(DependencyObject element) where T : class
+        {
+            var current = element;
+            while (current != null)
+            {
+                if (current is FrameworkElement fe && fe.DataContext is T match)
+                    return match;
+
+                current = VisualTreeHelper.GetParent(current) ?? LogicalTreeHelper.GetParent(current);
+            }
+            return null;
         }
 
         /// <summary>
