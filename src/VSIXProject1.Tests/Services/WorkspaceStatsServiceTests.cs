@@ -53,11 +53,6 @@ namespace ContinueVS.Services.Tests
             public IEnumerable<string> GetWorkspaceFiles(string pattern = "*") => Array.Empty<string>();
             public Task OpenFileInEditorAsync(string filePath) => Task.CompletedTask;
             public Task<TestRunResult> RunTestAsync(string testPath, TestRunOptions options, CancellationToken ct = default) => Task.FromResult(new TestRunResult());
-            public Task<RuntimeState?> InspectVariablesAsync(CancellationToken cancellationToken = default) => Task.FromResult<RuntimeState?>(null);
-            public Task<BreakpointInfo?> SetBreakpointAsync(string filePath, int lineNumber, string? condition = null, CancellationToken cancellationToken = default) => Task.FromResult<BreakpointInfo?>(null);
-            public Task<bool> ClearBreakpointAsync(string filePath, int lineNumber, CancellationToken cancellationToken = default) => Task.FromResult(false);
-            public Task<RuntimeState?> StepAsync(DebugStepAction action, CancellationToken cancellationToken = default) => Task.FromResult<RuntimeState?>(null);
-            public Task ResumeDebugAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task<string> RunCommandAsync(string command) => Task.FromResult(string.Empty);
             public Task<string> GetDiffAsync() => Task.FromResult(string.Empty);
             public Task<string> GetProblemsAsync() => Task.FromResult(string.Empty);

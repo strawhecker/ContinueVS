@@ -2,26 +2,28 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ContinueVS.Core.Types;
-using ContinueVS.Services.Implementations;
 using ContinueVS.Services.Interfaces;
 using Moq;
 using Xunit;
 
 namespace ContinueVS.Tests.Services
 {
+    /// <summary>
+    /// Tests of the runtime inspection surface on the single source of truth: IDebuggerService.
+    /// (gap93) These were previously tested through IIdeService debug stubs, which are now removed;
+    /// IDebuggerService is the sole owner of debug/runtime state.
+    /// </summary>
     public class RuntimeInspectionTests
     {
         private readonly Mock<IDebuggerService> _mockDebuggerService;
-        private readonly Mock<IIdeService> _mockIdeService;
 
         public RuntimeInspectionTests()
         {
             _mockDebuggerService = new Mock<IDebuggerService>();
-            _mockIdeService = new Mock<IIdeService>();
         }
 
         [Fact]
-        public async Task InspectVariablesAsync_ReturnsRuntimeStateWithLocalVariables()
+        public async Task GetCurrentStateAsync_ReturnsRuntimeStateWithLocalVariables()
         {
             // Arrange
             var expectedState = new RuntimeState
@@ -44,12 +46,8 @@ namespace ContinueVS.Tests.Services
                 .Setup(s => s.GetCurrentStateAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(expectedState);
 
-            _mockIdeService
-                .Setup(s => s.InspectVariablesAsync(It.IsAny<CancellationToken>()))
-                .Returns(_mockDebuggerService.Object.GetCurrentStateAsync());
-
             // Act
-            var result = await _mockIdeService.Object.InspectVariablesAsync();
+            var result = await _mockDebuggerService.Object.GetCurrentStateAsync();
 
             // Assert
             Assert.NotNull(result);
@@ -68,7 +66,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task StepAsync_ExecutesStepOverAndReturnsUpdatedState()
+        public async Task ExecuteStepAsync_ExecutesStepOverAndReturnsUpdatedState()
         {
             // Arrange
             var steppedState = new RuntimeState
@@ -91,12 +89,8 @@ namespace ContinueVS.Tests.Services
                 .Setup(s => s.ExecuteStepAsync(DebugStepAction.StepOver, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(steppedState);
 
-            _mockIdeService
-                .Setup(s => s.StepAsync(DebugStepAction.StepOver, It.IsAny<CancellationToken>()))
-                .Returns(_mockDebuggerService.Object.ExecuteStepAsync(DebugStepAction.StepOver));
-
             // Act
-            var result = await _mockIdeService.Object.StepAsync(DebugStepAction.StepOver);
+            var result = await _mockDebuggerService.Object.ExecuteStepAsync(DebugStepAction.StepOver);
 
             // Assert
             Assert.NotNull(result);
@@ -109,12 +103,12 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task ResumeDebugAsync_ThrowsTimeoutExceptionAfter30Seconds()
+        public async Task ResumeExecutionAsync_ThrowsTimeoutExceptionAfter30Seconds()
         {
             // Arrange
             var cts = new CancellationTokenSource();
-            _mockIdeService
-                .Setup(s => s.ResumeDebugAsync(cts.Token))
+            _mockDebuggerService
+                .Setup(s => s.ResumeExecutionAsync(cts.Token))
                 .Returns(async () =>
                 {
                     using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token))
@@ -135,7 +129,7 @@ namespace ContinueVS.Tests.Services
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<TimeoutException>(
-                () => _mockIdeService.Object.ResumeDebugAsync(cts.Token));
+                () => _mockDebuggerService.Object.ResumeExecutionAsync(cts.Token));
 
             Assert.NotNull(ex);
             Assert.Contains("did not resume", ex.Message, StringComparison.OrdinalIgnoreCase);
