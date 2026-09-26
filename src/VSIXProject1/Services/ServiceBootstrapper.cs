@@ -384,6 +384,35 @@ namespace ContinueVS.Services
             );
             services.AddTransient<Func<MainViewModel>>(sp => () => sp.GetRequiredService<MainViewModel>());
 
+            // ChatPageViewModel must be a singleton in the container so the inline-question handler
+            // (registered with IInteractivePromptService) can resolve the SAME instance that is bound
+            // to the chat UI. Without this registration, GetService<ChatPageViewModel>() in the handler
+            // returned null and ask_user questions silently fell back to a canned auto-answer instead
+            // of being presented to the user. ChatPage.xaml.cs now resolves this singleton for its
+            // DataContext so the UI-bound instance is the same one the handler feeds questions into.
+            services.AddSingleton<ChatPageViewModel>(sp =>
+                new ChatPageViewModel(
+                    sp.GetRequiredService<ILlmService>(),
+                    sp.GetRequiredService<IContextService>(),
+                    sp.GetRequiredService<IToolService>(),
+                    sp.GetRequiredService<ISessionService>(),
+                    sp.GetRequiredService<INotificationService>(),
+                    sp.GetRequiredService<IConfigService>(),
+                    sp.GetRequiredService<ISystemPromptService>(),
+                    sp.GetRequiredService<IUIStateService>(),
+                    sp.GetRequiredService<IInstructionExecutorService>(),
+                    sp.GetRequiredService<IChangeStackService>(),
+                    sp.GetRequiredService<IMarkdownService>(),
+                    sp.GetService<ILlmQuestionService>(),
+                    sp.GetService<IModeService>(),
+                    sp.GetService<IWorkflowService>(),
+                    sp.GetService<IIdeService>(),
+                    sp.GetService<IModeConfigRegistry>(),
+                    sp.GetService<IPlanOutputService>()
+                )
+            );
+            services.AddTransient<Func<ChatPageViewModel>>(sp => () => sp.GetRequiredService<ChatPageViewModel>());
+
             // Build and return
             // BP:sv-di-build — if execution reaches here, all registrations succeeded
             LoggerService.Current.WriteDebug("[sv-di] All registrations complete — calling BuildServiceProvider()");

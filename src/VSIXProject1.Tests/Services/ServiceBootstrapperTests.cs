@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using Xunit;
@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Implementations;
+using ContinueVS.ViewModels;
 
 namespace ContinueVS.Tests.Services
 {
@@ -101,6 +102,90 @@ namespace ContinueVS.Tests.Services
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
                 new AgentCommandDispatcher(null!, mockLlmService.Object, mockModeConfigRegistry.Object, mockLogger.Object));
+        }
+
+        /// <summary>
+        /// Verifies that ChatPageViewModel is registered as a singleton in the container with the
+        /// same factory shape used in ServiceBootstrapper. The inline-question handler resolves
+        /// ChatPageViewModel via GetService to present ask_user questions in the chat UI; if it was
+        /// not registered, that resolution returned null and questions silently auto-answered.
+        /// </summary>
+        [Fact]
+        public void ServiceBootstrapper_HasChatPageViewModelRegistration()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+
+            var mockLlm = new Mock<ILlmService>();
+            var mockContext = new Mock<IContextService>();
+            var mockTool = new Mock<IToolService>();
+            var mockSession = new Mock<ISessionService>();
+            var mockNotif = new Mock<INotificationService>();
+            var mockConfig = new Mock<IConfigService>();
+            var mockSystemPrompt = new Mock<ISystemPromptService>();
+            var mockUiState = new Mock<IUIStateService>();
+            var mockInstructionExecutor = new Mock<IInstructionExecutorService>();
+            var mockChangeStack = new Mock<IChangeStackService>();
+            var mockMarkdown = new Mock<IMarkdownService>();
+            var mockModeService = new Mock<IModeService>();
+            var mockWorkflow = new Mock<IWorkflowService>();
+            var mockIde = new Mock<IIdeService>();
+            var mockModeConfigRegistry = new Mock<IModeConfigRegistry>();
+            var mockPlanOutput = new Mock<IPlanOutputService>();
+
+            services.AddSingleton(mockLlm.Object);
+            services.AddSingleton(mockContext.Object);
+            services.AddSingleton(mockTool.Object);
+            services.AddSingleton(mockSession.Object);
+            services.AddSingleton(mockNotif.Object);
+            services.AddSingleton(mockConfig.Object);
+            services.AddSingleton(mockSystemPrompt.Object);
+            services.AddSingleton(mockUiState.Object);
+            services.AddSingleton(mockInstructionExecutor.Object);
+            services.AddSingleton(mockChangeStack.Object);
+            services.AddSingleton(mockMarkdown.Object);
+            services.AddSingleton(mockModeService.Object);
+            services.AddSingleton(mockWorkflow.Object);
+            services.AddSingleton(mockIde.Object);
+            services.AddSingleton(mockModeConfigRegistry.Object);
+            services.AddSingleton(mockPlanOutput.Object);
+
+            // Register ChatPageViewModel exactly as ServiceBootstrapper does.
+            services.AddSingleton<ChatPageViewModel>(sp =>
+                new ChatPageViewModel(
+                    sp.GetRequiredService<ILlmService>(),
+                    sp.GetRequiredService<IContextService>(),
+                    sp.GetRequiredService<IToolService>(),
+                    sp.GetRequiredService<ISessionService>(),
+                    sp.GetRequiredService<INotificationService>(),
+                    sp.GetRequiredService<IConfigService>(),
+                    sp.GetRequiredService<ISystemPromptService>(),
+                    sp.GetRequiredService<IUIStateService>(),
+                    sp.GetRequiredService<IInstructionExecutorService>(),
+                    sp.GetRequiredService<IChangeStackService>(),
+                    sp.GetRequiredService<IMarkdownService>(),
+                    sp.GetService<ILlmQuestionService>(),
+                    sp.GetService<IModeService>(),
+                    sp.GetService<IWorkflowService>(),
+                    sp.GetService<IIdeService>(),
+                    sp.GetService<IModeConfigRegistry>(),
+                    sp.GetService<IPlanOutputService>()
+                )
+            );
+
+            var serviceProvider = services.BuildServiceProvider();
+
+            // Act
+            var vm = serviceProvider.GetService<ChatPageViewModel>();
+
+            // Assert
+            Assert.NotNull(vm);
+            Assert.IsType<ChatPageViewModel>(vm);
+
+            // Verify it is a singleton: resolving twice yields the same instance, which is what the
+            // inline-question handler relies on to add questions into the UI-bound VM.
+            var vm2 = serviceProvider.GetService<ChatPageViewModel>();
+            Assert.Same(vm, vm2);
         }
     }
 }

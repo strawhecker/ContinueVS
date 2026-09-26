@@ -180,8 +180,17 @@ namespace ContinueVS.UI.Pages
                     LoggerService.Current.WriteDebug($"[sv-chatpage-12] IPlanOutputService resolved={planOutput != null} (optional)");
 
                     // BP:sv-chatpage-dc — breakpoint here confirms all services resolved and DataContext is being assigned
-                    this.DataContext = new ChatPageViewModel(llm, context, tool, session, notif, config, systemPrompt, uiState, instructionExecutor, changeStackService, markdownService, llmQuestionService, null, workflow, ideService, null, planOutput);
-                    LoggerService.Current.WriteDebug("[sv-chatpage-dc] ✓ ChatPageViewModel constructed and DataContext assigned");
+                    // Resolve the DI singleton so the ChatPageViewModel bound here is the SAME instance the
+                    // inline-question handler (IInteractivePromptService) feeds questions into. Constructing a
+                    // second instance here previously meant ask_user questions were added to a VM not bound to
+                    // this UI, so the user never saw them.
+                    var chatPageVm = sp.GetService<ChatPageViewModel>();
+                    if (chatPageVm == null)
+                    {
+                        throw new InvalidOperationException("ChatPageViewModel is not registered in the service container");
+                    }
+                    this.DataContext = chatPageVm;
+                    LoggerService.Current.WriteDebug("[sv-chatpage-dc] ✓ ChatPageViewModel resolved from DI and DataContext assigned");
                 }
                 else
                 {
