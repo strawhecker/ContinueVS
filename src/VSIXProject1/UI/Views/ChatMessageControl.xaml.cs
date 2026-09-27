@@ -251,13 +251,16 @@ namespace ContinueVS.UI.Views
 
         /// <summary>
         /// gap85: Toggles the bound message's minimize/maximize state via the parent ViewModel.
-        /// No-op when the bound message has no Id or no parent ViewModel can be resolved.
+        /// Passes the ChatMessage reference directly (not its Id) because the Id is not reliably
+        /// assigned at minimize time — assistant/reasoning cards get their Id only during session
+        /// persistence (after they're already rendered), and tool-result cards never get one.
+        /// No-op only when there is no bound message or no parent ViewModel can be resolved.
         /// </summary>
         private void ToggleMinimize()
         {
-            if (DataContext is ChatMessage message && !string.IsNullOrEmpty(message.Id))
+            if (DataContext is ChatMessage message)
             {
-                ResolveViewModel()?.ToggleMinimizeMessageCommand.Execute(message.Id);
+                ResolveViewModel()?.ToggleMinimizeMessageCommand.Execute(message);
             }
         }
 

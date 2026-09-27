@@ -641,7 +641,7 @@ namespace ContinueVS.ViewModels
         /// Flips the message's IsMinimized flag (UI visibility only, not a tombstone).
         /// Applies uniformly to user, reason, response, and tool-call entries.
         /// </summary>
-        public RelayCommand<string> ToggleMinimizeMessageCommand { get; }
+        public RelayCommand<ChatMessage> ToggleMinimizeMessageCommand { get; }
         /// <summary>
         /// Command to toggle pause state (gap31_1).
         /// </summary>
@@ -778,7 +778,7 @@ namespace ContinueVS.ViewModels
             DeleteMessageCommand = new RelayCommand<string>(ExecuteDeleteMessage);
             SoftDeleteMessageCommand = new RelayCommand<string>(ExecuteSoftDeleteMessage);
             UndeleteMessageCommand = new RelayCommand<string>(ExecuteUndeleteMessage);
-            ToggleMinimizeMessageCommand = new RelayCommand<string>(ExecuteToggleMinimizeMessage);
+            ToggleMinimizeMessageCommand = new RelayCommand<ChatMessage>(ExecuteToggleMinimizeMessage);
             PauseCommand = new RelayCommand(ExecutePause, () => IsStreaming);
             NewChatCommand = new RelayCommand(() => _ = ExecuteNewChatAsync(), () => !IsStreaming);
             CopyCodeBlockCommand = new RelayCommand<string>(ExecuteCopyCodeBlock);
@@ -3178,23 +3178,24 @@ namespace ContinueVS.ViewModels
         /// When minimized the bubble collapses and the toggle shows the maximize "▢/⤢" symbol;
         /// when expanded it shows the minimize "_" symbol. Applies to all message roles alike.
         /// </summary>
-        private void ExecuteToggleMinimizeMessage(string messageId)
+        /// <remarks>
+        /// The command takes the ChatMessage <b>reference</b> directly, not a message Id.
+        /// The Id is not a reliable key at minimize time: assistant/reasoning cards are added
+        /// to the Messages collection before their Id is assigned (which happens later during
+        /// session persistence), and tool-result cards are display-only and never get an Id at
+        /// all. Routing through an Id forced those common cases to silently no-op. Operating on
+        /// the live reference also guarantees we always flip the exact instance the user sees.
+        /// </remarks>
+        private void ExecuteToggleMinimizeMessage(ChatMessage? message)
         {
-            if (string.IsNullOrWhiteSpace(messageId))
-            {
-                LoggerService.Current.WriteDebug("[gap85-minimize-cmd] messageId is null/empty, aborting");
-                return;
-            }
-
-            var message = Messages.FirstOrDefault(m => m.Id == messageId);
             if (message == null)
             {
-                LoggerService.Current.WriteDebug($"[gap85-minimize-cmd] Message with ID {messageId} not found in collection.");
+                LoggerService.Current.WriteDebug("[gap85-minimize-cmd] message is null, aborting");
                 return;
             }
 
             message.IsMinimized = !message.IsMinimized;
-            LoggerService.Current.WriteDebug($"[gap85-minimize-cmd] Message {messageId} minimized={message.IsMinimized}.");
+            LoggerService.Current.WriteDebug($"[gap85-minimize-cmd] Message {message.Id ?? "(no-id)"} minimized={message.IsMinimized}.");
         }
 
         /// <summary>

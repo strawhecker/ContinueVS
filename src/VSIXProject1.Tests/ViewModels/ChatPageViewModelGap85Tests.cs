@@ -61,7 +61,7 @@ namespace ContinueVS.Tests.ViewModels
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.User, Content = "Hello" };
             vm.Messages.Add(msg);
 
-            vm.ToggleMinimizeMessageCommand.Execute("1");
+            vm.ToggleMinimizeMessageCommand.Execute(msg);
 
             Assert.True(msg.IsMinimized, "IsMinimized should flip to true (minimize toggle).");
         }
@@ -76,13 +76,13 @@ namespace ContinueVS.Tests.ViewModels
             var msg = new ChatMessage { Id = "1", Role = ChatMessageRole.Assistant, Content = "Response", IsMinimized = true };
             vm.Messages.Add(msg);
 
-            vm.ToggleMinimizeMessageCommand.Execute("1");
+            vm.ToggleMinimizeMessageCommand.Execute(msg);
 
             Assert.False(msg.IsMinimized, "IsMinimized should flip back to false (maximize toggle).");
         }
 
         [Fact]
-        public void ToggleMinimizeMessageCommand_IgnoresNullOrMissingId()
+        public void ToggleMinimizeMessageCommand_IgnoresNullReference()
         {
             var sessionService = CreateSessionServiceMock();
             var notificationService = CreateNotificationServiceMock();
@@ -92,10 +92,30 @@ namespace ContinueVS.Tests.ViewModels
             vm.Messages.Add(msg);
 
             vm.ToggleMinimizeMessageCommand.Execute(null);
-            vm.ToggleMinimizeMessageCommand.Execute("");
-            vm.ToggleMinimizeMessageCommand.Execute("missing-id");
 
-            Assert.False(msg.IsMinimized, "No change for null/empty/missing ids.");
+            Assert.False(msg.IsMinimized, "No change for a null message reference.");
+        }
+
+        [Fact]
+        public void ToggleMinimizeMessageCommand_WorksWithoutAnId()
+        {
+            // gap85 regression: minimize must NOT depend on the message Id. Assistant/reasoning
+            // cards are rendered before their Id is assigned (during session persistence), and
+            // tool-result cards never get an Id. Minimizing them previously silently no-oped.
+            var sessionService = CreateSessionServiceMock();
+            var notificationService = CreateNotificationServiceMock();
+            var vm = CreateViewModel(sessionService, notificationService);
+
+            var streamingResponse = new ChatMessage { Role = ChatMessageRole.Assistant, Content = "streaming..." };
+            var toolResult = new ChatMessage { Role = ChatMessageRole.Tool, Content = "result", ToolName = "read_file" };
+            vm.Messages.Add(streamingResponse);
+            vm.Messages.Add(toolResult);
+
+            vm.ToggleMinimizeMessageCommand.Execute(streamingResponse);
+            vm.ToggleMinimizeMessageCommand.Execute(toolResult);
+
+            Assert.True(streamingResponse.IsMinimized, "No-Id assistant card should minimize.");
+            Assert.True(toolResult.IsMinimized, "No-Id tool card should minimize.");
         }
 
         [Fact]
@@ -114,8 +134,8 @@ namespace ContinueVS.Tests.ViewModels
             vm.Messages.Add(response);
             vm.Messages.Add(tool);
 
-            foreach (var id in new[] { "u", "r", "a", "t" })
-                vm.ToggleMinimizeMessageCommand.Execute(id);
+            foreach (var msg in new[] { user, reason, response, tool })
+                vm.ToggleMinimizeMessageCommand.Execute(msg);
 
             Assert.True(user.IsMinimized);
             Assert.True(reason.IsMinimized);
