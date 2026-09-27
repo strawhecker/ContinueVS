@@ -517,7 +517,7 @@ namespace ContinueVS.UI.Pages
             LoggerService.Current.WriteDebug($"[gap54-question] Answer provided: {answer}");
 
             // Fire the OnAnswerAsync callback
-            _ = question.OnAnswerAsync?.Invoke(answer);
+            _ = question.OnAnswerAsync?.Invoke(answer!);
         }
 
         /// <summary>
@@ -542,7 +542,7 @@ namespace ContinueVS.UI.Pages
             LoggerService.Current.WriteDebug($"[gap54-question] Option selected: {option}");
 
             // Answer immediately with the selected option.
-            _ = question.OnAnswerAsync?.Invoke(option);
+            _ = question.OnAnswerAsync?.Invoke(option!);
         }
 
         /// <summary>
