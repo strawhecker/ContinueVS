@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ContinueVS.Services.Utilities;
 using Xunit;
 
@@ -28,12 +28,13 @@ namespace ContinueVS.Tests.Services
 
         /// <summary>
         /// Test gap27_4: Unknown mode is coerced to default (Ask = 0).
+        /// Note: 5 is now Bare (gap97); an unknown value must be beyond the current maximum.
         /// </summary>
         [Fact]
         public void UnknownMode_CoercedToDefault()
         {
-            // Arrange: Use an unknown mode value
-            int unknownMode = 5;
+            // Arrange: Use an unknown mode value (beyond Bare=5)
+            int unknownMode = 6;
 
             // Act: Coerce the mode
             int coercedMode = ModeValidator.CoerceToValidMode(unknownMode);

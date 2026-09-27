@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reactive.Joins;
 using System.Runtime.Remoting.Contexts;
 using System.Text;
@@ -31,6 +32,24 @@ namespace ContinueVS.Services.Implementations
 
         private SystemPromptConfig? _config;
         private bool _isLoaded;
+
+        /// <summary>
+        /// Code-block formatting instruction retained across every mode, including gap97 Bare.
+        /// It is a pure capability/UX instruction (language + filename in the info string for
+        /// Copy/Apply); it does not reveal mode identity or workspace state, so it is safe to keep
+        /// in Bare's otherwise prompt-less payload.
+        /// </summary>
+        private const string CODEBLOCK_FORMATTING_INSTRUCTIONS =
+            "Always include the language and file name in the info string when you write code blocks.\n" +
+            "If you are editing \"src/main.py\" for example, your code block should start with '```python src/main.py'";
+
+        /// <summary>
+        /// Returns the gap97 Bare prompt: the retained code-block formatting instruction and
+        /// nothing else — no <important_rules>, no mode-identity prose, and NO workspace context.
+        /// The model does not know what mode it is in; it only knows the tools available.
+        /// </summary>
+        private static string GetBarePrompt()
+            => CODEBLOCK_FORMATTING_INSTRUCTIONS;
 
         /// <summary>Initializes with optional workspace stats service for runtime context injection.</summary>
         public SystemPromptService(IBridgeLogger? logger = null, IWorkspaceStatsService? statsService = null)
@@ -73,6 +92,16 @@ namespace ContinueVS.Services.Implementations
                 _logger?.WriteDebug("[SystemPromptService.GetPromptForMode] Config not loaded yet. Please call LoadAsync() first.");
             }
 
+            // gap97: Bare mode is defined as "no system prompt, no workspace context". It retains
+            // only the code-block formatting instruction (a pure capability/UX aid — it does not
+            // reveal mode identity or workspace state). It is handled first, before the
+            // configured-entry path, so no workspace/chat_mode context is ever appended and the
+            // model genuinely has blank canvas plus the read-only tool schema.
+            if (mode.Equals("bare", StringComparison.OrdinalIgnoreCase))
+            {
+                return GetBarePrompt();
+            }
+
             if (_config?.SystemPrompts.TryGetValue(mode.ToLowerInvariant(), out var item) == true)
             {
                 return item.Prompt + GetContextSuffix(mode);
@@ -88,6 +117,50 @@ namespace ContinueVS.Services.Implementations
             await LoadAsync();
         }
 
+        /// <summary>
+        /// Builds the dictionary of default per-mode prompts, including the gap97 bare entry which
+        /// is intentionally an empty string (no system prompt, no workspace context).
+        /// </summary>
+        private Dictionary<string, SystemPromptItem> BuildDefaultPrompts()
+        {
+            return new Dictionary<string, SystemPromptItem>
+            {
+                ["ask"] = new SystemPromptItem
+                {
+                    Prompt = GetDefaultPromptForMode("ask"),
+                    Description = "Read-only analysis mode; offer Apply Button or Agent Mode switch for code changes"
+                },
+                ["agent"] = new SystemPromptItem
+                {
+                    Prompt = GetDefaultPromptForMode("agent"),
+                    Description = "Full tool calling enabled; use edit tools for implementation"
+                },
+                ["plan"] = new SystemPromptItem
+                {
+                    Prompt = GetDefaultPromptForMode("plan"),
+                    Description = "Read-only planning tool; suggest Agent Mode for implementation"
+                },
+                ["debug"] = new SystemPromptItem
+                {
+                    Prompt = GetDefaultPromptForMode("debug"),
+                    Description = "Instrumentation-driven error diagnosis; use read-only tools and identify root causes before suggesting fixes"
+                },
+                ["reason"] = new SystemPromptItem
+                {
+                    Prompt = GetDefaultPromptForMode("reason"),
+                    Description = "Structured chain-of-thought reasoning; LLM thinks step-by-step before answering"
+                },
+                ["bare"] = new SystemPromptItem
+                {
+                    // gap97: Bare mode retains only the code-block formatting instruction (a
+                    // pure capability/UX aid) and no workspace context — the model interacts
+                    // raw, with only the read-only tool schema. It does not know what mode it is in.
+                    Prompt = GetBarePrompt(),
+                    Description = "Raw, boundary-free interaction; no system prompt, no command line, read-only tools only"
+                }
+            };
+        }
+
         public async Task EnsureConfigFileExistsAsync()
         {
             try
@@ -97,42 +170,56 @@ namespace ContinueVS.Services.Implementations
                     Directory.CreateDirectory(ConfigDirectory);
                 }
 
+                var defaultPrompts = BuildDefaultPrompts();
+
                 if (!File.Exists(ConfigFilePath))
                 {
                     var defaultConfig = new SystemPromptConfig
                     {
-                        SystemPrompts = new Dictionary<string, SystemPromptItem>
-                        {
-                            ["ask"] = new SystemPromptItem
-                            {
-                                Prompt = GetDefaultPromptForMode("ask"),
-                                Description = "Read-only analysis mode; offer Apply Button or Agent Mode switch for code changes"
-                            },
-                            ["agent"] = new SystemPromptItem
-                            {
-                                Prompt = GetDefaultPromptForMode("agent"),
-                                Description = "Full tool calling enabled; use edit tools for implementation"
-                            },
-                            ["plan"] = new SystemPromptItem
-                            {
-                                Prompt = GetDefaultPromptForMode("plan"),
-                                Description = "Read-only planning tool; suggest Agent Mode for implementation"
-                            },
-                            ["debug"] = new SystemPromptItem
-                            {
-                                Prompt = GetDefaultPromptForMode("debug"),
-                                Description = "Instrumentation-driven error diagnosis; use read-only tools and identify root causes before suggesting fixes"
-                            },
-                            ["reason"] = new SystemPromptItem
-                            {
-                                Prompt = GetDefaultPromptForMode("reason"),
-                                Description = "Structured chain-of-thought reasoning; LLM thinks step-by-step before answering"
-                            }
-                        }
+                        SystemPrompts = defaultPrompts
                     };
 
                     var json = JsonConvert.SerializeObject(defaultConfig, Formatting.Indented);
                     File.WriteAllText(ConfigFilePath, json);
+                }
+                else
+                {
+                    // gap97: Merge missing default keys into an existing config so new modes (e.g.
+                    // bare, but also debug/reason from earlier gaps) are seeded on an app update
+                    // without overwriting any user customization to existing prompts.
+                    var json = File.ReadAllText(ConfigFilePath);
+                    var existing = JsonConvert.DeserializeObject<SystemPromptConfig>(json);
+                    var existingPrompts = existing?.SystemPrompts ?? new Dictionary<string, SystemPromptItem>();
+
+                    bool changed = false;
+                    foreach (var kvp in defaultPrompts)
+                    {
+                        if (!existingPrompts.ContainsKey(kvp.Key))
+                        {
+                            existingPrompts[kvp.Key] = kvp.Value;
+                            changed = true;
+                        }
+                        // gap97: Self-heal — a bare entry seeded as fully empty by an earlier build
+                        // should be upgraded to the retained code-block formatting instruction.
+                        else if (kvp.Key == "bare"
+                                 && string.IsNullOrWhiteSpace(existingPrompts[kvp.Key]?.Prompt))
+                        {
+                            existingPrompts[kvp.Key] = kvp.Value;
+                            changed = true;
+                        }
+                    }
+
+                    if (changed)
+                    {
+                        existingPrompts = existingPrompts
+                            .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                        File.WriteAllText(ConfigFilePath,
+                            JsonConvert.SerializeObject(new SystemPromptConfig
+                            {
+                                SystemPrompts = existingPrompts
+                            }, Formatting.Indented));
+                    }
                 }
             }
             catch (Exception ex)
@@ -143,10 +230,6 @@ namespace ContinueVS.Services.Implementations
 
         private string GetDefaultPromptForMode(string mode)
         {
-            const string CODEBLOCK_FORMATTING_INSTRUCTIONS =
-                "Always include the language and file name in the info string when you write code blocks.\n" +
-                "If you are editing \"src/main.py\" for example, your code block should start with '```python src/main.py'";
-
             //const string EDIT_CODE_INSTRUCTIONS =
             //    "When addressing code modification requests, present a concise code snippet that\n" +
             //    "emphasizes only the necessary changes and uses abbreviated placeholders for\n" +
@@ -319,6 +402,13 @@ namespace ContinueVS.Services.Implementations
                            ASK_USER_INSTRUCTIONS + "\n\n" +
                            "</important_rules>" +
                            GetContextSuffix("reason");
+
+                case "bare":
+                    // gap97: Bare mode ships no system prompt and no context suffix — it retains
+                    // only the code-block formatting instruction and is handled earlier (in
+                    // GetPromptForMode) with no GetContextSuffix. This default-case fallback is a
+                    // safety net for direct calls that bypass the config lookup.
+                    return GetBarePrompt();
 
                 default:  // chat/ask mode
                     return "<important_rules>\n" +

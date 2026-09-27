@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using ContinueVS.Core;
@@ -268,6 +268,52 @@ namespace ContinueVS.Tests.Services
             // Assert
             Assert.Contains("<agent_context>", prompt, StringComparison.Ordinal);
             Assert.DoesNotContain("<plan_context>", prompt, StringComparison.Ordinal);
+        }
+
+        // ---- gap97 bare mode ----
+
+        [Fact]
+        public async Task GetPromptForMode_Bare_RetainsCodeblockOnlyAndNoWorkspaceContext()
+        {
+            // Arrange
+            var stats = new ContinueVS.Core.Types.WorkspaceStats { GitBranch = "main" };
+            await _service.LoadAsync();
+            var svcWithStats = new SystemPromptService(statsService: new StubWorkspaceStatsService(stats));
+            await svcWithStats.LoadAsync();
+
+            // Act
+            var prompt = svcWithStats.GetPromptForMode("bare");
+
+            // Assert — Bare retains ONLY the code-block formatting capability instruction. There
+            // must be no <important_rules> mode prose, no <workspace_context>, and no <chat_mode> —
+            // the model must not know what mode it is in or what workspace it is in.
+            Assert.Contains("code block", prompt, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("<important_rules>", prompt, StringComparison.Ordinal);
+            Assert.DoesNotContain("You are in", prompt, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("<workspace_context>", prompt, StringComparison.Ordinal);
+            Assert.DoesNotContain("chat_mode", prompt, StringComparison.Ordinal);
+            Assert.DoesNotContain("git_branch", prompt, StringComparison.Ordinal);
+            Assert.DoesNotContain("active_file", prompt, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public async Task EnsureConfigFileExistsAsync_WritesBareEntry()
+        {
+            // Arrange
+            var configPath = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".continueVS",
+                "system-prompts.json");
+
+            // Act
+            await _service.EnsureConfigFileExistsAsync();
+
+            // Assert
+            Assert.True(File.Exists(configPath));
+            var json = File.ReadAllText(configPath);
+            var config = Newtonsoft.Json.JsonConvert.DeserializeObject<ContinueVS.Core.Types.SystemPromptConfig>(json);
+            Assert.NotNull(config);
+            Assert.True(config.SystemPrompts.ContainsKey("bare"), "system-prompts.json must contain a 'bare' key");
         }
 
         private sealed class StubWorkspaceStatsService : ContinueVS.Services.Interfaces.IWorkspaceStatsService

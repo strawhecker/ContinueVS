@@ -394,6 +394,35 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
+        public void GetAvailableTools_WithBareMode_ReturnsOnlyRealReadTools_NoWriteNoShell()
+        {
+            var ideServiceMock = CreateMockIdeService();
+            var configServiceMock = CreateMockConfigService();
+            var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
+
+            var tools = service.GetAvailableTools(ChatMode.Bare).ToList();
+
+            Assert.NotEmpty(tools);
+            var toolNames = tools.Select(t => t.Name).ToList();
+            // Bare must expose the real read-only tools
+            Assert.Contains("read_file", toolNames);
+            Assert.Contains("read_file_range", toolNames);
+            Assert.Contains("file_glob_search", toolNames);
+            Assert.Contains("search_codebase", toolNames);
+            Assert.Contains("grep_search", toolNames);
+            Assert.Contains("ls", toolNames);
+            Assert.Contains("view_file", toolNames);
+            Assert.Contains("view_diff", toolNames);
+            // Bare must NOT expose any write tool, the shell, or plans
+            Assert.DoesNotContain("edit_file", toolNames);
+            Assert.DoesNotContain("create_new_file", toolNames);
+            Assert.DoesNotContain("create_folder", toolNames);
+            Assert.DoesNotContain("single_find_and_replace", toolNames);
+            Assert.DoesNotContain("run_terminal_command", toolNames);
+            Assert.DoesNotContain("debug_start", toolNames);
+        }
+
+        [Fact]
         public void GetAvailableTools_WithoutMode_ReturnsAllTools_BackwardCompatibility()
         {
             var ideServiceMock = CreateMockIdeService();

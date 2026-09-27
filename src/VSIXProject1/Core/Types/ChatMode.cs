@@ -1,4 +1,4 @@
-﻿namespace ContinueVS.Core.Types
+namespace ContinueVS.Core.Types
 {
     /// <summary>
     /// Defines the operational mode for the chat interface.
@@ -28,6 +28,13 @@
         /// <summary>
         /// Reason mode: Structured chain-of-thought reasoning; LLM thinks step-by-step before answering.
         /// </summary>
-        Reason
+        Reason,
+
+        /// <summary>
+        /// Bare mode: Raw, boundary-free interaction — no system prompt, no workspace context,
+        /// no command-line tool, and no write tools. Read-only tools only. Registered last in the
+        /// mode list so the user never needs another application for a clean, raw LLM session.
+        /// </summary>
+        Bare
     }
 }

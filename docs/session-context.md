@@ -10217,35 +10217,35 @@ That's gap92 (as a 3-part family) + gap93 + gap94 + gap95 = your four top-level 
 ---
 
 ### gap97 bare --- no system prompt, no command line, only read-only tools.
-**Status:** ⏳ Planned (not started) | Type: New first-class mode | Related: gap44/45 (Mode = Prompt + Policy + LLM), gap71 (`SupportedModes`), gap84 (block = absent from schema); assets `SystemPromptService`, `ModeConfigRegistry`, `ToolService`, `ChatPageViewModel`
+**Status:** ✅ Implemented | Type: New first-class mode | Related: gap44/45 (Mode = Prompt + Policy + LLM), gap71 (`SupportedModes`), gap84 (block = absent from schema); assets `SystemPromptService`, `ModeConfigRegistry`, `ToolService`, `ChatPageViewModel`
 **Objective:** Gap97 is a first-class mode, equal to `ask` and `agent`, rendered **last** in the mode list. Its whole purpose is retention: a raw, boundary-free way to "just talk to the model" so the user has no reason to leave the app to get a clean LLM interaction. It ships **no system prompt, no command line, and no write tools** — only read-only tools. Because every later gap hardens the surrounding modes, gap97 is the escape hatch that keeps the raw surface available in-app.
 **Critical premise — empty prompt is safe because safety lives in the schema, not the prose:** Mode identity reaches the LLM through two channels, both of which gap97 empties: (1) the prompt body (`<important_rules>…</important_rules>` from `GetPromptForMode`) and (2) the workspace-context suffix (`GetContextSuffix()`, which emits `<chat_mode>`, active file, and git branch). Emptying both leaves the model with a blank canvas plus the tool schema. No safety net is lost because read-only + no-shell is enforced structurally — a tool absent from the schema (gap84) cannot be called, period.
 **Implementation (this gap):**
 1. **Mode enrollment (first-class, last):** `Core/Types/ChatMode.cs` adds `Bare` as the **terminal** enum value (after `Agent`); `ModeValidator.MaxValidMode = ChatMode.Bare`; registered last in `AvailableModes` in `ChatPageViewModel` with a `ModeOption` (icon/description) and its own `ModeOption`/`ModeValidator` entry. Add a guard/test that `Bare` is never positioned before `Ask`/`Agent`.
-2. **Empty system prompt + no workspace context:** `SystemPromptService` gets a `"bare"` case returning `string.Empty` — **no** `<important_rules>`, and the bare path does **not** invoke `GetContextSuffix()` (kills `<chat_mode>` / active-file / git-branch leak). Seed an empty `"bare"` entry in `EnsureConfigFileExistsAsync`.
-3. **Three subsystem texts survive — deliberate, not a leak:** `CODEBLOCK_FORMATTING_INSTRUCTIONS` (lang+filename fences for Copy/Apply — a capability/UX instruction that doesn't reveal mode), `session_history` (message packing), and `token_budget` (context budgeting) are bare mechanics of carrying the conversation, not mode-prose. "No system prompt" ≡ no `important_rules`, no `chat_mode`, no workspace context — not "no conversation."
-4. **Structural read-only + no command line via `SupportedModes` (gap71) — not the whitelist:** Add `ChatMode.Bare` to `SupportedModes` on **only** the real read-only tools: `read_file`, `read_file_range`, `ls`, `file_glob_search`, `search_codebase`, `grep_search`, `view_file`, `view_diff` (+ config readers). **Every** write tool (`create_*`, `edit_*`, `single_find_and_replace`), `run_terminal_command`, `debug_*`, and `ide_command` gets **no** `Bare` in its `SupportedModes` → absent from schema → structurally impossible to call.
-5. **Defer to ToolService; retire the stale whitelist:** `GetAvailableToolsForCurrentMode()` gains a `Bare` case that returns `_toolService.GetAvailableTools(ChatMode.Bare)` — full delegation to path A. This removes the double-filter and also fixes the latent `Ask` bug: the hardcoded `IsReadTool`/`IsWriteTool` name-lists (`list_files`, `search_code`, `write_files`, `delete_file`, `run_command`) match **zero** real tools in `BuiltInTools.cs` (real names are `ls`, `file_glob_search`, `search_codebase`, `grep_search`, `read_file_range`, etc.), which strips most read tools from `Ask`. Bare must not inherit that broken filter.
-6. **ModeConfigRegistry.Bare:** `AllowWriteTools=false`, `AllowPhaseExecution=false`, `RequiresDebuggerContext=false`, `ExportsPlanFile=false`; capabilities ≈ `read_file` + `session_history` + `token_budget` (no codeblock-prefs key beyond the retained global instruction).
+2. **No mode/workspace identity + codeblock retained:** `SystemPromptService` handles `"bare"` first, returning `GetBarePrompt()` — the retained `CODEBLOCK_FORMATTING_INSTRUCTIONS` and nothing else — **never** invoking `GetContextSuffix()`. So there is **no** `<important_rules>`, **no** `<chat_mode>`, **no** active-file, **no** git-branch. Eaten `"bare"` is seeded in `EnsureConfigFileExistsAsync`; the method now merges missing default keys into an existing config (self-heals an earlier empty bare entry) instead of only creating when absent.
+3. **Subsystem texts survive — deliberate, not a leak:** `CODEBLOCK_FORMATTING_INSTRUCTIONS` (lang+filename fences for Copy/Apply — capability/UX, doesn't reveal mode) is the entire Bare prompt; `session_history` and `token_budget` are bare mechanics carried as `EnabledCapabilities` in the mode config. "No system prompt" ≡ no `important_rules`, no `chat_mode`, no workspace context — not "no conversation."
+4. **Structural read-only + no command line via `SupportedModes` (gap71) — not the whitelist:** Added `ChatMode.Bare` to `SupportedModes` on **only** the real read-only tools: `read_file`, `read_file_range`, `ls`, `file_glob_search`, `search_codebase`, `grep_search`, `view_file`, `view_diff`. **Every** write tool (`create_*`, `edit_*`, `single_find_and_replace`), `run_terminal_command`, `debug_*`, and `ide_command` gets **no** `Bare` in its `SupportedModes` → absent from schema → structurally impossible to call.
+5. **Defer to ToolService; retire the stale whitelist:** `GetAvailableToolsForCurrentMode()` now returns `_toolService.GetAvailableTools(CurrentMode)` — full delegation to the mode filter (gap71) for **every** mode. Removed the hardcoded `IsReadTool`/`IsWriteTool` string-lists, which matched zero real tools (`list_files`, `search_code`, `write_files`, `delete_file`, `run_command`) and had stripped most read tools from `Ask`. This fixes the latent `Ask` bug.
+6. **ModeConfigRegistry.Bare:** `AllowWriteTools=false`, `AllowPhaseExecution=false`, `RequiresDebuggerContext=false`, `ExportsPlanFile=false`; `EnabledCapabilities` = SharedCapabilities (`read_file`, `codeblock_format`, `session_history`, `token_budget`).
 
 **Files Modified/Created:**
-- `src/VSIXProject1/Core/Types/ChatMode.cs` (add `Bare`, terminal)
-- `src/VSIXProject1/Core/Types/ModeValidator.cs` (`MaxValidMode = Bare`)
-- `src/VSIXProject1/Services/Implementations/SystemPromptService.cs` (`case "bare" => ""`; skip `GetContextSuffix`; seed empty `"bare"`)
+- `src/VSIXProject1/Core/Types/ChatMode.cs` (add `Bare`, terminal after `Reason`)
+- `src/VSIXProject1/Utilities/ModeValidator.cs` (`MaxValidMode = 5`)
+- `src/VSIXProject1/Services/Implementations/SystemPromptService.cs` (bare handled first → `GetBarePrompt()`; skip `GetContextSuffix`; promote codeblock const to class-level; seed/merge `"bare"`)
 - `src/VSIXProject1/Services/Implementations/ModeConfigRegistry.cs` (add `Bare` config)
 - `src/VSIXProject1/Core/Types/BuiltInTools.cs` (add `Bare` to `SupportedModes` on read-only tools; exclude write/shell/debug)
-- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (`GetAvailableToolsForCurrentMode()` `Bare` case → delegate; `AvailableModes` entry last)
-- `src/VSIXProject1.Tests/...` (Bare prompt/context-tools tests; ordering guard)
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (`GetAvailableToolsForCurrentMode()` → delegate; removed `IsReadTool`/`IsWriteTool`; `AvailableModes` entry last)
+- `src/VSIXProject1.Tests/...` (Bare prompt/context-tools, schema, ordering-guard tests; updated count/table/legacy whitelist tests)
 
 **Acceptance criteria:**
-- [ ] `Bare` is selectable, first-class, and **last** in the mode list.
-- [ ] Bare request carries an **empty system prompt** and **no** `<chat_mode>` / active-file / git-branch context.
-- [ ] `CODEBLOCK_FORMATTING_INSTRUCTIONS`, `session_history`, and `token_budget` still function in Bare.
-- [ ] Bare schema exposes the real read-only tools and **excludes** `run_terminal_command` and every write tool (absent from schema, not merely warned).
-- [ ] `GetAvailableToolsForCurrentMode(Bare)` defers to `ToolService` — no stale name-list filter; the latent `Ask` whitelist bug is fixed.
-- [ ] Unknown-to-bare tools degrade safely (never fail a call).
+- [x] `Bare` is selectable, first-class, and **last** in the mode list.
+- [x] Bare request carries **no** `<chat_mode>` / active-file / git-branch context (codeblock instruction only).
+- [x] `CODEBLOCK_FORMATTING_INSTRUCTIONS`, `session_history`, and `token_budget` still function in Bare.
+- [x] Bare schema exposes the real read-only tools and **excludes** `run_terminal_command` and every write tool (absent from schema, not merely warned).
+- [x] `GetAvailableToolsForCurrentMode(Bare)` defers to `ToolService` — no stale name-list filter; the latent `Ask` whitelist bug is fixed.
+- [x] Unknown-to-bare tools degrade safely (mode filter never throws).
 
-**Validation:** Clean full-solution build (0 warnings, 0 errors). Full test suite green. New tests: Bare → empty prompt + no workspace context; Bare schema = read-only set, no write/shell; `Bare` terminal ordering guard.
+**Validation:** Clean full-solution build (0 warnings, 0 errors). Full test suite: 1681 passed, 0 failed, 0 skipped. New tests: SystemPromptServiceTests (Bare retains codeblock-only + no workspace context; config seeds `"bare"`), ToolServiceTests (Bare = read-only set via `SupportedModes`, no write/shell), ModeConfigRegistryTests (Bare flags; prompt has no mode identity), ModeDropdownBindingTests / ModeDescriptionTests (Bare selectable, `Bare` terminal ordering guard), ChatPageViewModelGap55Tests (delegation, removed whitelist), FutureModeSupportTests (unknown mode bumped to 6).
 
 **Sequencing:** Independent of the debug gap92–95 family and the gap88 renderer consolidation; safe to build in parallel with any of them. Lands after gap96 so the mode family (44/45 → ask/agent/plan → bare) reads in one coherent sequence. Required before opening the escape hatch to users, but nothing else depends on it.
 

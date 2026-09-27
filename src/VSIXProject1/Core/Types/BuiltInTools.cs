@@ -62,7 +62,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "The file contents as a string",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>
@@ -173,7 +173,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "List of file paths matching the glob pattern",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>
@@ -187,7 +187,7 @@ namespace ContinueVS.Core.Types
                 description: "View the current diff of working changes",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "The unified diff of all current changes",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "List of file and folder names in the directory",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>
@@ -331,7 +331,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "List of matching code snippets with file paths and line numbers",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>
@@ -395,7 +395,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "File contents with line number prefixes",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>
@@ -590,7 +590,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "The file contents for the specified line range",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>
@@ -628,7 +628,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Array of matching lines with file paths, line numbers, and matched content",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
         }
 
         /// <summary>

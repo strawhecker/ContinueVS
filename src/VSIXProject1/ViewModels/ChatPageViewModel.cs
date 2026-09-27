@@ -292,7 +292,8 @@ namespace ContinueVS.ViewModels
                             new ModeOption("Agent", ChatMode.Agent, "Autonomous tool calling and code editing with user approval.", "\U0001F916"),
                             new ModeOption("Plan", ChatMode.Plan, "Read-only plan generation and review.", "\U0001F4CB"),
                             new ModeOption("Debug", ChatMode.Debug, "Instrumentation-driven error diagnosis with interactive refinement.", "\U0001F527"),
-                            new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "\U0001F9E0")
+                            new ModeOption("Reason", ChatMode.Reason, "Structured chain-of-thought reasoning before answering.", "\U0001F9E0"),
+                            new ModeOption("Bare", ChatMode.Bare, "Raw, boundary-free interaction — no system prompt, no command line, read-only tools only.", "\U0001F3AC")
                         };
                 }
                 return _availableModes;
@@ -3666,36 +3667,21 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
-        /// gap55_4: Filters available tools based on current ChatMode policy.
-        /// Ask mode: read-only tools only (read_file, list_files, search_code).
-        /// Agent mode: all tools allowed.
-        /// Other modes have their own policies.
+        /// gap55_4 / gap97: Returns the tools available for the current ChatMode, delegated to
+        /// _toolService.GetAvailableTools(mode), which filters by each tool's SupportedModes (gap71).
+        /// This is the single source of truth — it replaced the earlier hardcoded
+        /// IsReadTool/IsWriteTool string whitelist (whose names matched no real tools) that had
+        /// stripped most read tools from Ask mode.
         /// </summary>
         public List<ToolDefinition> GetAvailableToolsForCurrentMode()
         {
-            var allTools = _toolService.GetAvailableTools().ToList();
-
-            return CurrentMode switch
-            {
-                ChatMode.Ask =>
-                    allTools.Where(t => !IsWriteTool(t.Name) && IsReadTool(t.Name)).ToList(),
-                ChatMode.Agent =>
-                    allTools,  // All tools allowed
-                _ => new List<ToolDefinition>()
-            };
+            // gap97: Tool filtering is delegated to the single source of truth —
+            // _toolService.GetAvailableTools(mode) filters by each tool's SupportedModes (gap71).
+            // This replaces the earlier hardcoded IsReadTool/IsWriteTool string whitelist, whose
+            // names (write_files, delete_file, run_command, list_files, search_code) matched NO real
+            // tools in BuiltInTools.cs and silently stripped most read tools from Ask mode.
+            return _toolService.GetAvailableTools(CurrentMode).ToList();
         }
-
-        /// <summary>
-        /// Helper: Checks if a tool name represents a write operation.
-        /// </summary>
-        private bool IsWriteTool(string name) =>
-            name is "write_files" or "delete_file" or "run_command";
-
-        /// <summary>
-        /// Helper: Checks if a tool name represents a read operation.
-        /// </summary>
-        private bool IsReadTool(string name) =>
-            name is "read_file" or "list_files" or "search_code";
 
         /// <summary>
         /// gap68: Parses thinking/reasoning content from LLM response and creates separate ChatMessage objects.

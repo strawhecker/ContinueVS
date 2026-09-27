@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
@@ -93,6 +93,19 @@ namespace ContinueVS.Services.Implementations
                     SystemPrompt = systemPromptService.GetPromptForMode("reason"),
                     EnabledCapabilities = new List<string>(SharedCapabilities),
                     AllowWriteTools = false,
+                    RequiresDebuggerContext = false,
+                    ExportsPlanFile = false
+                },
+                // gap97: Bare mode — no system prompt, no write tools, no phase execution, no plan
+                // export. Only the shared read/session/token-budget mechanics are enabled, matching
+                // its "raw, boundary-free, read-only" contract.
+                [ChatMode.Bare] = new ModeConfig
+                {
+                    Mode = ChatMode.Bare,
+                    SystemPrompt = systemPromptService.GetPromptForMode("bare"),
+                    EnabledCapabilities = new List<string>(SharedCapabilities),
+                    AllowWriteTools = false,
+                    AllowPhaseExecution = false,
                     RequiresDebuggerContext = false,
                     ExportsPlanFile = false
                 }

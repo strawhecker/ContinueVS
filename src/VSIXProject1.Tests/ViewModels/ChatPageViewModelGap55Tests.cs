@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -204,21 +204,18 @@ namespace ContinueVS.Tests.ViewModels
         }
 
         [Fact]
-        public void GetAvailableToolsForCurrentMode_AskModeExcludesWriteTools()
+        public void GetAvailableToolsForCurrentMode_AskMode_DelegatesToToolServiceByMode()
         {
-            // Arrange
+            // Arrange — gap55_4 originally filtered via a hardcoded whitelist; gap97 replaces that
+            // by delegating to _toolService.GetAvailableTools(mode), filtered by SupportedModes (gap71).
             var tools = new List<ToolDefinition>
             {
                 new ToolDefinition { Name = "read_file" },
-                new ToolDefinition { Name = "list_files" },
-                new ToolDefinition { Name = "search_code" },
-                new ToolDefinition { Name = "write_files" },
-                new ToolDefinition { Name = "delete_file" },
-                new ToolDefinition { Name = "run_command" }
+                new ToolDefinition { Name = "file_glob_search" }
             };
 
             _mockToolService
-                .Setup(x => x.GetAvailableTools())
+                .Setup(x => x.GetAvailableTools(ChatMode.Ask))
                 .Returns(tools);
 
             _viewModel.CurrentMode = ChatMode.Ask;
@@ -226,18 +223,15 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             var result = _viewModel.GetAvailableToolsForCurrentMode();
 
-            // Assert
-            Assert.Equal(3, result.Count);
+            // Assert — the VM must pass the current mode through to the single source of truth.
+            Assert.Equal(2, result.Count);
             Assert.Contains(result, t => t.Name == "read_file");
-            Assert.Contains(result, t => t.Name == "list_files");
-            Assert.Contains(result, t => t.Name == "search_code");
-            Assert.DoesNotContain(result, t => t.Name == "write_files");
-            Assert.DoesNotContain(result, t => t.Name == "delete_file");
-            Assert.DoesNotContain(result, t => t.Name == "run_command");
+            Assert.Contains(result, t => t.Name == "file_glob_search");
+            _mockToolService.Verify(x => x.GetAvailableTools(ChatMode.Ask), Times.Once);
         }
 
         [Fact]
-        public void GetAvailableToolsForCurrentMode_AgentModeIncludesAll()
+        public void GetAvailableToolsForCurrentMode_AgentMode_DelegatesToToolServiceByMode()
         {
             // Arrange
             var tools = new List<ToolDefinition>
@@ -248,7 +242,7 @@ namespace ContinueVS.Tests.ViewModels
             };
 
             _mockToolService
-                .Setup(x => x.GetAvailableTools())
+                .Setup(x => x.GetAvailableTools(ChatMode.Agent))
                 .Returns(tools);
 
             _viewModel.CurrentMode = ChatMode.Agent;
@@ -256,8 +250,35 @@ namespace ContinueVS.Tests.ViewModels
             // Act
             var result = _viewModel.GetAvailableToolsForCurrentMode();
 
-            // Assert
+            // Assert — clean delegation to the mode-aware filter.
             Assert.Equal(3, result.Count);
+            _mockToolService.Verify(x => x.GetAvailableTools(ChatMode.Agent), Times.Once);
+        }
+
+        [Fact]
+        public void GetAvailableToolsForCurrentMode_BareMode_DelegatesReadOnlyToToolService()
+        {
+            // Arrange — gap97: Bare delegates to the mode filter; the read-only set is enforced by
+            // SupportedModes in BuiltInToolsRegistry, not by any hardcoded name list in the VM.
+            var tools = new List<ToolDefinition>
+            {
+                new ToolDefinition { Name = "read_file", SupportedModes = new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare } },
+                new ToolDefinition { Name = "edit_file", SupportedModes = new List<ChatMode> { ChatMode.Agent, ChatMode.Debug } }
+            };
+
+            _mockToolService
+                .Setup(x => x.GetAvailableTools(ChatMode.Bare))
+                .Returns(new List<ToolDefinition> { tools[0] });
+
+            _viewModel.CurrentMode = ChatMode.Bare;
+
+            // Act
+            var result = _viewModel.GetAvailableToolsForCurrentMode();
+
+            // Assert — the VM returns exactly what the tool service filtered for Bare (read-only).
+            Assert.Single(result);
+            Assert.Equal("read_file", result[0].Name);
+            _mockToolService.Verify(x => x.GetAvailableTools(ChatMode.Bare), Times.Once);
         }
 
         [Fact]

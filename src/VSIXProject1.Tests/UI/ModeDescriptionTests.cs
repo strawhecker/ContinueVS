@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using System.Linq;
@@ -155,6 +155,39 @@ namespace ContinueVS.Tests.UI
 
             // Assert
             Assert.Equal("🧠", reasonMode.Icon);
+        }
+
+        // ---- gap97 bare mode ----
+
+        [Fact]
+        public void BareModeDescription_Should_Be_Correct()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act
+            var bareMode = vm.AvailableModes.Single(m => m.Value == ChatMode.Bare);
+
+            // Assert
+            Assert.Equal("Raw, boundary-free interaction — no system prompt, no command line, read-only tools only.", bareMode.Description);
+        }
+
+        [Fact]
+        public void BareMode_Should_Be_Last_In_List()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+
+            // Act & Assert
+            // gap97: Bare is a retention escape hatch — it must be the LAST entry so the user
+            // never needs another application for a raw LLM session, and it must never precede
+            // Ask or Agent in the mode list.
+            Assert.Equal(ChatMode.Bare, vm.AvailableModes.Last().Value);
+            var bareIndex = vm.AvailableModes.ToList().FindIndex(m => m.Value == ChatMode.Bare);
+            var askIndex = vm.AvailableModes.ToList().FindIndex(m => m.Value == ChatMode.Ask);
+            var agentIndex = vm.AvailableModes.ToList().FindIndex(m => m.Value == ChatMode.Agent);
+            Assert.True(bareIndex > askIndex, "Bare must be positioned after Ask");
+            Assert.True(bareIndex > agentIndex, "Bare must be positioned after Agent");
         }
     }
 }

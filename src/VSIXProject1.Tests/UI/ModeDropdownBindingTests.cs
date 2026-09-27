@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -77,18 +77,18 @@ namespace ContinueVS.Tests.UI
         }
 
         [Fact]
-        public void AvailableModes_LoadsWith5Options()
+        public void AvailableModes_LoadsWith6Options()
         {
             // Arrange / Act
             var vm = CreateViewModel();
 
             // Assert
             Assert.NotNull(vm.AvailableModes);
-            Assert.Equal(5, vm.AvailableModes.Count);
+            Assert.Equal(6, vm.AvailableModes.Count);
         }
 
         [Fact]
-        public void AvailableModes_ContainsAskAgentPlanDebugReason()
+        public void AvailableModes_ContainsAskAgentPlanDebugReasonBare()
         {
             // Arrange / Act
             var vm = CreateViewModel();
@@ -99,6 +99,7 @@ namespace ContinueVS.Tests.UI
             Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Plan);
             Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Debug);
             Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Reason);
+            Assert.Contains(vm.AvailableModes, m => m.Value == ChatMode.Bare);
         }
 
         [Fact]
@@ -189,6 +190,22 @@ namespace ContinueVS.Tests.UI
             Assert.Equal(ChatMode.Reason, vm.CurrentMode);
             Assert.NotNull(vm.SelectedMode);
             Assert.Equal(ChatMode.Reason, vm.SelectedMode.Value);
+        }
+
+        [Fact]
+        public void BareMode_IsSelectable()
+        {
+            // Arrange
+            var vm = CreateViewModel();
+            var bareOption = vm.AvailableModes.Single(m => m.Value == ChatMode.Bare);
+
+            // Act
+            vm.SelectedMode = bareOption;
+
+            // Assert
+            Assert.Equal(ChatMode.Bare, vm.CurrentMode);
+            Assert.NotNull(vm.SelectedMode);
+            Assert.Equal(ChatMode.Bare, vm.SelectedMode.Value);
         }
     }
 }
