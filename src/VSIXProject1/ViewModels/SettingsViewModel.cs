@@ -24,6 +24,7 @@ namespace ContinueVS.ViewModels
         private bool _textToSpeechEnabled;
         private bool _enableSessionTitles;
         private bool _formatMarkdown;
+        private bool _scanForQuestion;
 
         // Appearance settings
         private int _fontSize;
@@ -84,6 +85,12 @@ namespace ContinueVS.ViewModels
         {
             get => _formatMarkdown;
             set => Set(ref _formatMarkdown, value);
+        }
+
+        public bool ScanForQuestion
+        {
+            get => _scanForQuestion;
+            set => Set(ref _scanForQuestion, value);
         }
 
         // Appearance Properties
@@ -277,6 +284,7 @@ namespace ContinueVS.ViewModels
             _textToSpeechEnabled = GetBool(UserSettings.Chat_TextToSpeechEnabled, defaults);
             _enableSessionTitles = GetBool(UserSettings.Chat_EnableSessionTitles, defaults);
             _formatMarkdown = GetBool(UserSettings.Chat_FormatMarkdown, defaults);
+            _scanForQuestion = GetBool(UserSettings.Chat_ScanForQuestion, defaults);
 
             _fontSize = GetInt(UserSettings.Appearance_FontSize, defaults);
 
@@ -326,6 +334,7 @@ namespace ContinueVS.ViewModels
                 TextToSpeechEnabled = GetBoolFromConfig(UserSettings.Chat_TextToSpeechEnabled, config.CustomSettings);
                 EnableSessionTitles = GetBoolFromConfig(UserSettings.Chat_EnableSessionTitles, config.CustomSettings);
                 FormatMarkdown = GetBoolFromConfig(UserSettings.Chat_FormatMarkdown, config.CustomSettings);
+                ScanForQuestion = GetBoolFromConfig(UserSettings.Chat_ScanForQuestion, config.CustomSettings);
 
                 // Load Appearance settings
                 FontSize = GetIntFromConfig(UserSettings.Appearance_FontSize, config.CustomSettings);
@@ -401,6 +410,7 @@ namespace ContinueVS.ViewModels
                 SetOrRemove(UserSettings.Chat_TextToSpeechEnabled, TextToSpeechEnabled);
                 SetOrRemove(UserSettings.Chat_EnableSessionTitles, EnableSessionTitles);
                 SetOrRemove(UserSettings.Chat_FormatMarkdown, FormatMarkdown);
+                SetOrRemove(UserSettings.Chat_ScanForQuestion, ScanForQuestion);
 
                 // Save Appearance settings
                 SetOrRemove(UserSettings.Appearance_FontSize, FontSize);

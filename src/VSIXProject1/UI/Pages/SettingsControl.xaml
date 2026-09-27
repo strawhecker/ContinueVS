@@ -53,6 +53,13 @@
                                        Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
                         </StackPanel>
                     </CheckBox>
+                    <CheckBox IsChecked="{Binding ScanForQuestion, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Scan Response for Questions (off by default)" FontWeight="Bold"/>
+                            <TextBlock Text="Scans each LLM response for an embedded question and prompts you for an answer. When off, the response is never scanned for a question." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
                 </StackPanel>
             </TabItem>
             <!-- Appearance Settings Tab -->

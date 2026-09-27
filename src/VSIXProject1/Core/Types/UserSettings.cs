@@ -17,6 +17,9 @@ namespace ContinueVS.Core.Types
         public const string Chat_EnableSessionTitles = "chat.enableSessionTitles";
         public const string Chat_FormatMarkdown = "chat.formatMarkdown";
         public const string Chat_ShowThinkingAfterStreaming = "chat.showThinkingAfterStreaming";
+        // Whether to scan each LLM response for an embedded question and prompt the user.
+        // Off by default: when disabled, the response is never scanned for a question.
+        public const string Chat_ScanForQuestion = "chat.scanForQuestion";
 
         // Appearance Settings
         public const string Appearance_FontSize = "appearance.fontSize";
@@ -134,6 +137,7 @@ namespace ContinueVS.Core.Types
                 { Chat_EnableSessionTitles, true },
                 { Chat_FormatMarkdown, true },
                 { Chat_ShowThinkingAfterStreaming, true },
+                { Chat_ScanForQuestion, false },
 
                 // Appearance defaults
                 { Appearance_FontSize, 14 },

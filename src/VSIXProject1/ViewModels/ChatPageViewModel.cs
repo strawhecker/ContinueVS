@@ -2021,7 +2021,27 @@ namespace ContinueVS.ViewModels
                     // "User cancelled" even though the user simply answered the question.
                     // Using CancellationToken.None keeps the answer-wait isolated from the
                     // streaming lifecycle so answering is never misreported as a cancel.
-                    if (!string.IsNullOrWhiteSpace(assistantMessage!.Content) && _llmQuestionService != null)
+                    //
+                    // Gap: Scanning for an embedded question is gated behind the user setting
+                    // chat.scanForQuestion (default OFF). When disabled (or unset), the response
+                    // is never scanned so no surprise prompt is raised mid-turn.
+                    var scanForQuestion = false;
+                    if (_configService != null)
+                    {
+                        var scanConfig = _configService.GetCurrentConfig();
+                        if (scanConfig?.CustomSettings?.TryGetValue(UserSettings.Chat_ScanForQuestion, out var scanVal) == true)
+                        {
+                            scanForQuestion = scanVal switch
+                            {
+                                true => true,
+                                "true" => true,
+                                1 or 1L => true,
+                                _ => false
+                            };
+                        }
+                    }
+
+                    if (scanForQuestion && !string.IsNullOrWhiteSpace(assistantMessage!.Content) && _llmQuestionService != null)
                     {
                         var detectedQuestion = await _llmQuestionService.DetectLLMQuestionAsync(assistantMessage!.Content, CancellationToken.None);
                         if (detectedQuestion != null)
@@ -2071,9 +2091,9 @@ namespace ContinueVS.ViewModels
                     //}
 
                     // gap43_3 / gap45_3: Persist plan output when ExportsPlanFile is true for this mode (Agent, Plan, Debug)
-                    if (modeConfig.ExportsPlanFile && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage.Content))
+                    if (modeConfig.ExportsPlanFile && _planOutputService != null && !string.IsNullOrWhiteSpace(assistantMessage!.Content))
                     {
-                        var savedPath = await _planOutputService.SavePlanAsync("plan", assistantMessage.Content, _streamingCts.Token);
+                        var savedPath = await _planOutputService.SavePlanAsync("plan", assistantMessage!.Content, _streamingCts.Token);
                         LoggerService.Current.WriteDebug($"[gap43_3] Plan saved to: {savedPath}");
                     }
 
@@ -2087,7 +2107,7 @@ namespace ContinueVS.ViewModels
                                          !string.IsNullOrWhiteSpace(reasoningMessage.Content);
                     // A tool-call turn carries no prose but MUST keep its Assistant context
                     // entry so Tool results correlate; its empty UI bubble is still pruned.
-                    bool keepAssistant = !string.IsNullOrWhiteSpace(assistantMessage.Content) ||
+                    bool keepAssistant = !string.IsNullOrWhiteSpace(assistantMessage!.Content) ||
                                          _pendingToolCalls.Count > 0;
 
                     // PRUNE: remove dead cards (live order already correct, no reordering)
