@@ -73,8 +73,7 @@ namespace ContinueVS.Tests.Services
                 var tool = service.GetTool(name);
                 Assert.NotNull(tool);
                 Assert.False(tool!.IsEnabled);
-                Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-                Assert.DoesNotContain(ChatMode.Agent, tool.SupportedModes);
+                Assert.Equal(ToolAccessLevel.Debug, ToolAccess.LevelFor(tool.Name));
             }
         }
 

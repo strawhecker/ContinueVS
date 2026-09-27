@@ -20,8 +20,8 @@ namespace ContinueVS.Services.Interfaces
         IEnumerable<ToolDefinition> GetAvailableTools();
 
         /// <summary>
-        /// Gets all available tools for a specific ChatMode, filtered by SupportedModes.
-        /// Tools with empty SupportedModes are available in all modes.
+        /// Gets all available tools for a specific ChatMode, filtered by ToolAccess classification.
+        /// Unclassified tools (in no ToolAccess list) are never exposed to any mode (fail-closed).
         /// </summary>
         /// <param name="mode">The ChatMode to filter tools for.</param>
         /// <returns>An enumerable of ToolDefinition instances available in the specified mode.</returns>

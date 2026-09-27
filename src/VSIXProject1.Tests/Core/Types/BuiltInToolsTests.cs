@@ -439,12 +439,12 @@ namespace ContinueVS.Tests.Core.Types
             Assert.NotNull(titleParam.Description);
             Assert.NotNull(planParam.Description);
 
-            Assert.Contains(ChatMode.Plan, tool.SupportedModes);
-            Assert.Contains(ChatMode.Ask, tool.SupportedModes);
-            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Contains(ChatMode.Reason, tool.SupportedModes);
-            Assert.Equal(5, tool.SupportedModes.Count);
+            // write_plan is Read-access (bounded write to the user-bound plan artifact; no path control)
+            Assert.Equal(ToolAccessLevel.Read, ToolAccess.LevelFor(tool.Name));
+            foreach (var mode in new[] { ChatMode.Ask, ChatMode.Bare, ChatMode.Plan, ChatMode.Reason, ChatMode.Agent, ChatMode.Debug })
+            {
+                Assert.True(ToolAccess.IsAvailableInMode(tool.Name, mode), $"write_plan should be available in {mode}");
+            }
         }
 
         [Fact]
@@ -470,9 +470,8 @@ namespace ContinueVS.Tests.Core.Types
             Assert.Single(tool.Parameters);
             Assert.Equal("path", tool.Parameters[0].Name);
             Assert.False(tool.Parameters[0].IsRequired);
-            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Equal(2, tool.SupportedModes.Count);
+            // read_plan is Read-access (observe the bound plan artifact)
+            Assert.Equal(ToolAccessLevel.Read, ToolAccess.LevelFor(tool.Name));
         }
 
         [Fact]
@@ -490,23 +489,25 @@ namespace ContinueVS.Tests.Core.Types
             Assert.Contains(tool.Parameters, p => p.Name == "find" && p.IsRequired);
             Assert.Contains(tool.Parameters, p => p.Name == "replace" && p.IsRequired);
             Assert.Contains(tool.Parameters, p => p.Name == "path" && !p.IsRequired);
-            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Equal(2, tool.SupportedModes.Count);
+            // update_plan is Read-access (bounded write to the user-bound plan artifact; no path control)
+            Assert.Equal(ToolAccessLevel.Read, ToolAccess.LevelFor(tool.Name));
         }
 
         [Fact]
-        public void GetReadPlanAndUpdatePlan_NotAvailableInReadOnlyModes()
+        public void GetReadPlanAndUpdatePlan_AvailableInReadOnlyModes()
         {
+            // Both plan tools are Read-access: available in all read-only modes (Ask, Bare, Plan, Reason).
             foreach (var tool in new[]
             {
                 BuiltInToolsRegistry.GetReadPlanTool(),
                 BuiltInToolsRegistry.GetUpdatePlanTool()
             })
             {
-                Assert.DoesNotContain(ChatMode.Plan, tool.SupportedModes);
-                Assert.DoesNotContain(ChatMode.Ask, tool.SupportedModes);
-                Assert.DoesNotContain(ChatMode.Reason, tool.SupportedModes);
+                Assert.Equal(ToolAccessLevel.Read, ToolAccess.LevelFor(tool.Name));
+                Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Ask));
+                Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Bare));
+                Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Plan));
+                Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Reason));
             }
         }
 
@@ -545,20 +546,20 @@ namespace ContinueVS.Tests.Core.Types
             Assert.NotNull(requireHumanParam.Description);
             Assert.Contains("human", requireHumanParam.Description, StringComparison.OrdinalIgnoreCase);
 
-            // Available in loop modes only (Agent, Debug)
-            Assert.Contains(ChatMode.Agent, tool.SupportedModes);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Equal(2, tool.SupportedModes.Count);
+            // ask_user is Read-access (queries the user; no mutation) and available in all modes
+            Assert.Equal(ToolAccessLevel.Read, ToolAccess.LevelFor(tool.Name));
         }
 
         [Fact]
-        public void GetAskUserTool_NotAvailableInReadOnlyModes()
+        public void GetAskUserTool_AvailableInReadOnlyModes()
         {
             var tool = BuiltInToolsRegistry.GetAskUserTool();
 
-            Assert.DoesNotContain(ChatMode.Plan, tool.SupportedModes);
-            Assert.DoesNotContain(ChatMode.Ask, tool.SupportedModes);
-            Assert.DoesNotContain(ChatMode.Reason, tool.SupportedModes);
+            Assert.Equal(ToolAccessLevel.Read, ToolAccess.LevelFor(tool.Name));
+            Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Ask));
+            Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Bare));
+            Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Plan));
+            Assert.True(ToolAccess.IsAvailableInMode(tool.Name, ChatMode.Reason));
         }
 
         [Fact]
@@ -589,8 +590,7 @@ namespace ContinueVS.Tests.Core.Types
             var tool = BuiltInToolsRegistry.GetDebugStartTool();
             Assert.Equal("debug_start", tool.Name);
             Assert.True(tool.IsEnabled);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Single(tool.SupportedModes);
+            Assert.Equal(ToolAccessLevel.Debug, ToolAccess.LevelFor(tool.Name));
             Assert.Contains(tool.Parameters, p => p.Name == "project");
             Assert.Contains(tool.Parameters, p => p.Name == "launchProfile");
         }
@@ -601,8 +601,7 @@ namespace ContinueVS.Tests.Core.Types
             var tool = BuiltInToolsRegistry.GetDebugStopTool();
             Assert.Equal("debug_stop", tool.Name);
             Assert.True(tool.IsEnabled);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Single(tool.SupportedModes);
+            Assert.Equal(ToolAccessLevel.Debug, ToolAccess.LevelFor(tool.Name));
         }
 
         [Fact]
@@ -611,8 +610,7 @@ namespace ContinueVS.Tests.Core.Types
             var tool = BuiltInToolsRegistry.GetDebugRestartTool();
             Assert.Equal("debug_restart", tool.Name);
             Assert.True(tool.IsEnabled);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Single(tool.SupportedModes);
+            Assert.Equal(ToolAccessLevel.Debug, ToolAccess.LevelFor(tool.Name));
         }
 
         [Fact]
@@ -621,8 +619,7 @@ namespace ContinueVS.Tests.Core.Types
             var tool = BuiltInToolsRegistry.GetIdeAttachToProcessTool();
             Assert.Equal("ide_attach_to_process", tool.Name);
             Assert.True(tool.IsEnabled);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Single(tool.SupportedModes);
+            Assert.Equal(ToolAccessLevel.Debug, ToolAccess.LevelFor(tool.Name));
             Assert.Contains(tool.Parameters, p => p.Name == "processId");
         }
 
@@ -632,8 +629,7 @@ namespace ContinueVS.Tests.Core.Types
             var tool = BuiltInToolsRegistry.GetDebugSelectSessionTool();
             Assert.Equal("debug_select_session", tool.Name);
             Assert.True(tool.IsEnabled);
-            Assert.Contains(ChatMode.Debug, tool.SupportedModes);
-            Assert.Single(tool.SupportedModes);
+            Assert.Equal(ToolAccessLevel.Debug, ToolAccess.LevelFor(tool.Name));
             Assert.Contains(tool.Parameters, p => p.Name == "sessionId");
         }
 

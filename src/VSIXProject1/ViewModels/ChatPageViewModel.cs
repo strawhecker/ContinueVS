@@ -3668,7 +3668,7 @@ namespace ContinueVS.ViewModels
 
         /// <summary>
         /// gap55_4 / gap97: Returns the tools available for the current ChatMode, delegated to
-        /// _toolService.GetAvailableTools(mode), which filters by each tool's SupportedModes (gap71).
+        /// _toolService.GetAvailableTools(mode), which filters by ToolAccess classification.
         /// This is the single source of truth — it replaced the earlier hardcoded
         /// IsReadTool/IsWriteTool string whitelist (whose names matched no real tools) that had
         /// stripped most read tools from Ask mode.
@@ -3676,7 +3676,7 @@ namespace ContinueVS.ViewModels
         public List<ToolDefinition> GetAvailableToolsForCurrentMode()
         {
             // gap97: Tool filtering is delegated to the single source of truth —
-            // _toolService.GetAvailableTools(mode) filters by each tool's SupportedModes (gap71).
+            // _toolService.GetAvailableTools(mode) filters by ToolAccess classification.
             // This replaces the earlier hardcoded IsReadTool/IsWriteTool string whitelist, whose
             // names (write_files, delete_file, run_command, list_files, search_code) matched NO real
             // tools in BuiltInTools.cs and silently stripped most read tools from Ask mode.

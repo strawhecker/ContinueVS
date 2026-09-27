@@ -225,8 +225,8 @@ namespace ContinueVS.Tests.Services
 
             Assert.Contains(agentTools, t => t.Name == "ask_user");
             Assert.Contains(debugTools, t => t.Name == "ask_user");
-            // ask_user is a loop-mode (interactive) tool; not in read-only Plan mode
-            Assert.DoesNotContain(planTools, t => t.Name == "ask_user");
+            // ask_user is Read-access (queries the user; no mutation) — available in read-only modes too.
+            Assert.Contains(planTools, t => t.Name == "ask_user");
         }
 
         // ====================================================================

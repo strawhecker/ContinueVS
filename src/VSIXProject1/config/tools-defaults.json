@@ -445,9 +445,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Debug"
-      ],
       "parameters": [
         {
           "name": "project",
@@ -471,9 +468,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Debug"
-      ],
       "parameters": [],
       "returnsDescription": "The ended debug session handle, or an indication that none was running"
     },
@@ -484,9 +478,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Debug"
-      ],
       "parameters": [],
       "returnsDescription": "The restarted debug session handle"
     },
@@ -497,9 +488,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Debug"
-      ],
       "parameters": [
         {
           "name": "processId",
@@ -517,9 +505,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Debug"
-      ],
       "parameters": [
         {
           "name": "sessionId",
@@ -537,13 +522,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Plan",
-        "Ask",
-        "Agent",
-        "Debug",
-        "Reason"
-      ],
       "parameters": [],
       "returnsDescription": "The active document path and selection/cursor"
     },
@@ -554,13 +532,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Plan",
-        "Ask",
-        "Agent",
-        "Debug",
-        "Reason"
-      ],
       "parameters": [
         {
           "name": "filepath",
@@ -578,10 +549,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Agent",
-        "Debug"
-      ],
       "parameters": [
         {
           "name": "filepath",
@@ -605,10 +572,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Agent",
-        "Debug"
-      ],
       "parameters": [],
       "returnsDescription": "The resulting definition location"
     },
@@ -619,10 +582,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Agent",
-        "Debug"
-      ],
       "parameters": [
         {
           "name": "symbol",
@@ -646,10 +605,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Agent",
-        "Debug"
-      ],
       "parameters": [
         {
           "name": "project",
@@ -667,10 +622,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Agent",
-        "Debug"
-      ],
       "parameters": [],
       "returnsDescription": "The active build configuration"
     },
@@ -681,10 +632,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Agent",
-        "Debug"
-      ],
       "parameters": [],
       "returnsDescription": "The startup project and launch profile"
     },
@@ -695,13 +642,6 @@
       "isEnabled": true,
       "isAsync": true,
       "toolType": "builtin",
-      "supportedModes": [
-        "Plan",
-        "Ask",
-        "Agent",
-        "Debug",
-        "Reason"
-      ],
       "parameters": [
         {
           "name": "paneName",

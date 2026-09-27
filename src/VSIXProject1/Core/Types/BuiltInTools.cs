@@ -22,8 +22,7 @@ namespace ContinueVS.Core.Types
             IList<ParameterDefinition> parameters,
             string returnsDescription,
             bool isEnabled = true,
-            string invokePerm = "Automatic",
-            List<ChatMode>? supportedModes = null)
+            string invokePerm = "Automatic")
         {
             LoggerService.Current.WriteDebug($"[gap8_1-factory-create] CreateToolDefinition: {name}, params={parameters.Count}, enabled={isEnabled}");
             var tool = new ToolDefinition
@@ -36,8 +35,7 @@ namespace ContinueVS.Core.Types
                 IsEnabled = isEnabled,
                 IsAsync = true,
                 ToolType = "builtin",
-                LastModified = DateTime.Now,
-                SupportedModes = supportedModes ?? new List<ChatMode>()
+                LastModified = DateTime.Now
             };
             return tool;
         }
@@ -61,8 +59,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "The file contents as a string",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "The file contents as a string");
         }
 
         /// <summary>
@@ -92,8 +89,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation that the file was created successfully",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "Confirmation that the file was created successfully");
         }
 
         /// <summary>
@@ -116,8 +112,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation that the folder was created successfully",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "Confirmation that the folder was created successfully");
         }
 
         /// <summary>
@@ -149,8 +144,7 @@ namespace ContinueVS.Core.Types
                         DefaultValue = true
                     }
                 },
-                returnsDescription: "Standard output and error from the command",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "Standard output and error from the command");
         }
 
         /// <summary>
@@ -172,8 +166,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "List of file paths matching the glob pattern",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "List of file paths matching the glob pattern");
         }
 
         /// <summary>
@@ -186,8 +179,7 @@ namespace ContinueVS.Core.Types
                 name: "view_diff",
                 description: "View the current diff of working changes",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The unified diff of all current changes",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "The unified diff of all current changes");
         }
 
         /// <summary>
@@ -200,8 +192,7 @@ namespace ContinueVS.Core.Types
                 name: "read_currently_open_file",
                 description: "Read the currently open file in the IDE. If the user seems to be referring to a file that you can't see, or is requesting an action on content that seems missing, try using this tool",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The contents of the currently open file in the IDE",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                returnsDescription: "The contents of the currently open file in the IDE");
         }
 
         /// <summary>
@@ -231,8 +222,7 @@ namespace ContinueVS.Core.Types
                         DefaultValue = false
                     }
                 },
-                returnsDescription: "List of file and folder names in the directory",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "List of file and folder names in the directory");
         }
 
         /// <summary>
@@ -299,8 +289,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation of the edit operation",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "Confirmation of the edit operation");
         }
 
         /// <summary>
@@ -330,8 +319,7 @@ namespace ContinueVS.Core.Types
                         DefaultValue = 20
                     }
                 },
-                returnsDescription: "List of matching code snippets with file paths and line numbers",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "List of matching code snippets with file paths and line numbers");
         }
 
         /// <summary>
@@ -356,7 +344,6 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Test results including passed, failed, and skipped counts",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug },
                 // Disabled by default: no pytest tests exist in this .NET project
                 isEnabled: false);
         }
@@ -371,8 +358,7 @@ namespace ContinueVS.Core.Types
                 name: "get_problems",
                 description: "Get compiler errors, warnings, and IDE problems for the current project",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "List of problems with file paths, line numbers, severity, and messages",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                returnsDescription: "List of problems with file paths, line numbers, severity, and messages");
         }
 
         /// <summary>
@@ -394,8 +380,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "File contents with line number prefixes",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "File contents with line number prefixes");
         }
 
         /// <summary>
@@ -417,8 +402,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation that the file was opened in the IDE",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                returnsDescription: "Confirmation that the file was opened in the IDE");
         }
 
         /// <summary>
@@ -432,8 +416,7 @@ namespace ContinueVS.Core.Types
                 description: "Show git status of the repository including modified files, staged changes, and untracked files",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "Git status output showing current branch and file changes",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -471,8 +454,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Unified diff format showing additions and deletions",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -496,8 +478,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Commit history with hashes, authors, dates, and messages",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -522,8 +503,7 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation of the commit with commit hash",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -589,8 +569,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "The file contents for the specified line range",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "The file contents for the specified line range");
         }
 
         /// <summary>
@@ -627,8 +606,7 @@ namespace ContinueVS.Core.Types
                         DefaultValue = "*"
                     }
                 },
-                returnsDescription: "Array of matching lines with file paths, line numbers, and matched content",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare });
+                returnsDescription: "Array of matching lines with file paths, line numbers, and matched content");
         }
 
         /// <summary>
@@ -675,7 +653,6 @@ namespace ContinueVS.Core.Types
                     }
                 },
                 returnsDescription: "Confirmation of replacement with number of replacements made",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug },
                 invokePerm: "Ask First");
         }
 
@@ -706,8 +683,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = true
                     }
                 },
-                returnsDescription: "Confirmation that the plan was saved to the workspace",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                returnsDescription: "Confirmation that the plan was saved to the workspace");
         }
 
         /// <summary>
@@ -735,8 +711,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = false
                     }
                 },
-                returnsDescription: "The full plan text plus the plan file it came from",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "The full plan text plus the plan file it came from");
         }
 
         /// <summary>
@@ -779,8 +754,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = false
                     }
                 },
-                returnsDescription: "The number of matches replaced and where",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "The number of matches replaced and where");
         }
 
         /// <summary>
@@ -830,8 +804,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = false
                     }
                 },
-                returnsDescription: "The user's answer to the question as a string",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "The user's answer to the question as a string");
         }
 
         /// <summary>
@@ -883,8 +856,7 @@ namespace ContinueVS.Core.Types
                         IsRequired = false
                     }
                 },
-                returnsDescription: "Returns nothing (terminus)",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "Returns nothing (terminus)");
         }
 
         /// <summary>
@@ -904,8 +876,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "expression", Type = "string", Description = "The expression to evaluate.", IsRequired = true }
                 },
                 returnsDescription: "The evaluated value and type, gated to break mode",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -926,8 +897,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "value", Type = "string", Description = "The new value to assign.", IsRequired = true }
                 },
                 returnsDescription: "Confirmation the variable was written, gated to break mode",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -945,8 +915,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "length", Type = "number", Description = "Number of bytes to read.", IsRequired = true }
                 },
                 returnsDescription: "Hex bytes read, or a benign not-exposed-by-dte rejection",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -964,8 +933,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "bytes", Type = "string", Description = "Hex-encoded bytes to write.", IsRequired = true }
                 },
                 returnsDescription: "Confirmation, or a benign not-exposed-by-dte rejection",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -979,8 +947,7 @@ namespace ContinueVS.Core.Types
                 description: "Run the debugged program to the current cursor location. Requires the debugger to be paused.",
                 parameters: new List<ParameterDefinition>(),
                 returnsDescription: "Confirmation the run-to-cursor command was issued, gated to break mode",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -998,8 +965,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "action", Type = "string", Description = "'freeze' or 'thaw'.", IsRequired = true }
                 },
                 returnsDescription: "Confirmation the thread state was changed, gated to break mode",
-                isEnabled: false,
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                isEnabled: false);
         }
 
         /// <summary>
@@ -1016,8 +982,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "project", Type = "string", Description = "Project to start. Empty uses the solution startup project.", IsRequired = false },
                     new ParameterDefinition { Name = "launchProfile", Type = "string", Description = "Launch profile to use. Empty uses the default.", IsRequired = false }
                 },
-                returnsDescription: "The started debug session handle and its mode",
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                returnsDescription: "The started debug session handle and its mode");
         }
 
         /// <summary>
@@ -1030,8 +995,7 @@ namespace ContinueVS.Core.Types
                 name: "debug_stop",
                 description: "Stop the currently active debugging session and clear the selected session binding.",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The ended debug session handle, or an indication that none was running",
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                returnsDescription: "The ended debug session handle, or an indication that none was running");
         }
 
         /// <summary>
@@ -1044,8 +1008,7 @@ namespace ContinueVS.Core.Types
                 name: "debug_restart",
                 description: "Restart the current debugging session: stop any active session then start it again.",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The restarted debug session handle",
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                returnsDescription: "The restarted debug session handle");
         }
 
         /// <summary>
@@ -1062,8 +1025,7 @@ namespace ContinueVS.Core.Types
                 {
                     new ParameterDefinition { Name = "processId", Type = "number", Description = "The OS process id to attach to.", IsRequired = true }
                 },
-                returnsDescription: "The attached debug session handle and its mode",
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                returnsDescription: "The attached debug session handle and its mode");
         }
 
         /// <summary>
@@ -1079,8 +1041,7 @@ namespace ContinueVS.Core.Types
                 {
                     new ParameterDefinition { Name = "sessionId", Type = "string", Description = "The session id (e.g. 'proc:1234') to select.", IsRequired = true }
                 },
-                returnsDescription: "The bound debug session handle",
-                supportedModes: new List<ChatMode> { ChatMode.Debug });
+                returnsDescription: "The bound debug session handle");
         }
 
         /// <summary>
@@ -1093,8 +1054,7 @@ namespace ContinueVS.Core.Types
                 name: "ide_active_document",
                 description: "Read the IDE's active document file path and the current selection/cursor. Use to learn which file is open and where the cursor is before navigation or debugging.",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The active document path and selection/cursor",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                returnsDescription: "The active document path and selection/cursor");
         }
 
         /// <summary>
@@ -1110,8 +1070,7 @@ namespace ContinueVS.Core.Types
                 {
                     new ParameterDefinition { Name = "filepath", Type = "string", Description = "The path of the file to open.", IsRequired = true }
                 },
-                returnsDescription: "The path of the opened file",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                returnsDescription: "The path of the opened file");
         }
 
         /// <summary>
@@ -1127,8 +1086,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "filepath", Type = "string", Description = "The path of the file to navigate in.", IsRequired = true },
                     new ParameterDefinition { Name = "line", Type = "number", Description = "1-based line number to move to.", IsRequired = true }
                 },
-                returnsDescription: "Whether the navigation was issued",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "Whether the navigation was issued");
         }
 
         /// <summary>
@@ -1141,8 +1099,7 @@ namespace ContinueVS.Core.Types
                 name: "ide_goto_definition",
                 description: "Invoke Go-To-Definition on the current selection and report the resulting active document and cursor location. Use to resolve a symbol to its definition file:line.",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The resulting definition location",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "The resulting definition location");
         }
 
         /// <summary>
@@ -1159,8 +1116,7 @@ namespace ContinueVS.Core.Types
                     new ParameterDefinition { Name = "symbol", Type = "string", Description = "The symbol name to resolve.", IsRequired = true },
                     new ParameterDefinition { Name = "filepath", Type = "string", Description = "The file to search for the symbol in. Empty uses the active document.", IsRequired = false }
                 },
-                returnsDescription: "The resolved file:line of the symbol",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "The resolved file:line of the symbol");
         }
 
         /// <summary>
@@ -1175,8 +1131,7 @@ namespace ContinueVS.Core.Types
                 {
                     new ParameterDefinition { Name = "project", Type = "string", Description = "Project name to build. Empty builds the whole solution.", IsRequired = false }
                 },
-                returnsDescription: "Whether the build was invoked",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "Whether the build was invoked");
         }
 
         /// <summary>
@@ -1188,8 +1143,7 @@ namespace ContinueVS.Core.Types
                 name: "ide_build_configuration",
                 description: "Read the currently active solution build configuration (name/platform).",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The active build configuration",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "The active build configuration");
         }
 
         /// <summary>
@@ -1202,8 +1156,7 @@ namespace ContinueVS.Core.Types
                 name: "ide_launch_profile",
                 description: "Read the solution's startup project and active launch profile, so you know what debug_start would launch.",
                 parameters: new List<ParameterDefinition>(),
-                returnsDescription: "The startup project and launch profile",
-                supportedModes: new List<ChatMode> { ChatMode.Agent, ChatMode.Debug });
+                returnsDescription: "The startup project and launch profile");
         }
 
         /// <summary>
@@ -1219,8 +1172,7 @@ namespace ContinueVS.Core.Types
                 {
                     new ParameterDefinition { Name = "paneName", Type = "string", Description = "The output pane name (e.g. 'Build', 'Debug').", IsRequired = true }
                 },
-                returnsDescription: "The pane text content",
-                supportedModes: new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason });
+                returnsDescription: "The pane text content");
         }
 
         /// <summary>

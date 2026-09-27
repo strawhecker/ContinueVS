@@ -200,8 +200,9 @@ namespace ContinueVS.Services.Implementations
         }
 
         /// <summary>
-        /// Gets all available tools for a specific ChatMode, filtered by SupportedModes.
-        /// Tools with empty SupportedModes are available in all modes (backward compatibility).
+        /// Gets all available tools for a specific ChatMode, filtered by ToolAccess classification.
+        /// A tool is exposed for a mode iff ToolAccess.IsAvailableInMode returns true for it.
+        /// Unclassified tools (in no ToolAccess list) are never exposed to any mode (fail-closed).
         /// </summary>
         public IEnumerable<ToolDefinition> GetAvailableTools(ChatMode mode)
         {
@@ -209,14 +210,7 @@ namespace ContinueVS.Services.Implementations
             _logger?.WriteDebug($"[gap71-toolsvc-mode-filter] GetAvailableTools(mode={mode}): Starting filter from {allTools.Count()} tools");
 
             var filteredTools = allTools.Where(tool =>
-            {
-                // If SupportedModes is empty, tool is available in all modes (backward compatibility)
-                if (tool.SupportedModes == null || tool.SupportedModes.Count == 0)
-                    return true;
-
-                // Otherwise, only include if the requested mode is in SupportedModes
-                return tool.SupportedModes.Contains(mode);
-            }).ToList();
+                ToolAccess.IsAvailableInMode(tool.Name, mode)).ToList();
 
             _logger?.WriteDebug($"[gap71-toolsvc-mode-filter] Filtered to {filteredTools.Count} tools for mode {mode}");
 

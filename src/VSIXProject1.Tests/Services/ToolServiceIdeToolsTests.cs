@@ -45,17 +45,18 @@ namespace ContinueVS.Tests.Services
             "ide_build_configuration", "ide_launch_profile", "ide_output_pane"
         };
 
-        // Tools gated to Agent+Debug only (excluded from Ask/Plan/Reason)
-        private static readonly string[] AgentDebugGatedIdeToolNames =
+        // Tools gated to Write access (excluded from Ask/Plan/Reason/Bare)
+        private static readonly string[] WriteGatedIdeToolNames =
         {
-            "ide_navigate_to", "ide_goto_definition", "ide_find_symbol",
-            "ide_build", "ide_build_configuration", "ide_launch_profile"
+            "ide_build"
         };
 
-        // Tools available in all modes (read-only)
-        private static readonly string[] AllModeIdeToolNames =
+        // Read-access IDE tools (available in all modes including Ask/Plan/Reason/Bare)
+        private static readonly string[] ReadIdeToolNames =
         {
-            "ide_active_document", "ide_open_file", "ide_output_pane"
+            "ide_active_document", "ide_open_file", "ide_output_pane",
+            "ide_navigate_to", "ide_goto_definition", "ide_find_symbol",
+            "ide_build_configuration", "ide_launch_profile"
         };
 
         [Fact]
@@ -89,15 +90,15 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public void GetAvailableTools_AskPlanReason_ExcludeAgentDebugGatedIdeTools()
+        public void GetAvailableTools_AskPlanReason_ExcludeWriteGatedIdeTools()
         {
             var service = CreateService();
-            foreach (var mode in new[] { ChatMode.Ask, ChatMode.Plan, ChatMode.Reason })
+            foreach (var mode in new[] { ChatMode.Ask, ChatMode.Plan, ChatMode.Reason, ChatMode.Bare })
             {
                 var tools = service.GetAvailableTools(mode).ToList();
-                foreach (var name in AgentDebugGatedIdeToolNames)
+                foreach (var name in WriteGatedIdeToolNames)
                     Assert.DoesNotContain(tools, t => t.Name == name);
-                foreach (var name in AllModeIdeToolNames)
+                foreach (var name in ReadIdeToolNames)
                     Assert.Contains(tools, t => t.Name == name);
             }
         }

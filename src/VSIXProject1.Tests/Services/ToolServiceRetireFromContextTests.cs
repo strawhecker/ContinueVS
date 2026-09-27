@@ -194,10 +194,10 @@ namespace ContinueVS.Tests.Services
             var debugTools = toolService.GetAvailableTools(ChatMode.Debug).ToList();
             var planTools = toolService.GetAvailableTools(ChatMode.Plan).ToList();
 
-            // Assert: terminus/loop tool — available in Agent and Debug, NOT read-only Plan.
+            // Assert: retire_from_context is Read-access — available in Agent, Debug, and read-only modes.
             Assert.Contains(agentTools, t => t.Name == "retire_from_context");
             Assert.Contains(debugTools, t => t.Name == "retire_from_context");
-            Assert.DoesNotContain(planTools, t => t.Name == "retire_from_context");
+            Assert.Contains(planTools, t => t.Name == "retire_from_context");
         }
 
         [Fact]

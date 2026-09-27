@@ -113,12 +113,7 @@ namespace ContinueVS.Services.Implementations
                 IsEnabled = original.IsEnabled,
                 IsAsync = original.IsAsync,
                 ToolType = original.ToolType,
-                LastModified = original.LastModified,
-                // Preserve mode gating through overrides (gap94: mode filtering must survive
-                // the clone/override pipeline so Debug-only tools stay Debug-only).
-                SupportedModes = original.SupportedModes != null
-                    ? new List<ChatMode>(original.SupportedModes)
-                    : new List<ChatMode>()
+                LastModified = original.LastModified
             };
         }
 

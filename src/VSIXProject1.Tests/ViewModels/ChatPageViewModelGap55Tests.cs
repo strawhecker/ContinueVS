@@ -207,7 +207,7 @@ namespace ContinueVS.Tests.ViewModels
         public void GetAvailableToolsForCurrentMode_AskMode_DelegatesToToolServiceByMode()
         {
             // Arrange — gap55_4 originally filtered via a hardcoded whitelist; gap97 replaces that
-            // by delegating to _toolService.GetAvailableTools(mode), filtered by SupportedModes (gap71).
+            // by delegating to _toolService.GetAvailableTools(mode), filtered by ToolAccess.
             var tools = new List<ToolDefinition>
             {
                 new ToolDefinition { Name = "read_file" },
@@ -259,11 +259,11 @@ namespace ContinueVS.Tests.ViewModels
         public void GetAvailableToolsForCurrentMode_BareMode_DelegatesReadOnlyToToolService()
         {
             // Arrange — gap97: Bare delegates to the mode filter; the read-only set is enforced by
-            // SupportedModes in BuiltInToolsRegistry, not by any hardcoded name list in the VM.
+            // ToolAccess in ToolService, not by any hardcoded name list in the VM.
             var tools = new List<ToolDefinition>
             {
-                new ToolDefinition { Name = "read_file", SupportedModes = new List<ChatMode> { ChatMode.Plan, ChatMode.Ask, ChatMode.Agent, ChatMode.Debug, ChatMode.Reason, ChatMode.Bare } },
-                new ToolDefinition { Name = "edit_file", SupportedModes = new List<ChatMode> { ChatMode.Agent, ChatMode.Debug } }
+                new ToolDefinition { Name = "read_file" },
+                new ToolDefinition { Name = "edit_file" }
             };
 
             _mockToolService

@@ -232,15 +232,15 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public void GetAvailableTools_ReadAndUpdatePlan_NotAvailableInPlanMode()
+        public void GetAvailableTools_ReadAndUpdatePlan_AvailableInPlanMode()
         {
             var ideServiceMock = CreateMockIdeService(string.Empty);
             var configServiceMock = CreateMockConfigService();
             var service = new ToolService(ideServiceMock.Object, configServiceMock.Object);
 
             var planNames = service.GetAvailableTools(ChatMode.Plan).Select(t => t.Name).ToList();
-            Assert.DoesNotContain("read_plan", planNames);
-            Assert.DoesNotContain("update_plan", planNames);
+            Assert.Contains("read_plan", planNames);
+            Assert.Contains("update_plan", planNames);
         }
     }
 }
