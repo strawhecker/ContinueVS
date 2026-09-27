@@ -9349,13 +9349,6 @@ Tool-call bubbles (gap85) previously rendered only the tool name (`ToolCallLabel
   - `ToolCallDescriptionBuilderTests.cs` (new, 32): read/view verb, read_file_range line range, run command + truncation, edit marker, create path/dir, ls recursive, glob/grep pattern, git/fixed static labels, write_plan title, ask_user question, unknown-tool compact fallback + no-throw + truncation + no-args, null call/args/name guards, determinism, `ToolCallDescription` `[JsonIgnore]` (not serialized) + in-memory round-trip.
   - `ChatPageViewModelGap87Tests.cs` (new, 2): `ExecuteAgentCommandAsync` dispatches a tool call and the resulting Tool message carries a populated `ToolCallDescription`; builder smoke test.
 
-**Acceptance criteria:**
-- [x] Every tool-call bubble shows a factual, skimmable description of the action.
-- [x] Description is fabricated from args — zero reliance on LLM narration.
-- [x] Description is `[JsonIgnore]` display-only; never in the LLM payload regardless of length.
-- [x] Missing/weak description never fails a tool call in our own validation (builders only; no throw).
-- [x] Unknown tools degrade to a compact fallback without throwing.
-
 **Files Modified/Created:**
 - `src/VSIXProject1/Services/Implementations/ToolCallDescriptionBuilder.cs` (NEW)
 - `src/VSIXProject1/Core/Types/ChatMessage.cs` (added `ToolCallDescription` `[JsonIgnore]`)
@@ -9365,7 +9358,16 @@ Tool-call bubbles (gap85) previously rendered only the tool name (`ToolCallLabel
 - `src/VSIXProject1.Tests/ViewModels/ChatPageViewModelGap87Tests.cs` (NEW, 2)
 - `src/VSIXProject1.Tests/Helpers/ChatPageViewModelTestHelper.cs` (additive optional `agentCommandDispatcher`/`messengerService`/`toolCallAggregator` params)
 
+**Acceptance criteria:**
+- [x] Every tool-call bubble shows a factual, skimmable description of the action.
+- [x] Description is fabricated from args — zero reliance on LLM narration.
+- [x] Description is `[JsonIgnore]` display-only; never in the LLM payload regardless of length.
+- [x] Missing/weak description never fails a tool call in our own validation (builders only; no throw).
+- [x] Unknown tools degrade to a compact fallback without throwing.
+
 **Validation:** Clean full-solution build (0 warnings, 0 errors). Full test suite: 1422 passed, 0 failed, 0 skipped.
+
+**Sequencing:** lands after gap85 (tool-call bubbles) and complements gap81 (tombstone) / gap80 (version retention); the derived-description work is independent of the gap88 renderer consolidation.
 
 ---
 
@@ -10211,6 +10213,41 @@ The `ask_user` tool (gap86) was a first-class tool-call path, but the decision o
 | **gap95** | Non-debug `ide_*` DTE tools (build/navigate/output/open/goto-def/attach/command) | — (parallel) | Tier 1 (`ide_command` Tier 2) |
 
 That's gap92 (as a 3-part family) + gap93 + gap94 + gap95 = your four top-level gaps, with gap92 split into numbered sub-gaps as requested (no letters).
+
+---
+
+### gap97 bare --- no system prompt, no command line, only read-only tools.
+**Status:** ⏳ Planned (not started) | Type: New first-class mode | Related: gap44/45 (Mode = Prompt + Policy + LLM), gap71 (`SupportedModes`), gap84 (block = absent from schema); assets `SystemPromptService`, `ModeConfigRegistry`, `ToolService`, `ChatPageViewModel`
+**Objective:** Gap97 is a first-class mode, equal to `ask` and `agent`, rendered **last** in the mode list. Its whole purpose is retention: a raw, boundary-free way to "just talk to the model" so the user has no reason to leave the app to get a clean LLM interaction. It ships **no system prompt, no command line, and no write tools** — only read-only tools. Because every later gap hardens the surrounding modes, gap97 is the escape hatch that keeps the raw surface available in-app.
+**Critical premise — empty prompt is safe because safety lives in the schema, not the prose:** Mode identity reaches the LLM through two channels, both of which gap97 empties: (1) the prompt body (`<important_rules>…</important_rules>` from `GetPromptForMode`) and (2) the workspace-context suffix (`GetContextSuffix()`, which emits `<chat_mode>`, active file, and git branch). Emptying both leaves the model with a blank canvas plus the tool schema. No safety net is lost because read-only + no-shell is enforced structurally — a tool absent from the schema (gap84) cannot be called, period.
+**Implementation (this gap):**
+1. **Mode enrollment (first-class, last):** `Core/Types/ChatMode.cs` adds `Bare` as the **terminal** enum value (after `Agent`); `ModeValidator.MaxValidMode = ChatMode.Bare`; registered last in `AvailableModes` in `ChatPageViewModel` with a `ModeOption` (icon/description) and its own `ModeOption`/`ModeValidator` entry. Add a guard/test that `Bare` is never positioned before `Ask`/`Agent`.
+2. **Empty system prompt + no workspace context:** `SystemPromptService` gets a `"bare"` case returning `string.Empty` — **no** `<important_rules>`, and the bare path does **not** invoke `GetContextSuffix()` (kills `<chat_mode>` / active-file / git-branch leak). Seed an empty `"bare"` entry in `EnsureConfigFileExistsAsync`.
+3. **Three subsystem texts survive — deliberate, not a leak:** `CODEBLOCK_FORMATTING_INSTRUCTIONS` (lang+filename fences for Copy/Apply — a capability/UX instruction that doesn't reveal mode), `session_history` (message packing), and `token_budget` (context budgeting) are bare mechanics of carrying the conversation, not mode-prose. "No system prompt" ≡ no `important_rules`, no `chat_mode`, no workspace context — not "no conversation."
+4. **Structural read-only + no command line via `SupportedModes` (gap71) — not the whitelist:** Add `ChatMode.Bare` to `SupportedModes` on **only** the real read-only tools: `read_file`, `read_file_range`, `ls`, `file_glob_search`, `search_codebase`, `grep_search`, `view_file`, `view_diff` (+ config readers). **Every** write tool (`create_*`, `edit_*`, `single_find_and_replace`), `run_terminal_command`, `debug_*`, and `ide_command` gets **no** `Bare` in its `SupportedModes` → absent from schema → structurally impossible to call.
+5. **Defer to ToolService; retire the stale whitelist:** `GetAvailableToolsForCurrentMode()` gains a `Bare` case that returns `_toolService.GetAvailableTools(ChatMode.Bare)` — full delegation to path A. This removes the double-filter and also fixes the latent `Ask` bug: the hardcoded `IsReadTool`/`IsWriteTool` name-lists (`list_files`, `search_code`, `write_files`, `delete_file`, `run_command`) match **zero** real tools in `BuiltInTools.cs` (real names are `ls`, `file_glob_search`, `search_codebase`, `grep_search`, `read_file_range`, etc.), which strips most read tools from `Ask`. Bare must not inherit that broken filter.
+6. **ModeConfigRegistry.Bare:** `AllowWriteTools=false`, `AllowPhaseExecution=false`, `RequiresDebuggerContext=false`, `ExportsPlanFile=false`; capabilities ≈ `read_file` + `session_history` + `token_budget` (no codeblock-prefs key beyond the retained global instruction).
+
+**Files Modified/Created:**
+- `src/VSIXProject1/Core/Types/ChatMode.cs` (add `Bare`, terminal)
+- `src/VSIXProject1/Core/Types/ModeValidator.cs` (`MaxValidMode = Bare`)
+- `src/VSIXProject1/Services/Implementations/SystemPromptService.cs` (`case "bare" => ""`; skip `GetContextSuffix`; seed empty `"bare"`)
+- `src/VSIXProject1/Services/Implementations/ModeConfigRegistry.cs` (add `Bare` config)
+- `src/VSIXProject1/Core/Types/BuiltInTools.cs` (add `Bare` to `SupportedModes` on read-only tools; exclude write/shell/debug)
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (`GetAvailableToolsForCurrentMode()` `Bare` case → delegate; `AvailableModes` entry last)
+- `src/VSIXProject1.Tests/...` (Bare prompt/context-tools tests; ordering guard)
+
+**Acceptance criteria:**
+- [ ] `Bare` is selectable, first-class, and **last** in the mode list.
+- [ ] Bare request carries an **empty system prompt** and **no** `<chat_mode>` / active-file / git-branch context.
+- [ ] `CODEBLOCK_FORMATTING_INSTRUCTIONS`, `session_history`, and `token_budget` still function in Bare.
+- [ ] Bare schema exposes the real read-only tools and **excludes** `run_terminal_command` and every write tool (absent from schema, not merely warned).
+- [ ] `GetAvailableToolsForCurrentMode(Bare)` defers to `ToolService` — no stale name-list filter; the latent `Ask` whitelist bug is fixed.
+- [ ] Unknown-to-bare tools degrade safely (never fail a call).
+
+**Validation:** Clean full-solution build (0 warnings, 0 errors). Full test suite green. New tests: Bare → empty prompt + no workspace context; Bare schema = read-only set, no write/shell; `Bare` terminal ordering guard.
+
+**Sequencing:** Independent of the debug gap92–95 family and the gap88 renderer consolidation; safe to build in parallel with any of them. Lands after gap96 so the mode family (44/45 → ask/agent/plan → bare) reads in one coherent sequence. Required before opening the escape hatch to users, but nothing else depends on it.
 
 ---
 
