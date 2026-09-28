@@ -25,6 +25,8 @@ namespace ContinueVS.ViewModels
         private bool _enableSessionTitles;
         private bool _formatMarkdown;
         private bool _scanForQuestion;
+        // gap98: Show context-window usage % after each response (default ON).
+        private bool _showContextUsage;
 
         // Appearance settings
         private int _fontSize;
@@ -91,6 +93,16 @@ namespace ContinueVS.ViewModels
         {
             get => _scanForQuestion;
             set => Set(ref _scanForQuestion, value);
+        }
+
+        /// <summary>
+        /// gap98: Whether to display the context-window usage percentage (right of the policy
+        /// dropdown) after each response completes. Default ON.
+        /// </summary>
+        public bool ShowContextUsage
+        {
+            get => _showContextUsage;
+            set => Set(ref _showContextUsage, value);
         }
 
         // Appearance Properties
@@ -285,6 +297,7 @@ namespace ContinueVS.ViewModels
             _enableSessionTitles = GetBool(UserSettings.Chat_EnableSessionTitles, defaults);
             _formatMarkdown = GetBool(UserSettings.Chat_FormatMarkdown, defaults);
             _scanForQuestion = GetBool(UserSettings.Chat_ScanForQuestion, defaults);
+            _showContextUsage = GetBool(UserSettings.Chat_ShowContextUsage, defaults);
 
             _fontSize = GetInt(UserSettings.Appearance_FontSize, defaults);
 
@@ -335,6 +348,7 @@ namespace ContinueVS.ViewModels
                 EnableSessionTitles = GetBoolFromConfig(UserSettings.Chat_EnableSessionTitles, config.CustomSettings);
                 FormatMarkdown = GetBoolFromConfig(UserSettings.Chat_FormatMarkdown, config.CustomSettings);
                 ScanForQuestion = GetBoolFromConfig(UserSettings.Chat_ScanForQuestion, config.CustomSettings);
+                ShowContextUsage = GetBoolFromConfig(UserSettings.Chat_ShowContextUsage, config.CustomSettings);
 
                 // Load Appearance settings
                 FontSize = GetIntFromConfig(UserSettings.Appearance_FontSize, config.CustomSettings);
@@ -411,6 +425,7 @@ namespace ContinueVS.ViewModels
                 SetOrRemove(UserSettings.Chat_EnableSessionTitles, EnableSessionTitles);
                 SetOrRemove(UserSettings.Chat_FormatMarkdown, FormatMarkdown);
                 SetOrRemove(UserSettings.Chat_ScanForQuestion, ScanForQuestion);
+                SetOrRemove(UserSettings.Chat_ShowContextUsage, ShowContextUsage);
 
                 // Save Appearance settings
                 SetOrRemove(UserSettings.Appearance_FontSize, FontSize);

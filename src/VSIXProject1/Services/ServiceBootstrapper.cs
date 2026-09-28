@@ -104,6 +104,9 @@ namespace ContinueVS.Services
                 var contextDumpService = sp.GetRequiredService<IContextDumpService>();
                 return new MessengerService(configService, toolService, httpClient, null, contextDumpService);
             });
+            // gap98: Out-of-band /tokenize counting service for context-usage display.
+            services.AddSingleton<ITokenizeService>(sp =>
+                new TokenizeService(sp.GetRequiredService<HttpClient>()));
             services.AddSingleton<ITokenCountingService, SimpleTokenCounterService>();
             services.AddSingleton<ILlmService, LlmService>();
             services.AddSingleton<ISessionService, SessionService>();
@@ -408,7 +411,12 @@ namespace ContinueVS.Services
                     sp.GetService<IWorkflowService>(),
                     sp.GetService<IIdeService>(),
                     sp.GetService<IModeConfigRegistry>(),
-                    sp.GetService<IPlanOutputService>()
+                    sp.GetService<IPlanOutputService>(),
+                    sp.GetService<IAgentCommandDispatcher>(),
+                    sp.GetService<IMessengerService>(),
+                    sp.GetService<IToolCallAggregator>(),
+                    sp.GetService<IToolResultLifetimeService>(),
+                    sp.GetService<ITokenizeService>()
                 )
             );
             services.AddTransient<Func<ChatPageViewModel>>(sp => () => sp.GetRequiredService<ChatPageViewModel>());
