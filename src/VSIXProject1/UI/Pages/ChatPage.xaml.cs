@@ -521,27 +521,29 @@ namespace ContinueVS.UI.Pages
         }
 
         /// <summary>
-        /// Handles a click on one of the offered answer-option buttons in a question card.
-        /// The option button's DataContext is the option string (ItemsControl item), so we climb
+        /// Handles a click on one of the offered answer-option elements in a question card.
+        /// The option element's DataContext is the option string (ItemsControl item), so we climb
         /// the visual tree to find the owning LLMQuestionMessage, then answer immediately.
+        /// gap86_1: the option is now a clickable <see cref="Border"/> (not a Button) wrapping a
+        /// TextBlock, so long answers wrap within the card's finite-width Grid column.
         /// </summary>
-        private void QuestionOptionButton_Click(object sender, RoutedEventArgs e)
+        private void QuestionOptionButton_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (sender is not Button btn)
+            if (sender is not System.Windows.FrameworkElement el)
                 return;
 
-            var option = btn.DataContext as string;
+            var option = el.DataContext as string;
             if (string.IsNullOrWhiteSpace(option))
                 return;
 
             // Climb to the first ancestor whose DataContext is the LLMQuestionMessage.
-            var question = FindAncestorByDataContext<Core.Types.LLMQuestionMessage>(btn);
+            var question = FindAncestorByDataContext<Core.Types.LLMQuestionMessage>(el);
             if (question == null)
                 return;
 
             LoggerService.Current.WriteDebug($"[gap54-question] Option selected: {option}");
 
-            // Answer immediately with the selected option.
+            // Answer immediately with the selected option (option text crossed into history).
             _ = question.OnAnswerAsync?.Invoke(option!);
         }
 
@@ -579,6 +581,78 @@ namespace ContinueVS.UI.Pages
 
             // Fire the OnCancelAsync callback
             _ = question.OnCancelAsync?.Invoke();
+        }
+
+
+        /// <summary>
+        /// gap86_1: Handles Copy All on a question card — copies the whole card
+        /// (question + all answer options) as one UnicodeText clipboard payload.
+        /// Because every part of the card is captured, no individual part needs to be
+        /// selectable; the question remains selectable for convenience via the renderer.
+        /// </summary>
+        private void QuestionCopyAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn)
+                return;
+
+            if (btn.DataContext is not Core.Types.LLMQuestionMessage question)
+                return;
+
+            var sb = new System.Text.StringBuilder();
+            if (!string.IsNullOrWhiteSpace(question.QuestionText))
+                sb.AppendLine(question.QuestionText);
+
+            if (question.Answers != null && question.Answers.Count > 0)
+            {
+                sb.AppendLine();
+                foreach (var ans in question.Answers)
+                {
+                    if (!string.IsNullOrWhiteSpace(ans))
+                        sb.AppendLine("- " + ans);
+                }
+            }
+
+            var payload = sb.ToString().TrimEnd('\r', '\n');
+            if (string.IsNullOrWhiteSpace(payload))
+                return;
+
+            bool ok = Services.Implementations.ClipboardWriter.Copy(payload, MessageViewMode.Raw);
+            if (ok)
+                LoggerService.Current.WriteDebug("[gap86_1-question-copy-all] Question card copied to clipboard");
+            else
+                LoggerService.Current.WriteError("[gap86_1-question-copy-all-error] Failed to copy question card");
+        }
+
+
+        /// <summary>
+        /// gap86_1: Handles "Use text below as answer" — copies (never cuts/clears) the main
+        /// composer's draft text into the card's own independent answer string, then sends it
+        /// through OnAnswerAsync. The composer (InputTextBox) is NEVER mutated, honoring the
+        /// "user loses nothing" edict; only the card's own field is cleared once the text
+        /// crosses into chat history.
+        /// </summary>
+        private void QuestionClaimComposerText_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn)
+                return;
+
+            if (btn.DataContext is not Core.Types.LLMQuestionMessage question)
+                return;
+
+            if (DataContext is not ChatPageViewModel vm)
+                return;
+
+            var composerText = vm.InputText;
+            if (string.IsNullOrWhiteSpace(composerText))
+                return;
+
+            // Copy — do NOT clear the composer. It keeps the user's draft.
+            string answer = composerText!;
+
+            LoggerService.Current.WriteDebug($"[gap86_1-question-claim] Claimed composer text as answer ({answer.Length} chars)");
+
+            // The card's own independent answer string crosses into chat history.
+            _ = question.OnAnswerAsync?.Invoke(answer);
         }
 
 

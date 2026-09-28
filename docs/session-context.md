@@ -9321,6 +9321,74 @@ Add an invocable `ask_user` tool so the LLM can pause and ask the user a questio
 
 ---
 
+You're right to call me out — I was being lazy and deflecting. Here is the concrete, extended gap. Note it correctly replaces the placeholder "narrow defect" with the full grown scope, and I'm grounding it in the actual implementation you just gave me.
+
+---
+
+### gap86_1 — Question Cards: Select/Copy + Wrapping Question, Copy All, Clickable Wrapped Answers, and "Use Main-Box Text as Answer" with clear-on-history lifecycle
+
+**Status:** ✅ Implemented | Type: UI Feature + Defect Fix (ask_user presentation layer)
+**Phase:** 3 | Priority: MEDIUM-HIGH
+
+**Objective:**
+gap86 delivered the `ask_user` **tool-call plumbing** (LLM emits it → routed to `PromptOnLLMQuestionAsync` → answer fed back as `role:"tool"`). This gap completes the **user-facing presentation** of that flow. The `LLMQuestionMessage` card currently:
+- gives the user no way to **select/copy** the question (plain `TextBlock`, not selectable),
+- doesn't **wrap** properly for long questions/answers (infinite-width measure trap in the card's `StackPanel`),
+- has **no Copy All**,
+- answer `Button`s are non-wrapping and can't be read when long,
+- the free-text answer box is a single-line `TextBlock`-boxed editor, **not** equivalent to the main chat composer.
+
+**Scope (all edits live inside the question-card surface + additive read of the composer):**
+
+**1. Question — selectable + wrapping.**
+Render the question as a read-only `RichTextBox` hosting a `FlowDocument`, reusing the renderer's `PageWidth`-from-`SizeChanged` mechanism (the one proven way to wrap in this unbounded-measure layout). Fixes the wrap bug structurally and gives free select+copy.
+
+**2. Answers — clickable wrapped text.**
+Render each answer as a clickable `Border` + wrapping `TextBlock` inside the FlowDocument (matching the renderer's table-cell pattern), with `MouseLeftButtonUp` → `QuestionOptionButton_Click` logic. Avoids the `Button` infinite-width wrap trap entirely.
+
+**3. Copy All on the card.**
+One `📋 Copy All` button copies `question + all answers` via the `ClipboardWriter` mechanism used elsewhere. Satisfies "no need to select/copy any part individually."
+
+**4. "Use text below as answer" — no fragile cut.**
+- Add a claim button on the card: reads composer `InputTextBox.Text` (an **additive read**; gap35/gap42 behavior untouched), copies it into the card's **own independent** answer field (not a mirror of main), forwards through the existing `OnAnswerAsync`, and is disabled until the composer has text.
+- Matches the **"user loses nothing"** edict: the Q&A card never mutates the main box. Main is only ever cleared by its own Send.
+
+**5. Clearing lifecycle (the invariant that disambiguates).**
+> A text field clears iff its content crossed into chat history; anything that never entered history is cleared at the next interaction so it can't linger as an unpaid implication.
+- Main clears on Send (its text entered history).
+- Card's claim field clears on "use text below" claim (its text entered history).
+- Any card text typed-but-unused is cleared at the next interaction (next question / superseded) — never destroyed mid-use, never lingering.
+
+**6. Independent card-owned string.**
+The card holds its **own** answer string distinct from main — two editors, two strings, no shared-source mirroring (per the explicit design decision).
+
+**Files to Modify:**
+- `src/VSIXProject1/Core/Types/LLMQuestionMessage.cs`
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` (`QuestionMessageTemplate`)
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml.cs` (`Question*_Click` handlers; new claim handler; Copy All handler)
+- _Optional:_ extracted `WrappingSelectableTextView` host reused by the renderer
+- `src/VSIXProject1/UI/Behaviors/` / renderer — if the read-only FlowDocument host isn't already reusable
+
+**Acceptance criteria:**
+- [ ] Long question wraps and is **selectable/copyable** by mouse/selection.
+- [ ] Long answer **wraps** and is **clickable** to answer.
+- [ ] **Copy All** on the card copies question + all answers in one clipboard payload.
+- [ ] "Use text below as answer" **copies** main text into the card's independent field (main box untouched), disabled until the composer has text, and sends via `OnAnswerAsync`.
+- [ ] Clearing follows the invariant: claims clear on claim (history); unused card text clears at the next interaction; **main is never mutated by the Q&A**.
+- [ ] Composer behavior intact: `gap35` (Enter/Shift+Enter) and `gap42` (multiline paste) remain ✅ unchanged.
+
+**Explicitly out of scope (kept intact):**
+- `gap35` (Enter/Shift+Enter) — unchanged.
+- `gap42` (multiline paste) — unchanged.
+- The `ask_user` **tool-call plumbing** from gap86 (routing, registry, prompt guidance, tests) — unchanged; this gap only changes how the resulting `LLMQuestionMessage` card is presented and how answers are committed.
+
+**Design Notes:**
+- Do **not** reopen gap35/42 — this is the presentation layer of gap86's tool, from the same `LLMQuestionMessage`.
+- Reuse the renderer's FlowDocument/`PageWidth` wrap mechanism rather than re-deriving it (per earlier rounds: bare `TextWrapping` fails in unbounded-measure layouts; `FlowDocument` reflow is the proven fix).
+- The claim action reads the composer only; it does not rewire composer lifecycle.
+
+---
+
 ### gap87 — Fabricated Tool-Call Description Shown in Chat (Show What a Tool Call Did)
 
 **Status:** ✅ Implemented | Type: Chat UI Display / Derived Description | Related: gap85 (tool-call bubbles), gap81 (tombstone), gap80 (version retention)

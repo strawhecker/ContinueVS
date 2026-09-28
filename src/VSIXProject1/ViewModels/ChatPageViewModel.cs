@@ -351,9 +351,17 @@ namespace ContinueVS.ViewModels
                 if (Set(ref _inputText, value))
                 {
                     SendMessageCommand.RaiseCanExecuteChanged();
+                    RaisePropertyChanged(nameof(HasInputText));
                 }
             }
         }
+
+        /// <summary>
+        /// gap86_1: True while the main composer has non-whitespace draft text. Drives the
+        /// "Use text below as answer" claim button's IsEnabled. The claim copies from the
+        /// composer into the card's own independent answer field and never mutates the composer.
+        /// </summary>
+        public bool HasInputText => !string.IsNullOrWhiteSpace(InputText);
 
         public bool IsStreaming
         {

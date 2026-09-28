@@ -16,6 +16,7 @@
             <converters:ChatModeToBoolConverter x:Key="ChatModeToBoolConverter"/>
             <converters:ToolCallCounterColorConverter x:Key="ToolCallCounterColorConverter"/>
             <converters:IsNotNullToVisibilityConverter x:Key="IsNotNullToVisibilityConverter"/>
+            <converters:StringIsNotEmptyConverter x:Key="StringIsNotEmptyConverter"/>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <Style x:Key="MessageContainerStyle" TargetType="{x:Type ContentPresenter}">
                 <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -260,53 +261,113 @@
                 </local:ChatMessageTemplateSelector.SystemMessageTemplate>
                 <local:ChatMessageTemplateSelector.QuestionMessageTemplate>
                     <DataTemplate>
+                        <!-- gap86_1: Grid (single * column) instead of StackPanel so children are
+                             measured with a FINITE width. The previous StackPanel passed infinite
+                             width to children, which silently broke TextWrapping on long questions
+                             and answers (TextBlock/Button only wrap when given a finite width). -->
                         <Border BorderBrush="#6C5CE7" BorderThickness="2" CornerRadius="4" Margin="5" Padding="10" Background="#2D2D30">
-                            <StackPanel>
-                                <!-- Question Text -->
-                                <TextBlock Text="{Binding Content}" TextWrapping="Wrap" Foreground="#FFFFFF" FontWeight="Bold" Margin="0,0,0,8"/>
-                                <!-- Answer Options (multiple-choice): rendered only when Answers is non-empty -->
-                                <ItemsControl ItemsSource="{Binding Answers}" Margin="0,0,0,8">
+                            <Border.Resources>
+                                <!-- gap86_1: shared editor style (wrap/newline/scroll) so the card's
+                                     free-text answer box behaves identically to the main composer. -->
+                                <Style x:Key="RichInputTextBoxStyle" TargetType="TextBox">
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                    <Setter Property="AcceptsReturn" Value="True"/>
+                                    <Setter Property="MinHeight" Value="80"/>
+                                    <Setter Property="MaxHeight" Value="200"/>
+                                    <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+                                </Style>
+                            </Border.Resources>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <!-- Header: "Q&A" label + Copy All (copies question + all answers) -->
+                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                    <TextBlock Text="❓ Question" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                                    <Button Content="📋 Copy All"
+                                        Click="QuestionCopyAll_Click"
+                                        Height="22" Padding="8,0" FontSize="11"
+                                        Background="Transparent" BorderThickness="1"
+                                        BorderBrush="#5A5A5A" Foreground="#CCCCCC"
+                                        Cursor="Hand" ToolTip="Copy question and all answers"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                </Grid>
+                                <!-- Question Text: gap86_1 rendered through the unified StreamingMarkdownRenderer
+                                     in Verbatim mode — read-only RichTextBox + FlowDocument gives native
+                                     select/copy AND guaranteed wrapping (reflows to actual width). -->
+                                <renderers:StreamingMarkdownRenderer Grid.Row="1"
+                                    ContentKind="Verbatim"
+                                    IsMonospace="False"
+                                    Content="{Binding Content}"
+                                    Message="{Binding}"
+                                    Foreground="#FFFFFF"
+                                    Margin="0,0,0,8"/>
+                                <!-- Answer Options (multiple-choice): rendered only when Answers is non-empty.
+                                     gap86_1: each answer is a clickable Border + wrapping TextBlock. The Grid
+                                     (* column) gives finite width so long answers wrap correctly. -->
+                                <ItemsControl Grid.Row="2" ItemsSource="{Binding Answers}" Margin="0,0,0,8">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Content="{Binding}"
-                                                Background="#3E3E42"
-                                                Foreground="#FFFFFF"
-                                                HorizontalAlignment="Left"
-                                                HorizontalContentAlignment="Left"
+                                            <Border Background="#3E3E42"
                                                 BorderBrush="#6C5CE7"
                                                 BorderThickness="1"
                                                 Padding="10,6"
                                                 Margin="0,0,0,6"
-                                                Click="QuestionOptionButton_Click"/>
+                                                CornerRadius="2"
+                                                Cursor="Hand"
+                                                MouseLeftButtonUp="QuestionOptionButton_Click">
+                                                <TextBlock Text="{Binding}"
+                                                    Foreground="#FFFFFF"
+                                                    TextWrapping="Wrap"
+                                                    HorizontalAlignment="Left"/>
+                                            </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <!-- Answer Input (free text; also usable for open-ended questions) -->
-                                <TextBox x:Name="AnswerInput"
-                                     AcceptsReturn="False"
+                                <!-- Answer Input (free text; also usable for open-ended questions).
+                                     gap86_1: same wrap/newline/scroll behavior as the composer via the
+                                     shared RichInputTextBoxStyle above. -->
+                                <TextBox x:Name="AnswerInput" Grid.Row="3"
+                                     Style="{StaticResource RichInputTextBoxStyle}"
                                      Text="{Binding Path=QuestionAnswer, UpdateSourceTrigger=PropertyChanged}"
+                                     AcceptsReturn="True"
                                      Background="#1E1E1E"
                                      Foreground="#FFFFFF"
                                      BorderBrush="#3E3E42"
                                      BorderThickness="1"
                                      Padding="8"
-                                     Margin="0,0,0,8"
-                                     Height="32"/>
-                                <!-- Buttons -->
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
+                                     Margin="0,0,0,8"/>
+                                <!-- Buttons: Send, Use text below as answer, Cancel.
+                                     gap86_1: the claim button copies (never cuts/clears) the main composer
+                                     text into the card's own independent QuestionAnswer field, then sends it.
+                                     Disabled until the composer has text. -->
+                                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="Send"
                                         Background="#6C5CE7"
                                         Foreground="White"
                                         Padding="12,6"
                                         Margin="0,0,8,0"
+                                        IsEnabled="{Binding QuestionAnswer, Converter={StaticResource StringIsNotEmptyConverter}}"
                                         Click="QuestionAnswerButton_Click"/>
+                                    <Button Content="Use text below as answer"
+                                        Background="#28A745"
+                                        Foreground="White"
+                                        Padding="12,6"
+                                        Margin="0,0,8,0"
+                                        IsEnabled="{Binding DataContext.HasInputText, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                        Click="QuestionClaimComposerText_Click"
+                                        ToolTip="Claim the text already in the main chat box as your answer"/>
                                     <Button Content="Cancel"
                                         Background="#DC3545"
                                         Foreground="White"
                                         Padding="12,6"
                                         Click="QuestionCancelButton_Click"/>
                                 </StackPanel>
-                            </StackPanel>
+                            </Grid>
                         </Border>
                     </DataTemplate>
                 </local:ChatMessageTemplateSelector.QuestionMessageTemplate>
