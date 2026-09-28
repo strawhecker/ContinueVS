@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -27,10 +27,17 @@ namespace ContinueVS.Core.Types
         /// </summary>
         public LLMQuestionType QuestionType { get; }
 
+        private string? _questionAnswer;
+
         /// <summary>
         /// The user's answer to the question (for UI binding).
         /// </summary>
-        public string? QuestionAnswer { get; set; }
+        /// <summary>The user's answer to the question (for UI binding).</summary>
+        public string? QuestionAnswer
+        {
+            get => _questionAnswer;
+            set => SetProperty(ref _questionAnswer, value);
+        }
 
         /// <summary>
         /// Callback invoked when user provides answer.

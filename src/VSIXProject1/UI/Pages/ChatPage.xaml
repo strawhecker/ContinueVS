@@ -354,14 +354,6 @@
                                         Margin="0,0,8,0"
                                         IsEnabled="{Binding QuestionAnswer, Converter={StaticResource StringIsNotEmptyConverter}}"
                                         Click="QuestionAnswerButton_Click"/>
-                                    <Button Content="Use text below as answer"
-                                        Background="#28A745"
-                                        Foreground="White"
-                                        Padding="12,6"
-                                        Margin="0,0,8,0"
-                                        IsEnabled="{Binding DataContext.HasInputText, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
-                                        Click="QuestionClaimComposerText_Click"
-                                        ToolTip="Claim the text already in the main chat box as your answer"/>
                                     <Button Content="Cancel"
                                         Background="#DC3545"
                                         Foreground="White"
