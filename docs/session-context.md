@@ -10253,6 +10253,69 @@ That's gap92 (as a 3-part family) + gap93 + gap94 + gap95 = your four top-level 
 
 ---
 
+### gap98: Context Size Check After Response + % Filled Display (Policy-Dropdown Right)
+
+**Status:** ⬜ Planned | Type: User Setting (default ON) + Chat UI + Token Reporting | Related: gap22 (token estimation), gap74 (ContextBudgetState), gap23_4_4 (80%/100% banners), gap27 (policy dropdown), gap85 (Mode-Selector row layout); assets `ISessionService.EstimateTokensUsed`, `GetContextBudgetState`, `ContextWindowInfo.MaxTokens/UsedTokens/ReservedForNewContext`, the LLM `/tokenize` endpoint, `ChatPageViewModel`, `UserSettings`
+
+**Objective:**
+Let the user (enable by default and) have the app compute, **after each response completes**, how much of the model's context window is currently filled and show the result as a rounded-up whole percent (`%2d%%`, e.g. ` 45%`) to the right of the policy dropdown. The check is terminal — **no questions, no tools, no chat/tool loop** — it runs once at response completion, reports, and stops.
+
+**Core decision — the setting REPLACES the estimator, it doesn't just add a display:**
+1. **Default is ON.** `ui.showContextUsageAfterResponse = true` in `UserSettings.GetDefaults()`. The feature is active out of the box; the user can turn it off.
+2. **When ON, it replaces `ISessionService.EstimateTokensUsed`.** The authoritative token count now comes from the LLM's `/tokenize` endpoint for the current history (the same call pattern as the `/tokenize` curl: `model` + assembled `prompt`), computed once after the response completes. Every code path that calls `ISessionService.EstimateTokensUsed` must be **aware of the replacement**: with the setting on, that value is the LLM's real token count, not the heuristic estimate.
+3. **The `/tokenize` call is a one-off, out-of-band request.** It **sends the context** (the assembled history as the `prompt`) to the counting endpoint, **but it DOES NOT become part of the chat history** — nothing is appended to the session, no assistant/user messages are created, no state is mutated. **We consume the result** (the returned token count) and use it only to compute the displayed percent. No tool is started, no question is asked, no new response is triggered, so the send/tool loop cannot continue from it.
+4. **Replacement-aware callers.** Any code that deals with `ISessionService.EstimateTokensUsed` (length/budget checks, pruning, banner thresholds, gap22/gap74 callers) must branch on the setting so it consumes the LLM-derived count when the setting is on and the heuristic otherwise. This keeps pruning/budgeting consistent with what the user sees.
+5. **Propagation strategy (owned by gap98):** rather than silently mutating the estimator's return everywhere, gap98 introduces a single accessor that resolves the active count — heuristic vs LLM `/tokenize` depending on the setting — and updates `GetContextBudgetState`/`EstimateTokensUsed` call sites to route through it. The heuristic path is never deleted; it remains the fallback when the setting is off.
+
+**Why the remaining decisions hold:**
+6. **After response completes, not during.** The check runs in `ExecuteSendMessage` at the closure point (after the stream `foreach`, once the assistant message is finalized / the tool loop settles) — the natural "response is done" boundary. No polling, no timers.
+7. **No questions, no tools — it stops looping.** The post-response check is purely terminal: it calls only the `/tokenize` endpoint (a counting call, not a chat completion), never `ask_user`, never starts a tool, never triggers another response. It **sends the context and consumes the token-count result** without ever writing to the session, so there is no input for the loop to continue on. It computes, sets a value, and stops.
+8. **Rounded up to a whole number.** `percent = (int)Math.Ceiling(usedTokens / (double)maxTokens * 100.0)`. A fill of 44.2% shows ` 45%`, never 44.
+9. **`%2d%%` formatting.** Bound text = `string.Format("%{0,2}", percent)` (e.g. `% 45`); the two-wide right-aligned integer keeps single-digit percents aligned. The literal `%%` is a formatting artifact; the displayed string is e.g. ` 45%`.
+10. **Right of the policy dropdown.** A `TextBlock` in the Mode-Selector row (the same row as mode/model/policy controls), placed after the policy `ComboBox`'s separator and before the send area — satisfying both the placeholder's "between policy dropdown and send button" and "right of policy dropdown".
+11. **80% warning hook (placeholder intent).** The same computed percent drives an 80% threshold reusing the gap23_4_4 banner pattern (yellow warning when `percent >= 80`), surfaced only while the setting is enabled.
+
+**Decided behavior:**
+- **New user setting:** `ui.showContextUsageAfterResponse` (`UserSettings` constant, default `true`) exposed as `SettingsViewModel.ShowContextUsageAfterResponse` (delta-persisted like gap8_2).
+- **View state:** `ChatPageViewModel` gains `double? ContextUsagePercent` (set only when the setting is on and a response completes; cleared/defaulted otherwise) and `bool IsContextUsageVisible` (bound to the setting).
+- **Post-response hook** in `ExecuteSendMessage` (after the response completes):
+  - If setting off → `ContextUsagePercent = null`; `ISessionService.EstimateTokensUsed` keeps returning its heuristic value (no callers change behavior).
+  - If on → build the current `List<ChatMessage>` (same source `PackageMessages` uses), send that context to the LLM `/tokenize` endpoint (a one-off call that is **not** appended to history), **consume the returned token count** as the **replacement** for `ISessionService.EstimateTokensUsed`, read `max` from `ContextWindowInfo.MaxTokens` (fallback `model.ContextWindow`, else 4096), compute `ContextUsagePercent = Math.Ceiling(used / max * 100)`.
+  - Only compute when `used > 0`; guard null/max≤0 → `ContextUsagePercent = 0`.
+- **Replacement-aware call sites:** every consumer of `ISessionService.EstimateTokensUsed` routes through the gap98 accessor so it sees the LLM-derived count when the setting is on.
+- **UI (ChatPage.xaml):** a small `TextBlock` to the right of the policy dropdown, `Visibility` bound to `IsContextUsageVisible` via `BooleanToVisibilityConverter`, `Text` bound to `ContextUsagePercent` via a new `PercentToWidthTwoConverter` (formats `%2d%%`). Tooltip: "Context window usage after last response (rounded up)."
+- **80% message:** when `ContextUsagePercent >= 80` and the setting is on, reuse the existing warning-banner pattern (not a modal) to make the user aware of diminishing headroom.
+
+**Files (candidates):**
+- `src/VSIXProject1/Core/Types/UserSettings.cs` — add `ui.showContextUsageAfterResponse` (default true) + `GetDefaults`.
+- `src/VSIXProject1/ViewModels/SettingsViewModel.cs` — property + load/save (delta).
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — hook after response completes; send context to `/tokenize`, consume result (no history write); compute percent; raise notify; 80% banner trigger.
+- `src/VSIXProject1/Core/LLM/ContextUsageAccessor.cs` (NEW) — resolves heuristic vs LLM `/tokenize` count based on the setting; exposes it to `EstimateTokensUsed` call sites.
+- `src/VSIXProject1/ViewModels/Converters/PercentToWidthTwoConverter.cs` (NEW) — `%2d%%`.
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — TextBlock + visibility + binding right of policy dropdown.
+- `src/VSIXProject1.Tests/...` — converter tests (`0→"%  0"`, `44.2→"% 45"`, `99.8→"%100"`), ViewModel post-response computation, +/- setting gating, 80% banner, and replacement-awareness tests for `EstimateTokensUsed` call sites.
+
+**Testing strategy:**
+- Percent rounding: 0.0→0, 44.2→45, 79.9→80, 99.5→100 (ceiling, not floor/round-to-even).
+- Setting on (default) → `EstimateTokensUsed` call sites resolve to the LLM `/tokenize` count (replacement honored), computed once per completed response and **not** on streaming chunks.
+- Setting off → nothing changes; `EstimateTokensUsed` returns heuristic; no `/tokenize` call; control collapsed.
+- **No history mutation:** after the post-response `/tokenize` call, session history and message list are byte-identical (assert no new message is added); only the consumed percentage value changes.
+- No chat-completion/tool/`ask_user` call during the check (assert no `StreamAsync`/`InvokeAsync`/question flow) — it stops looping.
+- 80% threshold fires the warning only when setting on.
+- Placement verified at the Mode-Selector row right of policy dropdown (and to the left of the send button).
+
+**Risks & decisions:**
+- **Setting is ON by default**, so the feature is live immediately; the user can opt out.
+- **Replacement, not a parallel counter:** with the setting on, the LLM token count supersedes the heuristic everywhere `EstimateTokensUsed` is consumed (budget, pruning, banners), so what the user sees matches what the app acts on. All those call sites are gap98's responsibility to migrate.
+- **`/tokenize` is a one-off, out-of-band counting call** — it sends the context, returns token IDs, and stops. It is **never written into chat history** (we only consume the result), so it cannot mutate the session or feed a new response, preserving the "stops looping" guarantee.
+- **`max` source precedence:** `ContextWindowInfo.MaxTokens` → selected model `ContextWindow` → default 4096; `max ≤ 0` → treat as 0% (never divide by zero).
+- **Heuristic is retained** as the fallback when the setting is off; it is never deleted.
+- **Pure display + warning gate** — gap98 does not itself prune or mutate the session. Pruning stays owned by gap22/gap74 (but their `EstimateTokensUsed` input is now replacement-aware when the setting is on).
+
+**Sequencing:** lands after gap74 (ContextBudgetState) and gap85 (Mode-Selector row layout) so the row placement and estimator exist. Independent of the debug gap92–95 family and gap97 (Bare). Safe to build in parallel.
+
+---
+
 ## Phase 1: Core Types & Contracts (Steps 1-15)
 
 *Establish shared data models and service interfaces.*
