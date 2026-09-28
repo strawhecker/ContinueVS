@@ -60,6 +60,13 @@
                                        Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
                         </StackPanel>
                     </CheckBox>
+                    <CheckBox IsChecked="{Binding ShowContextUsage, Mode=TwoWay}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Show Context Window Usage (on by default)" FontWeight="Bold"/>
+                            <TextBlock Text="After each response completes, shows how much of the model's context window is filled (as a rounded-up whole percent) to the right of the policy dropdown. Uses an out-of-band token count that never becomes part of chat history." 
+                                       Foreground="#666" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </CheckBox>
                 </StackPanel>
             </TabItem>
             <!-- Appearance Settings Tab -->

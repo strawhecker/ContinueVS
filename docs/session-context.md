@@ -10255,7 +10255,7 @@ That's gap92 (as a 3-part family) + gap93 + gap94 + gap95 = your four top-level 
 
 ### gap98: Context Size Check After Response + % Filled Display (Policy-Dropdown Right)
 
-**Status:** ⬜ Planned | Type: User Setting (default ON) + Chat UI + Token Reporting | Related: gap22 (token estimation), gap74 (ContextBudgetState), gap23_4_4 (80%/100% banners), gap27 (policy dropdown), gap85 (Mode-Selector row layout); assets `ISessionService.EstimateTokensUsed`, `GetContextBudgetState`, `ContextWindowInfo.MaxTokens/UsedTokens/ReservedForNewContext`, the LLM `/tokenize` endpoint, `ChatPageViewModel`, `UserSettings`
+**Status:** ✅ Implemented (Build passing, 0 warnings, 1702 tests passing) | Type: User Setting (default ON) + Chat UI + Token Reporting | Related: gap22 (token estimation), gap74 (ContextBudgetState), gap23_4_4 (80%/100% banners), gap27 (policy dropdown), gap85 (Mode-Selector row layout); assets `ISessionService.EstimateTokensUsed`, `GetContextBudgetState`, `ContextWindowInfo.MaxTokens/UsedTokens/ReservedForNewContext`, the LLM `/tokenize` endpoint, `ChatPageViewModel`, `UserSettings`
 
 **Objective:**
 Let the user (enable by default and) have the app compute, **after each response completes**, how much of the model's context window is currently filled and show the result as a rounded-up whole percent (`%2d%%`, e.g. ` 45%`) to the right of the policy dropdown. The check is terminal — **no questions, no tools, no chat/tool loop** — it runs once at response completion, reports, and stops.
@@ -10276,24 +10276,27 @@ Let the user (enable by default and) have the app compute, **after each response
 11. **80% warning hook (placeholder intent).** The same computed percent drives an 80% threshold reusing the gap23_4_4 banner pattern (yellow warning when `percent >= 80`), surfaced only while the setting is enabled.
 
 **Decided behavior:**
-- **New user setting:** `ui.showContextUsageAfterResponse` (`UserSettings` constant, default `true`) exposed as `SettingsViewModel.ShowContextUsageAfterResponse` (delta-persisted like gap8_2).
+- **New user setting:** `chat.showContextUsage` (`UserSettings` constant, default `true`) exposed as `SettingsViewModel.ShowContextUsage` (delta-persisted like gap8_2).
 - **View state:** `ChatPageViewModel` gains `double? ContextUsagePercent` (set only when the setting is on and a response completes; cleared/defaulted otherwise) and `bool IsContextUsageVisible` (bound to the setting).
 - **Post-response hook** in `ExecuteSendMessage` (after the response completes):
   - If setting off → `ContextUsagePercent = null`; `ISessionService.EstimateTokensUsed` keeps returning its heuristic value (no callers change behavior).
   - If on → build the current `List<ChatMessage>` (same source `PackageMessages` uses), send that context to the LLM `/tokenize` endpoint (a one-off call that is **not** appended to history), **consume the returned token count** as the **replacement** for `ISessionService.EstimateTokensUsed`, read `max` from `ContextWindowInfo.MaxTokens` (fallback `model.ContextWindow`, else 4096), compute `ContextUsagePercent = Math.Ceiling(used / max * 100)`.
   - Only compute when `used > 0`; guard null/max≤0 → `ContextUsagePercent = 0`.
 - **Replacement-aware call sites:** every consumer of `ISessionService.EstimateTokensUsed` routes through the gap98 accessor so it sees the LLM-derived count when the setting is on.
-- **UI (ChatPage.xaml):** a small `TextBlock` to the right of the policy dropdown, `Visibility` bound to `IsContextUsageVisible` via `BooleanToVisibilityConverter`, `Text` bound to `ContextUsagePercent` via a new `PercentToWidthTwoConverter` (formats `%2d%%`). Tooltip: "Context window usage after last response (rounded up)."
+- **UI (ChatPage.xaml):** a small `TextBlock` to the right of the policy dropdown, `Visibility` bound to `IsContextUsageVisible` via `BooleanToVisibilityConverter`, `Text` bound to `ContextUsagePercent` via the `PercentToWidthTwoConverter` (formats `"{0,2}%"` → rounded-up whole percent, e.g. `45%` / ` 1%` / `100%`). Tooltip: "Context window usage after last response (rounded up)."
 - **80% message:** when `ContextUsagePercent >= 80` and the setting is on, reuse the existing warning-banner pattern (not a modal) to make the user aware of diminishing headroom.
 
-**Files (candidates):**
-- `src/VSIXProject1/Core/Types/UserSettings.cs` — add `ui.showContextUsageAfterResponse` (default true) + `GetDefaults`.
-- `src/VSIXProject1/ViewModels/SettingsViewModel.cs` — property + load/save (delta).
-- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — hook after response completes; send context to `/tokenize`, consume result (no history write); compute percent; raise notify; 80% banner trigger.
-- `src/VSIXProject1/Core/LLM/ContextUsageAccessor.cs` (NEW) — resolves heuristic vs LLM `/tokenize` count based on the setting; exposes it to `EstimateTokensUsed` call sites.
-- `src/VSIXProject1/ViewModels/Converters/PercentToWidthTwoConverter.cs` (NEW) — `%2d%%`.
-- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — TextBlock + visibility + binding right of policy dropdown.
-- `src/VSIXProject1.Tests/...` — converter tests (`0→"%  0"`, `44.2→"% 45"`, `99.8→"%100"`), ViewModel post-response computation, +/- setting gating, 80% banner, and replacement-awareness tests for `EstimateTokensUsed` call sites.
+**Files (implemented):**
+- `src/VSIXProject1/Core/Types/UserSettings.cs` — added `Chat_ShowContextUsage` (default true) + `DefaultsAsBool` helper.
+- `src/VSIXProject1/Services/Interfaces/ITokenizeService.cs` (NEW) — out-of-band `/tokenize` counting contract.
+- `src/VSIXProject1/Services/Implementations/TokenizeService.cs` (NEW) — POST `{baseUrl}/tokenize`, consumes count, never writes history.
+- `src/VSIXProject1/ViewModels/Converters/PercentToWidthTwoConverter.cs` (NEW) — `"{0,2}%"` rounded-up whole percent.
+- `src/VSIXProject1/ViewModels/SettingsViewModel.cs` — `ShowContextUsage` property + load/save delta.
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` — optional `ITokenizeService`; `ContextUsagePercent`/`IsContextUsageVisible`; post-response hook `RefreshContextUsageAfterResponseAsync`; 80% banner via `StartWarningBannerDismissTimer`.
+- `src/VSIXProject1/Services/ServiceBootstrapper.cs` — registered `ITokenizeService` and wired into `ChatPageViewModel`.
+- `src/VSIXProject1/UI/Pages/ChatPage.xaml` — TextBlock right of policy dropdown.
+- `src/VSIXProject1/UI/Pages/SettingsControl.xaml` — `ShowContextUsage` toggle.
+- `src/VSIXProject1.Tests/ViewModels/Converters/PercentToWidthTwoConverterTests.cs` (NEW) — converter tests.
 
 **Testing strategy:**
 - Percent rounding: 0.0→0, 44.2→45, 79.9→80, 99.5→100 (ceiling, not floor/round-to-even).

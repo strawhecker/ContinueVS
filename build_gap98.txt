@@ -1,0 +1,12 @@
+  Determining projects to restore...
+  Restored E:\GitRepos\ContinueVS\src\VSIXProject1\VSIXProject1.csproj (in 531 ms).
+  Restored E:\GitRepos\ContinueVS\src\VSIXProject1.Tests\VSIXProject1.Tests.csproj (in 531 ms).
+  VSIXProject1 -> E:\GitRepos\ContinueVS\src\VSIXProject1\bin\Debug\net472\ContinueVS.dll
+  VSIXProject1 -> E:\GitRepos\ContinueVS\src\VSIXProject1\bin\Debug\net472\ContinueVS.vsix
+  VSIXProject1.Tests -> E:\GitRepos\ContinueVS\src\VSIXProject1.Tests\bin\Debug\net472\VSIXProject1.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:09.51

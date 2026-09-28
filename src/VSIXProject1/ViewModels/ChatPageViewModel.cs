@@ -72,6 +72,9 @@ namespace ContinueVS.ViewModels
         private readonly IMessengerService? _messengerService;
         // gap78: Tool call aggregator for buffering streaming tool call fragments
         private readonly IToolCallAggregator _toolCallAggregator;
+        // gap98: Out-of-band tokenize service for context-usage display after a response completes.
+        // Optional (nullable) so construction without a live HTTP dependency still works in tests.
+        private readonly ITokenizeService? _tokenizeService;
         // gap80_1: Tool-result lifetime engine (coverage supersession, mutation invalidation,
         // directory-snapshot staleness, failed-mutation pivot). Applies to collected tool results
         // before the next LLM iteration.
@@ -612,6 +615,33 @@ namespace ContinueVS.ViewModels
             set => Set(ref _isInputEnabled, value);
         }
 
+        // gap98: Backing field for the computed context-usage percentage after a response completes.
+        private double? _contextUsagePercent;
+
+        // gap98: Whether the context-usage control is visible (bound to the showContextUsage setting).
+        private bool _isContextUsageVisible;
+
+        /// <summary>
+        /// gap98: Gets or sets the context-window usage percentage (0–100) computed after a response
+        /// completes, when the <c>chat.showContextUsage</c> user setting is enabled.
+        /// Null when the setting is off or no response has completed yet.
+        /// </summary>
+        public double? ContextUsagePercent
+        {
+            get => _contextUsagePercent;
+            set => Set(ref _contextUsagePercent, value);
+        }
+
+        /// <summary>
+        /// gap98: Gets or sets whether the context-usage percentage control (right of the policy
+        /// dropdown) is visible. Bound to the <c>chat.showContextUsage</c> user setting.
+        /// </summary>
+        public bool IsContextUsageVisible
+        {
+            get => _isContextUsageVisible;
+            set => Set(ref _isContextUsageVisible, value);
+        }
+
         public RelayCommand SendMessageCommand { get; }
         public RelayCommand CancelCommand { get; }
         public RelayCommand<string> AddContextCommand { get; }
@@ -712,7 +742,8 @@ namespace ContinueVS.ViewModels
             IAgentCommandDispatcher? agentCommandDispatcher = null,
             IMessengerService? messengerService = null,
             IToolCallAggregator? toolCallAggregator = null,
-            IToolResultLifetimeService? toolResultLifetimeService = null)
+            IToolResultLifetimeService? toolResultLifetimeService = null,
+            ITokenizeService? tokenizeService = null)
         {
             if (llmService == null) throw new ArgumentNullException(nameof(llmService));
             if (contextService == null) throw new ArgumentNullException(nameof(contextService));
@@ -754,6 +785,8 @@ namespace ContinueVS.ViewModels
             // gap80_1: Tool-result lifetime engine; fall back to create default if none supplied
             _toolResultLifetimeService = toolResultLifetimeService ?? new ToolResultLifetimeService(
                 new ReadDeduplicator());
+            // gap98: Optional out-of-band tokenize service (may be null in tests)
+            _tokenizeService = tokenizeService;
 
             Messages = new ObservableCollection<ChatMessage>();
             SelectedContext = new ObservableCollection<ContextItem>();
@@ -1074,6 +1107,24 @@ namespace ContinueVS.ViewModels
 
             // gap76: Load available sessions for history view
             await RefreshSessionsAsync();
+
+            // gap98: Load the context-usage visibility setting (default ON). When off, the control
+            // stays hidden and no tokenize call runs. Reflect requires the UI thread.
+            try
+            {
+                var cfg = _configService.GetCurrentConfig();
+                bool showContextUsage = UserSettings.DefaultsAsBool(
+                    cfg?.CustomSettings, UserSettings.Chat_ShowContextUsage, true);
+                await SwitchToMainThreadAsync();
+                IsContextUsageVisible = showContextUsage;
+                LoggerService.Current.WriteDebug($"[gap98-init] chat.showContextUsage={showContextUsage}");
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteError($"[gap98-init-error] Failed to load showContextUsage: {ex.Message}", ex);
+                await SwitchToMainThreadAsync();
+                IsContextUsageVisible = true;
+            }
 
             // Mark initialization as complete
             _isInitialized = true;
@@ -1506,6 +1557,21 @@ namespace ContinueVS.ViewModels
         }
 
         /// <summary>
+        /// Starts (or restarts) the 5-second auto-dismiss timer for the warning banner (gap23_4_4).
+        /// Reused by gap98 when surfacing the context-usage 80% warning.
+        /// </summary>
+        private void StartWarningBannerDismissTimer()
+        {
+            if (_warningDismissTimer == null)
+            {
+                _warningDismissTimer = new DispatcherTimer();
+                _warningDismissTimer.Interval = TimeSpan.FromSeconds(5);
+                _warningDismissTimer.Tick += (s, e) => DismissWarningBanner();
+            }
+            _warningDismissTimer.Start();
+        }
+
+        /// <summary>
         /// Public command method for warning banner dismiss button (gap23_4_4).
         /// </summary>
         public void DismissWarningBannerCommand()
@@ -1622,13 +1688,7 @@ namespace ContinueVS.ViewModels
                         LoggerService.Current.WriteDebug($"[gap23_4_4-warning] Approaching tool call limit ({percentage:F1}%). Warning banner shown.");
 
                         // Start 5-second auto-dismiss timer
-                        if (_warningDismissTimer == null)
-                        {
-                            _warningDismissTimer = new DispatcherTimer();
-                            _warningDismissTimer.Interval = TimeSpan.FromSeconds(5);
-                            _warningDismissTimer.Tick += (s, e) => DismissWarningBanner();
-                        }
-                        _warningDismissTimer.Start();
+                        StartWarningBannerDismissTimer();
 
                         // Log analytics event
                         _notificationService.ShowError($"Approaching per-action tool limit ({(int)percentage}/100 used). Sending again grants a fresh budget.");
@@ -2257,6 +2317,13 @@ namespace ContinueVS.ViewModels
                         break;
                     }
                 }
+
+                // gap98: After the response completes (the tool loop has settled), refresh the
+                // context-window usage display. This is a terminal, out-of-band check: it calls
+                // only the /tokenize counting endpoint (never a chat completion, never a tool,
+                // never a question), consumes the returned token count, and stops — it cannot
+                // re-enter the loop.
+                await RefreshContextUsageAfterResponseAsync();
             }
             catch (OperationCanceledException)
             {
@@ -2302,6 +2369,94 @@ namespace ContinueVS.ViewModels
                 {
                     LoggerService.Current.WriteDebug("[ExecuteSendMessage] _streamingCts already disposed in finally");
                 }
+            }
+        }
+
+        /// <summary>
+        /// gap98: Refreshes the context-window usage percentage after a response completes.
+        ///
+        /// When the <c>chat.showContextUsage</c> setting is ON (default), the value shown replaces
+        /// the <see cref="ISessionService.EstimateTokensUsed"/> heuristic with a real, out-of-band
+        /// /tokenize count of the current session history. The tokenize call NEVER becomes part of
+        /// chat history — nothing is appended or mutated; we only consume the returned count. It
+        /// never starts a tool, never asks a question, and never triggers another response, so it
+        /// cannot re-enter the send/tool loop.
+        ///
+        /// When the setting is OFF, the control is hidden and no tokenize call is made.
+        /// </summary>
+        private async Task RefreshContextUsageAfterResponseAsync()
+        {
+            try
+            {
+                // Setting off → hide + compute nothing.
+                if (!IsContextUsageVisible)
+                {
+                    await SwitchToMainThreadAsync();
+                    ContextUsagePercent = null;
+                    return;
+                }
+
+                var selectedModel = _configService.GetSelectedModel();
+                var session = _sessionService.GetCurrentSession();
+
+                int usedTokens;
+                if (_tokenizeService != null && session != null && session.Messages.Count > 0)
+                {
+                    // Out-of-band token count — a counting call, not a chat/tool. Consume only.
+                    var tokenizeCount = await _tokenizeService.CountTokensAsync(
+                        selectedModel, session.Messages, CancellationToken.None);
+                    // If the server reported a count, use it (replacement for the heuristic).
+                    if (tokenizeCount.HasValue)
+                    {
+                        usedTokens = tokenizeCount.Value;
+                    }
+                    else
+                    {
+                        // Fallback to the heuristic when the tokenize call is unavailable.
+                        usedTokens = _sessionService.EstimateTokensUsed(session.Messages);
+                    }
+                }
+                else
+                {
+                    usedTokens = _sessionService.EstimateTokensUsed(
+                        session?.Messages ?? new List<ChatMessage>());
+                }
+
+                int maxTokens = 4096;
+                if (selectedModel != null && selectedModel.ContextWindow > 0)
+                {
+                    maxTokens = selectedModel.ContextWindow;
+                }
+
+                // Round UP to a whole percent; guard against non-positive / zero max.
+                double percent;
+                if (maxTokens <= 0 || usedTokens <= 0)
+                {
+                    percent = 0;
+                }
+                else
+                {
+                    percent = Math.Ceiling(usedTokens / (double)maxTokens * 100.0);
+                    percent = Math.Max(0, Math.Min(100, percent));
+                }
+
+                await SwitchToMainThreadAsync();
+                ContextUsagePercent = percent;
+                LoggerService.Current.WriteDebug(
+                    $"[gap98] Context usage after response: {usedTokens}/{maxTokens} tokens = {percent:F0}%");
+
+                // gap98: 80% warning hook — reuse the existing warning-banner pattern (only while the
+                // setting is on) to surface diminishing headroom.
+                if (percent >= 80.0 && !ShowWarningBanner)
+                {
+                    ShowWarningBanner = true;
+                    StartWarningBannerDismissTimer();
+                    LoggerService.Current.WriteDebug($"[gap98-warning] Context usage at {percent:F0}% (>=80%). Warning banner shown.");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Current.WriteWarning($"[gap98] Failed to refresh context usage: {ex.Message}");
             }
         }
 

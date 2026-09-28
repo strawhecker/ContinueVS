@@ -20,6 +20,11 @@ namespace ContinueVS.Core.Types
         // Whether to scan each LLM response for an embedded question and prompt the user.
         // Off by default: when disabled, the response is never scanned for a question.
         public const string Chat_ScanForQuestion = "chat.scanForQuestion";
+        // gap98: Show the context-window usage percentage after each response completes,
+        // displayed to the right of the policy dropdown. The displayed value replaces the
+        // ISessionService.EstimateTokensUsed heuristic with a real LLM /tokenize count.
+        // On by default; the user can turn it off.
+        public const string Chat_ShowContextUsage = "chat.showContextUsage";
 
         // Appearance Settings
         public const string Appearance_FontSize = "appearance.fontSize";
@@ -138,6 +143,7 @@ namespace ContinueVS.Core.Types
                 { Chat_FormatMarkdown, true },
                 { Chat_ShowThinkingAfterStreaming, true },
                 { Chat_ScanForQuestion, false },
+                { Chat_ShowContextUsage, true },
 
                 // Appearance defaults
                 { Appearance_FontSize, 14 },
@@ -234,6 +240,35 @@ namespace ContinueVS.Core.Types
             var defaults = GetDefaults();
             defaults.TryGetValue(key, out var value);
             return value;
+        }
+
+        /// <summary>
+        /// Reads a boolean from custom settings, falling back to a supplied default when the key
+        /// is absent. Accepts the value stored as bool, long, int, or a "true"/"false" string
+        /// after a JSON round-trip.
+        /// </summary>
+        public static bool DefaultsAsBool(Dictionary<string, object>? customSettings, string key, bool fallback)
+        {
+            if (customSettings == null || !customSettings.TryGetValue(key, out var raw))
+                return fallback;
+
+            switch (raw)
+            {
+                case bool b:
+                    return b;
+                case long l:
+                    return l != 0;
+                case int i:
+                    return i != 0;
+                case short s:
+                    return s != 0;
+                case byte by:
+                    return by != 0;
+                case string str when bool.TryParse(str, out var parsed):
+                    return parsed;
+                default:
+                    return fallback;
+            }
         }
 
         /// <summary>

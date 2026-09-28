@@ -16,6 +16,7 @@
             <converters:ChatModeToBoolConverter x:Key="ChatModeToBoolConverter"/>
             <converters:ToolCallCounterColorConverter x:Key="ToolCallCounterColorConverter"/>
             <converters:IsNotNullToVisibilityConverter x:Key="IsNotNullToVisibilityConverter"/>
+            <converters:PercentToWidthTwoConverter x:Key="PercentToWidthTwoConverter"/>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <Style x:Key="MessageContainerStyle" TargetType="{x:Type ContentPresenter}">
                 <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -777,6 +778,14 @@
 
                         <TextBlock Text="Policy:" VerticalAlignment="Center" Margin="5,0,5,0" Foreground="#CCCCCC" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                         <ComboBox ItemsSource="{Binding ContinuationPolicies}" SelectedValuePath="Value" SelectedValue="{Binding SelectedPolicy, Mode=TwoWay}" DisplayMemberPath="Name" Width="160" Height="28" Margin="0,0,5,0" Style="{StaticResource DarkComboBoxStyle}" IsEnabled="{Binding IsPolicyEnabled}" Visibility="{Binding IsPolicyVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                        <!-- gap98: Context-window usage % (right of policy dropdown, to the left of the send button).
+                             Displays after a response completes; shows rounded-up whole percent via PercentToWidthTwoConverter
+                             (e.g. " 45%"). Visibility bound to the chat.showContextUsage setting. -->
+                        <TextBlock Text="{Binding ContextUsagePercent, Converter={StaticResource PercentToWidthTwoConverter}}"
+                                   VerticalAlignment="Center" Margin="6,0,6,0" Foreground="#8BC34A" FontSize="12" FontWeight="Bold"
+                                   Visibility="{Binding IsContextUsageVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                   ToolTip="Context window usage after last response (rounded up)."/>
 
 
                     </StackPanel>
