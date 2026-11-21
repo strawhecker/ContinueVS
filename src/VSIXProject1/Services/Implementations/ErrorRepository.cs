@@ -40,7 +40,7 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Initializes the error repository: creates directory, loads existing errors into index, performs cleanup.
         /// </summary>
-        public async Task InitializeAsync()
+        public Task InitializeAsync()
         {
             if (_logger != null)
                 _logger?.WriteDebug("ErrorRepository.InitializeAsync (start)");
@@ -48,7 +48,7 @@ namespace ContinueVS.Services.Implementations
             lock (_lock)
             {
                 if (_initialized)
-                    return;
+                    return Task.CompletedTask;
 
                 try
                 {
@@ -83,12 +83,13 @@ namespace ContinueVS.Services.Implementations
                     throw;
                 }
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Stores an error record to disk and updates the index.
         /// </summary>
-        public async Task StoreErrorAsync(ErrorRecord record)
+        public Task StoreErrorAsync(ErrorRecord record)
         {
             if (record == null)
                 throw new ArgumentNullException(nameof(record));
@@ -123,60 +124,61 @@ namespace ContinueVS.Services.Implementations
                     throw;
                 }
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Retrieves all errors of a specific exception type.
         /// </summary>
-        public async Task<IEnumerable<ErrorRecord>> GetErrorsByTypeAsync(string exceptionType)
+        public Task<IEnumerable<ErrorRecord>> GetErrorsByTypeAsync(string exceptionType)
         {
             if (string.IsNullOrEmpty(exceptionType))
-                return Enumerable.Empty<ErrorRecord>();
+                return Task.FromResult(Enumerable.Empty<ErrorRecord>());
 
             lock (_lock)
             {
                 if (!_initialized || _fingerprintIndex == null)
-                    return Enumerable.Empty<ErrorRecord>();
+                    return Task.FromResult(Enumerable.Empty<ErrorRecord>());
 
                 var results = new List<ErrorRecord>();
                 foreach (var kvp in _fingerprintIndex)
                 {
                     results.AddRange(kvp.Value.Where(e => e.ExceptionType == exceptionType));
                 }
-                return results;
+                return Task.FromResult((IEnumerable<ErrorRecord>)results);
             }
         }
 
         /// <summary>
         /// Retrieves all errors with a specific fingerprint.
         /// </summary>
-        public async Task<IEnumerable<ErrorRecord>> GetErrorsByFingerprintAsync(string fingerprint)
+        public Task<IEnumerable<ErrorRecord>> GetErrorsByFingerprintAsync(string fingerprint)
         {
             if (string.IsNullOrEmpty(fingerprint))
-                return Enumerable.Empty<ErrorRecord>();
+                return Task.FromResult(Enumerable.Empty<ErrorRecord>());
 
             lock (_lock)
             {
                 if (!_initialized || _fingerprintIndex == null)
-                    return Enumerable.Empty<ErrorRecord>();
+                    return Task.FromResult(Enumerable.Empty<ErrorRecord>());
 
                 if (_fingerprintIndex.TryGetValue(fingerprint, out var records))
                 {
-                    return records.ToList();
+                    return Task.FromResult((IEnumerable<ErrorRecord>)records.ToList());
                 }
-                return Enumerable.Empty<ErrorRecord>();
+                return Task.FromResult(Enumerable.Empty<ErrorRecord>());
             }
         }
 
         /// <summary>
         /// Retrieves all errors within a time range.
         /// </summary>
-        public async Task<IEnumerable<ErrorRecord>> GetErrorsByTimeRangeAsync(DateTime startTime, DateTime endTime)
+        public Task<IEnumerable<ErrorRecord>> GetErrorsByTimeRangeAsync(DateTime startTime, DateTime endTime)
         {
             lock (_lock)
             {
                 if (!_initialized || _fingerprintIndex == null)
-                    return Enumerable.Empty<ErrorRecord>();
+                    return Task.FromResult(Enumerable.Empty<ErrorRecord>());
 
                 var results = new List<ErrorRecord>();
                 foreach (var kvp in _fingerprintIndex)
@@ -185,19 +187,19 @@ namespace ContinueVS.Services.Implementations
                         kvp.Value.Where(e => e.Timestamp >= startTime && e.Timestamp <= endTime)
                     );
                 }
-                return results;
+                return Task.FromResult((IEnumerable<ErrorRecord>)results);
             }
         }
 
         /// <summary>
         /// Deletes all errors older than the specified number of days.
         /// </summary>
-        public async Task DeleteErrorsOlderThanAsync(int days)
+        public Task DeleteErrorsOlderThanAsync(int days)
         {
             lock (_lock)
             {
                 if (!_initialized || _errorsDirectory == null || _fingerprintIndex == null)
-                    return;
+                    return Task.CompletedTask;
 
                 try
                 {
@@ -239,12 +241,13 @@ namespace ContinueVS.Services.Implementations
                         _logger?.WriteDebug($"ErrorRepository.DeleteErrorsOlderThanAsync failed: {ex.Message}");
                 }
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Exports all errors as JSON.
         /// </summary>
-        public async Task ExportAsJsonAsync(string outputPath)
+        public Task ExportAsJsonAsync(string outputPath)
         {
             if (string.IsNullOrEmpty(outputPath))
                 throw new ArgumentNullException(nameof(outputPath));
@@ -275,12 +278,13 @@ namespace ContinueVS.Services.Implementations
                     throw;
                 }
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Exports all errors as CSV.
         /// </summary>
-        public async Task ExportAsCsvAsync(string outputPath)
+        public Task ExportAsCsvAsync(string outputPath)
         {
             if (string.IsNullOrEmpty(outputPath))
                 throw new ArgumentNullException(nameof(outputPath));
@@ -325,19 +329,20 @@ namespace ContinueVS.Services.Implementations
                     throw;
                 }
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Gets the total count of stored errors.
         /// </summary>
-        public async Task<int> GetTotalErrorCountAsync()
+        public Task<int> GetTotalErrorCountAsync()
         {
             lock (_lock)
             {
                 if (!_initialized || _fingerprintIndex == null)
-                    return 0;
+                    return Task.FromResult(0);
 
-                return _fingerprintIndex.Values.Sum(list => list.Count);
+                return Task.FromResult(_fingerprintIndex.Values.Sum(list => list.Count));
             }
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,14 +25,14 @@ namespace ContinueVS.Services.Implementations
             _logger = logger;
         }
 
-        public async Task<LLMQuestionPrompt?> DetectLLMQuestionAsync(string llmResponse, CancellationToken ct = default)
+        public Task<LLMQuestionPrompt?> DetectLLMQuestionAsync(string llmResponse, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(llmResponse))
-                return null;
+                return Task.FromResult<LLMQuestionPrompt?>(null);
 
             // Simple heuristic: detect question marks and common question patterns
             if (!llmResponse.Contains("?"))
-                return null;
+                return Task.FromResult<LLMQuestionPrompt?>(null);
 
             // Extract everything from the start up to the first "?" (including context)
             var questionIndex = llmResponse.IndexOf('?');
@@ -44,14 +44,14 @@ namespace ContinueVS.Services.Implementations
             if (_logger != null)
                 _logger?.WriteDebug($"[gap29_8_9] Detected LLM question: {questionText} (Type: {questionType})");
 
-            return new LLMQuestionPrompt
+            return Task.FromResult<LLMQuestionPrompt?>(new LLMQuestionPrompt
             {
                 QuestionText = questionText,
                 Context = llmResponse,
                 QuestionType = questionType,
                 Timestamp = DateTime.Now,
                 AutoAnswerHint = ExtractAutoAnswerHint(questionText)
-            };
+            });
         }
 
         public async Task<string> HandleLLMQuestionAsync(LLMQuestionPrompt question, bool isAutonomous, AutoAnswerResponse policy = AutoAnswerResponse.Default, CancellationToken ct = default)

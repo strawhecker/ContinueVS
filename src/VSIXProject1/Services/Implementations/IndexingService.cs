@@ -37,7 +37,7 @@ namespace ContinueVS.Services.Implementations
             };
         }
 
-        public async Task StartIndexingAsync()
+        public Task StartIndexingAsync()
         {
             if (_logger != null)
                 _logger?.WriteDebug("IndexingService.StartIndexingAsync (skeleton)");
@@ -58,15 +58,16 @@ namespace ContinueVS.Services.Implementations
                 Progress = _currentStatus,
                 Timestamp = DateTime.Now
             });
+            return Task.CompletedTask;
         }
 
-        public async Task PauseIndexingAsync()
+        public Task PauseIndexingAsync()
         {
             if (_logger != null)
                 _logger?.WriteDebug("IndexingService.PauseIndexingAsync (skeleton)");
 
             if (_currentIndexingStatus != IndexingStatus.Indexing)
-                return;
+                return Task.CompletedTask;
 
             _currentIndexingStatus = IndexingStatus.Paused;
             _currentStatus.Status = IndexingStatus.Paused;
@@ -75,15 +76,16 @@ namespace ContinueVS.Services.Implementations
                 Progress = _currentStatus,
                 Timestamp = DateTime.Now
             });
+            return Task.CompletedTask;
         }
 
-        public async Task ResumeIndexingAsync()
+        public Task ResumeIndexingAsync()
         {
             if (_logger != null)
                 _logger?.WriteDebug("IndexingService.ResumeIndexingAsync (skeleton)");
 
             if (_currentIndexingStatus != IndexingStatus.Paused)
-                return;
+                return Task.CompletedTask;
 
             _currentIndexingStatus = IndexingStatus.Indexing;
             _currentStatus.Status = IndexingStatus.Indexing;
@@ -92,9 +94,10 @@ namespace ContinueVS.Services.Implementations
                 Progress = _currentStatus,
                 Timestamp = DateTime.Now
             });
+            return Task.CompletedTask;
         }
 
-        public async Task CancelIndexingAsync()
+        public Task CancelIndexingAsync()
         {
             if (_logger != null)
                 _logger?.WriteDebug("IndexingService.CancelIndexingAsync (skeleton)");
@@ -115,6 +118,7 @@ namespace ContinueVS.Services.Implementations
                 Progress = _currentStatus,
                 Timestamp = DateTime.Now
             });
+            return Task.CompletedTask;
         }
 
         public IndexingProgressUpdate GetCurrentStatus()
@@ -122,7 +126,7 @@ namespace ContinueVS.Services.Implementations
             return _currentStatus;
         }
 
-        public async Task<bool> IsIndexedAsync(string filepath)
+        public Task<bool> IsIndexedAsync(string filepath)
         {
             if (string.IsNullOrWhiteSpace(filepath))
                 throw new ArgumentException("Filepath cannot be null or empty", nameof(filepath));
@@ -130,10 +134,10 @@ namespace ContinueVS.Services.Implementations
             if (_logger != null)
                 _logger?.WriteDebug($"IndexingService.IsIndexedAsync (skeleton)");
 
-            return false;
+            return Task.FromResult(false);
         }
 
-        public async Task<IEnumerable<CodeSymbol>> SearchIndexAsync(string query, int maxResults)
+        public Task<IEnumerable<CodeSymbol>> SearchIndexAsync(string query, int maxResults)
         {
             if (string.IsNullOrWhiteSpace(query))
                 throw new ArgumentException("Query cannot be null or empty", nameof(query));
@@ -143,7 +147,7 @@ namespace ContinueVS.Services.Implementations
             if (_logger != null)
                 _logger?.WriteDebug($"IndexingService.SearchIndexAsync (skeleton)");
 
-            return Enumerable.Empty<CodeSymbol>();
+            return Task.FromResult(Enumerable.Empty<CodeSymbol>());
         }
 
         public async Task RebuildIndexAsync()

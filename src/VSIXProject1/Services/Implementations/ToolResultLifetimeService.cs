@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -203,13 +203,13 @@ namespace ContinueVS.Services.Implementations
         {
             if (result.InvocationStatus == ToolInvocationStatus.Failed)
                 return true;
-            if (string.IsNullOrEmpty(result.Content))
+             if (string.IsNullOrEmpty(result.Content))
                 return false;
-            return result.Content.Contains("Error", StringComparison.OrdinalIgnoreCase) ||
-                   result.Content.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
-                   result.Content.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
-                   result.Content.Contains("rejected", StringComparison.OrdinalIgnoreCase) ||
-                   result.Content.Contains("Policy Denied", StringComparison.OrdinalIgnoreCase);
+            return result.Content.IndexOf("Error", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   result.Content.IndexOf("failed", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   result.Content.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   result.Content.IndexOf("rejected", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   result.Content.IndexOf("Policy Denied", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
@@ -218,12 +218,12 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         private static void AppendStaleAnnotation(ChatMessage result)
         {
-            if (string.IsNullOrEmpty(result.Content))
+             if (string.IsNullOrEmpty(result.Content))
             {
                 result.Content = "[STALE] Listing/search snapshot may be outdated — re-read to confirm.";
                 return;
             }
-            if (!result.Content.Contains("[STALE]", StringComparison.Ordinal))
+            if (result.Content.IndexOf("[STALE]", StringComparison.Ordinal) < 0)
             {
                 result.Content = $"{result.Content}\n\n[STALE] This listing/search snapshot may be outdated because files changed — re-read to confirm current state.";
             }

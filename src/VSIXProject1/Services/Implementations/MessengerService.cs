@@ -385,8 +385,28 @@ namespace ContinueVS.Services.Implementations
                 HttpResponseMessage response;
                 try
                 {
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ==== DEEPSEEK DEBUG START ====");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Request URL: {endpoint}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Request Method: POST");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Authorization header: Bearer {(model.ApiKey != null ? model.ApiKey.Substring(0, Math.Min(10, model.ApiKey.Length)) + "..." : "NOT SET")}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Request headers count: {request.Headers.Count()}");
+                    foreach (var header in request.Headers)
+                    {
+                        LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Header: {header.Key} = {string.Join(",", header.Value)}");
+                    }
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Request content type: {content.Headers.ContentType}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Sending request...");
+
                     response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Response : status code: {response.StatusCode}");
+
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Response status code: {response.StatusCode} ({(int)response.StatusCode})");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Response headers count: {response.Headers.Count()}");
+                    foreach (var header in response.Headers)
+                    {
+                        LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Response header: {header.Key} = {string.Join(",", header.Value)}");
+                    }
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Content-Type: {response.Content.Headers.ContentType}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Content-Length: {response.Content.Headers.ContentLength}");
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -401,19 +421,24 @@ namespace ContinueVS.Services.Implementations
                         }
 
                         LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ERROR - HTTP {(int)response.StatusCode}: {responseBodyText}");
+                        LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ==== DEEPSEEK DEBUG END (ERROR) ====");
                         throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {responseBodyText}");
                     }
 
                     LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Status code confirmed successful");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ==== DEEPSEEK DEBUG END (SUCCESS) ====");
                 }
                 catch (HttpRequestException ex)
                 {
                     LoggerService.Current.WriteDebug($"[{options.LogPrefix}] HttpRequestException: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] HttpRequestException InnerException: {ex.InnerException?.Message}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ==== DEEPSEEK DEBUG END (HTTP ERROR) ====");
                     throw new LlmException($"HTTP request to OpenAI-compatible endpoint failed: {ex.Message}", ex);
                 }
                 catch (TaskCanceledException ex)
                 {
                     LoggerService.Current.WriteDebug($"[{options.LogPrefix}] TaskCanceledException: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ==== DEEPSEEK DEBUG END (TIMEOUT) ====");
                     throw new LlmException(
                         $"OpenAI-compatible request timeout or was cancelled. " +
                         $"Ensure endpoint is running at {model.BaseUrl}/v1/chat/completions and model '{model.Name}' is available. " +
@@ -422,6 +447,8 @@ namespace ContinueVS.Services.Implementations
                 catch (Exception ex)
                 {
                     LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Unexpected exception: {ex.GetType().Name}: {ex.Message}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Exception stacktrace: {ex.StackTrace}");
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] ==== DEEPSEEK DEBUG END (UNEXPECTED ERROR) ====");
                     throw new LlmException($"Unexpected error during OpenAI-compatible streaming: {ex.Message}", ex);
                 }
 
@@ -433,30 +460,49 @@ namespace ContinueVS.Services.Implementations
                 {
                     string? line;
                     int lineCount = 0;
+                    int emptyLineCount = 0;
+                    int dataLineCount = 0;
+                    int nonDataLineCount = 0;
+
                     while ((line = await reader.ReadLineAsync()) != null)
                     {
                         ct.ThrowIfCancellationRequested();
 
                         // Skip empty lines
                         if (string.IsNullOrWhiteSpace(line))
+                        {
+                            emptyLineCount++;
                             continue;
+                        }
 
                         lineCount++;
-                        LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Received line {lineCount}: {line}");
+
+                        // Log first few lines in full, then summarize
+                        if (lineCount <= 3)
+                        {
+                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Received line {lineCount}: {line}");
+                        }
+                        else if (lineCount == 4)
+                        {
+                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Stream started successfully, suppressing detailed line logging for performance...");
+                        }
 
                         // Parse SSE format: "data: {json}"
                         if (!line.StartsWith("data: "))
                         {
-                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Skipping non-data line: {line}");
+                            nonDataLineCount++;
+                            if (nonDataLineCount <= 3)
+                                LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Skipping non-data line: {line}");
                             continue;
                         }
 
+                        dataLineCount++;
                         var jsonData = line.Substring("data: ".Length);
 
                         // Check for stream termination marker
                         if (jsonData == "[DONE]")
                         {
-                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Stream terminated with [DONE] marker");
+                            LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Stream terminated with [DONE] marker after {lineCount} lines ({dataLineCount} data lines, {emptyLineCount} empty lines)");
                             break;
                         }
 
@@ -467,6 +513,8 @@ namespace ContinueVS.Services.Implementations
                             yield return (TChunk)(object)chunk;
                         }
                     }
+
+                    LoggerService.Current.WriteDebug($"[{options.LogPrefix}] Stream read complete. Total lines: {lineCount}, Data lines: {dataLineCount}, Empty lines: {emptyLineCount}, Non-data lines: {nonDataLineCount}");
                 }
 
                 response?.Dispose();

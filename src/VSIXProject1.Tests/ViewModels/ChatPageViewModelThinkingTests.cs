@@ -86,7 +86,7 @@ namespace ContinueVS.Tests.ViewModels
         }
 
         [Fact]
-        public async Task ChatMessage_IsThinking_PropertyBindsCorrectly()
+        public void ChatMessage_IsThinking_PropertyBindsCorrectly()
         {
             // Arrange
             var msg = new ChatMessage

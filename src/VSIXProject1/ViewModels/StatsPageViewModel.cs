@@ -47,9 +47,9 @@ namespace ContinueVS.ViewModels
             ExportStatsCommand = new RelayCommand(ExecuteExportStats);
         }
 
-#pragma warning disable VSTHRD100
-        private async void ExecuteExportStats()
-#pragma warning restore VSTHRD100
+#pragma warning disable VSTHRD100, CS1998
+         private async void ExecuteExportStats()
+#pragma warning restore VSTHRD100, CS1998
         {
             try
             {

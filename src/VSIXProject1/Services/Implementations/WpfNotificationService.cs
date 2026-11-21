@@ -105,7 +105,7 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Adds a notification to the chat as a System-role message with auto-dismiss timer.
         /// </summary>
-        private async Task AddNotificationToChatAsync(ChatPageViewModel viewModel, string title, string message, NotificationType type)
+        private Task AddNotificationToChatAsync(ChatPageViewModel viewModel, string title, string message, NotificationType type)
         {
             try
             {
@@ -144,6 +144,7 @@ namespace ContinueVS.Services.Implementations
             {
                 LoggerService.Current.WriteDebug($"[WpfNotificationService] Failed to add notification to chat: {ex.GetType().Name}: {ex.Message}");
             }
+            return Task.CompletedTask;
         }
 
 

@@ -265,7 +265,7 @@ namespace ContinueVS.Services.Implementations
         private string GenerateRefinedContent(CodeChange originalChange, string topHypothesis)
         {
             var content = originalChange.NewContent ?? originalChange.OldContent ?? "";
-            if (topHypothesis?.Contains("null", StringComparison.OrdinalIgnoreCase) ?? false)
+            if (!string.IsNullOrEmpty(topHypothesis) && topHypothesis.IndexOf("null", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 content = Regex.Replace(content, @"(\w+)\.(?=\w)", m => $"({m.Groups[1].Value}?.({m.Groups[1].Value} != null ? \"\" : null) ?? \"{m.Groups[1].Value}\")?.");
             }

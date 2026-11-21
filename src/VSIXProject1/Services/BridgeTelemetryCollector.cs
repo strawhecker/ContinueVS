@@ -211,15 +211,15 @@ namespace ContinueVS.Services
             _events.Clear();
         }
 
-        public async Task<bool> IsTelemetryEnabledAsync()
+        public Task<bool> IsTelemetryEnabledAsync()
         {
             // Capture cached value if available (fastest path for hot loop)
             if (_cachedTelemetryEnabledSet)
-                return _cachedTelemetryEnabled;
+                return Task.FromResult(_cachedTelemetryEnabled);
 
             // Cache has not been set yet; return safe default
             // The cache will be populated when ContinueVSPackage initializes during package load
-            return true;
+            return Task.FromResult(true);
         }
 
         /// <summary>

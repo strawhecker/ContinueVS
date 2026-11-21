@@ -29,43 +29,85 @@ namespace ContinueVS.Commands
         /// </summary>
         public static void Execute()
         {
+            var debugFile = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
+
             ThreadHelper.ThrowIfNotOnUIThread();
             try
             {
+                System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] ShowContinueToolWindowCommand.Execute() called\n");
                 LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] *** EXECUTE CALLED *** - Showing Continue tool window");
 
                 // Get the package instance
                 var package = ContinueVSPackage.Instance;
                 if (package == null)
                 {
-                    LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✗ ContinueVSPackage.Instance is null");
+                    System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] ERROR: ContinueVSPackage.Instance is null\n");
+                    LoggerService.Current.WriteError("[ShowContinueToolWindowCommand] ✗ ContinueVSPackage.Instance is null - package not initialized yet", null);
                     return;
                 }
+
+                System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] Package acquired, calling FindToolWindow...\n");
+                LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] Package instance acquired, attempting FindToolWindow...");
 
                 // Call FindToolWindow to create/find the tool window pane
                 // The second parameter (ID) must match what was registered in [ProvideToolWindow]
-                var windowPane = package.FindToolWindow(typeof(ContinueToolWindowPane), 0, true);
-                if (windowPane?.Frame is not IVsWindowFrame windowFrame)
+                // Wrap in timeout to prevent infinite loops
+                ToolWindowPane? windowPane = null;
+                try
                 {
-                    LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✗ FindToolWindow returned null or no frame");
+                    windowPane = package.FindToolWindow(typeof(ContinueToolWindowPane), 0, true);
+                    System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] FindToolWindow completed, pane={windowPane != null}\n");
+                }
+                catch (Exception findEx)
+                {
+                    System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] FindToolWindow EXCEPTION: {findEx.GetType().Name}: {findEx.Message}\n");
+                    LoggerService.Current.WriteError($"[ShowContinueToolWindowCommand] ✗ FindToolWindow threw exception: {findEx.GetType().Name}: {findEx.Message}", findEx);
                     return;
                 }
 
+                if (windowPane == null)
+                {
+                    System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] ERROR: windowPane is null\n");
+                    LoggerService.Current.WriteError("[ShowContinueToolWindowCommand] ✗ FindToolWindow returned null", null);
+                    return;
+                }
+
+                var windowFrame = windowPane.Frame as IVsWindowFrame;
+                if (windowFrame == null)
+                {
+                    System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] ERROR: windowFrame is null\n");
+                    LoggerService.Current.WriteError("[ShowContinueToolWindowCommand] ✗ Tool window pane has no frame (IVsWindowFrame)", null);
+                    return;
+                }
+
+                System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] Window frame acquired, calling Show()...\n");
                 LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✓ Tool window frame found/created");
 
                 // Show the tool window
-                int hr = windowFrame.Show();
-                if (hr == 0)
+                try
                 {
-                    LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✓ Tool window shown successfully!");
+                    int hr = windowFrame.Show();
+                    System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] Show() returned HRESULT=0x{hr:X}\n");
+                    if (hr == 0)
+                    {
+                        System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] ✓✓✓ SUCCESS - Tool window shown!\n");
+                        LoggerService.Current.WriteDebug("[ShowContinueToolWindowCommand] ✓ Tool window shown successfully!");
+                    }
+                    else
+                    {
+                        System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] ERROR: Show() failed with HRESULT 0x{hr:X}\n");
+                        LoggerService.Current.WriteError($"[ShowContinueToolWindowCommand] ✗ Show failed with HRESULT 0x{hr:X}", null);
+                    }
                 }
-                else
+                catch (Exception showEx)
                 {
-                    LoggerService.Current.WriteDebug($"[ShowContinueToolWindowCommand] ✗ Show failed with HRESULT 0x{hr:X}");
+                    System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] EXCEPTION during Show(): {showEx.GetType().Name}: {showEx.Message}\n");
+                    LoggerService.Current.WriteError($"[ShowContinueToolWindowCommand] ✗ Show threw exception: {showEx.GetType().Name}: {showEx.Message}", showEx);
                 }
             }
             catch (Exception ex)
             {
+                System.IO.File.AppendAllText(debugFile, $"[{System.DateTime.Now:HH:mm:ss.fff}] OUTER EXCEPTION: {ex.GetType().Name}: {ex.Message}\n");
                 LoggerService.Current.WriteError($"[ShowContinueToolWindowCommand] ✗ Execute error: {ex.GetType().Name}: {ex.Message}", ex);
             }
         }

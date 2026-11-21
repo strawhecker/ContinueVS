@@ -23,7 +23,7 @@ namespace ContinueVS.Services.Implementations
             _logger = logger;
         }
 
-        public async Task<List<string>> ApplyStrategyAsync(
+        public Task<List<string>> ApplyStrategyAsync(
             InstrumentationStrategy? strategy,
             ChangeStack changeStack,
             string targetDir,
@@ -35,7 +35,7 @@ namespace ContinueVS.Services.Implementations
             {
                 if (_logger != null)
                     _logger?.WriteDebug("InstrumentationService: strategy is null");
-                return appliedChangeIds;
+                return Task.FromResult(appliedChangeIds);
             }
 
             try
@@ -46,7 +46,7 @@ namespace ContinueVS.Services.Implementations
                 {
                     if (_logger != null)
                         _logger?.WriteDebug($"InstrumentationService: could not resolve target file {strategy.TargetFile}");
-                    return appliedChangeIds;
+                    return Task.FromResult(appliedChangeIds);
                 }
 
                 // targetFilePath is guaranteed non-null after the check above
@@ -57,7 +57,7 @@ namespace ContinueVS.Services.Implementations
                 {
                     if (_logger != null)
                         _logger?.WriteDebug($"InstrumentationService: target file not found - {resolvedPath}");
-                    return appliedChangeIds;
+                    return Task.FromResult(appliedChangeIds);
                 }
 
                 var lines = File.ReadAllLines(resolvedPath).ToList();
@@ -108,13 +108,13 @@ namespace ContinueVS.Services.Implementations
 
                 if (_logger != null)
                     _logger?.WriteDebug($"InstrumentationService: applied {appliedChangeIds.Count} changes total");
-                return appliedChangeIds;
+                return Task.FromResult(appliedChangeIds);
             }
             catch (Exception ex)
             {
                 if (_logger != null)
                     _logger?.WriteDebug($"InstrumentationService: exception during strategy application - {ex.Message}");
-                return appliedChangeIds;
+                return Task.FromResult(appliedChangeIds);
             }
         }
 

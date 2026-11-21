@@ -30,7 +30,7 @@ namespace ContinueVS.Tests.Services
         private static Mock<IToolService> CreateMockToolService()
         {
             var mock = new Mock<IToolService>();
-            mock.Setup(x => x.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>()))
+            mock.Setup(x => x.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ToolResult
                 {
                     ToolName = "test_tool",
@@ -64,7 +64,7 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(result);
             Assert.True(result.IsSuccess);
             Assert.Equal("test_tool", result.ToolName);
-            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>()), Times.Once);
+            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()), Times.Once);
             notificationServiceMock.Verify(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
@@ -95,7 +95,7 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(result);
             Assert.True(result.IsSuccess);
             notificationServiceMock.Verify(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>()), Times.Once);
+            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -124,7 +124,7 @@ namespace ContinueVS.Tests.Services
             // Assert
             Assert.Null(result);
             notificationServiceMock.Verify(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-            toolServiceMock.Verify(x => x.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>()), Times.Never);
+            toolServiceMock.Verify(x => x.InvokeAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -149,7 +149,7 @@ namespace ContinueVS.Tests.Services
 
             // Assert
             Assert.Null(result);
-            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>()), Times.Never);
+            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()), Times.Never);
             notificationServiceMock.Verify(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
@@ -182,7 +182,7 @@ namespace ContinueVS.Tests.Services
             Assert.NotNull(result);
             // Confirmation should be shown because we explicitly passed Interactive policy
             notificationServiceMock.Verify(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
-            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>()), Times.Once);
+            toolServiceMock.Verify(x => x.InvokeAsync("test_tool", It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()), Times.Once);
         }
     }
 }

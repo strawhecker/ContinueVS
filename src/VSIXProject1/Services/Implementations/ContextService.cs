@@ -54,7 +54,7 @@ namespace ContinueVS.Services.Implementations
             return Enumerable.Empty<IContextProvider>();
         }
 
-        public async Task AddContextItemAsync(ContextItem item)
+        public Task AddContextItemAsync(ContextItem item)
         {
             if (item == null)
                 throw new ArgumentNullException(nameof(item));
@@ -66,6 +66,7 @@ namespace ContinueVS.Services.Implementations
                 item.Id = Guid.NewGuid().ToString();
 
             _manualContextItems.Add(item);
+            return Task.CompletedTask;
         }
 
         public async Task RemoveContextItemAsync(string itemId)

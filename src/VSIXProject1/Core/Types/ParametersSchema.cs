@@ -21,14 +21,14 @@ namespace ContinueVS.Core.Types
         /// Dictionary mapping parameter names to their definitions.
         /// Each key is a parameter name; each value describes its type, description, etc.
         /// </summary>
-        [JsonProperty("properties")]
+        [JsonProperty("properties", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, ParameterDefinition>? Properties { get; set; }
 
         /// <summary>
         /// List of required parameter names.
         /// Parameters listed here must be provided when invoking the function.
         /// </summary>
-        [JsonProperty("required")]
+        [JsonProperty("required", NullValueHandling = NullValueHandling.Ignore)]
         public List<string>? Required { get; set; }
     }
 }

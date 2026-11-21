@@ -39,13 +39,14 @@ namespace ContinueVS.Services.Implementations
         /// </summary>
         /// <param name="policy">The continuation policy to apply.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
-        public async Task SetContinuationPolicyAsync(ContinuationPolicy policy)
+        public Task SetContinuationPolicyAsync(ContinuationPolicy policy)
         {
             _currentPolicy = policy;
             if (_logger != null)
             {
                 _logger?.WriteDebug($"Workflow policy set to {policy}");
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>

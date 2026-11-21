@@ -151,9 +151,11 @@
   </Commands>
 
   <KeyBindings>
+    <!-- ShowContinuePanel: Ctrl+Shift+J - available in all contexts via guidVSStd97 -->
     <KeyBinding guid="guidContinueVSCmdSet" id="ShowContinuePanelCmdId"
                 editor="guidVSStd97"
                 key1="J" mod1="Control Shift"/>
+    <!-- AskContinue: Ctrl+Shift+M - scoped to editor context -->
     <KeyBinding guid="guidContinueVSCmdSet" id="AskContinueCmdId"
                 editor="guidVSStd97"
                 key1="M" mod1="Control Shift"/>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -24,31 +24,33 @@ namespace ContinueVS.Core.Types
         /// <summary>
         /// Human-readable description of the parameter and its purpose.
         /// </summary>
-        [JsonProperty("description")]
+        [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
         public string? Description { get; set; }
 
         /// <summary>
         /// Whether this parameter is required for tool invocation.
+        /// Note: This property is NOT serialized to JSON (no JsonProperty attribute).
+        /// Required parameters are communicated via the "required" array at the ParametersSchema level,
+        /// not as a property on each individual parameter.
         /// </summary>
-        [JsonProperty("required")]
         public bool IsRequired { get; set; } = false;
 
         /// <summary>
         /// Default value for this parameter if not provided by the caller.
         /// </summary>
-        [JsonProperty("default")]
+        [JsonProperty("default", NullValueHandling = NullValueHandling.Ignore)]
         public object? DefaultValue { get; set; }
 
         /// <summary>
         /// Enum values allowed for this parameter (if constrained).
         /// </summary>
-        [JsonProperty("enum")]
+        [JsonProperty("enum", NullValueHandling = NullValueHandling.Ignore)]
         public IList<object>? AllowedValues { get; set; }
 
         /// <summary>
         /// Additional JSON Schema properties for complex type validation (e.g., items for array, properties for object).
         /// </summary>
-        [JsonProperty("schema")]
+        [JsonProperty("schema", NullValueHandling = NullValueHandling.Ignore)]
         public IDictionary<string, object>? Schema { get; set; }
     }
 

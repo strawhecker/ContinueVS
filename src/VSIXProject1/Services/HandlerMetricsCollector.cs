@@ -119,7 +119,7 @@ namespace ContinueVS.Services
         /// <summary>
         /// Create snapshot with current handler metrics and host-level data.
         /// </summary>
-        public async Task<HandlerMetricsSnapshot> CreateSnapshotAsync()
+        public Task<HandlerMetricsSnapshot> CreateSnapshotAsync()
         {
             try
             {
@@ -157,7 +157,7 @@ namespace ContinueVS.Services
                     }
                 }
 
-                return snapshot;
+                return Task.FromResult(snapshot);
             }
             catch (Exception ex)
             {
@@ -274,14 +274,14 @@ namespace ContinueVS.Services
         /// <summary>
         /// Clean up old snapshot files.
         /// </summary>
-        public async Task CleanupOldSnapshotsAsync(int retentionDays = 7)
+        public Task CleanupOldSnapshotsAsync(int retentionDays = 7)
         {
             try
             {
                 var dirInfo = new DirectoryInfo(_storagePath);
                 if (!dirInfo.Exists)
                 {
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var cutoffDate = DateTime.Now.AddDays(-retentionDays);
@@ -305,6 +305,7 @@ namespace ContinueVS.Services
             {
                 // Ignore cleanup errors
             }
+            return Task.CompletedTask;
         }
     }
 

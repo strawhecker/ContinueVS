@@ -349,9 +349,9 @@ private void ExecuteAddModel()
     }
 }
 
-#pragma warning disable VSTHRD100
+#pragma warning disable VSTHRD100, CS1998
         private async void ExecuteRemoveModel()
-#pragma warning restore VSTHRD100
+#pragma warning restore VSTHRD100, CS1998
         {
             try
             {

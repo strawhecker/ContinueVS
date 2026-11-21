@@ -25,7 +25,7 @@ namespace ContinueVS.Services.Implementations
             _servers = new Dictionary<string, McpServerStatus>();
         }
 
-        public async Task InitializeServerAsync(McpServerConfig config)
+        public Task InitializeServerAsync(McpServerConfig config)
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
@@ -55,9 +55,10 @@ namespace ContinueVS.Services.Implementations
                 Message = $"Server {config.Name ?? config.Id} connected",
                 Timestamp = DateTime.Now
             });
+            return Task.CompletedTask;
         }
 
-        public async Task ShutdownServerAsync(string serverId)
+        public Task ShutdownServerAsync(string serverId)
         {
             if (string.IsNullOrWhiteSpace(serverId))
                 throw new ArgumentException("Server ID cannot be null or empty", nameof(serverId));
@@ -77,6 +78,7 @@ namespace ContinueVS.Services.Implementations
                     Timestamp = DateTime.Now
                 });
             }
+            return Task.CompletedTask;
         }
 
         public async Task RestartServerAsync(string serverId)

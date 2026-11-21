@@ -11,15 +11,19 @@ using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Diagnostics;
 
 namespace ContinueVS
 {
     /// <summary>
     /// Continue for Visual Studio — AsyncPackage entry point.
     /// Loads asynchronously so VS startup is not blocked.
+    /// Package must load early via ProvideAutoLoad to register keybindings before user input.
     /// </summary>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [Guid(ContinueGuids.PackageGuidString)]
+    [ProvideAutoLoad("F1536EF8-92EC-443C-9ED7-FDADF150DA82", PackageAutoLoadFlags.BackgroundLoad)] // UIContextGuidShellInitialized
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [ProvideToolWindow(typeof(ContinueToolWindowPane),
         Style = VsDockStyle.Tabbed,
@@ -28,6 +32,9 @@ namespace ContinueVS
     {
         /// <summary>Singleton reference set during InitializeAsync, cleared on Dispose.</summary>
         public static ContinueVSPackage? Instance { get; private set; }
+
+        /// <summary>Flag to track when command registration is complete.</summary>
+        public static bool CommandsRegistered { get; private set; } = false;
 
         /// <summary>Version manager service instance.</summary>
         public static VersionManager? VersionManager { get; private set; }
@@ -50,12 +57,164 @@ namespace ContinueVS
         /// <summary>Support for dependency injection (optional, for service registration).</summary>
         public static IServiceProvider? ServiceProvider { get; private set; }
 
+        /// <summary>
+        /// Package constructor.
+        /// </summary>
+        public ContinueVSPackage()
+        {
+            // Set Instance immediately in constructor so it's available for keybinding handlers
+            // This MUST happen before InitializeAsync is called
+            Instance = this;
+
+            // Write to a file immediately to verify this code runs
+            var debugFile = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
+            try
+            {
+                System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] CONSTRUCTOR: Package created, Instance set\n");
+            }
+            catch { }
+        }
+
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken,
             IProgress<ServiceProgressData> progress)
         {
             // BREAKPOINT: t1 - Set breakpoint here to inspect InitializeAsync entry
             LoggerService.Current.WriteDebug("[CV-ENTRY] InitializeAsync called - EXTENSION IS LOADED");
+
+            // Register Ctrl+Shift+J command handler FIRST, before any other initialization
+            // This ensures the keybinding works as soon as possible
+            LoggerService.Current.WriteDebug("[CV] PRIORITY: Registering ShowContinuePanel command immediately...");
+
+            // Try to register command synchronously first using GetService (not async)
+            // This ensures the command is available before any async operations
+            try
+            {
+                // Use synchronous GetService to avoid timing issues
+                // VSTHRD103 is suppressed here because keybinding registration MUST be synchronous
+                // to function correctly before any user input
+#pragma warning disable VSTHRD103
+                var cmdService = GetService(typeof(IMenuCommandService)) as IMenuCommandService;
+#pragma warning restore VSTHRD103
+
+                LoggerService.Current.WriteDebug($"[CV] Synchronous GetService returned: {(cmdService != null ? "✓ service" : "✗ NULL")}");
+
+                if (cmdService != null)
+                {
+                    var cmdId = new CommandID(ContinueGuids.CmdSetGuid, ContinueCommandIds.ShowContinuePanel);
+                    LoggerService.Current.WriteDebug($"[CV] Looking for existing command: GUID={cmdId.Guid}, ID={cmdId.ID}");
+                    var existingCmd = cmdService.FindCommand(cmdId);
+                    LoggerService.Current.WriteDebug($"[CV] FindCommand returned: {(existingCmd != null ? "FOUND" : "NOT FOUND")}");
+
+                    if (existingCmd == null)
+                    {
+                        // Use OleMenuCommand for better command handling
+                        var command = new OleMenuCommand(
+                            (s, e) =>
+                            {
+                                var debugFile = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
+                                try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] HANDLER FIRED: ShowContinuePanel command executed\n"); } catch { }
+
+                                LoggerService.Current.WriteDebug("[CV] [HANDLER] ShowContinuePanel command EXECUTED via OleMenuCommand!");
+                                try
+                                {
+                                    ThreadHelper.ThrowIfNotOnUIThread();
+                                    ShowContinueToolWindowCommand.Execute();
+                                }
+                                catch (Exception handlerEx)
+                                {
+                                    try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] HANDLER ERROR: {handlerEx.Message}\n"); } catch { }
+                                    LoggerService.Current.WriteError($"[CV] [HANDLER] Exception in command handler: {handlerEx.Message}", handlerEx);
+                                }
+                            },
+                            cmdId);
+
+                        // Handle QueryStatus to ensure command appears as enabled
+                        command.BeforeQueryStatus += (s, e) =>
+                        {
+                            LoggerService.Current.WriteDebug("[CV] ShowContinuePanel QueryStatus called");
+                            command.Enabled = true;
+                            command.Visible = true;
+                        };
+
+                        var debugFile2 = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
+                        try { System.IO.File.AppendAllText(debugFile2, $"[{DateTime.Now:HH:mm:ss.fff}] About to call AddCommand for ShowContinuePanel (sync)...\n"); } catch { }
+
+                        LoggerService.Current.WriteDebug("[CV] About to call AddCommand...");
+                        cmdService.AddCommand(command);
+                        LoggerService.Current.WriteDebug("[CV] AddCommand completed");
+
+                        try { System.IO.File.AppendAllText(debugFile2, $"[{DateTime.Now:HH:mm:ss.fff}] ✓ Command registered (sync)\n"); } catch { }
+
+                        // Verify it was actually added
+                        var verifyCmd = cmdService.FindCommand(cmdId);
+                        LoggerService.Current.WriteDebug($"[CV] Verification: Command now {(verifyCmd != null ? "EXISTS" : "MISSING")} after AddCommand!");
+                        try { System.IO.File.AppendAllText(debugFile2, $"[{DateTime.Now:HH:mm:ss.fff}] Verification: Command {(verifyCmd != null ? "FOUND" : "NOT FOUND")} in service\n"); } catch { }
+
+                        CommandsRegistered = true;
+                        LoggerService.Current.WriteDebug("[CV] ✓ ShowContinuePanel command registered (OleMenuCommand) via SYNCHRONOUS GetService");
+                    }
+                    else
+                    {
+                        CommandsRegistered = true;
+                        LoggerService.Current.WriteDebug("[CV] ✓ ShowContinuePanel command already registered");
+                    }
+                }
+                else
+                {
+                    LoggerService.Current.WriteDebug("[CV] ⚠ OleMenuCommandService not available via GetService, will retry async...");
+
+                    // Fallback: try async GetServiceAsync
+                    var cmdService2 = await GetServiceAsync(typeof(IMenuCommandService)) as IMenuCommandService;
+                    if (cmdService2 != null)
+                    {
+                        var cmdId = new CommandID(ContinueGuids.CmdSetGuid, ContinueCommandIds.ShowContinuePanel);
+                        var existingCmd = cmdService2.FindCommand(cmdId);
+                        if (existingCmd == null)
+                        {
+                            var command = new OleMenuCommand(
+                                (s, e) =>
+                                {
+                                    var debugFile = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
+                                    try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] ASYNC HANDLER FIRED: ShowContinuePanel command executed\n"); } catch { }
+
+                                    LoggerService.Current.WriteDebug("[CV] [HANDLER-ASYNC] ShowContinuePanel command EXECUTED via async registration!");
+                                    try
+                                    {
+                                        ThreadHelper.ThrowIfNotOnUIThread();
+                                        ShowContinueToolWindowCommand.Execute();
+                                    }
+                                    catch (Exception handlerEx)
+                                    {
+                                        try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] ASYNC HANDLER ERROR: {handlerEx.Message}\n"); } catch { }
+                                        LoggerService.Current.WriteError($"[CV] [HANDLER-ASYNC] Exception in async command handler: {handlerEx.Message}", handlerEx);
+                                    }
+                                },
+                                cmdId);
+
+                            command.BeforeQueryStatus += (s, e) =>
+                            {
+                                LoggerService.Current.WriteDebug("[CV] [ASYNC] ShowContinuePanel QueryStatus called");
+                                command.Enabled = true;
+                                command.Visible = true;
+                            };
+
+                            cmdService2.AddCommand(command);
+                            CommandsRegistered = true;
+                            LoggerService.Current.WriteDebug("[CV] ✓ ShowContinuePanel command registered via ASYNC GetServiceAsync (fallback)");
+                        }
+                    }
+                    else
+                    {
+                        LoggerService.Current.WriteError("[CV] ✗ OleMenuCommandService not available even via async GetServiceAsync", null);
+                    }
+                }
+            }
+            catch (Exception cmdEx)
+            {
+                LoggerService.Current.WriteError($"[CV] ✗ Command registration failed: {cmdEx.Message}", cmdEx);
+            }
+
             var tracer = new ExecutionTracer();
             ExecutionTracer = tracer;
             LoggerService.Current.WriteDebug("╔════════════════════════════════════════════════╗");
@@ -73,12 +232,8 @@ namespace ContinueVS
                 LoggerService.Current.WriteDebug("[CV] ✓ Main thread switch complete");
 
                 // BREAKPOINT: t1.2 - Instance setup
-                LoggerService.Current.WriteDebug("[CV] Step 2: Setting Instance...");
-                using (tracer.BeginScope("t1.2", "ContinueVSPackage"))
-                {
-                    Instance = this;
-                }
-                LoggerService.Current.WriteDebug("[CV] ✓ Instance set");
+                LoggerService.Current.WriteDebug("[CV] Step 2: Instance already set in constructor");
+                // Instance = this; -- moved to constructor to ensure it's available immediately
 
                 // BREAKPOINT: t1.3 - Service creation phase
                 LoggerService.Current.WriteDebug("[CV] Step 3: Creating VersionSelectorService...");
@@ -158,21 +313,8 @@ namespace ContinueVS
                 }
 
                 // Register Ctrl+Shift+J command handler with VS OleMenuCommandService
-                LoggerService.Current.WriteDebug("[CV] Step 14: Registering ShowContinuePanel command...");
-                using (tracer.BeginScope("t1.4.8", "ContinueVSPackage"))
-                {
-                    var cmdService = await GetServiceAsync(typeof(IMenuCommandService)) as IMenuCommandService;
-                    if (cmdService != null)
-                    {
-                        var cmdId = new CommandID(ContinueGuids.CmdSetGuid, ContinueCommandIds.ShowContinuePanel);
-                        cmdService.AddCommand(new MenuCommand((s, e) => ShowContinueToolWindowCommand.Execute(), cmdId));
-                        LoggerService.Current.WriteDebug("[CV] ✓ ShowContinuePanel command registered");
-                    }
-                    else
-                    {
-                        LoggerService.Current.WriteError("[CV] ✗ OleMenuCommandService not available", null);
-                    }
-                }
+                // NOTE: Command is registered at the START of InitializeAsync
+                LoggerService.Current.WriteDebug("[CV] Step 14: Command registration already completed at start of InitializeAsync");
 
                 // Tool window is shown on-demand (Ctrl+Shift+J) — do NOT call FindToolWindow here,
                 // as VS cannot create a window frame while the package is still loading (COMException 0x80049283).
@@ -248,6 +390,7 @@ namespace ContinueVS
             if (disposing)
             {
                 Instance = null;
+                CommandsRegistered = false;
                 VersionManager = null;
                 DowngradeWarningService = null;
                 Logger = null;

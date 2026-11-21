@@ -425,7 +425,7 @@ namespace ContinueVS.Tests.Services
         #region Suite 5: Error Handling (3 tests)
 
         [Fact]
-        public async Task ConfigurationException_HasCorrectProperties()
+        public void ConfigurationException_HasCorrectProperties()
         {
             // Arrange
             var ex = new ConfigurationException("Test error", "write", "TEST_ERROR");
@@ -437,7 +437,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task SchemaValidationException_HasFieldPath()
+        public void SchemaValidationException_HasFieldPath()
         {
             // Arrange
             var ex = new SchemaValidationException("Field is invalid", "models[0].title", "INVALID_FIELD");

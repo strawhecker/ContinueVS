@@ -125,7 +125,7 @@ namespace VSIXProject1.Services
         /// Create a snapshot of current bridge state.
         /// Gracefully handles null dependencies and concurrent state changes.
         /// </summary>
-        public async Task<BridgeStateSnapshot?> CreateSnapshotAsync(CancellationToken cancellationToken = default)
+        public Task<BridgeStateSnapshot?> CreateSnapshotAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -150,10 +150,10 @@ namespace VSIXProject1.Services
                     {
                         _logger?.WriteWarning("[BridgeStateCollector] Snapshot validation failed");
                     }
-                    return null;
+                    return Task.FromResult((BridgeStateSnapshot?)null);
                 }
 
-                return snapshot;
+                return Task.FromResult((BridgeStateSnapshot?)snapshot);
             }
             catch (OperationCanceledException)
             {
@@ -169,7 +169,7 @@ namespace VSIXProject1.Services
                 {
                     _logger?.WriteError($"[BridgeStateCollector] Failed to create snapshot: {ex.Message}", ex);
                 }
-                return null;
+                return Task.FromResult((BridgeStateSnapshot?)null);
             }
         }
 

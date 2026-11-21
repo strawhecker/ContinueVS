@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System.Collections.Generic;
 using ContinueVS.Core.Types;
@@ -200,7 +200,7 @@ namespace ContinueVS.Tests.Services
             Assert.Equal(FreshnessState.Stale, snapshot.FreshnessState);
             Assert.False(snapshot.IsDeleted);
             Assert.Contains("[STALE]", snapshot.Content);
-            Assert.True(snapshot.Content.Contains("re-read to confirm", System.StringComparison.OrdinalIgnoreCase));
+            Assert.True(snapshot.Content.IndexOf("re-read to confirm", System.StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         [Fact]

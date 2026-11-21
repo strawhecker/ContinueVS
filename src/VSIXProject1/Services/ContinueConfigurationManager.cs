@@ -228,7 +228,7 @@ namespace ContinueVS.Services
         /// or append if not found. Preserves model order; new models added at end.
         /// </summary>
         /// <exception cref="ConfigurationException">Thrown on validation errors.</exception>
-        public static async Task<ContinueConfig> MergeModelsAsync(ContinueConfig config, IEnumerable<ContinueConfigModel> modelsToMerge, CancellationToken cancellationToken = default)
+        public static Task<ContinueConfig> MergeModelsAsync(ContinueConfig config, IEnumerable<ContinueConfigModel> modelsToMerge, CancellationToken cancellationToken = default)
         {
             if (config == null)
             {
@@ -237,7 +237,7 @@ namespace ContinueVS.Services
 
             if (modelsToMerge == null)
             {
-                return config;
+                return Task.FromResult(config);
             }
 
             var result = new ContinueConfig
@@ -263,14 +263,14 @@ namespace ContinueVS.Services
             }
 
             ValidateSchema(result);
-            return result;
+            return Task.FromResult(result);
         }
 
         /// <summary>
         /// Removes models from config by title (case-insensitive).
         /// </summary>
         /// <exception cref="ConfigurationException">Thrown on validation errors.</exception>
-        public static async Task<ContinueConfig> RemoveModelsAsync(ContinueConfig config, IEnumerable<string> modelTitles, CancellationToken cancellationToken = default)
+        public static Task<ContinueConfig> RemoveModelsAsync(ContinueConfig config, IEnumerable<string> modelTitles, CancellationToken cancellationToken = default)
         {
             if (config == null)
             {
@@ -279,7 +279,7 @@ namespace ContinueVS.Services
 
             if (modelTitles == null)
             {
-                return config;
+                return Task.FromResult(config);
             }
 
             var titlesToRemove = new HashSet<string>(modelTitles, StringComparer.OrdinalIgnoreCase);
@@ -291,7 +291,7 @@ namespace ContinueVS.Services
             };
 
             ValidateSchema(result);
-            return result;
+            return Task.FromResult(result);
         }
 
         /// <summary>

@@ -42,7 +42,7 @@ Requires an internet connection on first run to download the Continue AI engine 
     <!-- MEF components (ghost-text adornment factory, etc.) -->
     <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
     <!-- Theme resource files -->
-    <Asset Type="Microsoft.VisualStudio.Assembly" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|UI\Styles\Themes\ThemeDark.xaml" />
+    <Asset Type="Microsoft.VisualStudio.Assembly" d:Source="File" Path="UI\Styles\Themes\ThemeDark.xaml" TargetPath="UI\Styles\Themes\ThemeDark.xaml" />
   </Assets>
 </PackageManifest>
 

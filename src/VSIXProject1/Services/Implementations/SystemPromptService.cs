@@ -1,4 +1,4 @@
-using ContinueVS.Core.Types;
+﻿using ContinueVS.Core.Types;
 using ContinueVS.Services.Interfaces;
 using EnvDTE;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -161,7 +161,7 @@ namespace ContinueVS.Services.Implementations
             };
         }
 
-        public async Task EnsureConfigFileExistsAsync()
+        public Task EnsureConfigFileExistsAsync()
         {
             try
             {
@@ -226,6 +226,7 @@ namespace ContinueVS.Services.Implementations
             {
                 _logger?.WriteError($"[SystemPromptService.EnsureConfigFileExistsAsync] Error: {ex.Message}", ex);
             }
+            return Task.CompletedTask;
         }
 
         private string GetDefaultPromptForMode(string mode)

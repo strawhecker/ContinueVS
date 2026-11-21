@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -1203,7 +1203,7 @@ namespace ContinueVS.ViewModels
         // Chat message rendering and streaming methods continue below:
 
 
-        private async Task LoadModelsAsync()
+        private Task LoadModelsAsync()
         {
             try
             {
@@ -1242,6 +1242,7 @@ namespace ContinueVS.ViewModels
             {
                 LoggerService.Current.WriteError($"[chat-model-load-error] {ex.GetType().Name}: {ex.Message}", ex);
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -3299,7 +3300,8 @@ namespace ContinueVS.ViewModels
                 }
 
                 // If persistence fails, roll back the tombstone and notify
-                messageToRollback?.IsDeleted = false;
+                if (messageToRollback != null)
+                    messageToRollback.IsDeleted = false;
                 LoggerService.Current.WriteError($"[gap81-softdelete-error] Soft-delete failed, rolling back: {ex.Message}", ex);
                 await _notificationService.ShowNotificationAsync("Prune Failed",
                     $"Could not prune message: {ex.Message}", NotificationType.Error);
@@ -3389,7 +3391,8 @@ namespace ContinueVS.ViewModels
                 }
 
                 // If persistence fails, roll back the tombstone and notify
-                messageToRollback?.IsDeleted = true;
+                if (messageToRollback != null)
+                    messageToRollback.IsDeleted = true;
                 LoggerService.Current.WriteError($"[gap81-undelete-error] Undelete failed, rolling back: {ex.Message}", ex);
                 await _notificationService.ShowNotificationAsync("Undelete Failed",
                     $"Could not undelete message: {ex.Message}", NotificationType.Error);
@@ -3853,12 +3856,12 @@ namespace ContinueVS.ViewModels
         /// Returns tuple of (thinkingMessage, responseContent) where thinkingMessage is null if no thinking found.
         /// Respects user setting Chat_ShowThinkingAfterStreaming to control final visibility.
         /// </summary>
-        private async Task<(ChatMessage? ThinkingMessage, string ResponseContent)> ParseThinkingFromResponseAsync(
+        private Task<(ChatMessage? ThinkingMessage, string ResponseContent)> ParseThinkingFromResponseAsync(
             string responseContent,
             CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(responseContent))
-                return (null, responseContent);
+                return Task.FromResult((ThinkingMessage: (ChatMessage?)null, ResponseContent: responseContent));
 
             // Pattern 1: Extract <thinking>...</thinking> blocks
             var thinkingPattern = @"<thinking>(.*?)</thinking>";
@@ -3916,11 +3919,11 @@ namespace ContinueVS.ViewModels
                             "[gap68-setting-applied] Thinking message created but hidden per user setting");
                     }
 
-                    return (thinkingMessage, cleanedResponse);
+                    return Task.FromResult((ThinkingMessage: (ChatMessage?)thinkingMessage, ResponseContent: cleanedResponse));
                 }
             }
 
-            return (null, responseContent);
+            return Task.FromResult((ThinkingMessage: (ChatMessage?)null, ResponseContent: responseContent));
         }
 
         /// <summary>

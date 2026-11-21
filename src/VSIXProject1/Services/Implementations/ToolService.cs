@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -540,7 +540,7 @@ namespace ContinueVS.Services.Implementations
 
                     for (int i = 0; i < lines.Length && results.Count < maxResults; i++)
                     {
-                        if (lines[i].Contains(query, StringComparison.OrdinalIgnoreCase))
+                        if (lines[i].IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             results.Add(new CodeSearchResult
                             {
@@ -603,19 +603,19 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Invokes a tool provided by an MCP server.
         /// </summary>
-        public async Task<ToolResult> InvokeMcpToolAsync(
+        public Task<ToolResult> InvokeMcpToolAsync(
             string serverId,
             string toolName,
             IDictionary<string, object> args)
         {
             if (string.IsNullOrEmpty(serverId))
-                return CreateErrorResult(toolName, "MCP server ID cannot be null or empty");
+                return Task.FromResult(CreateErrorResult(toolName, "MCP server ID cannot be null or empty"));
 
             if (string.IsNullOrEmpty(toolName))
-                return CreateErrorResult(toolName, "Tool name cannot be null or empty");
+                return Task.FromResult(CreateErrorResult(toolName, "Tool name cannot be null or empty"));
 
             if (_mcpService == null)
-                return CreateErrorResult(toolName, "MCP service is not available");
+                return Task.FromResult(CreateErrorResult(toolName, "MCP service is not available"));
 
             try
             {
@@ -628,7 +628,7 @@ namespace ContinueVS.Services.Implementations
                     IsSuccess = false
                 };
 
-                return result;
+                return Task.FromResult(result);
             }
             catch (Exception ex)
             {
@@ -640,7 +640,7 @@ namespace ContinueVS.Services.Implementations
                 };
 
                 Error?.Invoke(this, errorArgs);
-                return CreateErrorResult(toolName, ex.Message);
+                return Task.FromResult(CreateErrorResult(toolName, ex.Message));
             }
         }
 
@@ -1591,18 +1591,18 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Internal wrapper for create_rule_block.
         /// </summary>
-        private async Task<ToolResult> CreateRuleBlockInternalAsync(string name, string rule)
+        private Task<ToolResult> CreateRuleBlockInternalAsync(string name, string rule)
         {
             try
             {
                 if (string.IsNullOrEmpty(name))
-                    return CreateErrorResult("create_rule_block", "name cannot be null or empty");
+                    return Task.FromResult(CreateErrorResult("create_rule_block", "name cannot be null or empty"));
 
                 if (string.IsNullOrEmpty(rule))
-                    return CreateErrorResult("create_rule_block", "rule cannot be null or empty");
+                    return Task.FromResult(CreateErrorResult("create_rule_block", "rule cannot be null or empty"));
 
                 // Stub implementation - would save to a rules registry
-                return new ToolResult
+                return Task.FromResult(new ToolResult
                 {
                     ToolName = "create_rule_block",
                     Output = $"Rule '{name}' created successfully",
@@ -1612,32 +1612,32 @@ namespace ContinueVS.Services.Implementations
                         { "ruleName", name },
                         { "ruleLength", rule.Length.ToString() }
                     }
-                };
+                });
             }
             catch (Exception ex)
             {
-                return CreateErrorResult("create_rule_block", ex.Message);
+                return Task.FromResult(CreateErrorResult("create_rule_block", ex.Message));
             }
         }
 
         /// <summary>
         /// Internal wrapper for run_pytest.
         /// </summary>
-        private async Task<ToolResult> RunPytestInternalAsync(string testPath)
+        private Task<ToolResult> RunPytestInternalAsync(string testPath)
         {
             try
             {
                 // Stub - pytest not integrated with .NET projects
-                return new ToolResult
+                return Task.FromResult(new ToolResult
                 {
                     ToolName = "run_pytest",
                     Output = "pytest is not available in this .NET project",
                     IsSuccess = false
-                };
+                });
             }
             catch (Exception ex)
             {
-                return CreateErrorResult("run_pytest", ex.Message);
+                return Task.FromResult(CreateErrorResult("run_pytest", ex.Message));
             }
         }
 
@@ -1807,18 +1807,18 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Internal wrapper for create_snippet.
         /// </summary>
-        private async Task<ToolResult> CreateSnippetInternalAsync(string name, string code)
+        private Task<ToolResult> CreateSnippetInternalAsync(string name, string code)
         {
             try
             {
                 if (string.IsNullOrEmpty(name))
-                    return CreateErrorResult("create_snippet", "name cannot be null or empty");
+                    return Task.FromResult(CreateErrorResult("create_snippet", "name cannot be null or empty"));
 
                 if (string.IsNullOrEmpty(code))
-                    return CreateErrorResult("create_snippet", "code cannot be null or empty");
+                    return Task.FromResult(CreateErrorResult("create_snippet", "code cannot be null or empty"));
 
                 // Stub implementation - would save to a snippets registry
-                return new ToolResult
+                return Task.FromResult(new ToolResult
                 {
                     ToolName = "create_snippet",
                     Output = $"Snippet '{name}' created successfully",
@@ -1828,11 +1828,11 @@ namespace ContinueVS.Services.Implementations
                         { "snippetName", name },
                         { "codeLength", code.Length.ToString() }
                     }
-                };
+                });
             }
             catch (Exception ex)
             {
-                return CreateErrorResult("create_snippet", ex.Message);
+                return Task.FromResult(CreateErrorResult("create_snippet", ex.Message));
             }
         }
 

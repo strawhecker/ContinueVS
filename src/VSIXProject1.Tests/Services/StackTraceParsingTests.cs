@@ -97,7 +97,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task CanParse_DotNetFramework_DetectsFormat()
+        public void CanParse_DotNetFramework_DetectsFormat()
         {
             var trace = "  at Method() in file.cs:line 5";
 
@@ -107,7 +107,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task CanParse_InvalidFormat_ReturnsFalse()
+        public void CanParse_InvalidFormat_ReturnsFalse()
         {
             var trace = "Random text";
 
@@ -199,7 +199,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task CppNative_CanParse_DetectsCppFormat()
+        public void CppNative_CanParse_DetectsCppFormat()
         {
             var trace = "0x401020 kernel32!CreateProcessA [kernel32.dll:1000]";
 
@@ -209,7 +209,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task CppNative_CanParse_RejectsNonCppFormat()
+        public void CppNative_CanParse_RejectsNonCppFormat()
         {
             var trace = "System.Exception: Error\r\n  at Method() in file.cs:line 42";
 

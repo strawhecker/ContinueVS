@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -247,23 +247,25 @@ namespace ContinueVS.Services.Implementations
 
         public bool IsPaused => _isPaused;
 
-        public async Task SetPausedAsync(bool paused)
+        public Task SetPausedAsync(bool paused)
         {
             _isPaused = paused;
             if (_logger != null)
                 _logger?.WriteDebug($"InstructionExecutorService.SetPausedAsync: pause state set to {paused}");
+            return Task.CompletedTask;
         }
 
-        public async Task SetPauseCheckpointAsync(PauseCheckpoint checkpoint)
+        public Task SetPauseCheckpointAsync(PauseCheckpoint checkpoint)
         {
             _currentPauseCheckpoint = checkpoint;
             if (_logger != null)
                 _logger?.WriteDebug($"InstructionExecutorService.SetPauseCheckpointAsync: checkpoint stored with {checkpoint.ChunkCount} chunks");
+            return Task.CompletedTask;
         }
 
-        public async Task<PauseCheckpoint?> GetPauseCheckpointAsync()
+        public Task<PauseCheckpoint?> GetPauseCheckpointAsync()
         {
-            return _currentPauseCheckpoint;
+            return Task.FromResult(_currentPauseCheckpoint);
         }
 
         public void ClearPauseCheckpoint()

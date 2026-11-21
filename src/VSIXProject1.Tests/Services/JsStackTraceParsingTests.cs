@@ -84,7 +84,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task CanParse_NodeJsFormat_ReturnsTrue()
+        public void CanParse_NodeJsFormat_ReturnsTrue()
         {
             var trace = "at Function.Module._resolveFilename (loader.js:902:15)";
 
@@ -94,7 +94,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task CanParse_BrowserFormat_ReturnsTrue()
+        public void CanParse_BrowserFormat_ReturnsTrue()
         {
             var trace = "at Object.foo (https://example.com/app.js:45:12)";
 
@@ -104,7 +104,7 @@ namespace ContinueVS.Tests.Services
         }
 
         [Fact]
-        public async Task CanParse_InvalidText_ReturnsFalse()
+        public void CanParse_InvalidText_ReturnsFalse()
         {
             var trace = "This is just random text with no stack trace";
 

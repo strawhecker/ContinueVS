@@ -24,7 +24,7 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
             _promptService = promptService;
         }
 
-        public async Task<InternalPhaseExecution> ExecuteAsync(
+        public Task<InternalPhaseExecution> ExecuteAsync(
             InternalPhase phase,
             ChangeStack changeStack,
             string targetDir,
@@ -41,13 +41,13 @@ namespace ContinueVS.Services.Implementations.PhaseExecutors
             if (_logger != null)
                 _logger?.WriteDebug($"AnalysisPhaseExecutor: executing phase '{phase.Id}' - {phase.Description}");
 
-            return new InternalPhaseExecution
+            return Task.FromResult(new InternalPhaseExecution
             {
                 Strategy = "Analysis",
                 Result = "Completed",
                 ChangesAppliedCount = 0,
                 ExecutedAt = DateTime.Now
-            };
+            });
         }
     }
 }

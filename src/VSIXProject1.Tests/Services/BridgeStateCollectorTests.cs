@@ -304,7 +304,7 @@ namespace VSIXProject1.Tests.Services
         /// Test: Snapshot validation works correctly.
         /// </summary>
         [Fact]
-        public async Task BridgeStateSnapshot_Validate_EnforcesConstraints()
+        public void BridgeStateSnapshot_Validate_EnforcesConstraints()
         {
             var validSnapshot = new BridgeStateSnapshot
             {
