@@ -2216,6 +2216,13 @@ namespace ContinueVS.ViewModels
                     // This ensures the LLM sees the full context: [System, User, Assistant(toolCalls=[...]), Tool(result1), Tool(result2), ...]
                     if (_pendingToolCalls.Count > 0)
                     {
+                        // gap99: the literal Thinking entry for this turn precedes its Assistant
+                        // tool-call message (same order as persisted). DeepSeek thinking mode
+                        // rejects a tool-call follow-up without reasoning_content (HTTP 400).
+                        if (keepReasoning)
+                        {
+                            messages.Add(reasoningMessage!);
+                        }
                         messages.Add(assistantMessage);
                         LoggerService.Current.WriteDebug($"[gap78-context] Added assistant message with {assistantMessage.ToolCalls?.Count ?? 0} tool calls to LLM context");
                     }
@@ -3658,7 +3665,7 @@ namespace ContinueVS.ViewModels
                                     IsExpanded = false
                                 };
 
-                                await _sessionService.AddMessageAsync(thinkingMessage);
+                                // Persisted at stream completion (IsDone), once Content is fully accumulated.
                                 LoggerService.Current.WriteDebug($"[continuation] Thinking message created for reasoning accumulation");
                             }
 
@@ -3699,6 +3706,16 @@ namespace ContinueVS.ViewModels
                                     {
                                         toolCall = ConvertToolCallSchemaManually(toolCallSchema);
                                     }
+                                    // Validate before queuing, mirroring the initial streaming path.
+                                    if (toolCall == null || string.IsNullOrWhiteSpace(toolCall.Name))
+                                    {
+                                        LoggerService.Current.WriteWarning(
+                                            $"[gap78-continuation-convert] Skipping incomplete tool call: Name is null or empty (id={toolCall?.Id})");
+                                        continue;
+                                    }
+
+                                    // Without this, continuation tool calls are parsed but never executed.
+                                    _pendingToolCalls.Add(toolCall);
                                     LoggerService.Current.WriteDebug(
                                         $"[gap78-continuation-toolcall] Queued tool: {toolCall.Name} (id={toolCall.Id})");
                                 }
@@ -3719,19 +3736,26 @@ namespace ContinueVS.ViewModels
                     {
                         // Check if completion chunk has tool calls (from ToolCallsText aggregation)
                         // Note: in Ollama path, tool calls are accumulated via aggregator and stored in _pendingToolCalls
+
+                        // Persist reasoning with its full Content so it can be replayed as reasoning_content.
+                        // Must precede the assistant turn so session order is Thinking -> Assistant -> Tool.
+                        if (thinkingMessage != null)
+                        {
+                            await _sessionService.AddMessageAsync(thinkingMessage);
+                        }
+
                         if (_pendingToolCalls.Count > 0)
                         {
-                            // Add the continuation text (if any) as assistant message
-                            if (!string.IsNullOrEmpty(continuation.ToString()))
+                            // Persist the assistant tool-call turn BEFORE its role=tool results.
+                            // It must carry ToolCalls even when there is no text, or the next request has orphaned tool messages.
+                            var continuationMsg = new ChatMessage
                             {
-                                var continuationMsg = new ChatMessage
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    Role = ChatMessageRole.Assistant,
-                                    Content = continuation.ToString()
-                                };
-                                await _sessionService.AddMessageAsync(continuationMsg);
-                            }
+                                Id = Guid.NewGuid().ToString(),
+                                Role = ChatMessageRole.Assistant,
+                                Content = continuation.ToString(),
+                                ToolCalls = new List<ToolCall>(_pendingToolCalls)
+                            };
+                            await _sessionService.AddMessageAsync(continuationMsg);
 
                             // Another round of tool calls - execute them from _pendingToolCalls
                             var moreResults = new List<ToolResult>();
@@ -3751,6 +3775,8 @@ namespace ContinueVS.ViewModels
                                     LoggerService.Current.WriteDebug(
                                         $"[gap78-continuation-execute] Executing tool={toolCall.Name}, id={toolCall.Id}");
                                     var result = await _toolService.InvokeAsync(toolCall.Name, toolCall.Arguments ?? new Dictionary<string, object>(), ct);
+                                    // Correlate the result to its originating call (same as the first-round path).
+                                    result.ToolCallId = toolCall.Id;
                                     moreResults.Add(result);
                                 }
                                 catch (Exception toolEx)

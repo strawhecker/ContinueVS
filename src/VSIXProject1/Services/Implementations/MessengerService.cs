@@ -14,6 +14,7 @@ using ContinueVS.Core.Types;
 using ContinueVS.Services;
 using ContinueVS.Services.Interfaces;
 using ContinueVS.Services.Exceptions;
+using ContinueVS.Services.Utilities;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -212,9 +213,13 @@ namespace ContinueVS.Services.Implementations
         {
             // Convert ChatMessage array to message list with role/content
             var messages = new List<Dictionary<string, object>>();
+            // Reasoning captured from a ChatMessageRole.Thinking entry, awaiting the assistant turn it belongs to.
+            string? pendingReasoning = null;
             if (options.Messages != null)
             {
-                foreach (var msg in options.Messages)
+                // gap99: send only live, complete, ordered Assistant tool request / Tool result pairs.
+                // Deleted or superseded members drop the whole pair; orphans are dropped silently.
+                foreach (var msg in ToolCallPairing.FilterPairs(options.Messages))
                 {
                     // gap80: soft-delete tombstone exclusion. Messages marked IsDeleted
                     // (deduped duplicate reads / user-pruned in gap81) are excluded from the
@@ -226,6 +231,24 @@ namespace ContinueVS.Services.Implementations
                         continue;
                     if (msg.Role == ChatMessageRole.Tool && msg.FreshnessState == FreshnessState.Superseded)
                         continue;
+
+                    // DeepSeek thinking mode: reasoning is persisted as a UI-only ChatMessageRole.Thinking
+                    // entry and must never be sent as a "user" message. Its text is carried onto the next
+                    // assistant message as reasoning_content (required on tool-call turns, else HTTP 400).
+                    if (msg.Role == ChatMessageRole.Thinking)
+                    {
+                        if (!string.IsNullOrEmpty(msg.Content))
+                        {
+                            pendingReasoning = (pendingReasoning ?? string.Empty) + msg.Content;
+                        }
+                        continue;
+                    }
+
+                    // Reasoning only belongs to the assistant turn that immediately follows it.
+                    if (msg.Role != ChatMessageRole.Assistant)
+                    {
+                        pendingReasoning = null;
+                    }
 
                     var role = msg.Role switch
                     {
@@ -266,6 +289,21 @@ namespace ContinueVS.Services.Implementations
                         msgDict["content"] = contentForPayload;
                     }
 
+                    // Tool results must carry the tool_call_id of the assistant call they answer.
+                    // OpenAI-compatible providers (e.g. DeepSeek) reject tool messages without it (HTTP 422).
+                    // Fail explicitly rather than send a request the provider will reject.
+                    if (msg.Role == ChatMessageRole.Tool)
+                    {
+                        if (string.IsNullOrWhiteSpace(msg.ToolCallId))
+                        {
+                            LoggerService.Current.WriteWarning(
+                                $"[{options.LogPrefix}] Tool result has no ToolCallId; refusing to build OpenAI request.");
+                            throw new LlmException("Tool result has no ToolCallId; cannot build a valid OpenAI-compatible request.");
+                        }
+
+                        msgDict["tool_call_id"] = msg.ToolCallId!;
+                    }
+
                     // gap78-openai-wire: Serialize assistant tool calls back to the model
                     // so it can correlate tool_call_id results to the originating calls.
                     if (msg.Role == ChatMessageRole.Assistant && msg.ToolCalls != null && msg.ToolCalls.Count > 0)
@@ -302,6 +340,20 @@ namespace ContinueVS.Services.Implementations
                     }
 
 
+                    // Replay thinking-mode reasoning on the assistant turn it belongs to.
+                    // DeepSeek thinking mode requires reasoning_content on every assistant turn;
+                    // a turn whose reasoning was empty is replayed literally as "".
+                    bool isDeepSeekThinking = (model.Name ?? string.Empty)
+                        .IndexOf("deepseek", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (msg.Role == ChatMessageRole.Assistant &&
+                        (!string.IsNullOrEmpty(pendingReasoning) || isDeepSeekThinking))
+                    {
+                        msgDict["reasoning_content"] = pendingReasoning ?? string.Empty;
+                        LoggerService.Current.WriteDebug(
+                            $"[{options.LogPrefix}] Attached reasoning_content ({(pendingReasoning ?? string.Empty).Length} chars) to assistant message");
+                        pendingReasoning = null;
+                    }
+
                     messages.Add(msgDict);
                 }
 
@@ -334,6 +386,14 @@ namespace ContinueVS.Services.Implementations
                     requestObj["max_tokens"] = options.MaxTokens.Value;
                 if (options.TopP.HasValue)
                     requestObj["top_p"] = options.TopP.Value;
+
+                // DeepSeek reasoning models: enable thinking at low effort.
+                // Other OpenAI-compatible providers do not receive these fields.
+                if (modelId.IndexOf("deepseek", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    requestObj["thinking"] = new Dictionary<string, object> { { "type", "enabled" } };
+                    requestObj["reasoning_effort"] = "low";
+                }
 
                 // Populate tools filtered by current ChatMode (gap71)
                 // SuppressTools: internal pure-text generators (phase/strategy/hypothesis)
@@ -555,9 +615,9 @@ namespace ContinueVS.Services.Implementations
                 if (delta == null)
                     return null;
 
-                // Support both "content" (OpenAI/vLLM standard) and "reasoning" (DeepSeek reasoning models)
+                // Support "content" (OpenAI/vLLM standard) and "reasoning" or "reasoning_content" (DeepSeek reasoning models)
                 var content = delta["content"]?.Value<string>();
-                var reasoning = delta["reasoning"]?.Value<string>();
+                var reasoning = delta["reasoning"]?.Value<string>() ?? delta["reasoning_content"]?.Value<string>();
 
                 // Extract tool_calls from delta if present (gap70: tool streaming)
                 string? toolCallsText = null;
@@ -701,7 +761,8 @@ namespace ContinueVS.Services.Implementations
             var ollamaMessages = new List<OllamaMessage>();
             if (options.Messages != null)
             {
-                foreach (var msg in options.Messages)
+                // gap99: send only live, complete, ordered Assistant tool request / Tool result pairs.
+                foreach (var msg in ToolCallPairing.FilterPairs(options.Messages))
                 {
                     // gap80: soft-delete tombstone exclusion (see OpenAI path).
                     // gap80_1: Superseded tool results behave like tombstones and are excluded;
@@ -709,6 +770,11 @@ namespace ContinueVS.Services.Implementations
                     if (msg.IsDeleted)
                         continue;
                     if (msg.Role == ChatMessageRole.Tool && msg.FreshnessState == FreshnessState.Superseded)
+                        continue;
+
+                    // gap99: Ollama's message schema has no reasoning field. Thinking is never
+                    // re-labelled as another role; it is simply not sent on this wire.
+                    if (msg.Role == ChatMessageRole.Thinking)
                         continue;
 
                     var role = msg.Role switch

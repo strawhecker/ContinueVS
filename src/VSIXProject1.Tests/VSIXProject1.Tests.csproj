@@ -36,6 +36,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\VSIXProject1\VSIXProject1.csproj" />
   </ItemGroup>
 

@@ -404,6 +404,100 @@ namespace ContinueVS.Tests.Integration
         }
 
         /// <summary>
+        /// gap99 regression: the tool-loop follow-up request must contain the literal Thinking
+        /// entry immediately before its Assistant tool-call message, followed by the matching
+        /// Tool result (DeepSeek thinking mode rejects the follow-up otherwise, HTTP 400).
+        /// </summary>
+        [Fact]
+        public async Task AgentMode_ToolLoopFollowUp_ContainsThinkingThenAssistantThenMatchingToolResult()
+        {
+            // Arrange
+            var viewModel = CreateChatPageViewModelWithMocks();
+            await viewModel.InitializeAsync();
+            viewModel.CurrentMode = ChatMode.Agent;
+
+            var toolCall = new ToolCall
+            {
+                Id = "call_1",
+                Name = "read_file",
+                Arguments = new Dictionary<string, object> { { "path", "/test.txt" } }
+            };
+
+            var firstChunks = new List<CompletionChunk>
+            {
+                new CompletionChunk { Type = ChunkType.Text, Reasoning = "I need the file" },
+                new CompletionChunk { Type = ChunkType.ToolCall, ToolCallsText = BuildToolCallFragment(0, toolCall), DoneReason = "tool_calls" }
+            };
+            var continuationChunks = new List<CompletionChunk>
+            {
+                new CompletionChunk { Type = ChunkType.Text, Content = "Done" },
+                new CompletionChunk { Type = ChunkType.Done, IsDone = true }
+            };
+
+            var syncRoot = new object();
+            List<ChatMessage>? followUpSnapshot = null;
+            int callCount = 0;
+            _mockLlmService.Setup(x => x.StreamAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<StreamOptions>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((IEnumerable<ChatMessage> msgs, StreamOptions? opts, CancellationToken ct) =>
+                {
+                    lock (syncRoot)
+                    {
+                        callCount++;
+                        if (callCount == 1)
+                            return GenerateChunksAsync(firstChunks, ct);
+
+                        // Snapshot: the view model keeps appending to the same list.
+                        if (followUpSnapshot == null)
+                            followUpSnapshot = msgs.ToList();
+                        return GenerateChunksAsync(continuationChunks, ct);
+                    }
+                });
+
+            _mockToolService.Setup(x => x.InvokeAsync(
+                "read_file",
+                It.IsAny<IDictionary<string, object>>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ToolResult
+                {
+                    ToolName = "read_file",
+                    Output = "File contents here",
+                    IsSuccess = true,
+                    Timestamp = DateTime.Now
+                });
+
+            // Act
+            viewModel.InputText = "Read /test.txt";
+            Assert.True(viewModel.SendMessageCommand.CanExecute(null));
+            viewModel.SendMessageCommand.Execute(null);
+            await AsyncTestHelper.WaitForAsync(
+                () => { lock (syncRoot) { return followUpSnapshot != null; } },
+                timeoutMs: TestConstants.LongTimeoutMs);
+
+            // Assert
+            List<ChatMessage> sent;
+            lock (syncRoot) { sent = followUpSnapshot!; }
+
+            int thinkingIndex = sent.FindIndex(m => m.Role == ChatMessageRole.Thinking);
+            Assert.True(thinkingIndex >= 0, "Follow-up context must contain the Thinking entry");
+            Assert.Equal("I need the file", sent[thinkingIndex].Content);
+
+            var assistant = sent[thinkingIndex + 1];
+            Assert.Equal(ChatMessageRole.Assistant, assistant.Role);
+            Assert.NotNull(assistant.ToolCalls);
+            // gap80: the aggregator replaces the provider id with a deterministic own id,
+            // so correlate request -> result by equality rather than the literal "call_1".
+            var requestId = Assert.Single(assistant.ToolCalls!).Id;
+            Assert.False(string.IsNullOrWhiteSpace(requestId));
+
+            var tool = sent[thinkingIndex + 2];
+            Assert.Equal(ChatMessageRole.Tool, tool.Role);
+            Assert.Equal(requestId, tool.ToolCallId);
+        }
+
+        /// <summary>
         /// Scenario 4: Write tools policy enforcement.
         /// Verify that mode config restricts write tools appropriately.
         /// </summary>

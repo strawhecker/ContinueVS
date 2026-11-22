@@ -11948,3 +11948,154 @@ SupportedModes. Verified by the new mode-gating tests (Agent excludes the 5, Deb
 **Tests:** New DebuggerInteropLifecycleTests (10), ToolServiceDebugLifecycleTests (13 lifecycle routing +
 mode gating); updated BuiltInToolsTests (34->39 + 5 definition tests + disabled-count-13),
 ToolServiceTests (26 available all-modes / 21 Agent), FakeDebugger.Stop made a real no-op + StopCalls counter.
+
+---
+
+### gap99: DeepSeek `reasoning_content` Replay + Atomic Tool Request/Result Pairing
+**Status:** ✅ Implemented | Type: Provider Wire-Protocol Bug Fix | Blocking: None |
+
+**Symptom (debugger-confirmed):**
+`LlmException` → `HttpRequestException`, DeepSeek HTTP 400:
+`The reasoning_content in the thinking mode must be passed back to the API.`
+Raised on the 2nd request of an Agent tool loop. Live state: `[User, Thinking(254 chars), Assistant(ToolCalls=[tc-08DF47F5EB3698C6-00-0000, tc-08DF47F5EB3698C6-00-0001]), Tool(...0000), Tool(...0001)]` in the UI; the in-flight `messages` list sent to the LLM was missing the Thinking entry.
+
+**Root cause:**
+1. `ChatPageViewModel.ExecuteSendMessage` persists the surviving `reasoningMessage`, but on a tool-call turn adds only `assistantMessage` to the in-flight `messages` list (`if (_pendingToolCalls.Count > 0) { messages.Add(assistantMessage); }`). The OpenAI serializer therefore has no Thinking entry to replay as `reasoning_content` on that assistant turn.
+2. The serializers drop a deleted/superseded **Tool result** but still send its **Assistant tool request** → an orphan `tool_call` with no result (invalid request). A Tool result with no `ToolCallId` throws `LlmException` instead of being dropped.
+3. `SessionService.PackageMessages` keeps only User/Assistant, so persisted tool-call Assistant messages reach the next turn without their Thinking and without their results.
+
+**Rules (user-decided, binding):**
+- Message order is literal: `Thinking → Assistant(tool_calls) → Tool result(s)` exactly as recorded. Nothing is reordered, merged, invented or elevated.
+- Thinking is **never elevated** to reasoning and never fabricated. The only provider mapping is the existing OpenAI one: a Thinking entry's literal text rides as `reasoning_content` on the Assistant message that immediately follows it.
+- Each tool request (`ToolCall.Id`) is immediately followed by exactly one Tool result (`ToolCallId` == `ToolCall.Id`), in the same order as the calls.
+- **No placeholders.** If the request or the result is deleted (`IsDeleted`) or superseded (`FreshnessState.Superseded`), or the result is missing, **the pair is not sent** (both halves dropped).
+- Tool results with no matching request (orphan, duplicate id, null/empty id) are **dropped silently — no logging**.
+- Old reasoning is the LLM's responsibility. Context fill is handled by the existing beginning-prune (newest-fitting history); the LLM may delete its own content via `retire_from_context` (IsDeleted). No special retention rule for old reasoning.
+
+**Out of scope (do not change):** `_toolCallIterationCount` (recorded bug), gap73 persistence policy (first-path tool results stay UI/in-flight only), gap80_1 lifetime semantics, pruning algorithm, token counter (counts `Content` only), `OllamaMessage` shape (no thinking/reasoning field is added).
+
+---
+
+#### Step 1 — New `src/VSIXProject1/Services/Utilities/ToolCallPairing.cs`
+`public static partial class ToolCallPairing` (ADR-003: partial, < 400 lines), namespace `ContinueVS.Services.Utilities`.
+
+```csharp
+/// Returns a NEW list containing only valid, ordered request/result pairs.
+/// Never mutates the input list or any input ChatMessage. Never creates placeholder results.
+public static List<ChatMessage> FilterPairs(IEnumerable<ChatMessage>? messages)
+```
+
+Algorithm (single forward pass over the input order):
+1. `null` input → empty list.
+2. A message is *dead* when `IsDeleted` or `FreshnessState == FreshnessState.Superseded`.
+3. **Assistant with `ToolCalls.Count > 0`** = a *request group*. Its *result segment* is the contiguous run of `Tool` messages directly following it (ends at the first non-Tool message).
+   - If the Assistant is dead → drop the Assistant, every Tool in its segment, and the contiguous Thinking message(s) immediately preceding it.
+   - Otherwise, for each `ToolCall` in call order: it survives only if its `Id` is non-empty **and** the segment contains a live Tool with `ToolCallId == Id` (first occurrence consumed). A call whose result is dead/missing is dropped together with that result.
+   - Emit: Assistant (original instance when all calls survive; otherwise a shallow copy — `Id`, `Role`, `Content`, `Timestamp`, `FreshnessState`, `ToolCalls` = surviving subset), followed by the consumed results **in call order**.
+   - If no call survives: emit the Assistant without `ToolCalls` only when its `Content` is non-empty (literal prose, nothing invented); otherwise drop the Assistant and its immediately-preceding Thinking message(s).
+   - Unconsumed Tool messages in the segment (duplicates, no id, unknown id) → dropped silently.
+4. **Tool** message not inside a request group's segment → dropped silently.
+5. Everything else (System, User, Thinking, Assistant without tool calls) → emitted unchanged, in order. (Dead non-tool messages are still excluded by the serializers' existing `IsDeleted` check.)
+6. Preceding-Thinking drop uses an output-side look-back: remove trailing Thinking entries already emitted immediately before the dropped Assistant.
+
+#### Step 2 — `src/VSIXProject1/Services/Implementations/MessengerService.cs`
+- **`ProcessOpenAiStreamAsync`**: iterate `ToolCallPairing.FilterPairs(options.Messages)` instead of `options.Messages`. Keep the existing `IsDeleted` / superseded-Tool guards and the existing Thinking → `pendingReasoning` → `reasoning_content` on the next Assistant logic unchanged. The "Tool result has no ToolCallId" throw stays as an invariant guard (unreachable after filtering).
+- **`ProcessOllamaStreamAsync`**: iterate `ToolCallPairing.FilterPairs(options.Messages)`; add `if (msg.Role == ChatMessageRole.Thinking) continue;` so Thinking is no longer sent as a fabricated `user` turn (the `_ => "user"` fallback). No new Ollama field.
+- Context dump (`DumpContextBeforeSendAsync`) receives the filtered list so the dump matches the wire.
+
+#### Step 3 — `src/VSIXProject1/ViewModels/ChatPageViewModel.cs` (`ExecuteSendMessage`)
+In the gap78 block (currently `if (_pendingToolCalls.Count > 0) { messages.Add(assistantMessage); ... }`):
+```csharp
+if (_pendingToolCalls.Count > 0)
+{
+    // gap99: literal recorded order — Thinking (if it survived pruning) precedes its Assistant.
+    if (keepReasoning)
+    {
+        messages.Add(reasoningMessage!);
+    }
+    messages.Add(assistantMessage);
+    ...
+}
+```
+No other change to the loop, tool execution, result collection, or `_toolCallIterationCount`. `ContinueConversationWithOllamaAsync` already persists Thinking → Assistant → Tool in order; it is covered by Step 2's filter.
+
+#### Step 4 — `src/VSIXProject1/Services/Implementations/SessionService.cs` (`PackageMessages`)
+- History filter becomes: `!m.IsDeleted && (Role is User or Assistant or Thinking or Tool)` (System-role UI cards such as `ExecutionImpactMessage` / `LLMQuestionMessage` stay excluded as today).
+- Ordering (`OrderBy(Timestamp)`), duplicate-new-user removal, and the newest-fitting walk with `break` (beginning-prune) are **unchanged**. Thinking and Tool now count toward the budget.
+- Pairs split by the prune boundary or by deletion are resolved at the wire by `ToolCallPairing` (Step 2). No special old-reasoning handling.
+- Update the XML doc comment (history roles + order).
+
+#### Step 5 — Tests (xUnit, Arrange-Act-Assert, < 400 lines per file)
+**New `src/VSIXProject1.Tests/Services/Utilities/ToolCallPairingTests.cs`:**
+- `FilterPairs_CompletePairs_KeptInCallOrder` (results recorded out of order are emitted in call order).
+- `FilterPairs_MissingResult_DropsPair_NoPlaceholder`.
+- `FilterPairs_DeletedResult_DropsPair` / `FilterPairs_SupersededResult_DropsPair`.
+- `FilterPairs_DeletedAssistant_DropsRequestsResultsAndPrecedingThinking`.
+- `FilterPairs_MultiCall_KeepsOnlySurvivingPairs` (copy has subset; original `ToolCalls` untouched).
+- `FilterPairs_NoSurvivingCalls_EmptyContent_DropsAssistantAndThinking`.
+- `FilterPairs_NoSurvivingCalls_WithProse_KeepsAssistantWithoutToolCalls`.
+- `FilterPairs_OrphanDuplicateAndNoIdResults_DroppedSilently`.
+- `FilterPairs_NonToolMessages_PassThroughInOrder` (System/User/Thinking/plain Assistant).
+- `FilterPairs_DoesNotMutateInput` / `FilterPairs_Null_ReturnsEmpty`.
+
+**`src/VSIXProject1.Tests/Services/MessengerServiceOpenAiWireTests.cs`** (existing capturing handler):
+- `OpenAiRequest_ThinkingAssistantToolCallResults_ReplaysReasoningOnToolCallTurn` — the exact failing shape: `[User, Thinking, Assistant(2 calls), Tool, Tool]` → assistant carries `reasoning_content` + both `tool_calls`, followed by both `tool` messages with matching ids.
+- `OpenAiRequest_SupersededResult_RemovesMatchingToolCall`.
+- `OpenAiRequest_DroppedRequest_ThinkingNotAttachedToLaterAssistant`.
+- `OpenAiRequest_ToolResultWithoutId_DroppedNotThrown`.
+- Existing two tests remain unchanged and must pass.
+
+**New `src/VSIXProject1.Tests/Services/MessengerServiceOllamaWireTests.cs`** (capturing handler records every request; assert on the `/api/chat` body; respond with a minimal `done` NDJSON line):
+- `OllamaRequest_ThinkingIsNotSent`.
+- `OllamaRequest_SupersededResult_DropsPair`.
+
+**`src/VSIXProject1.Tests/Services/SessionServiceTests.cs`** (gap34 region):
+- `PackageMessages_IncludesThinkingAndToolInRecordedOrder`.
+- `PackageMessages_ExcludesDeletedThinkingAndTool`.
+- `PackageMessages_OverBudget_PrunesFromBeginning_WithThinkingAndTool`.
+- Update any existing assertion that relied on Thinking/Tool being excluded (verify `SessionServiceContextBudgetTests`, `SessionServiceJsonlTests`, `SessionServicePruneUndeleteGap81Tests`, `ContextRetirementServiceTests`).
+
+**`src/VSIXProject1.Tests/Integration/ChatPageAgentModeE2ETests.cs`:**
+- `AgentMode_ToolLoopFollowUp_SendsThinkingAssistantResultsInOrder` — first `StreamAsync` yields a reasoning chunk + tool-call chunk; snapshot (copy) the message list on the second `StreamAsync` call; assert `[System, User, Thinking, Assistant(ToolCalls ids), Tool(same ids, same order)]`.
+
+#### Step 6 — Build & validate
+1. Fix all warnings.
+2. `dotnet clean ContinueVS.slnx`
+3. `dotnet build ContinueVS.slnx --force`
+4. `dotnet test ContinueVS.slnx` — all green; otherwise fix and retry, do not signal done.
+
+#### Step 7 — Record progress
+Update this gap99 entry: Status → ✅ Implemented, files modified, build/test counts.
+
+**Implementation result (✅ done):**
+- `ToolCallPairing.FilterPairs` (new, `ContinueVS.Services.Utilities`, ~170 lines): single forward pass; a request group = Assistant with `ToolCalls` + its contiguous Tool segment. Calls survive only with a live matching result (first occurrence; duplicate call ids ignored); results emitted in call order; partially surviving Assistant is a shallow copy (input never mutated); no surviving call → prose Assistant kept without `ToolCalls`, else group dropped together with pending preceding Thinking. Deleted tool-call Assistants are processed as groups (not pre-skipped) so their results and Thinking drop with them. Orphan / duplicate / id-less Tool results dropped silently. Pending Thinking is buffered (not look-back removal) and flushed before the next emitted message.
+- `MessengerService`: OpenAI and Ollama paths iterate `ToolCallPairing.FilterPairs(options.Messages)`. OpenAI `reasoning_content` replay unchanged. Ollama skips `ChatMessageRole.Thinking` (no longer sent as fabricated `user`). Existing `IsDeleted` / superseded guards and the OpenAI no-`ToolCallId` invariant throw retained (unreachable after filtering). Context dump still receives `options.Messages` (unchanged).
+- `ChatPageViewModel.ExecuteSendMessage` (gap78 block): `if (keepReasoning) messages.Add(reasoningMessage!);` before `messages.Add(assistantMessage);`.
+- `SessionService.PackageMessages`: history roles = User, Thinking, Assistant, Tool (non-deleted), `OrderBy(Timestamp)`; newest-fitting walk / beginning-prune unchanged; XML doc updated.
+
+**Tests added:**
+- `ToolCallPairingTests` (new): 12 tests — null input, complete pair order, deleted/superseded result, deleted request (+ preceding Thinking), deleted request with prose, missing result (no placeholder), orphan/duplicate/id-less results, partial multi-call copy without input mutation, out-of-order results → call order, prose kept without tool calls, non-tool pass-through.
+- `MessengerServiceOpenAiWireTests`: +4 — DeepSeek follow-up carries `reasoning_content` on tool-call Assistant; deleted result drops request + reasoning; missing result sends neither; orphan/id-less results dropped without throwing.
+- `MessengerServiceOllamaWireTests` (new): 4 — Thinking not sent; complete pair in order with ids; superseded result drops pair; orphan dropped.
+- `SessionServiceTests`: +3 — Thinking/Tool included in timestamp order; deleted Thinking/Tool excluded; Thinking/Tool count toward budget and prune from beginning.
+- `ChatPageAgentModeE2ETests`: +1 — `AgentMode_ToolLoopFollowUp_ContainsThinkingThenAssistantThenMatchingToolResult` (snapshot of 2nd `StreamAsync` call; ids compared by equality because `ToolCallAggregator` assigns deterministic own ids, gap80).
+
+**Validation:** Build clean (TreatWarningsAsErrors). Targeted: ToolCallPairing 12/12, SessionService 35/35, AgentMode E2E 5/5, OpenAI wire 6/6, Ollama wire 4/4. Full `VSIXProject1.Tests` project: **1709 passed, 0 failed, 0 skipped**.
+
+**gap99_1 follow-up — empty reasoning turn (✅ fixed):**
+- Runtime finding (debugger, live DeepSeek Agent loop): all tool pairs were correctly ordered/correlated, but the request failed with HTTP 400 `The reasoning_content in the thinking mode must be passed back to the API`. The offending wire message was the last Assistant tool-call turn; its source had **no preceding Thinking** because DeepSeek streamed no reasoning for that turn (`keepReasoning == false` in `ChatPageViewModel`, so nothing persisted), and the serializer only attached `reasoning_content` when a Thinking entry preceded it.
+- Fix: `MessengerService.ProcessOpenAiStreamAsync` — for DeepSeek models (same `model.Name` contains `deepseek` check that enables `thinking`), every Assistant message carries `reasoning_content` = literal pending reasoning, or `""` when the turn produced none. Non-DeepSeek providers unchanged (field only when real reasoning exists). No fabricated reasoning text.
+- Tests (`MessengerServiceOpenAiWireTests`, +2): `OpenAiRequest_DeepSeekAssistantWithoutThinking_CarriesEmptyReasoningContent`, `OpenAiRequest_NonDeepSeekAssistantWithoutThinking_OmitsReasoningContent`; `CreateMessenger` takes optional `modelName`. OpenAI wire class: 8/8 passing.
+- Verification: debugger re-run of the DeepSeek Agent tool loop sent 35 tool-loop requests (up to 62 messages) with no HTTP error.
+
+**Files modified:**
+- `src/VSIXProject1/Services/Utilities/ToolCallPairing.cs` (new)
+- `src/VSIXProject1/Services/Implementations/MessengerService.cs`
+- `src/VSIXProject1/ViewModels/ChatPageViewModel.cs`
+- `src/VSIXProject1/Services/Implementations/SessionService.cs`
+- `src/VSIXProject1.Tests/Services/Utilities/ToolCallPairingTests.cs` (new)
+- `src/VSIXProject1.Tests/Services/MessengerServiceOllamaWireTests.cs` (new)
+- `src/VSIXProject1.Tests/Services/MessengerServiceOpenAiWireTests.cs`
+- `src/VSIXProject1.Tests/Services/SessionServiceTests.cs`
+- `src/VSIXProject1.Tests/Integration/ChatPageAgentModeE2ETests.cs`
+- `docs/session-context.md` (this entry)

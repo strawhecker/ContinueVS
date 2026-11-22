@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -778,6 +778,7 @@ namespace ContinueVS.Services.Implementations
         /// <summary>
         /// Packages messages for an LLM send with token-budget-aware history pruning (gap34).
         /// Assembles: [systemMessage] + [oldest-first history that fits budget] + [new user turn].
+        /// History includes live User, Thinking, Assistant, and Tool messages (gap99).
         /// Budget = 80% of model.ContextWindow (fallback 4096). System + new user turn always included.
         /// </summary>
         public List<ChatMessage> PackageMessages(ModelInfo? model, ChatMessage systemMessage, string newUserContent)
@@ -794,10 +795,16 @@ namespace ContinueVS.Services.Implementations
             int newUserTokens = _tokenCountingService.CountMessageTokens(newUserMessage);
             int remainingBudget = budget - systemTokens - newUserTokens;
 
-            // Retrieve User/Assistant history ordered oldest-first
+            // Retrieve User/Thinking/Assistant/Tool history ordered oldest-first.
+            // gap99: Thinking and Tool are part of the replayed conversation (reasoning_content
+            // replay and tool request/result pairing) and count toward the budget like any turn.
+            // Pruning is unchanged: newest-fitting walk drops from the beginning.
             var session = GetCurrentSession();
             var history = session.Messages
-                .Where(m => !m.IsDeleted && (m.Role == ChatMessageRole.User || m.Role == ChatMessageRole.Assistant))
+                .Where(m => !m.IsDeleted && (m.Role == ChatMessageRole.User ||
+                                             m.Role == ChatMessageRole.Thinking ||
+                                             m.Role == ChatMessageRole.Assistant ||
+                                             m.Role == ChatMessageRole.Tool))
                 .OrderBy(m => m.Timestamp ?? DateTime.MinValue)
                 .ToList();
 

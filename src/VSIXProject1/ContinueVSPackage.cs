@@ -66,13 +66,6 @@ namespace ContinueVS
             // This MUST happen before InitializeAsync is called
             Instance = this;
 
-            // Write to a file immediately to verify this code runs
-            var debugFile = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
-            try
-            {
-                System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] CONSTRUCTOR: Package created, Instance set\n");
-            }
-            catch { }
         }
 
         protected override async Task InitializeAsync(
@@ -112,8 +105,6 @@ namespace ContinueVS
                         var command = new OleMenuCommand(
                             (s, e) =>
                             {
-                                var debugFile = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
-                                try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] HANDLER FIRED: ShowContinuePanel command executed\n"); } catch { }
 
                                 LoggerService.Current.WriteDebug("[CV] [HANDLER] ShowContinuePanel command EXECUTED via OleMenuCommand!");
                                 try
@@ -123,7 +114,6 @@ namespace ContinueVS
                                 }
                                 catch (Exception handlerEx)
                                 {
-                                    try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] HANDLER ERROR: {handlerEx.Message}\n"); } catch { }
                                     LoggerService.Current.WriteError($"[CV] [HANDLER] Exception in command handler: {handlerEx.Message}", handlerEx);
                                 }
                             },
@@ -137,19 +127,15 @@ namespace ContinueVS
                             command.Visible = true;
                         };
 
-                        var debugFile2 = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
-                        try { System.IO.File.AppendAllText(debugFile2, $"[{DateTime.Now:HH:mm:ss.fff}] About to call AddCommand for ShowContinuePanel (sync)...\n"); } catch { }
 
                         LoggerService.Current.WriteDebug("[CV] About to call AddCommand...");
                         cmdService.AddCommand(command);
                         LoggerService.Current.WriteDebug("[CV] AddCommand completed");
 
-                        try { System.IO.File.AppendAllText(debugFile2, $"[{DateTime.Now:HH:mm:ss.fff}] ✓ Command registered (sync)\n"); } catch { }
 
                         // Verify it was actually added
                         var verifyCmd = cmdService.FindCommand(cmdId);
                         LoggerService.Current.WriteDebug($"[CV] Verification: Command now {(verifyCmd != null ? "EXISTS" : "MISSING")} after AddCommand!");
-                        try { System.IO.File.AppendAllText(debugFile2, $"[{DateTime.Now:HH:mm:ss.fff}] Verification: Command {(verifyCmd != null ? "FOUND" : "NOT FOUND")} in service\n"); } catch { }
 
                         CommandsRegistered = true;
                         LoggerService.Current.WriteDebug("[CV] ✓ ShowContinuePanel command registered (OleMenuCommand) via SYNCHRONOUS GetService");
@@ -175,8 +161,6 @@ namespace ContinueVS
                             var command = new OleMenuCommand(
                                 (s, e) =>
                                 {
-                                    var debugFile = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".continueVS", "logs", "DEBUG_Ctrl_Shift_J.txt");
-                                    try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] ASYNC HANDLER FIRED: ShowContinuePanel command executed\n"); } catch { }
 
                                     LoggerService.Current.WriteDebug("[CV] [HANDLER-ASYNC] ShowContinuePanel command EXECUTED via async registration!");
                                     try
@@ -186,7 +170,6 @@ namespace ContinueVS
                                     }
                                     catch (Exception handlerEx)
                                     {
-                                        try { System.IO.File.AppendAllText(debugFile, $"[{DateTime.Now:HH:mm:ss.fff}] ASYNC HANDLER ERROR: {handlerEx.Message}\n"); } catch { }
                                         LoggerService.Current.WriteError($"[CV] [HANDLER-ASYNC] Exception in async command handler: {handlerEx.Message}", handlerEx);
                                     }
                                 },

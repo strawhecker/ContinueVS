@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -733,6 +733,83 @@ namespace VSIXProject1.Tests.Services
             // Assert
             Assert.Equal(2, resultZero.Count);
             Assert.Equal(2, resultNull.Count);
+        }
+
+        [Fact]
+        public async Task PackageMessages_IncludesThinkingAndToolInTimestampOrder()
+        {
+            // Arrange
+            var model = new ModelInfo { ContextWindow = 8192 };
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "sys" };
+            var t0 = DateTime.Now.AddMinutes(-10);
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "Read a.cs", Timestamp = t0 });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Thinking, Content = "need file", Timestamp = t0.AddSeconds(1) });
+            await _sessionService.AddMessageAsync(new ChatMessage
+            {
+                Role = ChatMessageRole.Assistant,
+                Content = string.Empty,
+                ToolCalls = new List<ToolCall> { new ToolCall { Id = "call_1", Name = "read_file" } },
+                Timestamp = t0.AddSeconds(2)
+            });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Tool, Content = "contents", ToolCallId = "call_1", Timestamp = t0.AddSeconds(3) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "done", Timestamp = t0.AddSeconds(4) });
+
+            // Act
+            var result = _sessionService.PackageMessages(model, systemMessage, "next");
+
+            // Assert
+            Assert.Equal(new[]
+            {
+                ChatMessageRole.System,
+                ChatMessageRole.User,
+                ChatMessageRole.Thinking,
+                ChatMessageRole.Assistant,
+                ChatMessageRole.Tool,
+                ChatMessageRole.Assistant,
+                ChatMessageRole.User
+            }, result.Select(m => m.Role));
+            Assert.Equal("need file", result[2].Content);
+            Assert.Equal("call_1", result[4].ToolCallId);
+        }
+
+        [Fact]
+        public async Task PackageMessages_DeletedThinkingAndTool_Excluded()
+        {
+            // Arrange
+            var model = new ModelInfo { ContextWindow = 8192 };
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "sys" };
+            var t0 = DateTime.Now.AddMinutes(-10);
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "Q", Timestamp = t0 });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Thinking, Content = "gone", IsDeleted = true, Timestamp = t0.AddSeconds(1) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Tool, Content = "gone", ToolCallId = "x", IsDeleted = true, Timestamp = t0.AddSeconds(2) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "A", Timestamp = t0.AddSeconds(3) });
+
+            // Act
+            var result = _sessionService.PackageMessages(model, systemMessage, "next");
+
+            // Assert
+            Assert.Equal(4, result.Count);
+            Assert.DoesNotContain(result, m => m.Content == "gone");
+        }
+
+        [Fact]
+        public async Task PackageMessages_ThinkingAndToolCountTowardBudget_PrunedFromBeginning()
+        {
+            // Arrange — the old Thinking/Tool entries are too big to fit; only the recent turn survives.
+            var model = new ModelInfo { ContextWindow = 300 };
+            var systemMessage = new ChatMessage { Role = ChatMessageRole.System, Content = "sys" };
+            var t0 = DateTime.Now.AddMinutes(-10);
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "old Q", Timestamp = t0 });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Thinking, Content = new string('t', 800), Timestamp = t0.AddSeconds(1) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Tool, Content = new string('r', 800), ToolCallId = "c", Timestamp = t0.AddSeconds(2) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.User, Content = "recent Q", Timestamp = t0.AddMinutes(5) });
+            await _sessionService.AddMessageAsync(new ChatMessage { Role = ChatMessageRole.Assistant, Content = "recent A", Timestamp = t0.AddMinutes(6) });
+
+            // Act
+            var result = _sessionService.PackageMessages(model, systemMessage, "new Q");
+
+            // Assert
+            Assert.Equal(new[] { "sys", "recent Q", "recent A", "new Q" }, result.Select(m => m.Content));
         }
 
         #endregion
